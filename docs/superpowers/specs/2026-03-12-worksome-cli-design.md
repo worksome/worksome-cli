@@ -64,7 +64,7 @@ current_profile: default
 - `worksome auth status` — shows current profile, token validity, authenticated user
 - `worksome auth switch <profile>` — switches between profiles
 
-**Precedence:** env var `WORKSOME_API_TOKEN` → CLI flag `--token` → config file profile
+**Precedence (highest to lowest):** CLI flag `--token` → env var `WORKSOME_API_TOKEN` → config file profile
 
 **Security:**
 - Config file created with `0600` permissions
@@ -119,7 +119,21 @@ Uses `vektah/gqlparser/v2` to parse the vendored schema into an IR:
 
 - Queries named `<resource>` (singular) and `<resources>` (plural) define a resource group
 - Mutations matched by prefix: `create<Resource>`, `update<Resource>`, `delete<Resource>`, plus domain verbs (`terminate`, `cancel`, `approve`, etc.)
-- Edge cases handled via `schema/overrides.yaml`
+- Edge cases handled via `schema/overrides.yaml`:
+
+```yaml
+# Force operations into specific resource groups
+resources:
+  bank-details:
+    queries: ["bankDetail"]
+    mutations: ["storeBankDetails"]
+  viewer:
+    queries: ["viewer", "profile"]
+    mutations: []
+# Operations to exclude from CLI generation
+ignore:
+  - "internalDebugQuery"
+```
 
 ### Templates (`internal/codegen/templates/`)
 
@@ -129,6 +143,20 @@ Uses `vektah/gqlparser/v2` to parse the vendored schema into an IR:
 | `queries.go.tmpl` | Client functions: `GetHire()`, `ListHires()`, etc. |
 | `commands.go.tmpl` | Cobra commands wired to client, flags from input fields |
 | `tests.go.tmpl` | Table-driven tests per command with mock HTTP |
+
+### Nullability
+
+- Required fields (`String!`) → Go value type (`string`)
+- Nullable fields (`String`) → Go pointer type (`*string`)
+- Nullable input fields use `omitempty` JSON tags so unset fields are excluded from variables
+- For output types, nil pointers render as empty/`null` in JSON and `—` in table output
+
+### Union & interface types
+
+- GraphQL interfaces → Go interfaces with a marker method `Is<InterfaceName>()`
+- GraphQL unions → same pattern, with concrete types implementing the marker
+- JSON deserialization uses `__typename` field to dispatch to the correct Go struct
+- The codegen always requests `__typename` on interface/union fields
 
 ### Scalar mapping
 
@@ -150,9 +178,24 @@ Uses `vektah/gqlparser/v2` to parse the vendored schema into an IR:
 
 ```bash
 make generate          # parse schema → generate all code
-make sync-schema       # pull latest schema from API introspection or platform repo
+make sync-schema       # pull latest schema from platform repo or introspection
 make sync              # sync-schema + generate
 ```
+
+### Schema sync mechanism
+
+`make sync-schema` supports two modes:
+
+1. **From platform repo (default):** Copies `~/Projects/platform/_schema_dump.graphql` → `schema/schema.graphql`. Requires local access to the platform repo. Used during development.
+2. **From introspection:** Runs a GraphQL introspection query against the live API endpoint using the configured token. Used in CI or when platform repo isn't available. Requires `WORKSOME_API_TOKEN` to be set.
+
+The Makefile target detects which mode to use based on whether the platform repo path exists, with a `SYNC_MODE=introspection|local` override flag.
+
+### Codegen error handling
+
+- Unknown or unsupported schema constructs produce warnings on stderr but don't fail the build
+- Template rendering errors are fatal and report the problematic type/operation name
+- The `make verify-generated` target catches any drift between schema and committed code
 
 ## CLI Command Structure
 
@@ -162,7 +205,8 @@ make sync              # sync-schema + generate
 - `--profile <name>` — config profile
 - `--token <token>` — override token
 - `--endpoint <url>` — override API endpoint
-- `--output json|table|yaml` — force output format
+- `--output json|table` — force output format
+- `--dry-run` — show the GraphQL query and variables without executing (mutations only)
 - `--verbose` — request/response details
 - `--no-color` — disable colored output
 
@@ -198,7 +242,7 @@ worksome viewer
 ### Output formatting
 
 - TTY auto-detection: table for terminal, JSON when piped
-- Explicit override: `--output json|table|yaml`
+- Explicit override: `--output json|table`
 
 ### Autocompletion
 
