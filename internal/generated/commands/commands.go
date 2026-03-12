@@ -22,6 +22,9 @@ func SetClientFactory(f func() (*client.Client, error)) {
 }
 
 func getQuerier() (*queries.Querier, error) {
+	if clientFactory == nil {
+		return nil, fmt.Errorf("client not configured — call SetClientFactory first")
+	}
 	c, err := clientFactory()
 	if err != nil {
 		return nil, err
