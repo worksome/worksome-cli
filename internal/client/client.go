@@ -1,0 +1,230 @@
+package client
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+)
+
+// Client is a GraphQL client that sends queries to a Worksome API endpoint.
+type Client struct {
+	endpoint   string
+	token      string
+	httpClient *http.Client
+	verbose    bool
+}
+
+// Option configures the Client.
+type Option func(*Client)
+
+// WithVerbose enables or disables verbose request/response logging to stderr.
+func WithVerbose(v bool) Option {
+	return func(c *Client) {
+		c.verbose = v
+	}
+}
+
+// WithHTTPClient overrides the default HTTP client used for requests.
+func WithHTTPClient(hc *http.Client) Option {
+	return func(c *Client) {
+		c.httpClient = hc
+	}
+}
+
+// New creates a new GraphQL Client for the given endpoint and bearer token.
+func New(endpoint, token string, opts ...Option) *Client {
+	c := &Client{
+		endpoint:   endpoint,
+		token:      token,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+// graphqlRequest is the JSON body sent to the GraphQL endpoint.
+type graphqlRequest struct {
+	Query     string         `json:"query"`
+	Variables map[string]any `json:"variables,omitempty"`
+}
+
+// graphqlResponse is the top-level JSON envelope returned by the GraphQL endpoint.
+type graphqlResponse struct {
+	Data   json.RawMessage `json:"data"`
+	Errors GraphQLErrors   `json:"errors,omitempty"`
+}
+
+// GraphQLError represents a single error returned by a GraphQL API.
+type GraphQLError struct {
+	Message    string         `json:"message"`
+	Path       []any          `json:"path,omitempty"`
+	Extensions map[string]any `json:"extensions,omitempty"`
+}
+
+// Error implements the error interface.
+func (e GraphQLError) Error() string {
+	return e.Message
+}
+
+// GraphQLErrors is a slice of GraphQLError that implements the error interface.
+type GraphQLErrors []GraphQLError
+
+// Error returns a combined error message from all GraphQL errors.
+func (errs GraphQLErrors) Error() string {
+	msgs := make([]string, len(errs))
+	for i, e := range errs {
+		msgs[i] = e.Message
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// IsAuthError reports whether the errors contain an authentication failure.
+func (errs GraphQLErrors) IsAuthError() bool {
+	for _, e := range errs {
+		if strings.Contains(e.Message, "Unauthenticated") {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAuthError is a convenience helper that checks whether an error is a GraphQL
+// authentication error (i.e. contains "Unauthenticated").
+func IsAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if gqlErrs, ok := err.(GraphQLErrors); ok {
+		return gqlErrs.IsAuthError()
+	}
+	return false
+}
+
+const (
+	maxRetries   = 3
+	baseBackoff  = 1 * time.Second
+	backoffScale = 2
+)
+
+// Execute sends a GraphQL query and unmarshals the response data into result.
+// It retries on transient network errors with exponential backoff (1s, 2s, 4s).
+func (c *Client) Execute(ctx context.Context, query string, variables map[string]any, result any) error {
+	reqBody := graphqlRequest{
+		Query:     query,
+		Variables: variables,
+	}
+
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("marshaling request: %w", err)
+	}
+
+	if c.verbose {
+		log.Printf("[graphql] --> POST %s\n%s", c.endpoint, string(payload))
+	}
+
+	var lastErr error
+	for attempt := range maxRetries {
+		var respBody []byte
+		respBody, lastErr = c.doRequest(ctx, payload)
+		if lastErr != nil {
+			// Don't retry non-transient errors (HTTP status codes, context cancellation).
+			if ctx.Err() != nil {
+				return fmt.Errorf("request cancelled: %w", ctx.Err())
+			}
+			var he *httpError
+			if errors.As(lastErr, &he) {
+				return lastErr
+			}
+			if c.verbose {
+				log.Printf("[graphql] attempt %d/%d failed: %v", attempt+1, maxRetries, lastErr)
+			}
+			backoff := baseBackoff * time.Duration(pow(backoffScale, attempt))
+			select {
+			case <-time.After(backoff):
+				continue
+			case <-ctx.Done():
+				return fmt.Errorf("request cancelled during backoff: %w", ctx.Err())
+			}
+		}
+
+		if c.verbose {
+			log.Printf("[graphql] <-- %s", string(respBody))
+		}
+
+		var gqlResp graphqlResponse
+		if err := json.Unmarshal(respBody, &gqlResp); err != nil {
+			return fmt.Errorf("decoding response: %w", err)
+		}
+
+		if len(gqlResp.Errors) > 0 {
+			return gqlResp.Errors
+		}
+
+		if result != nil && gqlResp.Data != nil {
+			if err := json.Unmarshal(gqlResp.Data, result); err != nil {
+				return fmt.Errorf("decoding data: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+// httpError is a non-retryable error indicating an unexpected HTTP status code.
+type httpError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("unexpected status %d: %s", e.StatusCode, e.Body)
+}
+
+// doRequest performs a single HTTP POST and returns the raw response body.
+func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, &httpError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	return body, nil
+}
+
+// pow computes base^exp for small non-negative integers.
+func pow(base, exp int) int {
+	result := 1
+	for range exp {
+		result *= base
+	}
+	return result
+}

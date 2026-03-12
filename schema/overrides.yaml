@@ -1,0 +1,15 @@
+# Manual resource grouping overrides for operations that don't follow naming conventions.
+resources:
+  viewer:
+    queries: ["viewer", "profile"]
+    mutations: []
+  bank-details:
+    queries: []
+    mutations: ["storeBankDetails"]
+  accounts:
+    queries: ["accounts"]
+    mutations: []
+
+# Operations to exclude from CLI generation (internal, deprecated without replacement, etc.)
+ignore:
+  - "hire"  # deprecated: use createDraftHire
