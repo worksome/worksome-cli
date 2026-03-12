@@ -602,7 +602,72 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 		}
 	}
 
+	// Build selection set from return type
+	op.SelectionSet = p.buildSelectionSet(f.Type, 1)
+
 	return op
+}
+
+// buildSelectionSet generates a GraphQL selection set for a type, selecting all scalar
+// fields and one level of nested object fields (scalar-only).
+func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
+	typeName := unwrapType(t)
+
+	// Check if it's a paginator — select data fields + paginatorInfo
+	if innerType, ok := p.paginators[typeName]; ok {
+		innerDef := p.doc.Types[innerType]
+		if innerDef == nil {
+			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id } }"
+		}
+		dataFields := p.selectScalarFields(innerDef, 1)
+		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
+	}
+
+	// Check if it's a known object type
+	def := p.doc.Types[typeName]
+	if def == nil || def.Kind != ast.Object {
+		return ""
+	}
+
+	fields := p.selectScalarFields(def, depth)
+	if fields == "" {
+		return "{ id }"
+	}
+	return "{ " + fields + " }"
+}
+
+// selectScalarFields returns a space-separated list of scalar field selections for a type.
+// At depth > 0, it also includes one level of nested object scalar fields.
+func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
+	var fields []string
+	for _, f := range def.Fields {
+		if f.Name == "__typename" {
+			continue
+		}
+		innerType := unwrapType(f.Type)
+
+		// Scalar or enum field — always include
+		if knownScalars[innerType] || p.enums[innerType] {
+			fields = append(fields, f.Name)
+			continue
+		}
+
+		// Nested object — include scalar fields if depth allows (max 15 nested fields to keep queries reasonable)
+		if depth > 0 {
+			if nestedDef, ok := p.doc.Types[innerType]; ok && nestedDef.Kind == ast.Object {
+				nestedFields := p.selectScalarFields(nestedDef, 0)
+				if nestedFields != "" {
+					// Limit nested selections to keep query size reasonable
+					parts := strings.Fields(nestedFields)
+					if len(parts) > 8 {
+						parts = parts[:8]
+					}
+					fields = append(fields, f.Name+" { "+strings.Join(parts, " ")+" }")
+				}
+			}
+		}
+	}
+	return strings.Join(fields, " ")
 }
 
 func (p *parser) isSingularGet(f *ast.FieldDefinition) bool {

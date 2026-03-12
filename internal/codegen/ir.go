@@ -27,14 +27,15 @@ type Resource struct {
 
 // Operation represents a single GraphQL query or mutation.
 type Operation struct {
-	Name        string // GraphQL name, e.g., "createJob"
-	GoName      string // PascalCase, e.g., "CreateJob"
-	CLIName     string // kebab-case CLI action, e.g., "create"
-	Description string
-	Type        OperationType
-	Arguments   []Argument
-	ReturnType  TypeRef
-	Deprecated  bool
+	Name             string // GraphQL name, e.g., "createJob"
+	GoName           string // PascalCase, e.g., "CreateJob"
+	CLIName          string // kebab-case CLI action, e.g., "create"
+	Description      string
+	Type             OperationType
+	Arguments        []Argument
+	ReturnType       TypeRef
+	SelectionSet     string // Pre-computed GraphQL selection set for the return type
+	Deprecated       bool
 	DeprecatedReason string
 }
 

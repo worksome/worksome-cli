@@ -256,7 +256,7 @@ func NewQuerier(c *client.Client) *Querier {
 // {{.GetQuery.GoName}} — {{.GetQuery.Description}}
 func (q *Querier) {{.GetQuery.GoName}}(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := ` + "`" + `query {{.GetQuery.GoName}}{{buildQueryArgs .GetQuery.Arguments}} {
-	{{.GetQuery.Name}}{{buildQueryCallArgs .GetQuery.Arguments}} {{buildSelectionHint .GetQuery.ReturnType}}
+	{{.GetQuery.Name}}{{buildQueryCallArgs .GetQuery.Arguments}} {{.GetQuery.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -276,10 +276,7 @@ func (q *Querier) {{.GetQuery.GoName}}(ctx context.Context, vars map[string]any)
 // {{.ListQuery.GoName}} — {{.ListQuery.Description}}
 func (q *Querier) {{.ListQuery.GoName}}(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := ` + "`" + `query {{.ListQuery.GoName}}{{buildQueryArgs .ListQuery.Arguments}} {
-	{{.ListQuery.Name}}{{buildQueryCallArgs .ListQuery.Arguments}} {
-		paginatorInfo { count currentPage hasMorePages lastPage perPage total }
-		data { id }
-	}
+	{{.ListQuery.Name}}{{buildQueryCallArgs .ListQuery.Arguments}} {{.ListQuery.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -294,7 +291,7 @@ func (q *Querier) {{.ListQuery.GoName}}(ctx context.Context, vars map[string]any
 // {{.GoName}} — {{.Description}}
 func (q *Querier) {{.GoName}}(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := ` + "`" + `mutation {{.GoName}}{{buildMutationArgs .Arguments}} {
-	{{.Name}}{{buildMutationCallArgs .Arguments}} {{buildSelectionHint .ReturnType}}
+	{{.Name}}{{buildMutationCallArgs .Arguments}} {{.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
