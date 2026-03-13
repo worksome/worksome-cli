@@ -174,6 +174,96 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("bid") {
+				v, _ := cmd.Flags().GetString("bid")
+				inputObj["bid"] = v
+			}
+			if cmd.Flags().Changed("contact-person") {
+				v, _ := cmd.Flags().GetString("contact-person")
+				inputObj["contactPerson"] = v
+			}
+			if cmd.Flags().Changed("billing-contact-person") {
+				v, _ := cmd.Flags().GetString("billing-contact-person")
+				inputObj["billingContactPerson"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("job-title") {
+				v, _ := cmd.Flags().GetString("job-title")
+				inputObj["jobTitle"] = v
+			}
+			if cmd.Flags().Changed("job-description") {
+				v, _ := cmd.Flags().GetString("job-description")
+				inputObj["jobDescription"] = v
+			}
+			if cmd.Flags().Changed("payment-term-method") {
+				v, _ := cmd.Flags().GetString("payment-term-method")
+				inputObj["paymentTermMethod"] = v
+			}
+			if cmd.Flags().Changed("payment-term-days") {
+				v, _ := cmd.Flags().GetString("payment-term-days")
+				inputObj["paymentTermDays"] = v
+			}
+			if cmd.Flags().Changed("purchase-order-number") {
+				v, _ := cmd.Flags().GetString("purchase-order-number")
+				inputObj["purchaseOrderNumber"] = v
+			}
+			if cmd.Flags().Changed("additional-terms") {
+				v, _ := cmd.Flags().GetString("additional-terms")
+				inputObj["additionalTerms"] = v
+			}
+			if cmd.Flags().Changed("workplace-address") {
+				v, _ := cmd.Flags().GetString("workplace-address")
+				inputObj["workplaceAddress"] = v
+			}
+			if cmd.Flags().Changed("custom-invoice-text") {
+				v, _ := cmd.Flags().GetString("custom-invoice-text")
+				inputObj["customInvoiceText"] = v
+			}
+			if cmd.Flags().Changed("company-name") {
+				v, _ := cmd.Flags().GetString("company-name")
+				inputObj["companyName"] = v
+			}
+			if cmd.Flags().Changed("company-address") {
+				v, _ := cmd.Flags().GetString("company-address")
+				inputObj["companyAddress"] = v
+			}
+			if cmd.Flags().Changed("company-zip-code") {
+				v, _ := cmd.Flags().GetString("company-zip-code")
+				inputObj["companyZipCode"] = v
+			}
+			if cmd.Flags().Changed("company-city") {
+				v, _ := cmd.Flags().GetString("company-city")
+				inputObj["companyCity"] = v
+			}
+			if cmd.Flags().Changed("company-country") {
+				v, _ := cmd.Flags().GetString("company-country")
+				inputObj["companyCountry"] = v
+			}
+			if cmd.Flags().Changed("close-other-conversations") {
+				v, _ := cmd.Flags().GetString("close-other-conversations")
+				inputObj["closeOtherConversations"] = v
+			}
+			if cmd.Flags().Changed("closing-message") {
+				v, _ := cmd.Flags().GetString("closing-message")
+				inputObj["closingMessage"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -187,6 +277,27 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("bid", "", "The ID of the bid which the hire should be based on.")
+	cmd.Flags().String("contact-person", "", "The ID of the person in the company which is responsible for the contact. If not supplied, the currently authenticated user will be used.")
+	cmd.Flags().String("billing-contact-person", "", "The ID of the person in the company which is responsible for the billing. If not supplied, the currently authenticated user will be used.")
+	cmd.Flags().String("start-date", "", "The date that the contract should start. This date is used on the draft contract.")
+	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
+	cmd.Flags().String("job-title", "", "The title of the job the person will be hired to do. If not filled out, the job title from the job of the bid will be used. This title is used on the draft contract.")
+	cmd.Flags().String("job-description", "", "The description of the hire job. If not filled out, the job description from the job of the bid will be used. This title is used on the draft contract.")
+	cmd.Flags().String("payment-term-method", "", "The payment term method for the contract.")
+	cmd.Flags().String("payment-term-days", "", "The amount of days to use with the payment term method for the contract.")
+	cmd.Flags().String("purchase-order-number", "", "The Purchaser Order Number for the contract.")
+	cmd.Flags().String("additional-terms", "", "Any additional terms to the contract. The contract is always subject to the terms and conditions for Worksome's platform.")
+	cmd.Flags().String("workplace-address", "", "The address for where the work will be taken place. This will be part of the contract also. The Address should be a full address, with city and postal code.")
+	cmd.Flags().String("custom-invoice-text", "", "Any text which should be included in all invoices that are part of this hire. This text will be shown on the top of each invoice once they are created.")
+	cmd.Flags().String("company-name", "", "The company name used on the contract. If not set the current company name will be used instead.")
+	cmd.Flags().String("company-address", "", "The company address used on the contract. If not set the current company address will be used instead.")
+	cmd.Flags().String("company-zip-code", "", "The company zip code used on the contract. If not set the current company zip code will be used instead.")
+	cmd.Flags().String("company-city", "", "The company city used on the contract. If not set the current company city will be used instead.")
+	cmd.Flags().String("company-country", "", "The company country used on the contract. If not set the current company country will be used instead.")
+	cmd.Flags().String("close-other-conversations", "", "Close other conversations if true.")
+	cmd.Flags().String("closing-message", "", "Message to send when closing other conversations.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	return cmd
 }
 
@@ -322,6 +433,11 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return approvalapprovablesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.ApprovalApprovables(context.Background(), vars)
 			if err != nil {
 				return err
@@ -329,8 +445,9 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("requires-action", "", "Filter for approval approvables that require actioning.")
 	cmd.Flags().String("requires-action-users", "", "Filter the approval approvable based on users that need to take action.")
@@ -340,6 +457,36 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Order the results by the given field and order.")
 
 	return cmd
+}
+
+func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.ApprovalApprovables(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
@@ -363,6 +510,24 @@ func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			if cmd.Flags().Changed("reason") {
+				v, _ := cmd.Flags().GetString("reason")
+				inputObj["reason"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -376,6 +541,9 @@ func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The field related to the approval rule.")
+	cmd.Flags().String("status", "", "The status given.")
+	cmd.Flags().String("reason", "", "The reason behind the status given.")
 	return cmd
 }
 
@@ -448,6 +616,11 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return approvalrulesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.ApprovalRules(context.Background(), vars)
 			if err != nil {
 				return err
@@ -455,11 +628,42 @@ func newApprovalRulesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval rules based on one or more accounts.")
 
 	return cmd
+}
+
+func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.ApprovalRules(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["approvalRules"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newApprovalRulesCreateCmd() *cobra.Command {
@@ -483,6 +687,16 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("approval") {
+				v, _ := cmd.Flags().GetString("approval")
+				inputObj["approval"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -496,6 +710,7 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("approval", "", "The approval owning this rule.")
 	return cmd
 }
 
@@ -545,6 +760,11 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return approvalstatesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.ApprovalStates(context.Background(), vars)
 			if err != nil {
 				return err
@@ -552,13 +772,44 @@ func newApprovalStatesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states.")
 	cmd.Flags().String("users", "", "Filter the approval approvable based on one or more users.")
 
 	return cmd
+}
+
+func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.ApprovalStates(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["approvalStates"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewApprovalsCmd creates the approvals resource command group.
@@ -635,6 +886,11 @@ func newApprovalsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return approvalsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Approvals(context.Background(), vars)
 			if err != nil {
 				return err
@@ -642,12 +898,43 @@ func newApprovalsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approvals based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search approvals by name or description.")
 
 	return cmd
+}
+
+func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Approvals(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["approvals"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newApprovalsCreateCmd() *cobra.Command {
@@ -671,6 +958,32 @@ func newApprovalsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			if cmd.Flags().Changed("trigger") {
+				v, _ := cmd.Flags().GetString("trigger")
+				inputObj["trigger"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -684,6 +997,11 @@ func newApprovalsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "The name of the approval.")
+	cmd.Flags().String("status", "", "The status of the approval.")
+	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
+	cmd.Flags().String("description", "", "The description of the approval.")
+	cmd.Flags().String("company", "", "The company that the approval is for.")
 	return cmd
 }
 
@@ -708,6 +1026,32 @@ func newApprovalsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			if cmd.Flags().Changed("trigger") {
+				v, _ := cmd.Flags().GetString("trigger")
+				inputObj["trigger"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -721,6 +1065,11 @@ func newApprovalsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The approval to be updated.")
+	cmd.Flags().String("name", "", "The name of the approval.")
+	cmd.Flags().String("status", "", "The status of the approval.")
+	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
+	cmd.Flags().String("description", "", "The description of the approval.")
 	return cmd
 }
 
@@ -798,6 +1147,11 @@ func newApproversListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return approversFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Approvers(context.Background(), vars)
 			if err != nil {
 				return err
@@ -805,12 +1159,43 @@ func newApproversListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approvers based on one or more accounts.")
 	cmd.Flags().String("approval-rule", "", "Filter the approvers based on one approval rule.")
 
 	return cmd
+}
+
+func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Approvers(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["approvers"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newApproversCreateCmd() *cobra.Command {
@@ -834,6 +1219,24 @@ func newApproversCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("approval-rule") {
+				v, _ := cmd.Flags().GetString("approval-rule")
+				inputObj["approvalRule"] = v
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			if cmd.Flags().Changed("position") {
+				v, _ := cmd.Flags().GetInt("position")
+				inputObj["position"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -847,6 +1250,9 @@ func newApproversCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("approval-rule", "", "The approval rule owning the approver.")
+	cmd.Flags().String("user-group", "", "The user group for the approver.")
+	cmd.Flags().Int("position", 0, "The position of the approver in the approval sequence.")
 	return cmd
 }
 
@@ -871,6 +1277,24 @@ func newApproversUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			if cmd.Flags().Changed("position") {
+				v, _ := cmd.Flags().GetString("position")
+				inputObj["position"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -884,6 +1308,9 @@ func newApproversUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The approver to be updated.")
+	cmd.Flags().String("user-group", "", "The user group of the approver.")
+	cmd.Flags().String("position", "", "The position of the approver.")
 	return cmd
 }
 
@@ -920,6 +1347,44 @@ func newBankDetailsCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account-id") {
+				v, _ := cmd.Flags().GetString("account-id")
+				inputObj["accountId"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("bank-address") {
+				v, _ := cmd.Flags().GetString("bank-address")
+				inputObj["bankAddress"] = v
+			}
+			if cmd.Flags().Changed("bank-country") {
+				v, _ := cmd.Flags().GetString("bank-country")
+				inputObj["bankCountry"] = v
+			}
+			if cmd.Flags().Changed("bank-name") {
+				v, _ := cmd.Flags().GetString("bank-name")
+				inputObj["bankName"] = v
+			}
+			if cmd.Flags().Changed("beneficiary-name") {
+				v, _ := cmd.Flags().GetString("beneficiary-name")
+				inputObj["beneficiaryName"] = v
+			}
+			if cmd.Flags().Changed("iban") {
+				v, _ := cmd.Flags().GetString("iban")
+				inputObj["iban"] = v
+			}
+			if cmd.Flags().Changed("swift") {
+				v, _ := cmd.Flags().GetString("swift")
+				inputObj["swift"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -933,6 +1398,14 @@ func newBankDetailsCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("account-id", "", "The account that the bank account is related to.")
+	cmd.Flags().String("name", "", "The display name for this bank account.")
+	cmd.Flags().String("bank-address", "", "The address of this bank account.")
+	cmd.Flags().String("bank-country", "", "The country of this bank account.")
+	cmd.Flags().String("bank-name", "", "The name of this bank account.")
+	cmd.Flags().String("beneficiary-name", "", "The beneficiary name of this bank account.")
+	cmd.Flags().String("iban", "", "The bank account IBAN (if applicable).")
+	cmd.Flags().String("swift", "", "The bank account SWIFT code (if applicable).")
 	return cmd
 }
 
@@ -999,6 +1472,20 @@ func newBatchCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			if cmd.Flags().Changed("type") {
+				v, _ := cmd.Flags().GetString("type")
+				inputObj["type"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1012,6 +1499,8 @@ func newBatchCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("account", "", "The account that the batch is for.")
+	cmd.Flags().String("type", "", "The type of batch to create.")
 	return cmd
 }
 
@@ -1048,6 +1537,24 @@ func newBatchActionRunCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("batch") {
+				v, _ := cmd.Flags().GetString("batch")
+				inputObj["batch"] = v
+			}
+			if cmd.Flags().Changed("action") {
+				v, _ := cmd.Flags().GetString("action")
+				inputObj["action"] = v
+			}
+			if cmd.Flags().Changed("delete-if-emptied") {
+				v, _ := cmd.Flags().GetString("delete-if-emptied")
+				inputObj["deleteIfEmptied"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1061,6 +1568,9 @@ func newBatchActionRunCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
+	cmd.Flags().String("action", "", "The action to perform.")
+	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
 	return cmd
 }
 
@@ -1110,6 +1620,11 @@ func newBatchesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return batchesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Batches(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1117,13 +1632,44 @@ func newBatchesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
 	cmd.Flags().String("types", "", "Only show batches of the specified types.")
 	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses.")
 
 	return cmd
+}
+
+func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Batches(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["batches"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewBidsCmd creates the bids resource command group.
@@ -1202,6 +1748,11 @@ func newBidsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return bidsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Bids(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1209,13 +1760,44 @@ func newBidsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses.")
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().String("accounts", "", "Filter the bid based on one or more accounts.")
 
 	return cmd
+}
+
+func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Bids(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["bids"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewBlockTrustedContactCmd creates the block-trusted-contact resource command group.
@@ -1251,6 +1833,20 @@ func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1264,6 +1860,8 @@ func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the trusted contact to be blocked.")
+	cmd.Flags().String("account", "", "The account performing the block.")
 	return cmd
 }
 
@@ -1335,6 +1933,11 @@ func newClassificationsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return classificationsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Classifications(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1342,11 +1945,42 @@ func newClassificationsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("hire", "", "The ID of the hire to get classifications for")
 
 	return cmd
+}
+
+func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Classifications(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["classifications"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewCompanyCmd creates the company resource command group.
@@ -1486,6 +2120,11 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return companyrecruitersFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.CompanyRecruiters(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1493,8 +2132,9 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by.")
@@ -1504,6 +2144,36 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().String("external-identifiers", "", "Only show company recruiters with the specified external identifier.")
 
 	return cmd
+}
+
+func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.CompanyRecruiters(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newCompanyRecruitersCreateCmd() *cobra.Command {
@@ -1527,6 +2197,44 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("email") {
+				v, _ := cmd.Flags().GetString("email")
+				inputObj["email"] = v
+			}
+			if cmd.Flags().Changed("recruiter-fee") {
+				v, _ := cmd.Flags().GetString("recruiter-fee")
+				inputObj["recruiterFee"] = v
+			}
+			if cmd.Flags().Changed("recruiter-ownership-days") {
+				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				inputObj["recruiterOwnershipDays"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("manages-workers") {
+				v, _ := cmd.Flags().GetString("manages-workers")
+				inputObj["managesWorkers"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1540,6 +2248,14 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the recruiter relationship is for.")
+	cmd.Flags().String("name", "", "The invited recruiter name.")
+	cmd.Flags().String("email", "", "The recruiter email.")
+	cmd.Flags().String("recruiter-fee", "", "The recruiter fee.")
+	cmd.Flags().String("recruiter-ownership-days", "", "The ownership days of the recruiter.")
+	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
+	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -1564,6 +2280,16 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1577,6 +2303,7 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The recruiter relationship to delete.")
 	return cmd
 }
 
@@ -1601,6 +2328,36 @@ func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("recruiter-fee") {
+				v, _ := cmd.Flags().GetString("recruiter-fee")
+				inputObj["recruiterFee"] = v
+			}
+			if cmd.Flags().Changed("recruiter-ownership-days") {
+				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				inputObj["recruiterOwnershipDays"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			if cmd.Flags().Changed("manages-workers") {
+				v, _ := cmd.Flags().GetString("manages-workers")
+				inputObj["managesWorkers"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1614,6 +2371,12 @@ func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The recruiter to invite.")
+	cmd.Flags().String("company", "", "The company inviting the recruiter.")
+	cmd.Flags().String("recruiter-fee", "", "The recruiter fee.")
+	cmd.Flags().String("recruiter-ownership-days", "", "The ownership days of the recruiter.")
+	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
+	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -1638,6 +2401,32 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("recruiter-fee") {
+				v, _ := cmd.Flags().GetString("recruiter-fee")
+				inputObj["recruiterFee"] = v
+			}
+			if cmd.Flags().Changed("recruiter-ownership-days") {
+				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				inputObj["recruiterOwnershipDays"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("manages-workers") {
+				v, _ := cmd.Flags().GetString("manages-workers")
+				inputObj["managesWorkers"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -1651,6 +2440,11 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The recruiter relationship to update.")
+	cmd.Flags().String("recruiter-fee", "", "The updated recruiter fee.")
+	cmd.Flags().String("recruiter-ownership-days", "", "The updated recruiter ownership.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
+	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -1780,6 +2574,11 @@ func newContractsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return contractsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Contracts(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1787,14 +2586,45 @@ func newContractsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
 	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies.")
 	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses.")
 	cmd.Flags().String("location-preferences", "", "Only show contracts with the specified location preferences.")
 
 	return cmd
+}
+
+func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Contracts(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["contracts"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewConversationsCmd creates the conversations resource command group.
@@ -1869,6 +2699,11 @@ func newConversationsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return conversationsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Conversations(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1876,12 +2711,43 @@ func newConversationsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
 	cmd.Flags().String("is-open", "", "If the conversation is open or closed. If not supplied show all conversations.")
 
 	return cmd
+}
+
+func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Conversations(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["conversations"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewCustomFieldsCmd creates the custom-fields resource command group.
@@ -1963,6 +2829,11 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return customfieldsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.CustomFields(context.Background(), vars)
 			if err != nil {
 				return err
@@ -1970,13 +2841,44 @@ func newCustomFieldsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
 
 	return cmd
+}
+
+func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.CustomFields(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["customFields"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newCustomFieldsCreateCmd() *cobra.Command {
@@ -2000,6 +2902,52 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			if cmd.Flags().Changed("field-type") {
+				v, _ := cmd.Flags().GetString("field-type")
+				inputObj["fieldType"] = v
+			}
+			if cmd.Flags().Changed("applies-to") {
+				v, _ := cmd.Flags().GetString("applies-to")
+				inputObj["appliesTo"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			if cmd.Flags().Changed("slug") {
+				v, _ := cmd.Flags().GetString("slug")
+				inputObj["slug"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("visibility") {
+				v, _ := cmd.Flags().GetString("visibility")
+				inputObj["visibility"] = v
+			}
+			if cmd.Flags().Changed("approval") {
+				v, _ := cmd.Flags().GetString("approval")
+				inputObj["approval"] = v
+			}
+			if cmd.Flags().Changed("api-only") {
+				v, _ := cmd.Flags().GetString("api-only")
+				inputObj["apiOnly"] = v
+			}
+			if cmd.Flags().Changed("worker-input-allowed") {
+				v, _ := cmd.Flags().GetString("worker-input-allowed")
+				inputObj["workerInputAllowed"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2013,6 +2961,16 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("account", "", "The account that will own the custom field.")
+	cmd.Flags().String("field-type", "", "The custom field type.")
+	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to.")
+	cmd.Flags().String("title", "", "The title or label of the custom field.")
+	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
+	cmd.Flags().String("description", "", "The description of the custom field.")
+	cmd.Flags().String("visibility", "", "The visibility of the custom field.")
+	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
+	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
+	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
 	return cmd
 }
 
@@ -2037,6 +2995,16 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("custom-field") {
+				v, _ := cmd.Flags().GetString("custom-field")
+				inputObj["customField"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2050,6 +3018,7 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("custom-field", "", "The ID of the custom field to delete.")
 	return cmd
 }
 
@@ -2074,6 +3043,48 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("custom-field") {
+				v, _ := cmd.Flags().GetString("custom-field")
+				inputObj["customField"] = v
+			}
+			if cmd.Flags().Changed("field-type") {
+				v, _ := cmd.Flags().GetString("field-type")
+				inputObj["fieldType"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			if cmd.Flags().Changed("slug") {
+				v, _ := cmd.Flags().GetString("slug")
+				inputObj["slug"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("visibility") {
+				v, _ := cmd.Flags().GetString("visibility")
+				inputObj["visibility"] = v
+			}
+			if cmd.Flags().Changed("approval") {
+				v, _ := cmd.Flags().GetString("approval")
+				inputObj["approval"] = v
+			}
+			if cmd.Flags().Changed("api-only") {
+				v, _ := cmd.Flags().GetString("api-only")
+				inputObj["apiOnly"] = v
+			}
+			if cmd.Flags().Changed("worker-input-allowed") {
+				v, _ := cmd.Flags().GetString("worker-input-allowed")
+				inputObj["workerInputAllowed"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2087,6 +3098,15 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("custom-field", "", "The ID of the custom field to update.")
+	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values.")
+	cmd.Flags().String("title", "", "The title or label of the custom field.")
+	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
+	cmd.Flags().String("description", "", "The description of the custom field.")
+	cmd.Flags().String("visibility", "", "The visibility of the custom field.")
+	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
+	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
+	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
 	return cmd
 }
 
@@ -2123,6 +3143,20 @@ func newCustomTimesheetCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("schema") {
+				v, _ := cmd.Flags().GetString("schema")
+				inputObj["schema"] = v
+			}
+			if cmd.Flags().Changed("data") {
+				v, _ := cmd.Flags().GetString("data")
+				inputObj["data"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2136,6 +3170,8 @@ func newCustomTimesheetCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
+	cmd.Flags().String("data", "", "The custom data for the timesheet.")
 	return cmd
 }
 
@@ -2172,6 +3208,72 @@ func newDraftHireCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("trusted-contact") {
+				v, _ := cmd.Flags().GetString("trusted-contact")
+				inputObj["trustedContact"] = v
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			if cmd.Flags().Changed("rate-type") {
+				v, _ := cmd.Flags().GetString("rate-type")
+				inputObj["rateType"] = v
+			}
+			if cmd.Flags().Changed("rate") {
+				v, _ := cmd.Flags().GetString("rate")
+				inputObj["rate"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("include-standard-contract") {
+				v, _ := cmd.Flags().GetString("include-standard-contract")
+				inputObj["includeStandardContract"] = v
+			}
+			if cmd.Flags().Changed("purchase-order-number") {
+				v, _ := cmd.Flags().GetString("purchase-order-number")
+				inputObj["purchaseOrderNumber"] = v
+			}
+			if cmd.Flags().Changed("conversation") {
+				v, _ := cmd.Flags().GetString("conversation")
+				inputObj["conversation"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("hire-description") {
+				v, _ := cmd.Flags().GetString("hire-description")
+				inputObj["hireDescription"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2185,6 +3287,21 @@ func newDraftHireCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly.")
+	cmd.Flags().String("job", "", "The ID of the job.")
+	cmd.Flags().String("name", "", "The name of the job to bid.")
+	cmd.Flags().String("description", "", "The description of the job to bid.")
+	cmd.Flags().String("message", "", "The message to send the trusted contact.")
+	cmd.Flags().String("rate-type", "", "The rate type that is due.")
+	cmd.Flags().String("rate", "", "The rate that is due.")
+	cmd.Flags().String("start-date", "", "The date that the contract should start. This date is used on the draft contract.")
+	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
+	cmd.Flags().String("include-standard-contract", "", "Whether to include the standard contract. The default is to include a standard contract.")
+	cmd.Flags().String("purchase-order-number", "", "A Purchase Order (PO) number to attribute to the direct hire.")
+	cmd.Flags().String("conversation", "", "The conversation that the direct hire should be attributed to.")
+	cmd.Flags().String("company", "", "The company that the direct hire is for.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
+	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
 	return cmd
 }
 
@@ -2221,6 +3338,20 @@ func newEmailChangeCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user") {
+				v, _ := cmd.Flags().GetString("user")
+				inputObj["user"] = v
+			}
+			if cmd.Flags().Changed("email") {
+				v, _ := cmd.Flags().GetString("email")
+				inputObj["email"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2234,6 +3365,8 @@ func newEmailChangeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
+	cmd.Flags().String("email", "", "The new email for the user.")
 	return cmd
 }
 
@@ -2270,6 +3403,16 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("employment") {
+				v, _ := cmd.Flags().GetString("employment")
+				inputObj["employment"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2283,6 +3426,7 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("employment", "", "The ID of the employment to approve changes for.")
 	return cmd
 }
 
@@ -2403,6 +3547,11 @@ func newEmploymentsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return employmentsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Employments(context.Background(), vars)
 			if err != nil {
 				return err
@@ -2410,8 +3559,9 @@ func newEmploymentsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
 	cmd.Flags().String("status", "", "Filter employments by employment status.")
 	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status.")
@@ -2427,6 +3577,36 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd.Flags().String("previously-hired", "", "Filter by previously hired status.")
 
 	return cmd
+}
+
+func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Employments(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["employments"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
@@ -2450,6 +3630,16 @@ func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("employment") {
+				v, _ := cmd.Flags().GetString("employment")
+				inputObj["employment"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2463,6 +3653,7 @@ func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("employment", "", "The ID of the employment to onboard.")
 	return cmd
 }
 
@@ -2499,6 +3690,36 @@ func newExportCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user-id") {
+				v, _ := cmd.Flags().GetInt("user-id")
+				inputObj["userId"] = v
+			}
+			if cmd.Flags().Changed("impersonator-id") {
+				v, _ := cmd.Flags().GetString("impersonator-id")
+				inputObj["impersonatorId"] = v
+			}
+			if cmd.Flags().Changed("account-id") {
+				v, _ := cmd.Flags().GetInt("account-id")
+				inputObj["accountId"] = v
+			}
+			if cmd.Flags().Changed("account-type") {
+				v, _ := cmd.Flags().GetString("account-type")
+				inputObj["accountType"] = v
+			}
+			if cmd.Flags().Changed("type") {
+				v, _ := cmd.Flags().GetString("type")
+				inputObj["type"] = v
+			}
+			if cmd.Flags().Changed("generator-type") {
+				v, _ := cmd.Flags().GetString("generator-type")
+				inputObj["generatorType"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2512,6 +3733,12 @@ func newExportCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().Int("user-id", 0, "The ID of the user to create an export for.")
+	cmd.Flags().String("impersonator-id", "", "The ID of the impersonator that is creating the export.")
+	cmd.Flags().Int("account-id", 0, "The ID of the account to create an export for.")
+	cmd.Flags().String("account-type", "", "The type of account to create an export for.")
+	cmd.Flags().String("type", "", "The type of processor to use for the export.")
+	cmd.Flags().String("generator-type", "", "The type of generator (format) that is creating the export.")
 	return cmd
 }
 
@@ -2588,6 +3815,11 @@ func newFilesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return filesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Files(context.Background(), vars)
 			if err != nil {
 				return err
@@ -2595,12 +3827,43 @@ func newFilesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("mime-types", "", "Only show files with the given IANA MIME types.")
 
 	return cmd
+}
+
+func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Files(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["files"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newFilesUploadCmd() *cobra.Command {
@@ -2873,6 +4136,11 @@ func newHiresListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return hiresFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Hires(context.Background(), vars)
 			if err != nil {
 				return err
@@ -2880,8 +4148,9 @@ func newHiresListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
 	cmd.Flags().String("status", "", "Filter hires by hire status.")
@@ -2911,6 +4180,36 @@ func newHiresListCmd() *cobra.Command {
 	return cmd
 }
 
+func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Hires(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["hires"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
+}
+
 func newHiresCancelHireCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel-hire",
@@ -2932,6 +4231,20 @@ func newHiresCancelHireCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2945,6 +4258,8 @@ func newHiresCancelHireCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
+	cmd.Flags().String("message", "", "The reason for canceling the hire.")
 	return cmd
 }
 
@@ -2969,6 +4284,20 @@ func newHiresRejectHireCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -2982,6 +4311,8 @@ func newHiresRejectHireCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("account", "", "The account that is rejecting the hire.")
+	cmd.Flags().String("hire", "", "The ID of the hire to be rejected.")
 	return cmd
 }
 
@@ -3006,6 +4337,20 @@ func newHiresShareHireCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3019,6 +4364,8 @@ func newHiresShareHireCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
+	cmd.Flags().String("message", "", "Optional message to include when sharing the hire.")
 	return cmd
 }
 
@@ -3043,6 +4390,32 @@ func newHiresTerminateHireCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("reason") {
+				v, _ := cmd.Flags().GetString("reason")
+				inputObj["reason"] = v
+			}
+			if cmd.Flags().Changed("comments") {
+				v, _ := cmd.Flags().GetString("comments")
+				inputObj["comments"] = v
+			}
+			if cmd.Flags().Changed("date") {
+				v, _ := cmd.Flags().GetString("date")
+				inputObj["date"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3056,6 +4429,11 @@ func newHiresTerminateHireCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
+	cmd.Flags().String("reason", "", "The reason for terminating a hire.")
+	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
+	cmd.Flags().String("date", "", "The date that the termination should take effect.")
+	cmd.Flags().String("message", "", "An optional message to the worker.")
 	return cmd
 }
 
@@ -3123,6 +4501,11 @@ func newIndustriesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return industriesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Industries(context.Background(), vars)
 			if err != nil {
 				return err
@@ -3130,10 +4513,41 @@ func newIndustriesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 
 	return cmd
+}
+
+func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Industries(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["industries"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewInheritedCustomFieldsCmd creates the inherited-custom-fields resource command group.
@@ -3182,6 +4596,11 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return inheritedcustomfieldsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.InheritedCustomFields(context.Background(), vars)
 			if err != nil {
 				return err
@@ -3189,13 +4608,44 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
 
 	return cmd
+}
+
+func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.InheritedCustomFields(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewInternalBudgetOnJobCmd creates the internal-budget-on-job resource command group.
@@ -3231,6 +4681,20 @@ func newInternalBudgetOnJobSetCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("amount") {
+				v, _ := cmd.Flags().GetFloat64("amount")
+				inputObj["amount"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3244,6 +4708,8 @@ func newInternalBudgetOnJobSetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "The job that the budget is for.")
+	cmd.Flags().Float64("amount", 0, "The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.")
 	return cmd
 }
 
@@ -3280,6 +4746,16 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3293,6 +4769,7 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -3432,6 +4909,11 @@ func newInvoicesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return invoicesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Invoices(context.Background(), vars)
 			if err != nil {
 				return err
@@ -3439,8 +4921,9 @@ func newInvoicesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Only show invoices which have the supplied status.")
 	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types.")
@@ -3450,6 +4933,36 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date.")
 
 	return cmd
+}
+
+func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Invoices(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["invoices"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewJobCandidatePreferredCmd creates the job-candidate-preferred resource command group.
@@ -3485,6 +4998,20 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job-candidate") {
+				v, _ := cmd.Flags().GetString("job-candidate")
+				inputObj["jobCandidate"] = v
+			}
+			if cmd.Flags().Changed("is-preferred") {
+				v, _ := cmd.Flags().GetBool("is-preferred")
+				inputObj["isPreferred"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3498,6 +5025,8 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
+	cmd.Flags().Bool("is-preferred", false, "Whether the candidate is preferred or not.")
 	return cmd
 }
 
@@ -3534,6 +5063,32 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job-candidate") {
+				v, _ := cmd.Flags().GetString("job-candidate")
+				inputObj["jobCandidate"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			if cmd.Flags().Changed("status-reason") {
+				v, _ := cmd.Flags().GetString("status-reason")
+				inputObj["statusReason"] = v
+			}
+			if cmd.Flags().Changed("status-comment") {
+				v, _ := cmd.Flags().GetString("status-comment")
+				inputObj["statusComment"] = v
+			}
+			if cmd.Flags().Changed("feedback") {
+				v, _ := cmd.Flags().GetString("feedback")
+				inputObj["feedback"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3547,6 +5102,11 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
+	cmd.Flags().String("status", "", "The status to update the job candidate to.")
+	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
+	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
+	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
 	return cmd
 }
 
@@ -3635,6 +5195,11 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return jobcandidatesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.JobCandidates(context.Background(), vars)
 			if err != nil {
 				return err
@@ -3642,8 +5207,9 @@ func newJobCandidatesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
 	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses.")
 	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps.")
@@ -3651,6 +5217,36 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
+}
+
+func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.JobCandidates(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["jobCandidates"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newJobCandidatesCreateCmd() *cobra.Command {
@@ -3674,6 +5270,20 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("sourcing-channel") {
+				v, _ := cmd.Flags().GetString("sourcing-channel")
+				inputObj["sourcingChannel"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3687,6 +5297,8 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "The job for which the candidates are for.")
+	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
 	return cmd
 }
 
@@ -3723,6 +5335,20 @@ func newJobFromProjectDetachCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("project") {
+				v, _ := cmd.Flags().GetString("project")
+				inputObj["project"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3736,6 +5362,8 @@ func newJobFromProjectDetachCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "Jobs to be detached from the project.")
+	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
 }
 
@@ -3791,6 +5419,11 @@ func newJobSharesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return jobsharesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.JobShares(context.Background(), vars)
 			if err != nil {
 				return err
@@ -3798,14 +5431,45 @@ func newJobSharesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
 	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts.")
 	cmd.Flags().String("is-active", "", "Whether the job share is active.")
 	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction.")
 
 	return cmd
+}
+
+func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.JobShares(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["jobShares"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newJobSharesCreateCmd() *cobra.Command {
@@ -3829,6 +5493,16 @@ func newJobSharesCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -3842,6 +5516,7 @@ func newJobSharesCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "The job that the job share is for.")
 	return cmd
 }
 
@@ -4058,6 +5733,11 @@ func newJobsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return jobsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Jobs(context.Background(), vars)
 			if err != nil {
 				return err
@@ -4065,8 +5745,9 @@ func newJobsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
 	cmd.Flags().String("owners", "", "Only show jobs owned by specific users.")
 	cmd.Flags().String("markets", "", "Only show jobs in the specified markets.")
@@ -4098,6 +5779,36 @@ func newJobsListCmd() *cobra.Command {
 	return cmd
 }
 
+func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Jobs(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["jobs"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
+}
+
 func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -4119,6 +5830,20 @@ func newJobsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4132,6 +5857,8 @@ func newJobsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the job is for.")
+	cmd.Flags().String("name", "", "The name of the job.")
 	return cmd
 }
 
@@ -4156,6 +5883,20 @@ func newJobsDuplicateJobCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4169,6 +5910,8 @@ func newJobsDuplicateJobCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the job to duplicate.")
+	cmd.Flags().String("title", "", "Optional title for the duplicated job. If not provided, the original job title will be used with \"[Copy]\" prepended.")
 	return cmd
 }
 
@@ -4193,6 +5936,20 @@ func newJobsEndJobCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("account-id") {
+				v, _ := cmd.Flags().GetString("account-id")
+				inputObj["accountId"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4206,6 +5963,8 @@ func newJobsEndJobCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the job.")
+	cmd.Flags().String("account-id", "", "The ID of the account performing the action.")
 	return cmd
 }
 
@@ -4230,6 +5989,80 @@ func newJobsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("locale") {
+				v, _ := cmd.Flags().GetString("locale")
+				inputObj["locale"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("association") {
+				v, _ := cmd.Flags().GetString("association")
+				inputObj["association"] = v
+			}
+			if cmd.Flags().Changed("payment-scheme") {
+				v, _ := cmd.Flags().GetString("payment-scheme")
+				inputObj["paymentScheme"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("start-date-timeframe") {
+				v, _ := cmd.Flags().GetString("start-date-timeframe")
+				inputObj["startDateTimeframe"] = v
+			}
+			if cmd.Flags().Changed("end-date-timeframe") {
+				v, _ := cmd.Flags().GetString("end-date-timeframe")
+				inputObj["endDateTimeframe"] = v
+			}
+			if cmd.Flags().Changed("is-extension-available") {
+				v, _ := cmd.Flags().GetString("is-extension-available")
+				inputObj["isExtensionAvailable"] = v
+			}
+			if cmd.Flags().Changed("evaluation-period") {
+				v, _ := cmd.Flags().GetString("evaluation-period")
+				inputObj["evaluationPeriod"] = v
+			}
+			if cmd.Flags().Changed("required-workers") {
+				v, _ := cmd.Flags().GetString("required-workers")
+				inputObj["requiredWorkers"] = v
+			}
+			if cmd.Flags().Changed("published") {
+				v, _ := cmd.Flags().GetString("published")
+				inputObj["published"] = v
+			}
+			if cmd.Flags().Changed("removed") {
+				v, _ := cmd.Flags().GetString("removed")
+				inputObj["removed"] = v
+			}
+			if cmd.Flags().Changed("removed-cause") {
+				v, _ := cmd.Flags().GetString("removed-cause")
+				inputObj["removedCause"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4243,6 +6076,23 @@ func newJobsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the job.")
+	cmd.Flags().String("locale", "", "An optional locale for the job. If set, skills and industries will use the locale's spelling.")
+	cmd.Flags().String("name", "", "The name of the job.")
+	cmd.Flags().String("description", "", "The description required for the job.")
+	cmd.Flags().String("association", "", "The project type of the job.")
+	cmd.Flags().String("payment-scheme", "", "The payment scheme that the job will use.")
+	cmd.Flags().String("start-date", "", "The start date of the job. If this is set to `null`, we will assume that the job should start as soon as possible.")
+	cmd.Flags().String("end-date", "", "The end date of the job. If this is set to `null`, we will assume that the job's end date is undetermined.")
+	cmd.Flags().String("start-date-timeframe", "", "The timeframe of the job start.")
+	cmd.Flags().String("end-date-timeframe", "", "The timeframe of the job end.")
+	cmd.Flags().String("is-extension-available", "", "If the job will extend.")
+	cmd.Flags().String("evaluation-period", "", "The period of time required to reply to candidates.")
+	cmd.Flags().String("required-workers", "", "The number of required workers.")
+	cmd.Flags().String("published", "", "Whether the job should be published. Note: Job publication cannot be undone.")
+	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
+	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
 	return cmd
 }
 
@@ -4279,6 +6129,16 @@ func newJobsToProjectAttachCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("project") {
+				v, _ := cmd.Flags().GetString("project")
+				inputObj["project"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4292,6 +6152,7 @@ func newJobsToProjectAttachCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
 }
 
@@ -4370,6 +6231,11 @@ func newMilestonesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return milestonesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Milestones(context.Background(), vars)
 			if err != nil {
 				return err
@@ -4377,12 +6243,43 @@ func newMilestonesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("hires", "", "Only show milestones for the specified hires.")
 
 	return cmd
+}
+
+func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Milestones(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["milestones"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newMilestonesCreateCmd() *cobra.Command {
@@ -4569,6 +6466,11 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return multifactorsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.MultiFactors(context.Background(), vars)
 			if err != nil {
 				return err
@@ -4576,12 +6478,43 @@ func newMultiFactorsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on.")
 	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on.")
 
 	return cmd
+}
+
+func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.MultiFactors(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["multiFactors"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
@@ -4605,6 +6538,16 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4618,6 +6561,7 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the multi-factor authentication implementation to remove.")
 	return cmd
 }
 
@@ -4656,6 +6600,28 @@ func newNoteCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("body") {
+				v, _ := cmd.Flags().GetString("body")
+				inputObj["body"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			if cmd.Flags().Changed("account-id") {
+				v, _ := cmd.Flags().GetString("account-id")
+				inputObj["accountId"] = v
+			}
+			if cmd.Flags().Changed("notable-id") {
+				v, _ := cmd.Flags().GetString("notable-id")
+				inputObj["notableId"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4669,6 +6635,10 @@ func newNoteCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("body", "", "The body of the note.")
+	cmd.Flags().String("title", "", "The title of the note.")
+	cmd.Flags().String("account-id", "", "The account that the note is related to.")
+	cmd.Flags().String("notable-id", "", "The entity that the note is for.")
 	return cmd
 }
 
@@ -4693,6 +6663,16 @@ func newNoteDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4706,6 +6686,7 @@ func newNoteDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the note to be deleted.")
 	return cmd
 }
 
@@ -4730,6 +6711,24 @@ func newNoteUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("body") {
+				v, _ := cmd.Flags().GetString("body")
+				inputObj["body"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4743,6 +6742,9 @@ func newNoteUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the note to be updated.")
+	cmd.Flags().String("body", "", "The body of the note to be updated.")
+	cmd.Flags().String("title", "", "The title of the note to be updated.")
 	return cmd
 }
 
@@ -4780,6 +6782,16 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4793,6 +6805,7 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
 }
 
@@ -4817,6 +6830,16 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -4830,6 +6853,7 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
 }
 
@@ -5010,6 +7034,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return organisationtrustedcontactsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.OrganisationTrustedContacts(context.Background(), vars)
 			if err != nil {
 				return err
@@ -5017,8 +7046,9 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -5039,6 +7069,36 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
+}
+
+func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.OrganisationTrustedContacts(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewPartnerCmd creates the partner resource command group.
@@ -5116,6 +7176,16 @@ func newPasswordCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("password") {
+				v, _ := cmd.Flags().GetString("password")
+				inputObj["password"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5129,6 +7199,7 @@ func newPasswordCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("password", "", "The password which will be set on the user.")
 	return cmd
 }
 
@@ -5153,6 +7224,24 @@ func newPasswordUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("current-password") {
+				v, _ := cmd.Flags().GetString("current-password")
+				inputObj["currentPassword"] = v
+			}
+			if cmd.Flags().Changed("password") {
+				v, _ := cmd.Flags().GetString("password")
+				inputObj["password"] = v
+			}
+			if cmd.Flags().Changed("password-confirmation") {
+				v, _ := cmd.Flags().GetString("password-confirmation")
+				inputObj["passwordConfirmation"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5166,6 +7255,9 @@ func newPasswordUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("current-password", "", "The current password for the user.")
+	cmd.Flags().String("password", "", "The new password for the user.")
+	cmd.Flags().String("password-confirmation", "", "The confirmation of the password for the user.")
 	return cmd
 }
 
@@ -5324,6 +7416,11 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return paymentrequestsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.PaymentRequests(context.Background(), vars)
 			if err != nil {
 				return err
@@ -5331,8 +7428,9 @@ func newPaymentRequestsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
 	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies.")
 	cmd.Flags().String("has-purchase-order-number", "", "Only show payment requests that have a Purchase Order number.")
@@ -5359,6 +7457,36 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	return cmd
 }
 
+func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.PaymentRequests(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["paymentRequests"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
+}
+
 func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -5380,6 +7508,56 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("worker") {
+				v, _ := cmd.Flags().GetString("worker")
+				inputObj["worker"] = v
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("rate") {
+				v, _ := cmd.Flags().GetString("rate")
+				inputObj["rate"] = v
+			}
+			if cmd.Flags().Changed("billable-time") {
+				v, _ := cmd.Flags().GetString("billable-time")
+				inputObj["billableTime"] = v
+			}
+			if cmd.Flags().Changed("billable-total") {
+				v, _ := cmd.Flags().GetString("billable-total")
+				inputObj["billableTotal"] = v
+			}
+			if cmd.Flags().Changed("comments") {
+				v, _ := cmd.Flags().GetString("comments")
+				inputObj["comments"] = v
+			}
+			if cmd.Flags().Changed("timesheet") {
+				v, _ := cmd.Flags().GetString("timesheet")
+				inputObj["timesheet"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5393,6 +7571,17 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("worker", "", "The worker that is creating the payment request.")
+	cmd.Flags().String("job", "", "The job that the payment request is for.")
+	cmd.Flags().String("company", "", "The company that the payment request is for.")
+	cmd.Flags().String("hire", "", "The hire that the payment request is for.")
+	cmd.Flags().String("start-date", "", "The date that the payment request started.")
+	cmd.Flags().String("end-date", "", "The date that the payment request ended (if applicable).")
+	cmd.Flags().String("rate", "", "The rate for the payment request.")
+	cmd.Flags().String("billable-time", "", "The billable time for the payment request.")
+	cmd.Flags().String("billable-total", "", "The billable total for the payment request.")
+	cmd.Flags().String("comments", "", "Comments related to the payment request.")
+	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	return cmd
 }
 
@@ -5417,6 +7606,16 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5430,6 +7629,7 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the payment request to delete.")
 	return cmd
 }
 
@@ -5454,6 +7654,48 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("rate") {
+				v, _ := cmd.Flags().GetString("rate")
+				inputObj["rate"] = v
+			}
+			if cmd.Flags().Changed("billable-time") {
+				v, _ := cmd.Flags().GetString("billable-time")
+				inputObj["billableTime"] = v
+			}
+			if cmd.Flags().Changed("billable-total") {
+				v, _ := cmd.Flags().GetString("billable-total")
+				inputObj["billableTotal"] = v
+			}
+			if cmd.Flags().Changed("comments") {
+				v, _ := cmd.Flags().GetString("comments")
+				inputObj["comments"] = v
+			}
+			if cmd.Flags().Changed("timesheet") {
+				v, _ := cmd.Flags().GetString("timesheet")
+				inputObj["timesheet"] = v
+			}
+			if cmd.Flags().Changed("purchase-order-number") {
+				v, _ := cmd.Flags().GetString("purchase-order-number")
+				inputObj["purchaseOrderNumber"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5467,6 +7709,15 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the payment request to update.")
+	cmd.Flags().String("start-date", "", "The date that the payment request started.")
+	cmd.Flags().String("end-date", "", "The date that the payment request ended (if applicable).")
+	cmd.Flags().String("rate", "", "The rate for the payment request.")
+	cmd.Flags().String("billable-time", "", "The billable time for the payment request.")
+	cmd.Flags().String("billable-total", "", "The billable total for the payment request.")
+	cmd.Flags().String("comments", "", "Comments related to the payment request.")
+	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
+	cmd.Flags().String("purchase-order-number", "", "The purchase order number for the payment request.")
 	return cmd
 }
 
@@ -5503,6 +7754,16 @@ func newPersonalInviteLinkGenerateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5516,6 +7777,7 @@ func newPersonalInviteLinkGenerateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -5608,6 +7870,11 @@ func newProjectsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return projectsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Projects(context.Background(), vars)
 			if err != nil {
 				return err
@@ -5615,8 +7882,9 @@ func newProjectsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search between projects by budget, name, description and job name.")
 	cmd.Flags().String("status", "", "Only show projects which have the supplied status.")
@@ -5624,6 +7892,36 @@ func newProjectsListCmd() *cobra.Command {
 	cmd.Flags().String("external-identifiers", "", "Only show projects with the specified external identifier.")
 
 	return cmd
+}
+
+func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Projects(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["projects"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newProjectsCreateCmd() *cobra.Command {
@@ -5647,6 +7945,32 @@ func newProjectsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("internal-budget") {
+				v, _ := cmd.Flags().GetString("internal-budget")
+				inputObj["internalBudget"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5660,6 +7984,11 @@ func newProjectsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "The name of the project.")
+	cmd.Flags().String("description", "", "The description of the project.")
+	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
+	cmd.Flags().String("company", "", "The company that the project is for.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
 }
 
@@ -5684,6 +8013,16 @@ func newProjectsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5697,6 +8036,7 @@ func newProjectsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
 
@@ -5721,6 +8061,16 @@ func newProjectsEndProjectCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5734,6 +8084,7 @@ func newProjectsEndProjectCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
 
@@ -5758,6 +8109,16 @@ func newProjectsOpenProjectCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5771,6 +8132,7 @@ func newProjectsOpenProjectCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
 
@@ -5795,6 +8157,32 @@ func newProjectsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("internal-budget") {
+				v, _ := cmd.Flags().GetString("internal-budget")
+				inputObj["internalBudget"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5808,6 +8196,11 @@ func newProjectsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the project.")
+	cmd.Flags().String("name", "", "The name of the project.")
+	cmd.Flags().String("description", "", "The description of the project.")
+	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
 }
 
@@ -5890,6 +8283,11 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return recruitercandidatesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.RecruiterCandidates(context.Background(), vars)
 			if err != nil {
 				return err
@@ -5897,13 +8295,44 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Supply to filter for status.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 
 	return cmd
+}
+
+func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.RecruiterCandidates(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newRecruiterCandidatesCreateCmd() *cobra.Command {
@@ -5927,6 +8356,52 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("recruiter") {
+				v, _ := cmd.Flags().GetString("recruiter")
+				inputObj["recruiter"] = v
+			}
+			if cmd.Flags().Changed("first-name") {
+				v, _ := cmd.Flags().GetString("first-name")
+				inputObj["firstName"] = v
+			}
+			if cmd.Flags().Changed("middle-name") {
+				v, _ := cmd.Flags().GetString("middle-name")
+				inputObj["middleName"] = v
+			}
+			if cmd.Flags().Changed("last-name") {
+				v, _ := cmd.Flags().GetString("last-name")
+				inputObj["lastName"] = v
+			}
+			if cmd.Flags().Changed("email") {
+				v, _ := cmd.Flags().GetString("email")
+				inputObj["email"] = v
+			}
+			if cmd.Flags().Changed("job-title") {
+				v, _ := cmd.Flags().GetString("job-title")
+				inputObj["jobTitle"] = v
+			}
+			if cmd.Flags().Changed("currency") {
+				v, _ := cmd.Flags().GetString("currency")
+				inputObj["currency"] = v
+			}
+			if cmd.Flags().Changed("hourly-rate") {
+				v, _ := cmd.Flags().GetString("hourly-rate")
+				inputObj["hourlyRate"] = v
+			}
+			if cmd.Flags().Changed("daily-rate") {
+				v, _ := cmd.Flags().GetString("daily-rate")
+				inputObj["dailyRate"] = v
+			}
+			if cmd.Flags().Changed("monthly-rate") {
+				v, _ := cmd.Flags().GetString("monthly-rate")
+				inputObj["monthlyRate"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5940,6 +8415,16 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("recruiter", "", "The recruiter that the recruiter candidate relationship is for.")
+	cmd.Flags().String("first-name", "", "The invited candidate first name")
+	cmd.Flags().String("middle-name", "", "The invited candidate middle name")
+	cmd.Flags().String("last-name", "", "The invited candidate last name")
+	cmd.Flags().String("email", "", "The candidate email.")
+	cmd.Flags().String("job-title", "", "The candidate job title.")
+	cmd.Flags().String("currency", "", "The candidates currency.")
+	cmd.Flags().String("hourly-rate", "", "The hourly rate of the candidate.")
+	cmd.Flags().String("daily-rate", "", "The daily rate of the candidate.")
+	cmd.Flags().String("monthly-rate", "", "The monthly rate of the candidate.")
 	return cmd
 }
 
@@ -5964,6 +8449,16 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -5977,6 +8472,7 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The recruiter candidate relationship to delete.")
 	return cmd
 }
 
@@ -6001,6 +8497,36 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("job-title") {
+				v, _ := cmd.Flags().GetString("job-title")
+				inputObj["jobTitle"] = v
+			}
+			if cmd.Flags().Changed("currency") {
+				v, _ := cmd.Flags().GetString("currency")
+				inputObj["currency"] = v
+			}
+			if cmd.Flags().Changed("hourly-rate") {
+				v, _ := cmd.Flags().GetString("hourly-rate")
+				inputObj["hourlyRate"] = v
+			}
+			if cmd.Flags().Changed("daily-rate") {
+				v, _ := cmd.Flags().GetString("daily-rate")
+				inputObj["dailyRate"] = v
+			}
+			if cmd.Flags().Changed("monthly-rate") {
+				v, _ := cmd.Flags().GetString("monthly-rate")
+				inputObj["monthlyRate"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6014,6 +8540,12 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The recruiter relationship to update.")
+	cmd.Flags().String("job-title", "", "The job title to update.")
+	cmd.Flags().String("currency", "", "The currency to update.")
+	cmd.Flags().String("hourly-rate", "", "The hourly rate to update.")
+	cmd.Flags().String("daily-rate", "", "The daily rate to update.")
+	cmd.Flags().String("monthly-rate", "", "The monthly rate to update.")
 	return cmd
 }
 
@@ -6050,6 +8582,16 @@ func newRecruiterFromHireRemoveCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6063,6 +8605,7 @@ func newRecruiterFromHireRemoveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
 	return cmd
 }
 
@@ -6099,6 +8642,32 @@ func newRecruiterToHireAttributeCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("recruiter") {
+				v, _ := cmd.Flags().GetString("recruiter")
+				inputObj["recruiter"] = v
+			}
+			if cmd.Flags().Changed("fee") {
+				v, _ := cmd.Flags().GetString("fee")
+				inputObj["fee"] = v
+			}
+			if cmd.Flags().Changed("ownership-days") {
+				v, _ := cmd.Flags().GetInt("ownership-days")
+				inputObj["ownershipDays"] = v
+			}
+			if cmd.Flags().Changed("ownership-start-date") {
+				v, _ := cmd.Flags().GetString("ownership-start-date")
+				inputObj["ownershipStartDate"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6112,6 +8681,11 @@ func newRecruiterToHireAttributeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
+	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
+	cmd.Flags().String("fee", "", "The fee the recruiter is taking as a percentage.")
+	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in.")
+	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
 	return cmd
 }
 
@@ -6153,6 +8727,11 @@ func newRecruitersListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return recruitersFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Recruiters(context.Background(), vars)
 			if err != nil {
 				return err
@@ -6160,11 +8739,42 @@ func newRecruitersListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("search", "", "The search value used to search recruiters.")
 
 	return cmd
+}
+
+func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Recruiters(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["recruiters"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewReinviteTrustedContactCmd creates the reinvite-trusted-contact resource command group.
@@ -6200,6 +8810,16 @@ func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6213,6 +8833,7 @@ func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the Trusted Contact to re-invite. (Note, this is different from the Worker ID)")
 	return cmd
 }
 
@@ -6262,6 +8883,11 @@ func newSkillsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return skillsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Skills(context.Background(), vars)
 			if err != nil {
 				return err
@@ -6269,13 +8895,44 @@ func newSkillsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
 	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
+}
+
+func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Skills(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["skills"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewSmsMultiFactorCmd creates the sms-multi-factor resource command group.
@@ -6312,6 +8969,16 @@ func newSmsMultiFactorCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6325,6 +8992,7 @@ func newSmsMultiFactorCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "An optional name for the SMS multi-factor authentication implementation.")
 	return cmd
 }
 
@@ -6349,6 +9017,20 @@ func newSmsMultiFactorVerifyCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("code") {
+				v, _ := cmd.Flags().GetString("code")
+				inputObj["code"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6362,6 +9044,8 @@ func newSmsMultiFactorVerifyCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the SMS multi-factor authentication implementation to verify.")
+	cmd.Flags().String("code", "", "The current SMS authentication code to verify the implementation with.")
 	return cmd
 }
 
@@ -6399,6 +9083,16 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6412,6 +9106,7 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the timesheet registration to delete.")
 	return cmd
 }
 
@@ -6436,6 +9131,48 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("start-time") {
+				v, _ := cmd.Flags().GetString("start-time")
+				inputObj["startTime"] = v
+			}
+			if cmd.Flags().Changed("end-time") {
+				v, _ := cmd.Flags().GetString("end-time")
+				inputObj["endTime"] = v
+			}
+			if cmd.Flags().Changed("duration") {
+				v, _ := cmd.Flags().GetString("duration")
+				inputObj["duration"] = v
+			}
+			if cmd.Flags().Changed("unit") {
+				v, _ := cmd.Flags().GetString("unit")
+				inputObj["unit"] = v
+			}
+			if cmd.Flags().Changed("comments") {
+				v, _ := cmd.Flags().GetString("comments")
+				inputObj["comments"] = v
+			}
+			if cmd.Flags().Changed("invoice-reference-number") {
+				v, _ := cmd.Flags().GetString("invoice-reference-number")
+				inputObj["invoiceReferenceNumber"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("is-billable") {
+				v, _ := cmd.Flags().GetString("is-billable")
+				inputObj["isBillable"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6449,6 +9186,15 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the timesheet registration to update.")
+	cmd.Flags().String("start-time", "", "The start time of the timesheet registration.")
+	cmd.Flags().String("end-time", "", "The end time of the timesheet registration.")
+	cmd.Flags().String("duration", "", "The duration of the timesheet registration.")
+	cmd.Flags().String("unit", "", "The unit of measurement for the timesheet registration.")
+	cmd.Flags().String("comments", "", "The comments for the timesheet registration.")
+	cmd.Flags().String("invoice-reference-number", "", "The invoice reference number associated with the timesheet registration.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
+	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
 	return cmd
 }
 
@@ -6523,6 +9269,11 @@ func newTimesheetsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return timesheetsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Timesheets(context.Background(), vars)
 			if err != nil {
 				return err
@@ -6530,11 +9281,42 @@ func newTimesheetsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
 
 	return cmd
+}
+
+func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Timesheets(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["timesheets"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newTimesheetsCreateCmd() *cobra.Command {
@@ -6558,6 +9340,28 @@ func newTimesheetsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("worker") {
+				v, _ := cmd.Flags().GetString("worker")
+				inputObj["worker"] = v
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6571,6 +9375,10 @@ func newTimesheetsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("worker", "", "The worker that the timesheet is for.")
+	cmd.Flags().String("hire", "", "The hire that the timesheet is for.")
+	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
+	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
 	return cmd
 }
 
@@ -6595,6 +9403,16 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6608,6 +9426,7 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the timesheet to delete.")
 	return cmd
 }
 
@@ -6632,6 +9451,24 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6645,6 +9482,9 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the timesheet to update.")
+	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
+	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
 	return cmd
 }
 
@@ -6682,6 +9522,16 @@ func newTotpMultiFactorCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6695,6 +9545,7 @@ func newTotpMultiFactorCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "An optional name for the TOTP multi-factor authentication implementation.")
 	return cmd
 }
 
@@ -6719,6 +9570,20 @@ func newTotpMultiFactorVerifyCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("code") {
+				v, _ := cmd.Flags().GetString("code")
+				inputObj["code"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6732,6 +9597,8 @@ func newTotpMultiFactorVerifyCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the TOTP multi-factor authentication implementation to verify.")
+	cmd.Flags().String("code", "", "The current TOTP authentication code to verify the implementation with.")
 	return cmd
 }
 
@@ -6879,6 +9746,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return trustedcontactsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.TrustedContacts(context.Background(), vars)
 			if err != nil {
 				return err
@@ -6886,8 +9758,9 @@ func newTrustedContactsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -6911,6 +9784,36 @@ func newTrustedContactsListCmd() *cobra.Command {
 	return cmd
 }
 
+func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.TrustedContacts(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["trustedContacts"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
+}
+
 func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approve-trusted-contact",
@@ -6932,6 +9835,16 @@ func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6945,6 +9858,7 @@ func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
 	return cmd
 }
 
@@ -6969,6 +9883,64 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("first-name") {
+				v, _ := cmd.Flags().GetString("first-name")
+				inputObj["firstName"] = v
+			}
+			if cmd.Flags().Changed("middle-name") {
+				v, _ := cmd.Flags().GetString("middle-name")
+				inputObj["middleName"] = v
+			}
+			if cmd.Flags().Changed("last-name") {
+				v, _ := cmd.Flags().GetString("last-name")
+				inputObj["lastName"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("email") {
+				v, _ := cmd.Flags().GetString("email")
+				inputObj["email"] = v
+			}
+			if cmd.Flags().Changed("country") {
+				v, _ := cmd.Flags().GetString("country")
+				inputObj["country"] = v
+			}
+			if cmd.Flags().Changed("state") {
+				v, _ := cmd.Flags().GetString("state")
+				inputObj["state"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			if cmd.Flags().Changed("notify-worker") {
+				v, _ := cmd.Flags().GetBool("notify-worker")
+				inputObj["notifyWorker"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("origin") {
+				v, _ := cmd.Flags().GetString("origin")
+				inputObj["origin"] = v
+			}
+			if cmd.Flags().Changed("origin-channel") {
+				v, _ := cmd.Flags().GetString("origin-channel")
+				inputObj["originChannel"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -6982,6 +9954,19 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the trusted contact is for.")
+	cmd.Flags().String("first-name", "", "The invited trusted contact first name.")
+	cmd.Flags().String("middle-name", "", "The invited trusted contact middle name.")
+	cmd.Flags().String("last-name", "", "The invited trusted contact last name.")
+	cmd.Flags().String("name", "", "The invited trusted contact full name.")
+	cmd.Flags().String("email", "", "The invited trusted contact email.")
+	cmd.Flags().String("country", "", "The invited trusted contact country.")
+	cmd.Flags().String("state", "", "The invited trusted contact country state, if applicable.")
+	cmd.Flags().String("message", "", "The message that will be sent to the trusted contact.")
+	cmd.Flags().Bool("notify-worker", false, "Whether the worker should be notified that they have been added to the platform.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
+	cmd.Flags().String("origin", "", "The origin of the trusted contact")
+	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact")
 	return cmd
 }
 
@@ -7006,6 +9991,20 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7019,6 +10018,8 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
+	cmd.Flags().String("account", "", "The account performing the delete.")
 	return cmd
 }
 
@@ -7043,6 +10044,20 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7056,6 +10071,8 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the trusted contact to be edited.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	return cmd
 }
 
@@ -7142,6 +10159,11 @@ func newUserGroupsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return usergroupsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.UserGroups(context.Background(), vars)
 			if err != nil {
 				return err
@@ -7149,14 +10171,45 @@ func newUserGroupsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search user groups by name, description and users name, email.")
 	cmd.Flags().String("users", "", "Filter user groups by users.")
 	cmd.Flags().String("status", "", "Filter user group by status.")
 
 	return cmd
+}
+
+func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.UserGroups(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["userGroups"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newUserGroupsCreateCmd() *cobra.Command {
@@ -7180,6 +10233,28 @@ func newUserGroupsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7193,6 +10268,10 @@ func newUserGroupsCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "The name of the group.")
+	cmd.Flags().String("description", "", "The description of the group.")
+	cmd.Flags().String("status", "", "The status of the user group.")
+	cmd.Flags().String("company", "", "The company that the group is for.")
 	return cmd
 }
 
@@ -7217,6 +10296,16 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7230,6 +10319,7 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the group.")
 	return cmd
 }
 
@@ -7254,6 +10344,28 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("status") {
+				v, _ := cmd.Flags().GetString("status")
+				inputObj["status"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7267,6 +10379,10 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the group.")
+	cmd.Flags().String("name", "", "The name of the group.")
+	cmd.Flags().String("description", "", "The description of the group.")
+	cmd.Flags().String("status", "", "The status of the user group.")
 	return cmd
 }
 
@@ -7303,6 +10419,16 @@ func newUsersFromUserGroupDetachCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7316,6 +10442,7 @@ func newUsersFromUserGroupDetachCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
 }
 
@@ -7352,6 +10479,16 @@ func newUsersToUserGroupAttachCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7365,6 +10502,7 @@ func newUsersToUserGroupAttachCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
 }
 
@@ -7502,6 +10640,11 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return webhookeventlogsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.WebhookEventLogs(context.Background(), vars)
 			if err != nil {
 				return err
@@ -7509,13 +10652,44 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("webhook-event-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("accounts", "", "Filter the webhook event logss based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
+}
+
+func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.WebhookEventLogs(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewWebhookEventsCmd creates the webhook-events resource command group.
@@ -7587,6 +10761,11 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return webhookeventsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.WebhookEvents(context.Background(), vars)
 			if err != nil {
 				return err
@@ -7594,11 +10773,42 @@ func newWebhookEventsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook events based on the ID of the webhook.")
 
 	return cmd
+}
+
+func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.WebhookEvents(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["webhookEvents"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
@@ -7622,6 +10832,16 @@ func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7635,6 +10855,7 @@ func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the webhook event to be retried.")
 	return cmd
 }
 
@@ -7709,6 +10930,11 @@ func newWebhooksListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return webhooksFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Webhooks(context.Background(), vars)
 			if err != nil {
 				return err
@@ -7716,11 +10942,42 @@ func newWebhooksListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
+}
+
+func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Webhooks(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["webhooks"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newWebhooksCreateCmd() *cobra.Command {
@@ -7744,6 +11001,44 @@ func newWebhooksCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("url") {
+				v, _ := cmd.Flags().GetString("url")
+				inputObj["url"] = v
+			}
+			if cmd.Flags().Changed("secret") {
+				v, _ := cmd.Flags().GetString("secret")
+				inputObj["secret"] = v
+			}
+			if cmd.Flags().Changed("is-active") {
+				v, _ := cmd.Flags().GetString("is-active")
+				inputObj["isActive"] = v
+			}
+			if cmd.Flags().Changed("client-id") {
+				v, _ := cmd.Flags().GetString("client-id")
+				inputObj["clientId"] = v
+			}
+			if cmd.Flags().Changed("client-url") {
+				v, _ := cmd.Flags().GetString("client-url")
+				inputObj["clientUrl"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7757,6 +11052,14 @@ func newWebhooksCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("title", "", "The title of the webhook.")
+	cmd.Flags().String("description", "", "The description of the webhook.")
+	cmd.Flags().String("url", "", "The URL of the webhook.")
+	cmd.Flags().String("secret", "", "The secret of the webhook. If using OAuth this is the client secret")
+	cmd.Flags().String("is-active", "", "Whether the webhook is active or not.")
+	cmd.Flags().String("client-id", "", "The client ID of the webhook, when using OAuth.")
+	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
+	cmd.Flags().String("company", "", "The company that the webhook is for.")
 	return cmd
 }
 
@@ -7781,6 +11084,16 @@ func newWebhooksDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7794,6 +11107,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the webhook to be deleted.")
 	return cmd
 }
 
@@ -7818,6 +11132,44 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("title") {
+				v, _ := cmd.Flags().GetString("title")
+				inputObj["title"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("url") {
+				v, _ := cmd.Flags().GetString("url")
+				inputObj["url"] = v
+			}
+			if cmd.Flags().Changed("secret") {
+				v, _ := cmd.Flags().GetString("secret")
+				inputObj["secret"] = v
+			}
+			if cmd.Flags().Changed("is-active") {
+				v, _ := cmd.Flags().GetString("is-active")
+				inputObj["isActive"] = v
+			}
+			if cmd.Flags().Changed("client-id") {
+				v, _ := cmd.Flags().GetString("client-id")
+				inputObj["clientId"] = v
+			}
+			if cmd.Flags().Changed("client-url") {
+				v, _ := cmd.Flags().GetString("client-url")
+				inputObj["clientUrl"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7831,6 +11183,14 @@ func newWebhooksUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The webhook to be updated.")
+	cmd.Flags().String("title", "", "The title of the webhook.")
+	cmd.Flags().String("description", "", "The description of the webhook.")
+	cmd.Flags().String("url", "", "The URL of the webhook.")
+	cmd.Flags().String("secret", "", "The secret of the webhook. If using OAuth this is the client secret. If you are not updating the secret, set it to null.")
+	cmd.Flags().String("is-active", "", "Whether the webhook is active or not.")
+	cmd.Flags().String("client-id", "", "The client ID of the webhook, when using OAuth.")
+	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
 	return cmd
 }
 
@@ -7897,6 +11257,20 @@ func newWorkerUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("job-title") {
+				v, _ := cmd.Flags().GetString("job-title")
+				inputObj["jobTitle"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7910,6 +11284,8 @@ func newWorkerUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the worker.")
+	cmd.Flags().String("job-title", "", "The job title that the worker has.")
 	return cmd
 }
 
@@ -7946,6 +11322,16 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("applies-to") {
+				v, _ := cmd.Flags().GetString("applies-to")
+				inputObj["appliesTo"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -7959,6 +11345,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("applies-to", "", "The entity that supports custom fields (e.g., TrustedContact).")
 	return cmd
 }
 
@@ -8004,6 +11391,11 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return workflowvariablesFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.WorkflowVariables(context.Background(), vars)
 			if err != nil {
 				return err
@@ -8011,12 +11403,43 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
 
 	return cmd
+}
+
+func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.WorkflowVariables(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["workflowVariables"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 // NewWorkflowsCmd creates the workflows resource command group.
@@ -8090,6 +11513,11 @@ func newWorkflowsListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return workflowsFetchAll(cmd, q, vars)
+			}
+
 			result, err := q.Workflows(context.Background(), vars)
 			if err != nil {
 				return err
@@ -8097,11 +11525,42 @@ func newWorkflowsListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflows based on one or more accounts.")
 
 	return cmd
+}
+
+func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.Workflows(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["workflows"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
 }
 
 func newWorkflowsCreateCmd() *cobra.Command {
@@ -8162,6 +11621,16 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -8175,6 +11644,7 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the workflow.")
 	return cmd
 }
 
@@ -8248,6 +11718,16 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("consent") {
+				v, _ := cmd.Flags().GetBool("consent")
+				inputObj["consent"] = v
+			}
+			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
@@ -8261,6 +11741,7 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().Bool("consent", false, "Whether or not to consent to Worksome Intelligence.")
 	return cmd
 }
 

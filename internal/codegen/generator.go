@@ -467,6 +467,11 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 				return printDryRun(cmd, "query", vars)
 			}
 
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll {
+				return {{$res.GoName | lower}}FetchAll(cmd, q, vars)
+			}
+
 			result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
 			if err != nil {
 				return err
@@ -474,8 +479,9 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			return printResult(cmd, result)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch")
+	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") -}}
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
@@ -483,13 +489,43 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	{{end}}
 	return cmd
 }
+
+func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	var allData []any
+	page := 1
+	for {
+		vars["page"] = page
+		result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["{{$res.ListQuery.Name}}"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result)
+		}
+		page++
+	}
+	return printResult(cmd, allData)
+}
 {{end}}
 
-{{range $res.Mutations}}
-func new{{$res.GoName}}{{pascal .CLIName}}Cmd() *cobra.Command {
+{{range $mut := $res.Mutations}}
+func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "{{.CLIName}}",
-		Short: {{quote .Description}},
+		Use:   "{{$mut.CLIName}}",
+		Short: {{quote $mut.Description}},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := getQuerier()
 			if err != nil {
@@ -507,12 +543,35 @@ func new{{$res.GoName}}{{pascal .CLIName}}Cmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			{{if $mut.InputFields -}}
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			{{range $mut.InputFields -}}
+			if cmd.Flags().Changed("{{.CLIFlag}}") {
+				{{- if eq .Type.GoType "int" "float64"}}
+				v, _ := cmd.Flags().Get{{if eq .Type.GoType "int"}}Int{{else}}Float64{{end}}("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq .Type.GoType "bool"}}
+				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else}}
+				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- end}}
+			}
+			{{end -}}
+			vars["input"] = inputObj
+			{{end -}}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", vars)
 			}
 
-			result, err := q.{{.GoName}}(context.Background(), vars)
+			result, err := q.{{$mut.GoName}}(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -520,6 +579,17 @@ func new{{$res.GoName}}{{pascal .CLIName}}Cmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
+	{{range $mut.InputFields -}}
+	{{if eq .Type.GoType "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote .Description}})
+	{{else if eq .Type.GoType "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote .Description}})
+	{{else if eq .Type.GoType "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote .Description}})
+	{{else -}}
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	{{end -}}
+	{{end -}}
 	return cmd
 }
 {{end}}

@@ -605,7 +605,47 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 	// Build selection set from return type
 	op.SelectionSet = p.buildSelectionSet(f.Type, 1)
 
+	// For mutations with a single input argument, resolve the input type's fields as CLI flags
+	if opType == OperationMutation {
+		p.resolveInputFields(&op)
+	}
+
 	return op
+}
+
+// resolveInputFields introspects the input type for mutations that take a single `input: SomeInput!`
+// argument, and populates InputFields with scalar/enum/ID fields that can be exposed as CLI flags.
+func (p *parser) resolveInputFields(op *Operation) {
+	if len(op.Arguments) != 1 {
+		return
+	}
+	arg := op.Arguments[0]
+	if arg.Name != "input" || !arg.Type.IsInput {
+		return
+	}
+
+	inputDef := p.doc.Types[arg.Type.Name]
+	if inputDef == nil || inputDef.Kind != ast.InputObject {
+		return
+	}
+
+	op.InputTypeName = arg.Type.Name
+
+	for _, f := range inputDef.Fields {
+		ref := p.resolveType(f.Type)
+		// Only expose scalar, enum, and ID fields as CLI flags.
+		// Skip nested input objects, lists of inputs, and other complex types.
+		if ref.IsScalar || ref.IsEnum {
+			op.InputFields = append(op.InputFields, Argument{
+				Name:         f.Name,
+				GoName:       toPascalCase(f.Name),
+				CLIFlag:      toKebabCase(f.Name),
+				Description:  cleanDescription(f.Description),
+				Type:         ref,
+				DefaultValue: defaultValueString(f.DefaultValue),
+			})
+		}
+	}
 }
 
 // buildSelectionSet generates a GraphQL selection set for a type, selecting all scalar

@@ -182,6 +182,52 @@ func TestParseSchema(t *testing.T) {
 	if !mutationNames["terminateHire"] {
 		t.Error("expected terminateHire mutation in hires resource")
 	}
+
+	// Check that list query has paginator return type
+	if hires.ListQuery != nil && !hires.ListQuery.ReturnType.IsPaginator {
+		t.Error("hires list query should have a paginator return type")
+	}
+
+	// Check input fields are resolved for mutations
+	for _, m := range hires.Mutations {
+		if m.Name == "terminateHire" {
+			if m.InputTypeName != "TerminateHireInput" {
+				t.Errorf("terminateHire InputTypeName = %q, want TerminateHireInput", m.InputTypeName)
+			}
+			if len(m.InputFields) != 2 {
+				t.Errorf("terminateHire should have 2 input fields (id, reason), got %d", len(m.InputFields))
+			}
+			fieldNames := make(map[string]bool)
+			for _, f := range m.InputFields {
+				fieldNames[f.Name] = true
+			}
+			if !fieldNames["id"] || !fieldNames["reason"] {
+				t.Errorf("terminateHire input fields should include 'id' and 'reason', got %v", fieldNames)
+			}
+		}
+		if m.Name == "createDraftHire" {
+			if m.InputTypeName != "HireInput" {
+				t.Errorf("createDraftHire InputTypeName = %q, want HireInput", m.InputTypeName)
+			}
+			if len(m.InputFields) != 2 {
+				t.Errorf("createDraftHire should have 2 input fields (jobId, workerId), got %d", len(m.InputFields))
+			}
+		}
+	}
+
+	// Check job resource has createJob mutation with input fields
+	// (mutation "createJob" strips "create" → "job" kebab-case resource)
+	job, ok := resourceMap["job"]
+	if !ok {
+		t.Fatal("expected job resource")
+	}
+	for _, m := range job.Mutations {
+		if m.Name == "createJob" {
+			if len(m.InputFields) != 2 {
+				t.Errorf("createJob should have 2 input fields (title, description), got %d", len(m.InputFields))
+			}
+		}
+	}
 }
 
 func TestParseSchemaMissingFile(t *testing.T) {
