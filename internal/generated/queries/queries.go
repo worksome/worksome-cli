@@ -317,42 +317,6 @@ func (q *Querier) StoreBankDetails(ctx context.Context, vars map[string]any) (ma
 	return result, nil
 }
 
-// Batch — Get a specific batch.
-func (q *Querier) Batch(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `query Batch($id: ID!) {
-	batch(id: $id) { id name type itemsCountByStatus createdAt updatedAt deletedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("batch: %w", err)
-	}
-	if data, ok := result["batch"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// CreateBatch — Create a new batch of items for processing.
-func (q *Querier) CreateBatch(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation CreateBatch($input: CreateBatchInput!) {
-	createBatch(input: $input) { id name type itemsCountByStatus createdAt updatedAt deletedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("createBatch: %w", err)
-	}
-	if data, ok := result["createBatch"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // RunBatchAction — Run an action on a batch.
 func (q *Querier) RunBatchAction(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RunBatchAction($input: RunBatchActionInput!) {
@@ -371,6 +335,24 @@ func (q *Querier) RunBatchAction(ctx context.Context, vars map[string]any) (map[
 	return result, nil
 }
 
+// Batch — Get a specific batch.
+func (q *Querier) Batch(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `query Batch($id: ID!) {
+	batch(id: $id) { id name type itemsCountByStatus createdAt updatedAt deletedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("batch: %w", err)
+	}
+	if data, ok := result["batch"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // Batches — Get a list of batches.
 func (q *Querier) Batches(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Batches($accounts: [ID!], $types: [BatchType!], $containsItemsWithStatus: [BatchItemStatus!], $first: Int! = 10, $page: Int) {
@@ -380,6 +362,24 @@ func (q *Querier) Batches(ctx context.Context, vars map[string]any) (map[string]
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
 		return nil, fmt.Errorf("batches: %w", err)
+	}
+	return result, nil
+}
+
+// CreateBatch — Create a new batch of items for processing.
+func (q *Querier) CreateBatch(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation CreateBatch($input: CreateBatchInput!) {
+	createBatch(input: $input) { id name type itemsCountByStatus createdAt updatedAt deletedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("createBatch: %w", err)
+	}
+	if data, ok := result["createBatch"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
 	}
 	return result, nil
 }
@@ -1150,6 +1150,24 @@ func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (
 		return nil, fmt.Errorf("generateInviteLink: %w", err)
 	}
 	if data, ok := result["generateInviteLink"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
+func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
+	generatePersonalInviteLink(input: $input) 
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
+	}
+	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1938,24 +1956,6 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 		return nil, fmt.Errorf("updatePaymentRequest: %w", err)
 	}
 	if data, ok := result["updatePaymentRequest"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
-func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
-	generatePersonalInviteLink(input: $input) 
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
-	}
-	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

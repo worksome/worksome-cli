@@ -24,6 +24,7 @@ type Resource struct {
 	ListQuery    *Operation // plural list query, e.g., hires(...)
 	Mutations    []Operation
 	TableColumns []TableColumn // Columns for table output in list/get commands
+	Hoisted      bool          // true when single-mutation resource is promoted to a flat command
 }
 
 // TableColumn describes a column for table output.

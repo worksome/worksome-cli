@@ -316,6 +316,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -343,31 +344,46 @@ func getQuerier() (*queries.Querier, error) {
 	return queries.NewQuerier(c), nil
 }
 
-func getFormatter(cmd *cobra.Command) *output.Formatter {
+func getFormatter(cmd *cobra.Command) (*output.Formatter, error) {
 	outputFlag, _ := cmd.Flags().GetString("output")
 	noColor, _ := cmd.Flags().GetBool("no-color")
 	if outputFlag != "" {
-		return output.New(os.Stdout, output.Format(outputFlag), noColor)
+		if outputFlag != "json" && outputFlag != "table" {
+			return nil, fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+		}
+		return output.New(os.Stdout, output.Format(outputFlag), noColor), nil
 	}
-	return output.Auto(os.Stdout, noColor)
+	return output.Auto(os.Stdout, noColor), nil
 }
 
 func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
-	f := getFormatter(cmd)
+	f, err := getFormatter(cmd)
+	if err != nil {
+		return err
+	}
 	if f.Format() == output.FormatTable && len(columns) > 0 {
 		return f.PrintTable(data, columns)
+	}
+	if f.Format() == output.FormatTable && len(columns) == 0 {
+		fmt.Fprintln(os.Stderr, "(table format not available for this resource, showing JSON)")
 	}
 	return f.PrintJSON(data)
 }
 
 func readInputFile(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("reading input file: %w", err)
+		return nil, fmt.Errorf("reading input: %w", err)
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("parsing input file: %w", err)
+		return nil, fmt.Errorf("parsing input: %w", err)
 	}
 	return result, nil
 }
@@ -381,8 +397,83 @@ var {{$res.GoName | lower}}Columns = []output.Column{
 }
 {{- end}}
 
-// New{{$res.GoName}}Cmd creates the {{$res.Name}} resource command group.
+// New{{$res.GoName}}Cmd creates the {{$res.Name}} resource command.
 func New{{$res.GoName}}Cmd() *cobra.Command {
+{{- if $res.Hoisted}}
+	{{- $mut := index $res.Mutations 0}}
+	cmd := &cobra.Command{
+		Use:   "{{$res.Name}}",
+		Short: {{quote $mut.Description}},
+		{{- if $mut.InputFields}}
+		Example: "  worksome {{$res.Name}} --input data.json",
+		{{- end}}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			{{if $mut.InputFields -}}
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			{{range $mut.InputFields -}}
+			if cmd.Flags().Changed("{{.CLIFlag}}") {
+				{{- if eq .Type.GoType "int" "float64"}}
+				v, _ := cmd.Flags().Get{{if eq .Type.GoType "int"}}Int{{else}}Float64{{end}}("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq .Type.GoType "bool"}}
+				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else}}
+				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- end}}
+			}
+			{{end -}}
+			vars["input"] = inputObj
+			{{end -}}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "{{$mut.GoName}}", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.{{$mut.GoName}}(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	{{range $mut.InputFields -}}
+	{{if eq .Type.GoType "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote .Description}})
+	{{else if eq .Type.GoType "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote .Description}})
+	{{else if eq .Type.GoType "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote .Description}})
+	{{else -}}
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	{{end -}}
+	{{end -}}
+	return cmd
+{{- else}}
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
 		Short: {{quote $res.Description}},
@@ -398,8 +489,10 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd.AddCommand(new{{$res.GoName}}{{pascal .CLIName}}Cmd())
 	{{end}}
 	return cmd
+{{- end}}
 }
 
+{{if not $res.Hoisted}}
 {{if $res.GetQuery}}
 func new{{$res.GoName}}GetCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -487,6 +580,9 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return {{$res.GoName | lower}}FetchAll(cmd, q, vars)
 			}
@@ -520,6 +616,7 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 }
 
 func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -547,8 +644,11 @@ func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, var
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	{{- if $res.TableColumns}}
 	return printResult(cmd, allData, {{$res.GoName | lower}}Columns)
 	{{- else}}
@@ -618,7 +718,7 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	{{range $mut.InputFields -}}
 	{{if eq .Type.GoType "int" -}}
 	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote .Description}})
@@ -633,6 +733,7 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	return cmd
 }
 {{end}}
+{{end}}{{/* not $res.Hoisted */}}
 {{end}}
 
 func printDryRun(cmd *cobra.Command, opType string, opName string, vars map[string]any) error {

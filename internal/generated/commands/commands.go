@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -32,52 +33,56 @@ func getQuerier() (*queries.Querier, error) {
 	return queries.NewQuerier(c), nil
 }
 
-func getFormatter(cmd *cobra.Command) *output.Formatter {
+func getFormatter(cmd *cobra.Command) (*output.Formatter, error) {
 	outputFlag, _ := cmd.Flags().GetString("output")
 	noColor, _ := cmd.Flags().GetBool("no-color")
 	if outputFlag != "" {
-		return output.New(os.Stdout, output.Format(outputFlag), noColor)
+		if outputFlag != "json" && outputFlag != "table" {
+			return nil, fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+		}
+		return output.New(os.Stdout, output.Format(outputFlag), noColor), nil
 	}
-	return output.Auto(os.Stdout, noColor)
+	return output.Auto(os.Stdout, noColor), nil
 }
 
 func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
-	f := getFormatter(cmd)
+	f, err := getFormatter(cmd)
+	if err != nil {
+		return err
+	}
 	if f.Format() == output.FormatTable && len(columns) > 0 {
 		return f.PrintTable(data, columns)
+	}
+	if f.Format() == output.FormatTable && len(columns) == 0 {
+		fmt.Fprintln(os.Stderr, "(table format not available for this resource, showing JSON)")
 	}
 	return f.PrintJSON(data)
 }
 
 func readInputFile(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("reading input file: %w", err)
+		return nil, fmt.Errorf("reading input: %w", err)
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("parsing input file: %w", err)
+		return nil, fmt.Errorf("parsing input: %w", err)
 	}
 	return result, nil
 }
 
-// NewAcceptBidCmd creates the accept-bid resource command group.
+// NewAcceptBidCmd creates the accept-bid resource command.
 func NewAcceptBidCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "accept-bid",
-		Short: "",
-	}
-
-	cmd.AddCommand(newAcceptBidAcceptBidCmd())
-
-	return cmd
-}
-
-func newAcceptBidAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "accept-bid",
 		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
-		Example: "  worksome accept-bid accept-bid --input data.json",
+		Example: "  worksome accept-bid --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vars := make(map[string]any)
 
@@ -198,7 +203,7 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("bid", "", "The ID of the bid which the hire should be based on.")
 	cmd.Flags().String("contact-person", "", "The ID of the person in the company which is responsible for the contact. If not supplied, the currently authenticated user will be used.")
 	cmd.Flags().String("billing-contact-person", "", "The ID of the person in the company which is responsible for the billing. If not supplied, the currently authenticated user will be used.")
@@ -223,11 +228,11 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 	return cmd
 }
 
-// NewAccountsCmd creates the accounts resource command group.
+// NewAccountsCmd creates the accounts resource command.
 func NewAccountsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "accounts",
-		Short: "",
+		Short: "Get a list of accounts which the current authentication has access to.",
 	}
 
 	cmd.AddCommand(newAccountsGetCmd())
@@ -275,7 +280,7 @@ var approvalapprovablesColumns = []output.Column{
 	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
-// NewApprovalApprovablesCmd creates the approval-approvables resource command group.
+// NewApprovalApprovablesCmd creates the approval-approvables resource command.
 func NewApprovalApprovablesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-approvables",
@@ -373,6 +378,9 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return approvalapprovablesFetchAll(cmd, q, vars)
 			}
@@ -405,6 +413,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 }
 
 func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -432,8 +441,11 @@ func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, approvalapprovablesColumns)
 }
 
@@ -490,7 +502,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The field related to the approval rule.")
 	cmd.Flags().String("status", "", "The status given.")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
@@ -508,7 +520,7 @@ var approvalrulesColumns = []output.Column{
 	{Header: "Approvers ID", Field: "approvers.id"},
 }
 
-// NewApprovalRulesCmd creates the approval-rules resource command group.
+// NewApprovalRulesCmd creates the approval-rules resource command.
 func NewApprovalRulesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-rules",
@@ -582,6 +594,9 @@ func newApprovalRulesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return approvalrulesFetchAll(cmd, q, vars)
 			}
@@ -608,6 +623,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 }
 
 func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -635,8 +651,11 @@ func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, approvalrulesColumns)
 }
 
@@ -685,7 +704,7 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("approval", "", "The approval owning this rule.")
 	return cmd
 }
@@ -701,7 +720,7 @@ var approvalstatesColumns = []output.Column{
 	{Header: "Approver Position", Field: "approver.position"},
 }
 
-// NewApprovalStatesCmd creates the approval-states resource command group.
+// NewApprovalStatesCmd creates the approval-states resource command.
 func NewApprovalStatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-states",
@@ -750,6 +769,9 @@ func newApprovalStatesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return approvalstatesFetchAll(cmd, q, vars)
 			}
@@ -778,6 +800,7 @@ func newApprovalStatesListCmd() *cobra.Command {
 }
 
 func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -805,8 +828,11 @@ func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[str
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, approvalstatesColumns)
 }
 
@@ -821,7 +847,7 @@ var approvalsColumns = []output.Column{
 	{Header: "Company Name", Field: "company.name"},
 }
 
-// NewApprovalsCmd creates the approvals resource command group.
+// NewApprovalsCmd creates the approvals resource command.
 func NewApprovalsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approvals",
@@ -900,6 +926,9 @@ func newApprovalsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return approvalsFetchAll(cmd, q, vars)
 			}
@@ -927,6 +956,7 @@ func newApprovalsListCmd() *cobra.Command {
 }
 
 func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -954,8 +984,11 @@ func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, approvalsColumns)
 }
 
@@ -1020,7 +1053,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the approval.")
 	cmd.Flags().String("status", "", "The status of the approval.")
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
@@ -1090,7 +1123,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The approval to be updated.")
 	cmd.Flags().String("name", "", "The name of the approval.")
 	cmd.Flags().String("status", "", "The status of the approval.")
@@ -1110,7 +1143,7 @@ var approversColumns = []output.Column{
 	{Header: "Updated At", Field: "updatedAt"},
 }
 
-// NewApproversCmd creates the approvers resource command group.
+// NewApproversCmd creates the approvers resource command.
 func NewApproversCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approvers",
@@ -1189,6 +1222,9 @@ func newApproversListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return approversFetchAll(cmd, q, vars)
 			}
@@ -1216,6 +1252,7 @@ func newApproversListCmd() *cobra.Command {
 }
 
 func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -1243,8 +1280,11 @@ func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, approversColumns)
 }
 
@@ -1301,7 +1341,7 @@ func newApproversCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("approval-rule", "", "The approval rule owning the approver.")
 	cmd.Flags().String("user-group", "", "The user group for the approver.")
 	cmd.Flags().Int("position", 0, "The position of the approver in the approval sequence.")
@@ -1361,18 +1401,18 @@ func newApproversUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The approver to be updated.")
 	cmd.Flags().String("user-group", "", "The user group of the approver.")
 	cmd.Flags().String("position", "", "The position of the approver.")
 	return cmd
 }
 
-// NewBankDetailsCmd creates the bank-details resource command group.
+// NewBankDetailsCmd creates the bank-details resource command.
 func NewBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bank-details",
-		Short: "",
+		Short: "Update the bank account details.",
 	}
 
 	cmd.AddCommand(newBankDetailsCmd())
@@ -1453,7 +1493,7 @@ func newBankDetailsCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account-id", "", "The account that the bank account is related to.")
 	cmd.Flags().String("name", "", "The display name for this bank account.")
 	cmd.Flags().String("bank-address", "", "The address of this bank account.")
@@ -1465,120 +1505,11 @@ func newBankDetailsCmd() *cobra.Command {
 	return cmd
 }
 
-var batchColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Type", Field: "type"},
-	{Header: "Items Count By Status", Field: "itemsCountByStatus"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Deleted At", Field: "deletedAt"},
-}
-
-// NewBatchCmd creates the batch resource command group.
-func NewBatchCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "batch",
-		Short: "Get a specific batch.",
-	}
-
-	cmd.AddCommand(newBatchGetCmd())
-	cmd.AddCommand(newBatchCreateCmd())
-
-	return cmd
-}
-
-func newBatchGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "get",
-		Short:   "Get a specific batch.",
-		Example: "  worksome batch get <id>",
-		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			vars := make(map[string]any)
-			vars["id"] = args[0]
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "query", "Batch", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.Batch(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, batchColumns)
-		},
-	}
-
-	return cmd
-}
-
-func newBatchCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "create",
-		Short:   "Create a new batch of items for processing.",
-		Example: "  worksome batch create --input data.json",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("account") {
-				v, _ := cmd.Flags().GetString("account")
-				inputObj["account"] = v
-			}
-			if cmd.Flags().Changed("type") {
-				v, _ := cmd.Flags().GetString("type")
-				inputObj["type"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "CreateBatch", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.CreateBatch(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("account", "", "The account that the batch is for.")
-	cmd.Flags().String("type", "", "The type of batch to create.")
-	return cmd
-}
-
-// NewBatchActionCmd creates the batch-action resource command group.
+// NewBatchActionCmd creates the batch-action resource command.
 func NewBatchActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batch-action",
-		Short: "",
+		Short: "Run an action on a batch.",
 	}
 
 	cmd.AddCommand(newBatchActionRunCmd())
@@ -1639,7 +1570,7 @@ func newBatchActionRunCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
 	cmd.Flags().String("action", "", "The action to perform.")
 	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
@@ -1656,14 +1587,47 @@ var batchesColumns = []output.Column{
 	{Header: "Deleted At", Field: "deletedAt"},
 }
 
-// NewBatchesCmd creates the batches resource command group.
+// NewBatchesCmd creates the batches resource command.
 func NewBatchesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batches",
 		Short: "Get a list of batches.",
 	}
 
+	cmd.AddCommand(newBatchesGetCmd())
 	cmd.AddCommand(newBatchesListCmd())
+	cmd.AddCommand(newBatchesCreateCmd())
+
+	return cmd
+}
+
+func newBatchesGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get",
+		Short:   "Get a specific batch.",
+		Example: "  worksome batches get <id>",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+			vars["id"] = args[0]
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "Batch", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.Batch(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, batchesColumns)
+		},
+	}
 
 	return cmd
 }
@@ -1705,6 +1669,9 @@ func newBatchesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return batchesFetchAll(cmd, q, vars)
 			}
@@ -1733,6 +1700,7 @@ func newBatchesListCmd() *cobra.Command {
 }
 
 func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -1760,9 +1728,67 @@ func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, batchesColumns)
+}
+
+func newBatchesCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "create",
+		Short:   "Create a new batch of items for processing.",
+		Example: "  worksome batches create --input data.json",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
+			if cmd.Flags().Changed("type") {
+				v, _ := cmd.Flags().GetString("type")
+				inputObj["type"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "CreateBatch", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.CreateBatch(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("account", "", "The account that the batch is for.")
+	cmd.Flags().String("type", "", "The type of batch to create.")
+	return cmd
 }
 
 var bidsColumns = []output.Column{
@@ -1776,7 +1802,7 @@ var bidsColumns = []output.Column{
 	{Header: "Message Body", Field: "message.body"},
 }
 
-// NewBidsCmd creates the bids resource command group.
+// NewBidsCmd creates the bids resource command.
 func NewBidsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bids",
@@ -1857,6 +1883,9 @@ func newBidsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return bidsFetchAll(cmd, q, vars)
 			}
@@ -1885,6 +1914,7 @@ func newBidsListCmd() *cobra.Command {
 }
 
 func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -1912,28 +1942,20 @@ func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, bidsColumns)
 }
 
-// NewBlockTrustedContactCmd creates the block-trusted-contact resource command group.
+// NewBlockTrustedContactCmd creates the block-trusted-contact resource command.
 func NewBlockTrustedContactCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "block-trusted-contact",
-		Short: "",
-	}
-
-	cmd.AddCommand(newBlockTrustedContactBlockTrustedContactCmd())
-
-	return cmd
-}
-
-func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "block-trusted-contact",
 		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
-		Example: "  worksome block-trusted-contact block-trusted-contact --input data.json",
+		Example: "  worksome block-trusted-contact --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vars := make(map[string]any)
 
@@ -1978,7 +2000,7 @@ func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be blocked.")
 	cmd.Flags().String("account", "", "The account performing the block.")
 	return cmd
@@ -1995,7 +2017,7 @@ var classificationsColumns = []output.Column{
 	{Header: "Freelancer ID", Field: "freelancer.id"},
 }
 
-// NewClassificationsCmd creates the classifications resource command group.
+// NewClassificationsCmd creates the classifications resource command.
 func NewClassificationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "classifications",
@@ -2068,6 +2090,9 @@ func newClassificationsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return classificationsFetchAll(cmd, q, vars)
 			}
@@ -2094,6 +2119,7 @@ func newClassificationsListCmd() *cobra.Command {
 }
 
 func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -2121,8 +2147,11 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, classificationsColumns)
 }
 
@@ -2137,7 +2166,7 @@ var companyColumns = []output.Column{
 	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
-// NewCompanyCmd creates the company resource command group.
+// NewCompanyCmd creates the company resource command.
 func NewCompanyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "company",
@@ -2191,7 +2220,7 @@ var companyrecruitersColumns = []output.Column{
 	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
 }
 
-// NewCompanyRecruitersCmd creates the company-recruiters resource command group.
+// NewCompanyRecruitersCmd creates the company-recruiters resource command.
 func NewCompanyRecruitersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "company-recruiters",
@@ -2292,6 +2321,9 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return companyrecruitersFetchAll(cmd, q, vars)
 			}
@@ -2324,6 +2356,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 }
 
 func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -2351,8 +2384,11 @@ func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, companyrecruitersColumns)
 }
 
@@ -2429,7 +2465,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the recruiter relationship is for.")
 	cmd.Flags().String("name", "", "The invited recruiter name.")
 	cmd.Flags().String("email", "", "The recruiter email.")
@@ -2486,7 +2522,7 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter relationship to delete.")
 	return cmd
 }
@@ -2556,7 +2592,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter to invite.")
 	cmd.Flags().String("company", "", "The company inviting the recruiter.")
 	cmd.Flags().String("recruiter-fee", "", "The recruiter fee.")
@@ -2627,7 +2663,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter relationship to update.")
 	cmd.Flags().String("recruiter-fee", "", "The updated recruiter fee.")
 	cmd.Flags().String("recruiter-ownership-days", "", "The updated recruiter ownership.")
@@ -2647,7 +2683,7 @@ var complianceColumns = []output.Column{
 	{Header: "Action Action", Field: "action.action"},
 }
 
-// NewComplianceCmd creates the compliance resource command group.
+// NewComplianceCmd creates the compliance resource command.
 func NewComplianceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compliance",
@@ -2706,7 +2742,7 @@ var contractsColumns = []output.Column{
 	{Header: "Location Address", Field: "location.address"},
 }
 
-// NewContractsCmd creates the contracts resource command group.
+// NewContractsCmd creates the contracts resource command.
 func NewContractsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "contracts",
@@ -2791,6 +2827,9 @@ func newContractsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return contractsFetchAll(cmd, q, vars)
 			}
@@ -2820,6 +2859,7 @@ func newContractsListCmd() *cobra.Command {
 }
 
 func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -2847,8 +2887,11 @@ func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, contractsColumns)
 }
 
@@ -2863,7 +2906,7 @@ var conversationsColumns = []output.Column{
 	{Header: "Created At", Field: "createdAt"},
 }
 
-// NewConversationsCmd creates the conversations resource command group.
+// NewConversationsCmd creates the conversations resource command.
 func NewConversationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conversations",
@@ -2940,6 +2983,9 @@ func newConversationsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return conversationsFetchAll(cmd, q, vars)
 			}
@@ -2967,6 +3013,7 @@ func newConversationsListCmd() *cobra.Command {
 }
 
 func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -2994,8 +3041,11 @@ func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, conversationsColumns)
 }
 
@@ -3010,7 +3060,7 @@ var customfieldsColumns = []output.Column{
 	{Header: "Applies To", Field: "appliesTo"},
 }
 
-// NewCustomFieldsCmd creates the custom-fields resource command group.
+// NewCustomFieldsCmd creates the custom-fields resource command.
 func NewCustomFieldsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "custom-fields",
@@ -3094,6 +3144,9 @@ func newCustomFieldsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return customfieldsFetchAll(cmd, q, vars)
 			}
@@ -3122,6 +3175,7 @@ func newCustomFieldsListCmd() *cobra.Command {
 }
 
 func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -3149,8 +3203,11 @@ func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, customfieldsColumns)
 }
 
@@ -3235,7 +3292,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that will own the custom field.")
 	cmd.Flags().String("field-type", "", "The custom field type.")
 	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to.")
@@ -3294,7 +3351,7 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("custom-field", "", "The ID of the custom field to delete.")
 	return cmd
 }
@@ -3376,7 +3433,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("custom-field", "", "The ID of the custom field to update.")
 	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values.")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
@@ -3389,11 +3446,11 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewEmailCmd creates the email resource command group.
+// NewEmailCmd creates the email resource command.
 func NewEmailCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "email",
-		Short: "",
+		Short: "Change the email of the currently authenticated user.",
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
@@ -3450,17 +3507,17 @@ func newEmailChangeCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
 	return cmd
 }
 
-// NewEmploymentChangesCmd creates the employment-changes resource command group.
+// NewEmploymentChangesCmd creates the employment-changes resource command.
 func NewEmploymentChangesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "employment-changes",
-		Short: "",
+		Short: "Mark an employment as updated.",
 	}
 
 	cmd.AddCommand(newEmploymentChangesApproveCmd())
@@ -3513,7 +3570,7 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("employment", "", "The ID of the employment to approve changes for.")
 	return cmd
 }
@@ -3529,7 +3586,7 @@ var employmentsColumns = []output.Column{
 	{Header: "Start Date", Field: "startDate"},
 }
 
-// NewEmploymentsCmd creates the employments resource command group.
+// NewEmploymentsCmd creates the employments resource command.
 func NewEmploymentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "employments",
@@ -3651,6 +3708,9 @@ func newEmploymentsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return employmentsFetchAll(cmd, q, vars)
 			}
@@ -3689,6 +3749,7 @@ func newEmploymentsListCmd() *cobra.Command {
 }
 
 func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -3716,8 +3777,11 @@ func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, employmentsColumns)
 }
 
@@ -3766,16 +3830,16 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("employment", "", "The ID of the employment to onboard.")
 	return cmd
 }
 
-// NewExportCmd creates the export resource command group.
+// NewExportCmd creates the export resource command.
 func NewExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "",
+		Short: "Create an export. The export URL and the number of rows will be returned (excluding headings).",
 	}
 
 	cmd.AddCommand(newExportCreateCmd())
@@ -3848,7 +3912,7 @@ func newExportCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().Int("user-id", 0, "The ID of the user to create an export for.")
 	cmd.Flags().String("impersonator-id", "", "The ID of the impersonator that is creating the export.")
 	cmd.Flags().Int("account-id", 0, "The ID of the account to create an export for.")
@@ -3867,7 +3931,7 @@ var filesColumns = []output.Column{
 	{Header: "Url", Field: "url"},
 }
 
-// NewFilesCmd creates the files resource command group.
+// NewFilesCmd creates the files resource command.
 func NewFilesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "files",
@@ -3945,6 +4009,9 @@ func newFilesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return filesFetchAll(cmd, q, vars)
 			}
@@ -3972,6 +4039,7 @@ func newFilesListCmd() *cobra.Command {
 }
 
 func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -3999,8 +4067,11 @@ func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, filesColumns)
 }
 
@@ -4038,15 +4109,15 @@ func newFilesUploadCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
-// NewFilesAsUploadedCmd creates the files-as-uploaded resource command group.
+// NewFilesAsUploadedCmd creates the files-as-uploaded resource command.
 func NewFilesAsUploadedCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "files-as-uploaded",
-		Short: "",
+		Short: "Mark one or more files as uploaded to the temporary URL.",
 	}
 
 	cmd.AddCommand(newFilesAsUploadedMarkCmd())
@@ -4088,7 +4159,7 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -4103,7 +4174,7 @@ var gateColumns = []output.Column{
 	{Header: "Description", Field: "description"},
 }
 
-// NewGateCmd creates the gate resource command group.
+// NewGateCmd creates the gate resource command.
 func NewGateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gate",
@@ -4162,7 +4233,7 @@ var hiresColumns = []output.Column{
 	{Header: "Company ID", Field: "company.id"},
 }
 
-// NewHiresCmd creates the hires resource command group.
+// NewHiresCmd creates the hires resource command.
 func NewHiresCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hires",
@@ -4338,6 +4409,9 @@ func newHiresListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return hiresFetchAll(cmd, q, vars)
 			}
@@ -4388,6 +4462,7 @@ func newHiresListCmd() *cobra.Command {
 }
 
 func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -4415,8 +4490,11 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, hiresColumns)
 }
 
@@ -4481,7 +4559,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
 	cmd.Flags().String("fee", "", "The fee the recruiter is taking as a percentage.")
@@ -4539,7 +4617,7 @@ func newHiresCancelCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("message", "", "The reason for canceling the hire.")
 	return cmd
@@ -4646,7 +4724,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly.")
 	cmd.Flags().String("job", "", "The ID of the job.")
 	cmd.Flags().String("name", "", "The name of the job to bid.")
@@ -4714,7 +4792,7 @@ func newHiresRejectCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that is rejecting the hire.")
 	cmd.Flags().String("hire", "", "The ID of the hire to be rejected.")
 	return cmd
@@ -4765,7 +4843,7 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	return cmd
 }
@@ -4819,7 +4897,7 @@ func newHiresShareCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("message", "", "Optional message to include when sharing the hire.")
 	return cmd
@@ -4886,7 +4964,7 @@ func newHiresTerminateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("reason", "", "The reason for terminating a hire.")
 	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
@@ -4900,7 +4978,7 @@ var industriesColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 }
 
-// NewIndustriesCmd creates the industries resource command group.
+// NewIndustriesCmd creates the industries resource command.
 func NewIndustriesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "industries",
@@ -4969,6 +5047,9 @@ func newIndustriesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return industriesFetchAll(cmd, q, vars)
 			}
@@ -4994,6 +5075,7 @@ func newIndustriesListCmd() *cobra.Command {
 }
 
 func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -5021,8 +5103,11 @@ func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, industriesColumns)
 }
 
@@ -5037,7 +5122,7 @@ var inheritedcustomfieldsColumns = []output.Column{
 	{Header: "Applies To", Field: "appliesTo"},
 }
 
-// NewInheritedCustomFieldsCmd creates the inherited-custom-fields resource command group.
+// NewInheritedCustomFieldsCmd creates the inherited-custom-fields resource command.
 func NewInheritedCustomFieldsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inherited-custom-fields",
@@ -5086,6 +5171,9 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return inheritedcustomfieldsFetchAll(cmd, q, vars)
 			}
@@ -5114,6 +5202,7 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 }
 
 func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -5141,19 +5230,23 @@ func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars 
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, inheritedcustomfieldsColumns)
 }
 
-// NewInviteLinkCmd creates the invite-link resource command group.
+// NewInviteLinkCmd creates the invite-link resource command.
 func NewInviteLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invite-link",
-		Short: "",
+		Short: "Generate the company invite link token.",
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
+	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -5203,7 +5296,57 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
+func newInviteLinkGeneratePersonalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate-personal",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome invite-link generate-personal --input data.json",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
@@ -5217,7 +5360,7 @@ var invoicerowColumns = []output.Column{
 	{Header: "Custom Text", Field: "customText"},
 }
 
-// NewInvoiceRowCmd creates the invoice-row resource command group.
+// NewInvoiceRowCmd creates the invoice-row resource command.
 func NewInvoiceRowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invoice-row",
@@ -5271,7 +5414,7 @@ var invoicesColumns = []output.Column{
 	{Header: "Net Amount", Field: "netAmount"},
 }
 
-// NewInvoicesCmd creates the invoices resource command group.
+// NewInvoicesCmd creates the invoices resource command.
 func NewInvoicesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invoices",
@@ -5371,6 +5514,9 @@ func newInvoicesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return invoicesFetchAll(cmd, q, vars)
 			}
@@ -5403,6 +5549,7 @@ func newInvoicesListCmd() *cobra.Command {
 }
 
 func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -5430,16 +5577,19 @@ func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, invoicesColumns)
 }
 
-// NewJobCandidatePreferredCmd creates the job-candidate-preferred resource command group.
+// NewJobCandidatePreferredCmd creates the job-candidate-preferred resource command.
 func NewJobCandidatePreferredCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidate-preferred",
-		Short: "",
+		Short: "Update job candidates \"preferred\" status.",
 	}
 
 	cmd.AddCommand(newJobCandidatePreferredUpdateCmd())
@@ -5496,17 +5646,17 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
 	cmd.Flags().Bool("is-preferred", false, "Whether the candidate is preferred or not.")
 	return cmd
 }
 
-// NewJobCandidateStatusCmd creates the job-candidate-status resource command group.
+// NewJobCandidateStatusCmd creates the job-candidate-status resource command.
 func NewJobCandidateStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidate-status",
-		Short: "",
+		Short: "Update a job candidate status. A reason and comment can be provided.",
 	}
 
 	cmd.AddCommand(newJobCandidateStatusUpdateCmd())
@@ -5575,7 +5725,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
 	cmd.Flags().String("status", "", "The status to update the job candidate to.")
 	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
@@ -5595,7 +5745,7 @@ var jobcandidatesColumns = []output.Column{
 	{Header: "Hire ID", Field: "hire.id"},
 }
 
-// NewJobCandidatesCmd creates the job-candidates resource command group.
+// NewJobCandidatesCmd creates the job-candidates resource command.
 func NewJobCandidatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidates",
@@ -5685,6 +5835,9 @@ func newJobCandidatesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return jobcandidatesFetchAll(cmd, q, vars)
 			}
@@ -5715,6 +5868,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 }
 
 func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -5742,8 +5896,11 @@ func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, jobcandidatesColumns)
 }
 
@@ -5796,7 +5953,7 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
 	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
 	return cmd
@@ -5810,7 +5967,7 @@ var jobsharesColumns = []output.Column{
 	{Header: "Job Number", Field: "job.number"},
 }
 
-// NewJobSharesCmd creates the job-shares resource command group.
+// NewJobSharesCmd creates the job-shares resource command.
 func NewJobSharesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-shares",
@@ -5865,6 +6022,9 @@ func newJobSharesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return jobsharesFetchAll(cmd, q, vars)
 			}
@@ -5894,6 +6054,7 @@ func newJobSharesListCmd() *cobra.Command {
 }
 
 func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -5921,8 +6082,11 @@ func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, jobsharesColumns)
 }
 
@@ -5971,7 +6135,7 @@ func newJobSharesCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job that the job share is for.")
 	return cmd
 }
@@ -6010,7 +6174,7 @@ func newJobSharesRemoveCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -6025,7 +6189,7 @@ var jobsColumns = []output.Column{
 	{Header: "Status", Field: "status"},
 }
 
-// NewJobsCmd creates the jobs resource command group.
+// NewJobsCmd creates the jobs resource command.
 func NewJobsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "jobs",
@@ -6207,6 +6371,9 @@ func newJobsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return jobsFetchAll(cmd, q, vars)
 			}
@@ -6259,6 +6426,7 @@ func newJobsListCmd() *cobra.Command {
 }
 
 func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -6286,8 +6454,11 @@ func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, jobsColumns)
 }
 
@@ -6340,7 +6511,7 @@ func newJobsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the job is for.")
 	cmd.Flags().String("name", "", "The name of the job.")
 	return cmd
@@ -6395,7 +6566,7 @@ func newJobsDuplicateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job to duplicate.")
 	cmd.Flags().String("title", "", "Optional title for the duplicated job. If not provided, the original job title will be used with \"[Copy]\" prepended.")
 	return cmd
@@ -6450,7 +6621,7 @@ func newJobsEndCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job.")
 	cmd.Flags().String("account-id", "", "The ID of the account performing the action.")
 	return cmd
@@ -6505,7 +6676,7 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job that the budget is for.")
 	cmd.Flags().Float64("amount", 0, "The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.")
 	return cmd
@@ -6620,7 +6791,7 @@ func newJobsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job.")
 	cmd.Flags().String("locale", "", "An optional locale for the job. If set, skills and industries will use the locale's spelling.")
 	cmd.Flags().String("name", "", "The name of the job.")
@@ -6652,7 +6823,7 @@ var milestonesColumns = []output.Column{
 	{Header: "Hire Number", Field: "hire.number"},
 }
 
-// NewMilestonesCmd creates the milestones resource command group.
+// NewMilestonesCmd creates the milestones resource command.
 func NewMilestonesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "milestones",
@@ -6732,6 +6903,9 @@ func newMilestonesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return milestonesFetchAll(cmd, q, vars)
 			}
@@ -6759,6 +6933,7 @@ func newMilestonesListCmd() *cobra.Command {
 }
 
 func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -6786,8 +6961,11 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, milestonesColumns)
 }
 
@@ -6825,7 +7003,7 @@ func newMilestonesCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -6863,7 +7041,7 @@ func newMilestonesDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -6901,11 +7079,11 @@ func newMilestonesUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
-// NewMultiFactorsCmd creates the multi-factors resource command group.
+// NewMultiFactorsCmd creates the multi-factors resource command.
 func NewMultiFactorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "multi-factors",
@@ -6987,6 +7165,9 @@ func newMultiFactorsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return multifactorsFetchAll(cmd, q, vars)
 			}
@@ -7008,6 +7189,7 @@ func newMultiFactorsListCmd() *cobra.Command {
 }
 
 func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -7035,8 +7217,11 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, nil)
 }
 
@@ -7085,7 +7270,7 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "An optional name for the SMS multi-factor authentication implementation.")
 	return cmd
 }
@@ -7135,7 +7320,7 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "An optional name for the TOTP multi-factor authentication implementation.")
 	return cmd
 }
@@ -7185,7 +7370,7 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the multi-factor authentication implementation to remove.")
 	return cmd
 }
@@ -7239,7 +7424,7 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the SMS multi-factor authentication implementation to verify.")
 	cmd.Flags().String("code", "", "The current SMS authentication code to verify the implementation with.")
 	return cmd
@@ -7294,17 +7479,17 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the TOTP multi-factor authentication implementation to verify.")
 	cmd.Flags().String("code", "", "The current TOTP authentication code to verify the implementation with.")
 	return cmd
 }
 
-// NewNoteCmd creates the note resource command group.
+// NewNoteCmd creates the note resource command.
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "",
+		Short: "Create a note.",
 	}
 
 	cmd.AddCommand(newNoteCreateCmd())
@@ -7371,7 +7556,7 @@ func newNoteCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("body", "", "The body of the note.")
 	cmd.Flags().String("title", "", "The title of the note.")
 	cmd.Flags().String("account-id", "", "The account that the note is related to.")
@@ -7424,7 +7609,7 @@ func newNoteDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the note to be deleted.")
 	return cmd
 }
@@ -7482,18 +7667,18 @@ func newNoteUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the note to be updated.")
 	cmd.Flags().String("body", "", "The body of the note to be updated.")
 	cmd.Flags().String("title", "", "The title of the note to be updated.")
 	return cmd
 }
 
-// NewOnboardingDocumentsCmd creates the onboarding-documents resource command group.
+// NewOnboardingDocumentsCmd creates the onboarding-documents resource command.
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "",
+		Short: "Manage Onboarding documents.",
 	}
 
 	cmd.AddCommand(newOnboardingDocumentsManageCmd())
@@ -7547,7 +7732,7 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
 }
@@ -7597,7 +7782,7 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
 }
@@ -7609,7 +7794,7 @@ var organisationColumns = []output.Column{
 	{Header: "Avatar", Field: "avatar"},
 }
 
-// NewOrganisationCmd creates the organisation resource command group.
+// NewOrganisationCmd creates the organisation resource command.
 func NewOrganisationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organisation",
@@ -7663,7 +7848,7 @@ var organisationtrustedcontactsColumns = []output.Column{
 	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
-// NewOrganisationTrustedContactsCmd creates the organisation-trusted-contacts resource command group.
+// NewOrganisationTrustedContactsCmd creates the organisation-trusted-contacts resource command.
 func NewOrganisationTrustedContactsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organisation-trusted-contacts",
@@ -7804,6 +7989,9 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return organisationtrustedcontactsFetchAll(cmd, q, vars)
 			}
@@ -7847,6 +8035,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 }
 
 func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -7874,8 +8063,11 @@ func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier,
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, organisationtrustedcontactsColumns)
 }
 
@@ -7890,7 +8082,7 @@ var partnerColumns = []output.Column{
 	{Header: "Address Post Code", Field: "address.postCode"},
 }
 
-// NewPartnerCmd creates the partner resource command group.
+// NewPartnerCmd creates the partner resource command.
 func NewPartnerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "partner",
@@ -7933,11 +8125,11 @@ func newPartnerGetCmd() *cobra.Command {
 	return cmd
 }
 
-// NewPasswordCmd creates the password resource command group.
+// NewPasswordCmd creates the password resource command.
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "",
+		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
 	}
 
 	cmd.AddCommand(newPasswordCreateCmd())
@@ -7991,7 +8183,7 @@ func newPasswordCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("password", "", "The password which will be set on the user.")
 	return cmd
 }
@@ -8049,7 +8241,7 @@ func newPasswordUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("current-password", "", "The current password for the user.")
 	cmd.Flags().String("password", "", "The new password for the user.")
 	cmd.Flags().String("password-confirmation", "", "The confirmation of the password for the user.")
@@ -8067,7 +8259,7 @@ var paymentrequestsColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 }
 
-// NewPaymentRequestsCmd creates the payment-requests resource command group.
+// NewPaymentRequestsCmd creates the payment-requests resource command.
 func NewPaymentRequestsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment-requests",
@@ -8227,6 +8419,9 @@ func newPaymentRequestsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return paymentrequestsFetchAll(cmd, q, vars)
 			}
@@ -8274,6 +8469,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 }
 
 func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -8301,8 +8497,11 @@ func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, paymentrequestsColumns)
 }
 
@@ -8391,7 +8590,7 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("worker", "", "The worker that is creating the payment request.")
 	cmd.Flags().String("job", "", "The job that the payment request is for.")
 	cmd.Flags().String("company", "", "The company that the payment request is for.")
@@ -8451,7 +8650,7 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the payment request to delete.")
 	return cmd
 }
@@ -8533,7 +8732,7 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the payment request to update.")
 	cmd.Flags().String("start-date", "", "The date that the payment request started.")
 	cmd.Flags().String("end-date", "", "The date that the payment request ended (if applicable).")
@@ -8543,68 +8742,6 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	cmd.Flags().String("purchase-order-number", "", "The purchase order number for the payment request.")
-	return cmd
-}
-
-// NewPersonalInviteLinkCmd creates the personal-invite-link resource command group.
-func NewPersonalInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "personal-invite-link",
-		Short: "",
-	}
-
-	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
-
-	return cmd
-}
-
-func newPersonalInviteLinkGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome personal-invite-link generate --input data.json",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -8619,7 +8756,7 @@ var projectsColumns = []output.Column{
 	{Header: "Company Name", Field: "company.name"},
 }
 
-// NewProjectsCmd creates the projects resource command group.
+// NewProjectsCmd creates the projects resource command.
 func NewProjectsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "projects",
@@ -8715,6 +8852,9 @@ func newProjectsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return projectsFetchAll(cmd, q, vars)
 			}
@@ -8745,6 +8885,7 @@ func newProjectsListCmd() *cobra.Command {
 }
 
 func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -8772,8 +8913,11 @@ func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, projectsColumns)
 }
 
@@ -8822,7 +8966,7 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
 }
@@ -8888,7 +9032,7 @@ func newProjectsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the project.")
 	cmd.Flags().String("description", "", "The description of the project.")
 	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
@@ -8942,7 +9086,7 @@ func newProjectsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
@@ -8996,7 +9140,7 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "Jobs to be detached from the project.")
 	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
@@ -9047,7 +9191,7 @@ func newProjectsEndCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
@@ -9097,7 +9241,7 @@ func newProjectsOpenCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
 }
@@ -9163,7 +9307,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	cmd.Flags().String("name", "", "The name of the project.")
 	cmd.Flags().String("description", "", "The description of the project.")
@@ -9183,7 +9327,7 @@ var recruitercandidatesColumns = []output.Column{
 	{Header: "Token", Field: "token"},
 }
 
-// NewRecruiterCandidatesCmd creates the recruiter-candidates resource command group.
+// NewRecruiterCandidatesCmd creates the recruiter-candidates resource command.
 func NewRecruiterCandidatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "recruiter-candidates",
@@ -9267,6 +9411,9 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return recruitercandidatesFetchAll(cmd, q, vars)
 			}
@@ -9295,6 +9442,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 }
 
 func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -9322,8 +9470,11 @@ func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, recruitercandidatesColumns)
 }
 
@@ -9408,7 +9559,7 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("recruiter", "", "The recruiter that the recruiter candidate relationship is for.")
 	cmd.Flags().String("first-name", "", "The invited candidate first name")
 	cmd.Flags().String("middle-name", "", "The invited candidate middle name")
@@ -9467,7 +9618,7 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter candidate relationship to delete.")
 	return cmd
 }
@@ -9537,7 +9688,7 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter relationship to update.")
 	cmd.Flags().String("job-title", "", "The job title to update.")
 	cmd.Flags().String("currency", "", "The currency to update.")
@@ -9558,7 +9709,7 @@ var recruitersColumns = []output.Column{
 	{Header: "Owner Name", Field: "owner.name"},
 }
 
-// NewRecruitersCmd creates the recruiters resource command group.
+// NewRecruitersCmd creates the recruiters resource command.
 func NewRecruitersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "recruiters",
@@ -9599,6 +9750,9 @@ func newRecruitersListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return recruitersFetchAll(cmd, q, vars)
 			}
@@ -9625,6 +9779,7 @@ func newRecruitersListCmd() *cobra.Command {
 }
 
 func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -9652,28 +9807,20 @@ func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, recruitersColumns)
 }
 
-// NewReinviteTrustedContactCmd creates the reinvite-trusted-contact resource command group.
+// NewReinviteTrustedContactCmd creates the reinvite-trusted-contact resource command.
 func NewReinviteTrustedContactCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "reinvite-trusted-contact",
-		Short: "",
-	}
-
-	cmd.AddCommand(newReinviteTrustedContactReinviteTrustedContactCmd())
-
-	return cmd
-}
-
-func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reinvite-trusted-contact",
 		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
-		Example: "  worksome reinvite-trusted-contact reinvite-trusted-contact --input data.json",
+		Example: "  worksome reinvite-trusted-contact --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vars := make(map[string]any)
 
@@ -9714,7 +9861,7 @@ func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the Trusted Contact to re-invite. (Note, this is different from the Worker ID)")
 	return cmd
 }
@@ -9724,7 +9871,7 @@ var skillsColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 }
 
-// NewSkillsCmd creates the skills resource command group.
+// NewSkillsCmd creates the skills resource command.
 func NewSkillsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "skills",
@@ -9773,6 +9920,9 @@ func newSkillsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return skillsFetchAll(cmd, q, vars)
 			}
@@ -9801,6 +9951,7 @@ func newSkillsListCmd() *cobra.Command {
 }
 
 func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -9828,16 +9979,19 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, skillsColumns)
 }
 
-// NewTimesheetRegistrationCmd creates the timesheet-registration resource command group.
+// NewTimesheetRegistrationCmd creates the timesheet-registration resource command.
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "",
+		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
 	}
 
 	cmd.AddCommand(newTimesheetRegistrationDeleteCmd())
@@ -9891,7 +10045,7 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet registration to delete.")
 	return cmd
 }
@@ -9973,7 +10127,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet registration to update.")
 	cmd.Flags().String("start-time", "", "The start time of the timesheet registration.")
 	cmd.Flags().String("end-time", "", "The end time of the timesheet registration.")
@@ -9997,7 +10151,7 @@ var timesheetsColumns = []output.Column{
 	{Header: "Created At", Field: "createdAt"},
 }
 
-// NewTimesheetsCmd creates the timesheets resource command group.
+// NewTimesheetsCmd creates the timesheets resource command.
 func NewTimesheetsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheets",
@@ -10074,6 +10228,9 @@ func newTimesheetsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return timesheetsFetchAll(cmd, q, vars)
 			}
@@ -10100,6 +10257,7 @@ func newTimesheetsListCmd() *cobra.Command {
 }
 
 func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -10127,8 +10285,11 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, timesheetsColumns)
 }
 
@@ -10181,7 +10342,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
 	cmd.Flags().String("data", "", "The custom data for the timesheet.")
 	return cmd
@@ -10244,7 +10405,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("worker", "", "The worker that the timesheet is for.")
 	cmd.Flags().String("hire", "", "The hire that the timesheet is for.")
 	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
@@ -10297,7 +10458,7 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet to delete.")
 	return cmd
 }
@@ -10355,7 +10516,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet to update.")
 	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
 	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
@@ -10373,7 +10534,7 @@ var trustedcontactsColumns = []output.Column{
 	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
-// NewTrustedContactsCmd creates the trusted-contacts resource command group.
+// NewTrustedContactsCmd creates the trusted-contacts resource command.
 func NewTrustedContactsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trusted-contacts",
@@ -10522,6 +10683,9 @@ func newTrustedContactsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return trustedcontactsFetchAll(cmd, q, vars)
 			}
@@ -10566,6 +10730,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 }
 
 func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -10593,8 +10758,11 @@ func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, trustedcontactsColumns)
 }
 
@@ -10643,7 +10811,7 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
 	return cmd
 }
@@ -10741,7 +10909,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the trusted contact is for.")
 	cmd.Flags().String("first-name", "", "The invited trusted contact first name.")
 	cmd.Flags().String("middle-name", "", "The invited trusted contact middle name.")
@@ -10807,7 +10975,7 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
 	cmd.Flags().String("account", "", "The account performing the delete.")
 	return cmd
@@ -10862,7 +11030,7 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be edited.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	return cmd
@@ -10877,7 +11045,7 @@ var usergroupsColumns = []output.Column{
 	{Header: "Status", Field: "status"},
 }
 
-// NewUserGroupsCmd creates the user-groups resource command group.
+// NewUserGroupsCmd creates the user-groups resource command.
 func NewUserGroupsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user-groups",
@@ -10967,6 +11135,9 @@ func newUserGroupsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return usergroupsFetchAll(cmd, q, vars)
 			}
@@ -10996,6 +11167,7 @@ func newUserGroupsListCmd() *cobra.Command {
 }
 
 func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -11023,8 +11195,11 @@ func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, usergroupsColumns)
 }
 
@@ -11073,7 +11248,7 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
 }
@@ -11135,7 +11310,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
@@ -11188,7 +11363,7 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the group.")
 	return cmd
 }
@@ -11238,7 +11413,7 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
 }
@@ -11300,7 +11475,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the group.")
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
@@ -11308,11 +11483,11 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewVerificationEmailCmd creates the verification-email resource command group.
+// NewVerificationEmailCmd creates the verification-email resource command.
 func NewVerificationEmailCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verification-email",
-		Short: "",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
 	}
 
 	cmd.AddCommand(newVerificationEmailSendCmd())
@@ -11354,7 +11529,7 @@ func newVerificationEmailSendCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -11369,11 +11544,11 @@ var viewerColumns = []output.Column{
 	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
-// NewViewerCmd creates the viewer resource command group.
+// NewViewerCmd creates the viewer resource command.
 func NewViewerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "viewer",
-		Short: "",
+		Short: "Get the authenticated user that is viewing the API.",
 	}
 
 	cmd.AddCommand(newViewerGetCmd())
@@ -11421,7 +11596,7 @@ var webhookeventlogsColumns = []output.Column{
 	{Header: "Webhook Event Key", Field: "webhookEvent.key"},
 }
 
-// NewWebhookEventLogsCmd creates the webhook-event-logs resource command group.
+// NewWebhookEventLogsCmd creates the webhook-event-logs resource command.
 func NewWebhookEventLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-event-logs",
@@ -11470,6 +11645,9 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return webhookeventlogsFetchAll(cmd, q, vars)
 			}
@@ -11498,6 +11676,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 }
 
 func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -11525,8 +11704,11 @@ func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[s
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, webhookeventlogsColumns)
 }
 
@@ -11541,7 +11723,7 @@ var webhookeventsColumns = []output.Column{
 	{Header: "Logs ID", Field: "logs.id"},
 }
 
-// NewWebhookEventsCmd creates the webhook-events resource command group.
+// NewWebhookEventsCmd creates the webhook-events resource command.
 func NewWebhookEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-events",
@@ -11615,6 +11797,9 @@ func newWebhookEventsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return webhookeventsFetchAll(cmd, q, vars)
 			}
@@ -11641,6 +11826,7 @@ func newWebhookEventsListCmd() *cobra.Command {
 }
 
 func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -11668,8 +11854,11 @@ func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, webhookeventsColumns)
 }
 
@@ -11718,7 +11907,7 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the webhook event to be retried.")
 	return cmd
 }
@@ -11734,7 +11923,7 @@ var webhooksColumns = []output.Column{
 	{Header: "Client Id", Field: "clientId"},
 }
 
-// NewWebhooksCmd creates the webhooks resource command group.
+// NewWebhooksCmd creates the webhooks resource command.
 func NewWebhooksCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhooks",
@@ -11810,6 +11999,9 @@ func newWebhooksListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return webhooksFetchAll(cmd, q, vars)
 			}
@@ -11836,6 +12028,7 @@ func newWebhooksListCmd() *cobra.Command {
 }
 
 func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -11863,8 +12056,11 @@ func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, webhooksColumns)
 }
 
@@ -11941,7 +12137,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("title", "", "The title of the webhook.")
 	cmd.Flags().String("description", "", "The description of the webhook.")
 	cmd.Flags().String("url", "", "The URL of the webhook.")
@@ -11998,7 +12194,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the webhook to be deleted.")
 	return cmd
 }
@@ -12076,7 +12272,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The webhook to be updated.")
 	cmd.Flags().String("title", "", "The title of the webhook.")
 	cmd.Flags().String("description", "", "The description of the webhook.")
@@ -12099,7 +12295,7 @@ var workerColumns = []output.Column{
 	{Header: "Avatar", Field: "avatar"},
 }
 
-// NewWorkerCmd creates the worker resource command group.
+// NewWorkerCmd creates the worker resource command.
 func NewWorkerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker",
@@ -12192,17 +12388,17 @@ func newWorkerUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the worker.")
 	cmd.Flags().String("job-title", "", "The job title that the worker has.")
 	return cmd
 }
 
-// NewWorkerCustomFieldValuesCmd creates the worker-custom-field-values resource command group.
+// NewWorkerCustomFieldValuesCmd creates the worker-custom-field-values resource command.
 func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker-custom-field-values",
-		Short: "",
+		Short: "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
 	}
 
 	cmd.AddCommand(newWorkerCustomFieldValuesUpdateCmd())
@@ -12255,12 +12451,12 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("applies-to", "", "The entity that supports custom fields (e.g., TrustedContact).")
 	return cmd
 }
 
-// NewWorkflowVariablesCmd creates the workflow-variables resource command group.
+// NewWorkflowVariablesCmd creates the workflow-variables resource command.
 func NewWorkflowVariablesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflow-variables",
@@ -12305,6 +12501,9 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return workflowvariablesFetchAll(cmd, q, vars)
 			}
@@ -12326,6 +12525,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 }
 
 func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -12353,8 +12553,11 @@ func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, nil)
 }
 
@@ -12362,7 +12565,7 @@ var workflowsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 }
 
-// NewWorkflowsCmd creates the workflows resource command group.
+// NewWorkflowsCmd creates the workflows resource command.
 func NewWorkflowsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflows",
@@ -12438,6 +12641,9 @@ func newWorkflowsListCmd() *cobra.Command {
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
 			if fetchAll {
 				return workflowsFetchAll(cmd, q, vars)
 			}
@@ -12464,6 +12670,7 @@ func newWorkflowsListCmd() *cobra.Command {
 }
 
 func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
@@ -12491,8 +12698,11 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			return printResult(cmd, result, nil)
 		}
 		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, workflowsColumns)
 }
 
@@ -12530,7 +12740,7 @@ func newWorkflowsCreateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -12579,7 +12789,7 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the workflow.")
 	return cmd
 }
@@ -12618,15 +12828,15 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
-// NewWorksomeIntelligenceConsentCmd creates the worksome-intelligence-consent resource command group.
+// NewWorksomeIntelligenceConsentCmd creates the worksome-intelligence-consent resource command.
 func NewWorksomeIntelligenceConsentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worksome-intelligence-consent",
-		Short: "",
+		Short: "Update consent to use Worksome Intelligence for the current user.",
 	}
 
 	cmd.AddCommand(newWorksomeIntelligenceConsentUpdateCmd())
@@ -12679,7 +12889,7 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().Bool("consent", false, "Whether or not to consent to Worksome Intelligence.")
 	return cmd
 }

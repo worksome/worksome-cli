@@ -20,6 +20,7 @@ type Client struct {
 	httpClient *http.Client
 	verbose    bool
 	timeout    time.Duration
+	userAgent  string
 }
 
 // Option configures the Client.
@@ -41,6 +42,13 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
+// WithUserAgent sets the User-Agent header for HTTP requests.
+func WithUserAgent(ua string) Option {
+	return func(c *Client) {
+		c.userAgent = ua
+	}
+}
+
 // WithHTTPClient overrides the default HTTP client used for requests.
 // When set, any timeout configured via WithTimeout is ignored.
 func WithHTTPClient(hc *http.Client) Option {
@@ -57,6 +65,9 @@ func New(endpoint, token string, opts ...Option) *Client {
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if c.userAgent == "" {
+		c.userAgent = "worksome-cli"
 	}
 	// If no custom HTTP client was provided, create a default one with the
 	// configured (or default 30s) timeout.
@@ -220,6 +231,7 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("User-Agent", c.userAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

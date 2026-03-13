@@ -69,6 +69,7 @@ func newRootCmd() *cobra.Command {
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
 		timeout, _ := rootCmd.PersistentFlags().GetInt("timeout")
 		opts := []client.Option{}
+		opts = append(opts, client.WithUserAgent(fmt.Sprintf("worksome-cli/%s", version)))
 		if verbose {
 			opts = append(opts, client.WithVerbose(true))
 		}
@@ -83,6 +84,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "auth", Title: "Authentication"},
 		&cobra.Group{ID: "core", Title: "Core Resources"},
+		&cobra.Group{ID: "recruitment", Title: "Recruitment & Talent"},
 		&cobra.Group{ID: "finance", Title: "Finance & Billing"},
 		&cobra.Group{ID: "admin", Title: "Administration"},
 		&cobra.Group{ID: "other", Title: "Other Resources"},
@@ -102,6 +104,8 @@ func newRootCmd() *cobra.Command {
 		"timesheets": true, "projects": true, "milestones": true,
 		"workers": true, "worker": true, "company": true,
 		"conversations": true, "files": true, "viewer": true,
+		"employments": true, "classifications": true, "compliance": true,
+		"gate": true, "skills": true, "industries": true, "note": true,
 	}
 	financeResources := map[string]bool{
 		"invoices": true, "invoice-row": true, "payment-requests": true,
@@ -114,6 +118,16 @@ func newRootCmd() *cobra.Command {
 		"approvals": true, "approval-rules": true, "approval-states": true,
 		"approval-approvables": true, "approvers": true, "custom-fields": true,
 		"inherited-custom-fields": true,
+		"email": true, "password": true, "verification-email": true,
+	}
+	recruitmentResources := map[string]bool{
+		"company-recruiters": true, "recruiter-candidates": true, "recruiters": true,
+		"trusted-contacts": true, "organisation-trusted-contacts": true,
+		"invite-link": true, "personal-invite-link": true,
+		"reinvite-trusted-contact": true, "block-trusted-contact": true,
+		"job-candidates": true, "job-candidate-preferred": true,
+		"job-candidate-status": true, "job-shares": true, "partner": true,
+		"accept-bid": true,
 	}
 
 	for _, cmd := range rootCmd.Commands() {
@@ -125,6 +139,8 @@ func newRootCmd() *cobra.Command {
 			// leave ungrouped
 		case coreResources[name]:
 			cmd.GroupID = "core"
+		case recruitmentResources[name]:
+			cmd.GroupID = "recruitment"
 		case financeResources[name]:
 			cmd.GroupID = "finance"
 		case adminResources[name]:

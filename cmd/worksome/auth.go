@@ -22,6 +22,8 @@ func newAuthCmd() *cobra.Command {
 	cmd.AddCommand(newAuthLoginCmd())
 	cmd.AddCommand(newAuthStatusCmd())
 	cmd.AddCommand(newAuthSwitchCmd())
+	cmd.AddCommand(newAuthLogoutCmd())
+	cmd.AddCommand(newAuthListCmd())
 
 	return cmd
 }
@@ -117,7 +119,7 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 		},
 	}
 
-	cmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile name to save token under")
+	cmd.Flags().StringVar(&profileName, "profile", "default", "Profile name to save token under")
 	return cmd
 }
 
@@ -126,6 +128,33 @@ func newAuthStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show current authentication status",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
+			endpointFlag, _ := cmd.Root().PersistentFlags().GetString("endpoint")
+
+			if tokenFlag != "" {
+				// Use the provided token directly
+				endpoint := endpointFlag
+				if endpoint == "" {
+					endpoint = "https://api.worksome.com/graphql"
+				}
+				fmt.Printf("Token:    %s\n", config.MaskToken(tokenFlag))
+				fmt.Printf("Endpoint: %s\n", endpoint)
+
+				c := client.New(endpoint, tokenFlag)
+				var result map[string]any
+				err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
+				if err != nil {
+					fmt.Printf("Status:   Invalid or expired token (%v)\n", err)
+					return nil
+				}
+				viewer, _ := result["viewer"].(map[string]any)
+				name, _ := viewer["name"].(string)
+				email, _ := viewer["email"].(string)
+				fmt.Printf("User:     %s (%s)\n", name, email)
+				fmt.Printf("Status:   Authenticated\n")
+				return nil
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return err
@@ -186,6 +215,73 @@ func newAuthSwitchCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Switched to profile %q\n", profileName)
+			return nil
+		},
+	}
+}
+
+func newAuthLogoutCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "logout [profile]",
+		Short: "Remove a profile and its stored credentials",
+		Long:  "Remove a profile from the configuration. Defaults to the current profile if no name is given.",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+
+			profileName := cfg.CurrentProfile
+			if len(args) > 0 {
+				profileName = args[0]
+			}
+
+			if profileName == "" {
+				return fmt.Errorf("no profile specified and no current profile set")
+			}
+
+			if _, ok := cfg.Profiles[profileName]; !ok {
+				return fmt.Errorf("profile %q not found", profileName)
+			}
+
+			delete(cfg.Profiles, profileName)
+			if cfg.CurrentProfile == profileName {
+				cfg.CurrentProfile = ""
+			}
+
+			if err := cfg.Save(); err != nil {
+				return fmt.Errorf("saving config: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Profile %q removed\n", profileName)
+			return nil
+		},
+	}
+}
+
+func newAuthListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List all configured profiles",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+
+			if len(cfg.Profiles) == 0 {
+				fmt.Println("No profiles configured. Run 'worksome auth login' to set up.")
+				return nil
+			}
+
+			for name, profile := range cfg.Profiles {
+				marker := "  "
+				if name == cfg.CurrentProfile {
+					marker = "* "
+				}
+				fmt.Printf("%s%s (endpoint: %s)\n", marker, name, profile.Endpoint)
+			}
 			return nil
 		},
 	}

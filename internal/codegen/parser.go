@@ -569,6 +569,41 @@ func (p *parser) buildResources() []Resource {
 		claimed[name] = true
 	}
 
+	// Post-processing: merge singular/plural resource pairs (Issue #4)
+	for name, res := range resourceMap {
+		if res.GetQuery != nil && res.ListQuery == nil {
+			plural := toPlural(name)
+			if pluralRes, ok := resourceMap[plural]; ok && pluralRes.ListQuery != nil && pluralRes.GetQuery == nil {
+				// Merge: move GetQuery and Mutations from singular into plural
+				pluralRes.GetQuery = res.GetQuery
+				pluralRes.Mutations = append(pluralRes.Mutations, res.Mutations...)
+				if pluralRes.Description == "" {
+					pluralRes.Description = res.Description
+				}
+				delete(resourceMap, name)
+			}
+		}
+	}
+
+	// Post-processing: fill empty descriptions and detect hoisted resources
+	for _, res := range resourceMap {
+		// Issue #2: fill empty descriptions
+		if res.Description == "" {
+			if res.GetQuery != nil && res.GetQuery.Description != "" {
+				res.Description = res.GetQuery.Description
+			} else if res.ListQuery != nil && res.ListQuery.Description != "" {
+				res.Description = res.ListQuery.Description
+			} else if len(res.Mutations) > 0 && res.Mutations[0].Description != "" {
+				res.Description = res.Mutations[0].Description
+			}
+		}
+
+		// Issue #1: detect hoisted single-mutation resources
+		if res.GetQuery == nil && res.ListQuery == nil && len(res.Mutations) == 1 && res.Mutations[0].CLIName == res.Name {
+			res.Hoisted = true
+		}
+	}
+
 	// Convert map to sorted slice
 	var resources []Resource
 	for _, res := range resourceMap {
@@ -1159,6 +1194,25 @@ func matchSuffix(rest string, resources map[string]*Resource) string {
 		}
 	}
 	return ""
+}
+
+// toPlural is a simple heuristic to pluralize a word.
+func toPlural(s string) string {
+	if strings.HasSuffix(s, "ch") || strings.HasSuffix(s, "sh") || strings.HasSuffix(s, "ss") || strings.HasSuffix(s, "x") || strings.HasSuffix(s, "z") {
+		return s + "es"
+	}
+	if strings.HasSuffix(s, "y") && len(s) > 1 && !isVowel(s[len(s)-2]) {
+		return s[:len(s)-1] + "ies"
+	}
+	return s + "s"
+}
+
+func isVowel(b byte) bool {
+	switch b {
+	case 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U':
+		return true
+	}
+	return false
 }
 
 // toSingular is a simple heuristic to singularize a word.

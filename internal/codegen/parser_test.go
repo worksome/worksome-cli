@@ -568,6 +568,239 @@ func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
 	}
 }
 
+func TestDescriptionFallback(t *testing.T) {
+	// Schema with a mutation-only resource — verify it gets the mutation's description.
+	schema := `
+type Query {
+	viewer: User!
+}
+
+type Mutation {
+	"Accept a bid from a freelancer."
+	acceptBid(input: AcceptBidInput!): Bid!
+}
+
+type User {
+	id: ID!
+	name: String!
+}
+
+type Bid {
+	id: ID!
+	status: String!
+}
+
+input AcceptBidInput {
+	id: ID!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var found *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "accept-bid" {
+			found = &parsed.Resources[i]
+			break
+		}
+	}
+	if found == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'accept-bid' resource, got resources: %v", names)
+	}
+
+	if found.Description == "" {
+		t.Error("expected non-empty description from mutation fallback")
+	}
+	if found.Description != "Accept a bid from a freelancer." {
+		t.Errorf("expected description %q, got %q", "Accept a bid from a freelancer.", found.Description)
+	}
+}
+
+func TestHoistedResource(t *testing.T) {
+	// Schema where a resource has 1 mutation with matching CLI name -> hoisted.
+	schema := `
+type Query {
+	viewer: User!
+}
+
+type Mutation {
+	"Accept a bid from a freelancer."
+	acceptBid(input: AcceptBidInput!): Bid!
+}
+
+type User {
+	id: ID!
+	name: String!
+}
+
+type Bid {
+	id: ID!
+	status: String!
+}
+
+input AcceptBidInput {
+	id: ID!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var found *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "accept-bid" {
+			found = &parsed.Resources[i]
+			break
+		}
+	}
+	if found == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'accept-bid' resource, got resources: %v", names)
+	}
+
+	if !found.Hoisted {
+		t.Error("expected accept-bid to be hoisted (single mutation with matching CLI name)")
+	}
+	if found.GetQuery != nil {
+		t.Error("hoisted resource should not have a GetQuery")
+	}
+	if found.ListQuery != nil {
+		t.Error("hoisted resource should not have a ListQuery")
+	}
+	if len(found.Mutations) != 1 {
+		t.Errorf("expected 1 mutation, got %d", len(found.Mutations))
+	}
+}
+
+func TestSingularPluralMerge(t *testing.T) {
+	// Schema with both batch(id:ID!): Batch and batches(first:Int): BatchPaginator
+	// They should merge into one "batches" resource with both get and list queries.
+	schema := `
+type Query {
+	"Get a specific batch."
+	batch(id: ID!): Batch
+	"List all batches."
+	batches(first: Int! = 10, page: Int): BatchPaginator!
+}
+
+type Mutation {
+	"Create a batch."
+	createBatch(input: CreateBatchInput!): Batch!
+}
+
+type Batch {
+	id: ID!
+	name: String!
+	status: String!
+}
+
+type BatchPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Batch!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+input CreateBatchInput {
+	name: String!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Should have "batches" but not "batch" as a separate resource
+	var batchesResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "batch" {
+			t.Error("singular 'batch' resource should be merged into 'batches'")
+		}
+		if parsed.Resources[i].Name == "batches" {
+			batchesResource = &parsed.Resources[i]
+		}
+	}
+
+	if batchesResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'batches' resource, got resources: %v", names)
+	}
+
+	if batchesResource.GetQuery == nil {
+		t.Error("batches resource should have a GetQuery (merged from batch)")
+	}
+	if batchesResource.ListQuery == nil {
+		t.Error("batches resource should have a ListQuery")
+	}
+	if len(batchesResource.Mutations) == 0 {
+		t.Error("batches resource should have mutations (createBatch)")
+	}
+}
+
+func TestToPlural(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"batch", "batches"},
+		{"match", "matches"},
+		{"dish", "dishes"},
+		{"boss", "bosses"},
+		{"box", "boxes"},
+		{"buzz", "buzzes"},
+		{"company", "companies"},
+		{"category", "categories"},
+		{"job", "jobs"},
+		{"hire", "hires"},
+		{"day", "days"},
+		{"key", "keys"},
+	}
+	for _, tt := range tests {
+		got := toPlural(tt.input)
+		if got != tt.expected {
+			t.Errorf("toPlural(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
 func TestParseSchemaMultiWordMutations(t *testing.T) {
 	// Schema with multi-word mutations that should be grouped under "hires"
 	schema := `
