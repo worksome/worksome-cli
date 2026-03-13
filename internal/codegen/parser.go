@@ -778,6 +778,13 @@ func (p *parser) matchMutationToResource(mutationName string, resources map[stri
 				if _, ok := resources[singular]; ok {
 					return singular
 				}
+				// Try suffix matching: split the remaining PascalCase words and
+				// check if any suffix (last word, last two words, ...) matches
+				// an existing resource. This handles multi-word mutations like
+				// "attributeRecruiterToHire" where "Hire"/"hires" is a resource.
+				if match := matchSuffix(rest, resources); match != "" {
+					return match
+				}
 				// Use the candidate as-is (will create new resource)
 				return candidate
 			}
@@ -920,6 +927,55 @@ func toKebabCase(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "_", "-")
 	return s
+}
+
+// splitPascalWords splits a PascalCase string into individual words at uppercase boundaries.
+// "RecruiterToHire" -> ["Recruiter", "To", "Hire"]
+// "Job" -> ["Job"]
+// "DraftHire" -> ["Draft", "Hire"]
+func splitPascalWords(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var words []string
+	start := 0
+	for i := 1; i < len(s); i++ {
+		if unicode.IsUpper(rune(s[i])) {
+			words = append(words, s[start:i])
+			start = i
+		}
+	}
+	words = append(words, s[start:])
+	return words
+}
+
+// matchSuffix tries to match suffix subsets of a PascalCase string against known resources.
+// It checks from the shortest suffix (last word) to longer suffixes, returning the first match.
+// For example, given "RecruiterToHire" and a resource "hires", it will try:
+//   - "Hire" -> kebab "hire" -> not found -> plural "hires" -> found -> return "hires"
+func matchSuffix(rest string, resources map[string]*Resource) string {
+	words := splitPascalWords(rest)
+	if len(words) <= 1 {
+		// Already tried the full string; nothing to suffix-match.
+		return ""
+	}
+	// Try suffixes from shortest (last word) to longest (all but first word).
+	for i := len(words) - 1; i >= 1; i-- {
+		suffix := strings.Join(words[i:], "")
+		candidate := toKebabCase(suffix)
+		if _, ok := resources[candidate]; ok {
+			return candidate
+		}
+		plural := candidate + "s"
+		if _, ok := resources[plural]; ok {
+			return plural
+		}
+		singular := toKebabCase(toSingular(suffix))
+		if _, ok := resources[singular]; ok {
+			return singular
+		}
+	}
+	return ""
 }
 
 // toSingular is a simple heuristic to singularize a word.

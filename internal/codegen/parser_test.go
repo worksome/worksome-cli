@@ -293,3 +293,183 @@ func TestToSingular(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitPascalWords(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"RecruiterToHire", []string{"Recruiter", "To", "Hire"}},
+		{"Job", []string{"Job"}},
+		{"DraftHire", []string{"Draft", "Hire"}},
+		{"", nil},
+		{"Hire", []string{"Hire"}},
+		{"ABC", []string{"A", "B", "C"}},
+	}
+	for _, tt := range tests {
+		got := splitPascalWords(tt.input)
+		if len(got) != len(tt.expected) {
+			t.Errorf("splitPascalWords(%q) = %v, want %v", tt.input, got, tt.expected)
+			continue
+		}
+		for i := range got {
+			if got[i] != tt.expected[i] {
+				t.Errorf("splitPascalWords(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.expected[i])
+			}
+		}
+	}
+}
+
+func TestMatchSuffix(t *testing.T) {
+	resources := map[string]*Resource{
+		"hires": {Name: "hires"},
+		"jobs":  {Name: "jobs"},
+		"job":   {Name: "job"},
+	}
+
+	tests := []struct {
+		rest     string
+		expected string
+	}{
+		// "RecruiterToHire" -> suffix "Hire" -> plural "hires" -> found
+		{"RecruiterToHire", "hires"},
+		// "RecruiterFromHire" -> suffix "Hire" -> plural "hires" -> found
+		{"RecruiterFromHire", "hires"},
+		// "DraftJob" -> suffix "Job" -> exact match "job" -> found
+		{"DraftJob", "job"},
+		// Single word: nothing to suffix-match
+		{"Hire", ""},
+		// No matching resource
+		{"RecruiterToProject", ""},
+	}
+	for _, tt := range tests {
+		got := matchSuffix(tt.rest, resources)
+		if got != tt.expected {
+			t.Errorf("matchSuffix(%q) = %q, want %q", tt.rest, got, tt.expected)
+		}
+	}
+}
+
+func TestMatchMutationToResource_MultiWord(t *testing.T) {
+	// Simulate a parser with no doc (not needed for matchMutationToResource)
+	p := &parser{}
+	resources := map[string]*Resource{
+		"hires": {Name: "hires"},
+		"jobs":  {Name: "jobs"},
+	}
+
+	tests := []struct {
+		mutation string
+		expected string
+	}{
+		// Simple cases: exact match after stripping prefix
+		{"createJob", "jobs"},
+		{"terminateHire", "hires"},
+		// Multi-word mutations: should match via suffix
+		{"attributeRecruiterToHire", "hires"},
+		{"removeRecruiterFromHire", "hires"},
+		// Direct match still works
+		{"deleteJob", "jobs"},
+	}
+	for _, tt := range tests {
+		got := p.matchMutationToResource(tt.mutation, resources)
+		if got != tt.expected {
+			t.Errorf("matchMutationToResource(%q) = %q, want %q", tt.mutation, got, tt.expected)
+		}
+	}
+}
+
+func TestParseSchemaMultiWordMutations(t *testing.T) {
+	// Schema with multi-word mutations that should be grouped under "hires"
+	schema := `
+type Query {
+	hire(id: ID!): Hire
+	hires(first: Int! = 10, page: Int): HirePaginator!
+}
+
+type Mutation {
+	attributeRecruiterToHire(input: AttributeRecruiterToHireInput!): Hire!
+	removeRecruiterFromHire(input: RemoveRecruiterFromHireInput!): Hire!
+	terminateHire(input: TerminateHireInput!): Hire!
+}
+
+type Hire {
+	id: ID!
+	status: String!
+}
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+input AttributeRecruiterToHireInput {
+	hireId: ID!
+	recruiterId: ID!
+}
+
+input RemoveRecruiterFromHireInput {
+	hireId: ID!
+	recruiterId: ID!
+}
+
+input TerminateHireInput {
+	id: ID!
+	reason: String
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find the hires resource
+	var hiresResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "hires" {
+			hiresResource = &parsed.Resources[i]
+			break
+		}
+	}
+	if hiresResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'hires' resource, got resources: %v", names)
+	}
+
+	// All three mutations should be grouped under hires
+	mutationNames := make(map[string]bool)
+	for _, m := range hiresResource.Mutations {
+		mutationNames[m.Name] = true
+	}
+
+	for _, expected := range []string{"attributeRecruiterToHire", "removeRecruiterFromHire", "terminateHire"} {
+		if !mutationNames[expected] {
+			t.Errorf("expected mutation %q in hires resource, got mutations: %v", expected, mutationNames)
+		}
+	}
+
+	// Verify there are no spurious resources like "recruiter-to-hire"
+	for _, r := range parsed.Resources {
+		if r.Name == "recruiter-to-hire" || r.Name == "recruiter-from-hire" {
+			t.Errorf("unexpected resource %q — multi-word mutation should be grouped under 'hires'", r.Name)
+		}
+	}
+}
