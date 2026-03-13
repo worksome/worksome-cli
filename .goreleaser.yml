@@ -1,0 +1,44 @@
+version: 2
+
+builds:
+  - main: ./cmd/worksome/
+    binary: worksome
+    ldflags:
+      - -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?:'
+    - title: Bug Fixes
+      regexp: '^fix(\(.+\))?:'
+    - title: Refactoring
+      regexp: '^refactor(\(.+\))?:'
+    - title: Documentation
+      regexp: '^docs(\(.+\))?:'
+    - title: Testing
+      regexp: '^test(\(.+\))?:'
+    - title: Chores
+      regexp: '^chore(\(.+\))?:'
+    - title: Other
+      order: 999
