@@ -10,6 +10,11 @@ resources:
     queries: ["accounts"]
     mutations: []
 
-# Operations to exclude from CLI generation (internal, deprecated without replacement, etc.)
+# Operations to exclude from CLI generation (both queries and mutations).
 ignore:
+  - "__schema"  # GraphQL introspection
+  - "__type"    # GraphQL introspection
+
+# Mutations to exclude from CLI generation (queries with the same name are kept).
+ignore_mutations:
   - "hire"  # deprecated: use createDraftHire

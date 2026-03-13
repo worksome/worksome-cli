@@ -15,8 +15,9 @@ import (
 
 // Overrides configures manual resource grouping and operation exclusions.
 type Overrides struct {
-	Resources map[string]OverrideResource `yaml:"resources"`
-	Ignore    []string                    `yaml:"ignore"`
+	Resources       map[string]OverrideResource `yaml:"resources"`
+	Ignore          []string                    `yaml:"ignore"`
+	IgnoreMutations []string                    `yaml:"ignore_mutations"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -396,6 +397,10 @@ func (p *parser) buildResources() []Resource {
 	for _, name := range p.overrides.Ignore {
 		ignored[name] = true
 	}
+	ignoredMutations := make(map[string]bool)
+	for _, name := range p.overrides.IgnoreMutations {
+		ignoredMutations[name] = true
+	}
 
 	// Collect all queries and mutations
 	queries := make(map[string]*ast.FieldDefinition)
@@ -410,7 +415,7 @@ func (p *parser) buildResources() []Resource {
 	}
 	if m := p.doc.Types["Mutation"]; m != nil {
 		for _, f := range m.Fields {
-			if !ignored[f.Name] {
+			if !ignored[f.Name] && !ignoredMutations[f.Name] {
 				mutations[f.Name] = f
 			}
 		}
@@ -963,6 +968,14 @@ func (p *parser) deriveMutationCLIName(mutationName, resourceName string) string
 	resLower := strings.ToLower(resourcePascal)
 
 	if idx := strings.Index(lower, resLower); idx > 0 {
+		verb := mutationName[:idx]
+		return toKebabCase(verb)
+	}
+
+	// Also try the singular form of the resource name so that e.g.
+	// "terminateHire" under "hires" matches "hire" and yields "terminate".
+	resSingularLower := strings.ToLower(toPascalCase(toSingular(resourceName)))
+	if idx := strings.Index(lower, resSingularLower); idx > 0 {
 		verb := mutationName[:idx]
 		return toKebabCase(verb)
 	}

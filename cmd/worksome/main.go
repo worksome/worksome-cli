@@ -20,6 +20,7 @@ var (
 func main() {
 	rootCmd := newRootCmd()
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -34,13 +35,13 @@ func newRootCmd() *cobra.Command {
 	}
 
 	// Global flags
-	rootCmd.PersistentFlags().String("profile", "", "Config profile to use")
-	rootCmd.PersistentFlags().String("token", "", "API token (overrides config)")
+	rootCmd.PersistentFlags().StringP("profile", "p", "", "Config profile to use")
+	rootCmd.PersistentFlags().StringP("token", "t", "", "API token (overrides config)")
 	rootCmd.PersistentFlags().String("endpoint", "", "API endpoint URL (overrides config)")
-	rootCmd.PersistentFlags().String("output", "", "Output format: json, table")
-	rootCmd.PersistentFlags().Bool("verbose", false, "Show request/response details")
+	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: json, table")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Show request/response details")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
-	rootCmd.PersistentFlags().Bool("dry-run", false, "Show query without executing (mutations only)")
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
 
 	// Set up client factory for generated commands
@@ -78,6 +79,15 @@ func newRootCmd() *cobra.Command {
 		return client.New(endpoint, token, opts...), nil
 	})
 
+	// Command groups for organized help output
+	rootCmd.AddGroup(
+		&cobra.Group{ID: "auth", Title: "Authentication"},
+		&cobra.Group{ID: "core", Title: "Core Resources"},
+		&cobra.Group{ID: "finance", Title: "Finance & Billing"},
+		&cobra.Group{ID: "admin", Title: "Administration"},
+		&cobra.Group{ID: "other", Title: "Other Resources"},
+	)
+
 	// Register built-in commands
 	rootCmd.AddCommand(newAuthCmd())
 	rootCmd.AddCommand(newVersionCmd())
@@ -85,6 +95,44 @@ func newRootCmd() *cobra.Command {
 
 	// Register all generated resource commands
 	commands.RegisterAll(rootCmd)
+
+	// Assign groups to commands based on name
+	coreResources := map[string]bool{
+		"hires": true, "jobs": true, "bids": true, "contracts": true,
+		"timesheets": true, "projects": true, "milestones": true,
+		"workers": true, "worker": true, "company": true,
+		"conversations": true, "files": true, "viewer": true,
+	}
+	financeResources := map[string]bool{
+		"invoices": true, "invoice-row": true, "payment-requests": true,
+		"batches": true, "batch": true, "bank-details": true,
+	}
+	adminResources := map[string]bool{
+		"accounts": true, "organisation": true, "user-groups": true,
+		"webhooks": true, "webhook-events": true, "webhook-event-logs": true,
+		"multi-factors": true, "workflows": true, "workflow-variables": true,
+		"approvals": true, "approval-rules": true, "approval-states": true,
+		"approval-approvables": true, "approvers": true, "custom-fields": true,
+		"inherited-custom-fields": true,
+	}
+
+	for _, cmd := range rootCmd.Commands() {
+		name := cmd.Name()
+		switch {
+		case name == "auth":
+			cmd.GroupID = "auth"
+		case name == "version" || name == "completion" || name == "help":
+			// leave ungrouped
+		case coreResources[name]:
+			cmd.GroupID = "core"
+		case financeResources[name]:
+			cmd.GroupID = "finance"
+		case adminResources[name]:
+			cmd.GroupID = "admin"
+		default:
+			cmd.GroupID = "other"
+		}
+	}
 
 	return rootCmd
 }

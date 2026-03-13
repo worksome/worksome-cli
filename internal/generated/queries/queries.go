@@ -18,42 +18,6 @@ func NewQuerier(c *client.Client) *Querier {
 	return &Querier{Client: c}
 }
 
-// Schema —
-func (q *Querier) Schema(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `query Schema {
-	__schema { description types { name description specifiedByURL isOneOf } queryType { name description specifiedByURL isOneOf } mutationType { name description specifiedByURL isOneOf } subscriptionType { name description specifiedByURL isOneOf } directives { name description isRepeatable } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("__schema: %w", err)
-	}
-	if data, ok := result["__schema"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// Type —
-func (q *Querier) Type(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `query Type($name: String!) {
-	__type(name: $name) { name description specifiedByURL fields { name description isDeprecated deprecationReason } interfaces { name description specifiedByURL isOneOf } possibleTypes { name description specifiedByURL isOneOf } enumValues { name description isDeprecated deprecationReason } inputFields { name description defaultValue isDeprecated deprecationReason } ofType { name description specifiedByURL isOneOf } isOneOf }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("__type: %w", err)
-	}
-	if data, ok := result["__type"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // AcceptBid — Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).
 func (q *Querier) AcceptBid(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AcceptBid($input: AcceptBidInput!) {
@@ -804,24 +768,6 @@ func (q *Querier) ChangeEmail(ctx context.Context, vars map[string]any) (map[str
 	return result, nil
 }
 
-// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
-func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation SendVerificationEmail {
-	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
-	}
-	if data, ok := result["sendVerificationEmail"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // ApproveEmploymentChanges — Mark an employment as updated.
 func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ApproveEmploymentChanges($input: ApproveEmploymentChangesInput!) {
@@ -985,6 +931,24 @@ func (q *Querier) Gate(ctx context.Context, vars map[string]any) (map[string]any
 		return nil, fmt.Errorf("gate: %w", err)
 	}
 	if data, ok := result["gate"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// Hire — Get a specific hire. All parties of the hire can use this field for seeing their hire.
+func (q *Querier) Hire(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `query Hire($id: ID!) {
+	hire(id: $id) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("hire: %w", err)
+	}
+	if data, ok := result["hire"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1186,24 +1150,6 @@ func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (
 		return nil, fmt.Errorf("generateInviteLink: %w", err)
 	}
 	if data, ok := result["generateInviteLink"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
-func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
-	generatePersonalInviteLink(input: $input) 
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
-	}
-	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1999,6 +1945,24 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 	return result, nil
 }
 
+// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
+func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
+	generatePersonalInviteLink(input: $input) 
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
+	}
+	if data, ok := result["generatePersonalInviteLink"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // Project — Get a specific project.
 func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Project($id: ID!) {
@@ -2641,6 +2605,24 @@ func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map
 		return nil, fmt.Errorf("updateUserGroup: %w", err)
 	}
 	if data, ok := result["updateUserGroup"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
+func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation SendVerificationEmail {
+	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
+	}
+	if data, ok := result["sendVerificationEmail"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

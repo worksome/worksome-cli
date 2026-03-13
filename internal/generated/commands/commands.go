@@ -61,111 +61,6 @@ func readInputFile(path string) (map[string]any, error) {
 	return result, nil
 }
 
-var schemaColumns = []output.Column{
-	{Header: "Description", Field: "description"},
-	{Header: "Types Name", Field: "types.name"},
-	{Header: "Types Description", Field: "types.description"},
-	{Header: "Query Type Name", Field: "queryType.name"},
-	{Header: "Query Type Description", Field: "queryType.description"},
-	{Header: "Mutation Type Name", Field: "mutationType.name"},
-	{Header: "Mutation Type Description", Field: "mutationType.description"},
-	{Header: "Subscription Type Name", Field: "subscriptionType.name"},
-}
-
-// NewSchemaCmd creates the --schema resource command group.
-func NewSchemaCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "--schema",
-		Short: "",
-	}
-
-	cmd.AddCommand(newSchemaGetCmd())
-
-	return cmd
-}
-
-func newSchemaGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "query", vars)
-			}
-
-			result, err := q.Schema(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, schemaColumns)
-		},
-	}
-
-	return cmd
-}
-
-var typeColumns = []output.Column{
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Specified By U R L", Field: "specifiedByURL"},
-	{Header: "Fields Name", Field: "fields.name"},
-	{Header: "Fields Description", Field: "fields.description"},
-	{Header: "Interfaces Name", Field: "interfaces.name"},
-	{Header: "Interfaces Description", Field: "interfaces.description"},
-	{Header: "Possible Types Name", Field: "possibleTypes.name"},
-}
-
-// NewTypeCmd creates the --type resource command group.
-func NewTypeCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "--type",
-		Short: "",
-	}
-
-	cmd.AddCommand(newTypeGetCmd())
-
-	return cmd
-}
-
-func newTypeGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-			if cmd.Flags().Changed("name") {
-				v, _ := cmd.Flags().GetString("name")
-				vars["name"] = v
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "query", vars)
-			}
-
-			result, err := q.Type(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, typeColumns)
-		},
-	}
-	cmd.Flags().String("name", "", "")
-
-	return cmd
-}
-
 // NewAcceptBidCmd creates the accept-bid resource command group.
 func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -180,13 +75,10 @@ func NewAcceptBidCmd() *cobra.Command {
 
 func newAcceptBidAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "accept-bid",
-		Short: "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
+		Use:     "accept-bid",
+		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
+		Example: "  worksome accept-bid accept-bid --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -291,7 +183,12 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "AcceptBid", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.AcceptBid(context.Background(), vars)
@@ -340,18 +237,20 @@ func NewAccountsCmd() *cobra.Command {
 
 func newAccountsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a list of accounts which the current authentication has access to.",
+		Use:     "get",
+		Short:   "Get a list of accounts which the current authentication has access to.",
+		Example: "  worksome accounts get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Accounts", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Accounts(context.Background(), vars)
@@ -385,27 +284,29 @@ func NewApprovalApprovablesCmd() *cobra.Command {
 
 	cmd.AddCommand(newApprovalApprovablesGetCmd())
 	cmd.AddCommand(newApprovalApprovablesListCmd())
-	cmd.AddCommand(newApprovalApprovablesActionApprovalApprovableCmd())
+	cmd.AddCommand(newApprovalApprovablesActionCmd())
 
 	return cmd
 }
 
 func newApprovalApprovablesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get approvable approval.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get approvable approval.",
+		Example: "  worksome approval-approvables get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "ApprovalApprovable", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ApprovalApprovable(context.Background(), vars)
@@ -421,13 +322,10 @@ func newApprovalApprovablesGetCmd() *cobra.Command {
 
 func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all approvable approvals.",
+		Use:     "list",
+		Short:   "Get all approvable approvals.",
+		Example: "  worksome approval-approvables list --first 20\n  worksome approval-approvables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -466,7 +364,12 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "ApprovalApprovables", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -502,9 +405,11 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 }
 
 func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.ApprovalApprovables(context.Background(), vars)
 		if err != nil {
@@ -528,18 +433,16 @@ func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, approvalapprovablesColumns)
 }
 
-func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
+func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "action-approval-approvable",
-		Short: "Create action for an approval approvable.",
+		Use:     "action",
+		Short:   "Create action for an approval approvable.",
+		Example: "  worksome approval-approvables action --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -572,7 +475,12 @@ func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ActionApprovalApprovable", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ActionApprovalApprovable(context.Background(), vars)
@@ -616,20 +524,22 @@ func NewApprovalRulesCmd() *cobra.Command {
 
 func newApprovalRulesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific approval rule.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific approval rule.",
+		Example: "  worksome approval-rules get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "ApprovalRule", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ApprovalRule(context.Background(), vars)
@@ -645,13 +555,10 @@ func newApprovalRulesGetCmd() *cobra.Command {
 
 func newApprovalRulesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all approval rules.",
+		Use:     "list",
+		Short:   "Get all approval rules.",
+		Example: "  worksome approval-rules list --first 20\n  worksome approval-rules list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -666,7 +573,12 @@ func newApprovalRulesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "ApprovalRules", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -696,9 +608,11 @@ func newApprovalRulesListCmd() *cobra.Command {
 }
 
 func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.ApprovalRules(context.Background(), vars)
 		if err != nil {
@@ -722,18 +636,16 @@ func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, approvalrulesColumns)
 }
 
 func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an approval rule for one or more fields.",
+		Use:     "create",
+		Short:   "Create an approval rule for one or more fields.",
+		Example: "  worksome approval-rules create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -758,7 +670,12 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateApprovalRule", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateApprovalRule(context.Background(), vars)
@@ -798,13 +715,10 @@ func NewApprovalStatesCmd() *cobra.Command {
 
 func newApprovalStatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all approval states.",
+		Use:     "list",
+		Short:   "Get all approval states.",
+		Example: "  worksome approval-states list --first 20\n  worksome approval-states list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -827,7 +741,12 @@ func newApprovalStatesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "ApprovalStates", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -859,9 +778,11 @@ func newApprovalStatesListCmd() *cobra.Command {
 }
 
 func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.ApprovalStates(context.Background(), vars)
 		if err != nil {
@@ -885,6 +806,7 @@ func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[str
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, approvalstatesColumns)
 }
 
@@ -916,20 +838,22 @@ func NewApprovalsCmd() *cobra.Command {
 
 func newApprovalsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific approval.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific approval.",
+		Example: "  worksome approvals get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Approval", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Approval(context.Background(), vars)
@@ -945,13 +869,10 @@ func newApprovalsGetCmd() *cobra.Command {
 
 func newApprovalsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all approvals.",
+		Use:     "list",
+		Short:   "Get all approvals.",
+		Example: "  worksome approvals list --first 20\n  worksome approvals list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -970,7 +891,12 @@ func newApprovalsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Approvals", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -1001,9 +927,11 @@ func newApprovalsListCmd() *cobra.Command {
 }
 
 func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Approvals(context.Background(), vars)
 		if err != nil {
@@ -1027,18 +955,16 @@ func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, approvalsColumns)
 }
 
 func newApprovalsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an approval. Only companies can create approvals.",
+		Use:     "create",
+		Short:   "Create an approval. Only companies can create approvals.",
+		Example: "  worksome approvals create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1079,7 +1005,12 @@ func newApprovalsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateApproval", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateApproval(context.Background(), vars)
@@ -1100,13 +1031,10 @@ func newApprovalsCreateCmd() *cobra.Command {
 
 func newApprovalsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update an approval.",
+		Use:     "update",
+		Short:   "Update an approval.",
+		Example: "  worksome approvals update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1147,7 +1075,12 @@ func newApprovalsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateApproval", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateApproval(context.Background(), vars)
@@ -1194,20 +1127,22 @@ func NewApproversCmd() *cobra.Command {
 
 func newApproversGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific approver.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific approver.",
+		Example: "  worksome approvers get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Approver", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Approver(context.Background(), vars)
@@ -1223,13 +1158,10 @@ func newApproversGetCmd() *cobra.Command {
 
 func newApproversListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all approvers.",
+		Use:     "list",
+		Short:   "Get all approvers.",
+		Example: "  worksome approvers list --first 20\n  worksome approvers list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -1248,7 +1180,12 @@ func newApproversListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Approvers", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -1279,9 +1216,11 @@ func newApproversListCmd() *cobra.Command {
 }
 
 func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Approvers(context.Background(), vars)
 		if err != nil {
@@ -1305,18 +1244,16 @@ func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, approversColumns)
 }
 
 func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an approver for an approver rule.",
+		Use:     "create",
+		Short:   "Create an approver for an approver rule.",
+		Example: "  worksome approvers create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1349,7 +1286,12 @@ func newApproversCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateApprover", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateApprover(context.Background(), vars)
@@ -1368,13 +1310,10 @@ func newApproversCreateCmd() *cobra.Command {
 
 func newApproversUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update an approver.",
+		Use:     "update",
+		Short:   "Update an approver.",
+		Example: "  worksome approvers update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1407,7 +1346,12 @@ func newApproversUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateApprover", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateApprover(context.Background(), vars)
@@ -1438,13 +1382,10 @@ func NewBankDetailsCmd() *cobra.Command {
 
 func newBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "",
-		Short: "Update the bank account details.",
+		Use:     "",
+		Short:   "Update the bank account details.",
+		Example: "  worksome bank-details  --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1497,7 +1438,12 @@ func newBankDetailsCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "StoreBankDetails", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.StoreBankDetails(context.Background(), vars)
@@ -1544,20 +1490,22 @@ func NewBatchCmd() *cobra.Command {
 
 func newBatchGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific batch.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific batch.",
+		Example: "  worksome batch get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Batch", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Batch(context.Background(), vars)
@@ -1573,13 +1521,10 @@ func newBatchGetCmd() *cobra.Command {
 
 func newBatchCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new batch of items for processing.",
+		Use:     "create",
+		Short:   "Create a new batch of items for processing.",
+		Example: "  worksome batch create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1608,7 +1553,12 @@ func newBatchCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateBatch", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateBatch(context.Background(), vars)
@@ -1638,13 +1588,10 @@ func NewBatchActionCmd() *cobra.Command {
 
 func newBatchActionRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run an action on a batch.",
+		Use:     "run",
+		Short:   "Run an action on a batch.",
+		Example: "  worksome batch-action run --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1677,7 +1624,12 @@ func newBatchActionRunCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RunBatchAction", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RunBatchAction(context.Background(), vars)
@@ -1718,13 +1670,10 @@ func NewBatchesCmd() *cobra.Command {
 
 func newBatchesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of batches.",
+		Use:     "list",
+		Short:   "Get a list of batches.",
+		Example: "  worksome batches list --first 20\n  worksome batches list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -1747,7 +1696,12 @@ func newBatchesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Batches", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -1779,9 +1733,11 @@ func newBatchesListCmd() *cobra.Command {
 }
 
 func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Batches(context.Background(), vars)
 		if err != nil {
@@ -1805,6 +1761,7 @@ func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, batchesColumns)
 }
 
@@ -1834,20 +1791,22 @@ func NewBidsCmd() *cobra.Command {
 
 func newBidsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific bid which the user has access to.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific bid which the user has access to.",
+		Example: "  worksome bids get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Bid", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Bid(context.Background(), vars)
@@ -1863,13 +1822,10 @@ func newBidsGetCmd() *cobra.Command {
 
 func newBidsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of all bids which the viewer has access to.",
+		Use:     "list",
+		Short:   "Get a list of all bids which the viewer has access to.",
+		Example: "  worksome bids list --first 20\n  worksome bids list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -1892,7 +1848,12 @@ func newBidsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Bids", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -1924,9 +1885,11 @@ func newBidsListCmd() *cobra.Command {
 }
 
 func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Bids(context.Background(), vars)
 		if err != nil {
@@ -1950,6 +1913,7 @@ func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, bidsColumns)
 }
 
@@ -1967,13 +1931,10 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 
 func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "block-trusted-contact",
-		Short: "Block an applied trusted contact. Only companies can block trusted contacts.",
+		Use:     "block-trusted-contact",
+		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
+		Example: "  worksome block-trusted-contact block-trusted-contact --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2002,7 +1963,12 @@ func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "BlockTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.BlockTrustedContact(context.Background(), vars)
@@ -2044,20 +2010,22 @@ func NewClassificationsCmd() *cobra.Command {
 
 func newClassificationsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific classification by ID.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific classification by ID.",
+		Example: "  worksome classifications get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Classification", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Classification(context.Background(), vars)
@@ -2073,13 +2041,10 @@ func newClassificationsGetCmd() *cobra.Command {
 
 func newClassificationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all classifications for a specific hire.",
+		Use:     "list",
+		Short:   "Get all classifications for a specific hire.",
+		Example: "  worksome classifications list --first 20\n  worksome classifications list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -2094,7 +2059,12 @@ func newClassificationsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Classifications", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -2124,9 +2094,11 @@ func newClassificationsListCmd() *cobra.Command {
 }
 
 func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Classifications(context.Background(), vars)
 		if err != nil {
@@ -2150,6 +2122,7 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, classificationsColumns)
 }
 
@@ -2178,20 +2151,22 @@ func NewCompanyCmd() *cobra.Command {
 
 func newCompanyGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific company.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific company.",
+		Example: "  worksome company get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Company", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Company(context.Background(), vars)
@@ -2227,7 +2202,7 @@ func NewCompanyRecruitersCmd() *cobra.Command {
 	cmd.AddCommand(newCompanyRecruitersListCmd())
 	cmd.AddCommand(newCompanyRecruitersCreateCmd())
 	cmd.AddCommand(newCompanyRecruitersDeleteCmd())
-	cmd.AddCommand(newCompanyRecruitersInviteCompanyRecruiterCmd())
+	cmd.AddCommand(newCompanyRecruitersInviteCmd())
 	cmd.AddCommand(newCompanyRecruitersUpdateCmd())
 
 	return cmd
@@ -2235,20 +2210,22 @@ func NewCompanyRecruitersCmd() *cobra.Command {
 
 func newCompanyRecruitersGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific company recruiter.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific company recruiter.",
+		Example: "  worksome company-recruiters get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "CompanyRecruiter", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CompanyRecruiter(context.Background(), vars)
@@ -2264,13 +2241,10 @@ func newCompanyRecruitersGetCmd() *cobra.Command {
 
 func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of company recruiters.",
+		Use:     "list",
+		Short:   "Get a list of company recruiters.",
+		Example: "  worksome company-recruiters list --first 20\n  worksome company-recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -2309,7 +2283,12 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "CompanyRecruiters", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -2345,9 +2324,11 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 }
 
 func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.CompanyRecruiters(context.Background(), vars)
 		if err != nil {
@@ -2371,18 +2352,16 @@ func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, companyrecruitersColumns)
 }
 
 func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add and invite a new recruiter. Only companies can add and invite recruiters.",
+		Use:     "create",
+		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
+		Example: "  worksome company-recruiters create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2435,7 +2414,12 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateCompanyRecruiter", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateCompanyRecruiter(context.Background(), vars)
@@ -2459,13 +2443,10 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 
 func newCompanyRecruitersDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.",
+		Use:     "delete",
+		Short:   "Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.",
+		Example: "  worksome company-recruiters delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2490,7 +2471,12 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteCompanyRecruiter", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteCompanyRecruiter(context.Background(), vars)
@@ -2505,15 +2491,12 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
+func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "invite-company-recruiter",
-		Short: "Invite an existing recruiter. Only companies can invite the recruiter.",
+		Use:     "invite",
+		Short:   "Invite an existing recruiter. Only companies can invite the recruiter.",
+		Example: "  worksome company-recruiters invite --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2558,7 +2541,12 @@ func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "InviteCompanyRecruiter", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.InviteCompanyRecruiter(context.Background(), vars)
@@ -2580,13 +2568,10 @@ func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
 
 func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a recruiter relationship. Only companies can edit recruiter relationships.",
+		Use:     "update",
+		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
+		Example: "  worksome company-recruiters update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2627,7 +2612,12 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateCompanyRecruiter", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateCompanyRecruiter(context.Background(), vars)
@@ -2671,14 +2661,11 @@ func NewComplianceCmd() *cobra.Command {
 
 func newComplianceGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.",
+		Example: "  worksome compliance get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 			if cmd.Flags().Changed("names") {
@@ -2688,7 +2675,12 @@ func newComplianceGetCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Compliance", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Compliance(context.Background(), vars)
@@ -2729,20 +2721,22 @@ func NewContractsCmd() *cobra.Command {
 
 func newContractsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific contract.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific contract.",
+		Example: "  worksome contracts get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Contract", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Contract(context.Background(), vars)
@@ -2758,13 +2752,10 @@ func newContractsGetCmd() *cobra.Command {
 
 func newContractsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of contracts.",
+		Use:     "list",
+		Short:   "Get a list of contracts.",
+		Example: "  worksome contracts list --first 20\n  worksome contracts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -2791,7 +2782,12 @@ func newContractsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Contracts", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -2824,9 +2820,11 @@ func newContractsListCmd() *cobra.Command {
 }
 
 func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Contracts(context.Background(), vars)
 		if err != nil {
@@ -2850,6 +2848,7 @@ func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, contractsColumns)
 }
 
@@ -2879,20 +2878,22 @@ func NewConversationsCmd() *cobra.Command {
 
 func newConversationsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific conversation.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific conversation.",
+		Example: "  worksome conversations get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Conversation", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Conversation(context.Background(), vars)
@@ -2908,13 +2909,10 @@ func newConversationsGetCmd() *cobra.Command {
 
 func newConversationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of conversations.",
+		Use:     "list",
+		Short:   "Get a list of conversations.",
+		Example: "  worksome conversations list --first 20\n  worksome conversations list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -2933,7 +2931,12 @@ func newConversationsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Conversations", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -2964,9 +2967,11 @@ func newConversationsListCmd() *cobra.Command {
 }
 
 func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Conversations(context.Background(), vars)
 		if err != nil {
@@ -2990,6 +2995,7 @@ func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, conversationsColumns)
 }
 
@@ -3022,20 +3028,22 @@ func NewCustomFieldsCmd() *cobra.Command {
 
 func newCustomFieldsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific custom field.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific custom field.",
+		Example: "  worksome custom-fields get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "CustomField", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CustomField(context.Background(), vars)
@@ -3051,13 +3059,10 @@ func newCustomFieldsGetCmd() *cobra.Command {
 
 func newCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of custom fields.",
+		Use:     "list",
+		Short:   "Get a list of custom fields.",
+		Example: "  worksome custom-fields list --first 20\n  worksome custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -3080,7 +3085,12 @@ func newCustomFieldsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "CustomFields", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -3112,9 +3122,11 @@ func newCustomFieldsListCmd() *cobra.Command {
 }
 
 func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.CustomFields(context.Background(), vars)
 		if err != nil {
@@ -3138,18 +3150,16 @@ func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, customfieldsColumns)
 }
 
 func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom field.",
+		Use:     "create",
+		Short:   "Create a custom field.",
+		Example: "  worksome custom-fields create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3210,7 +3220,12 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateCustomField", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateCustomField(context.Background(), vars)
@@ -3236,13 +3251,10 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 
 func newCustomFieldsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a custom field. All fields details must be provided.",
+		Use:     "delete",
+		Short:   "Delete a custom field. All fields details must be provided.",
+		Example: "  worksome custom-fields delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3267,7 +3279,12 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteCustomField", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteCustomField(context.Background(), vars)
@@ -3284,13 +3301,10 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 
 func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a custom field. All fields must be provided.",
+		Use:     "update",
+		Short:   "Update a custom field. All fields must be provided.",
+		Example: "  worksome custom-fields update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3347,7 +3361,12 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateCustomField", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateCustomField(context.Background(), vars)
@@ -3378,20 +3397,16 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
-	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
 
 func newEmailChangeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "change",
-		Short: "Change the email of the currently authenticated user.",
+		Use:     "change",
+		Short:   "Change the email of the currently authenticated user.",
+		Example: "  worksome email change --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3420,7 +3435,12 @@ func newEmailChangeCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ChangeEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ChangeEmail(context.Background(), vars)
@@ -3433,43 +3453,6 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
-	return cmd
-}
-
-func newEmailSendVerificationCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send-verification",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
 	return cmd
 }
 
@@ -3487,13 +3470,10 @@ func NewEmploymentChangesCmd() *cobra.Command {
 
 func newEmploymentChangesApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "approve",
-		Short: "Mark an employment as updated.",
+		Use:     "approve",
+		Short:   "Mark an employment as updated.",
+		Example: "  worksome employment-changes approve --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3518,7 +3498,12 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ApproveEmploymentChanges", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ApproveEmploymentChanges(context.Background(), vars)
@@ -3553,27 +3538,29 @@ func NewEmploymentsCmd() *cobra.Command {
 
 	cmd.AddCommand(newEmploymentsGetCmd())
 	cmd.AddCommand(newEmploymentsListCmd())
-	cmd.AddCommand(newEmploymentsOnboardEmploymentCmd())
+	cmd.AddCommand(newEmploymentsOnboardCmd())
 
 	return cmd
 }
 
 func newEmploymentsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific employment.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific employment.",
+		Example: "  worksome employments get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Employment", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Employment(context.Background(), vars)
@@ -3589,13 +3576,10 @@ func newEmploymentsGetCmd() *cobra.Command {
 
 func newEmploymentsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of employments.",
+		Use:     "list",
+		Short:   "Get a list of employments.",
+		Example: "  worksome employments list --first 20\n  worksome employments list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -3658,7 +3642,12 @@ func newEmploymentsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Employments", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -3700,9 +3689,11 @@ func newEmploymentsListCmd() *cobra.Command {
 }
 
 func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Employments(context.Background(), vars)
 		if err != nil {
@@ -3726,18 +3717,16 @@ func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, employmentsColumns)
 }
 
-func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
+func newEmploymentsOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "onboard-employment",
-		Short: "Onboard an employment with optional employment costs.",
+		Use:     "onboard",
+		Short:   "Onboard an employment with optional employment costs.",
+		Example: "  worksome employments onboard --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3762,7 +3751,12 @@ func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "OnboardEmployment", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.OnboardEmployment(context.Background(), vars)
@@ -3791,13 +3785,10 @@ func NewExportCmd() *cobra.Command {
 
 func newExportCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an export. The export URL and the number of rows will be returned (excluding headings).",
+		Use:     "create",
+		Short:   "Create an export. The export URL and the number of rows will be returned (excluding headings).",
+		Example: "  worksome export create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3842,7 +3833,12 @@ func newExportCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateExport", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateExport(context.Background(), vars)
@@ -3887,20 +3883,22 @@ func NewFilesCmd() *cobra.Command {
 
 func newFilesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific file.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific file.",
+		Example: "  worksome files get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "File", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.File(context.Background(), vars)
@@ -3916,13 +3914,10 @@ func newFilesGetCmd() *cobra.Command {
 
 func newFilesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of files.",
+		Use:     "list",
+		Short:   "Get a list of files.",
+		Example: "  worksome files list --first 20\n  worksome files list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -3941,7 +3936,12 @@ func newFilesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Files", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -3972,9 +3972,11 @@ func newFilesListCmd() *cobra.Command {
 }
 
 func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Files(context.Background(), vars)
 		if err != nil {
@@ -3998,6 +4000,7 @@ func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, filesColumns)
 }
 
@@ -4006,10 +4009,6 @@ func newFilesUploadCmd() *cobra.Command {
 		Use:   "upload",
 		Short: "Generate temporary upload URLs for files for the given account. The temporary URL will expire after 1 week.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4024,7 +4023,12 @@ func newFilesUploadCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UploadFiles", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UploadFiles(context.Background(), vars)
@@ -4055,10 +4059,6 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 		Use:   "mark",
 		Short: "Mark one or more files as uploaded to the temporary URL.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4073,7 +4073,12 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "MarkFilesAsUploaded", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.MarkFilesAsUploaded(context.Background(), vars)
@@ -4112,14 +4117,11 @@ func NewGateCmd() *cobra.Command {
 
 func newGateGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.",
+		Example: "  worksome gate get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 			if cmd.Flags().Changed("gate") {
@@ -4129,7 +4131,12 @@ func newGateGetCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Gate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Gate(context.Background(), vars)
@@ -4162,27 +4169,56 @@ func NewHiresCmd() *cobra.Command {
 		Short: "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
 	}
 
+	cmd.AddCommand(newHiresGetCmd())
 	cmd.AddCommand(newHiresListCmd())
-	cmd.AddCommand(newHiresAttributeRecruiterToHireCmd())
-	cmd.AddCommand(newHiresCancelHireCmd())
+	cmd.AddCommand(newHiresAttributeRecruiterToCmd())
+	cmd.AddCommand(newHiresCancelCmd())
 	cmd.AddCommand(newHiresCreateDraftCmd())
-	cmd.AddCommand(newHiresRejectHireCmd())
-	cmd.AddCommand(newHiresRemoveRecruiterFromHireCmd())
-	cmd.AddCommand(newHiresShareHireCmd())
-	cmd.AddCommand(newHiresTerminateHireCmd())
+	cmd.AddCommand(newHiresRejectCmd())
+	cmd.AddCommand(newHiresRemoveRecruiterFromCmd())
+	cmd.AddCommand(newHiresShareCmd())
+	cmd.AddCommand(newHiresTerminateCmd())
+
+	return cmd
+}
+
+func newHiresGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get",
+		Short:   "Get a specific hire. All parties of the hire can use this field for seeing their hire.",
+		Example: "  worksome hires get <id>",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+			vars["id"] = args[0]
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "Hire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.Hire(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, hiresColumns)
+		},
+	}
 
 	return cmd
 }
 
 func newHiresListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
+		Use:     "list",
+		Short:   "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
+		Example: "  worksome hires list --first 20\n  worksome hires list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -4293,7 +4329,12 @@ func newHiresListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Hires", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -4347,9 +4388,11 @@ func newHiresListCmd() *cobra.Command {
 }
 
 func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Hires(context.Background(), vars)
 		if err != nil {
@@ -4373,18 +4416,16 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, hiresColumns)
 }
 
-func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
+func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "attribute-recruiter-to-hire",
-		Short: "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
+		Use:     "attribute-recruiter-to",
+		Short:   "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
+		Example: "  worksome hires attribute-recruiter-to --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4425,7 +4466,12 @@ func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "AttributeRecruiterToHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.AttributeRecruiterToHire(context.Background(), vars)
@@ -4444,15 +4490,12 @@ func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
 	return cmd
 }
 
-func newHiresCancelHireCmd() *cobra.Command {
+func newHiresCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cancel-hire",
-		Short: "Cancel a hire. Only companies can cancel their hires.",
+		Use:     "cancel",
+		Short:   "Cancel a hire. Only companies can cancel their hires.",
+		Example: "  worksome hires cancel --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4481,7 +4524,12 @@ func newHiresCancelHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CancelHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CancelHire(context.Background(), vars)
@@ -4499,13 +4547,10 @@ func newHiresCancelHireCmd() *cobra.Command {
 
 func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-draft",
-		Short: "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
+		Use:     "create-draft",
+		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
+		Example: "  worksome hires create-draft --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4586,7 +4631,12 @@ func newHiresCreateDraftCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateDraftHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateDraftHire(context.Background(), vars)
@@ -4615,15 +4665,12 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	return cmd
 }
 
-func newHiresRejectHireCmd() *cobra.Command {
+func newHiresRejectCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reject-hire",
-		Short: "Reject a hire.",
+		Use:     "reject",
+		Short:   "Reject a hire.",
+		Example: "  worksome hires reject --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4652,7 +4699,12 @@ func newHiresRejectHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RejectHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RejectHire(context.Background(), vars)
@@ -4668,15 +4720,12 @@ func newHiresRejectHireCmd() *cobra.Command {
 	return cmd
 }
 
-func newHiresRemoveRecruiterFromHireCmd() *cobra.Command {
+func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-recruiter-from-hire",
-		Short: "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
+		Use:     "remove-recruiter-from",
+		Short:   "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
+		Example: "  worksome hires remove-recruiter-from --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4701,7 +4750,12 @@ func newHiresRemoveRecruiterFromHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RemoveRecruiterFromHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RemoveRecruiterFromHire(context.Background(), vars)
@@ -4716,15 +4770,12 @@ func newHiresRemoveRecruiterFromHireCmd() *cobra.Command {
 	return cmd
 }
 
-func newHiresShareHireCmd() *cobra.Command {
+func newHiresShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "share-hire",
-		Short: "Share/offer a hire with a worker. Only companies can remove recruiters from their hires.",
+		Use:     "share",
+		Short:   "Share/offer a hire with a worker. Only companies can remove recruiters from their hires.",
+		Example: "  worksome hires share --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4753,7 +4804,12 @@ func newHiresShareHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ShareHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ShareHire(context.Background(), vars)
@@ -4769,15 +4825,12 @@ func newHiresShareHireCmd() *cobra.Command {
 	return cmd
 }
 
-func newHiresTerminateHireCmd() *cobra.Command {
+func newHiresTerminateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "terminate-hire",
-		Short: "Terminate a hire.",
+		Use:     "terminate",
+		Short:   "Terminate a hire.",
+		Example: "  worksome hires terminate --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4818,7 +4871,12 @@ func newHiresTerminateHireCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "TerminateHire", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.TerminateHire(context.Background(), vars)
@@ -4857,20 +4915,22 @@ func NewIndustriesCmd() *cobra.Command {
 
 func newIndustriesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific industry.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific industry.",
+		Example: "  worksome industries get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Industry", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Industry(context.Background(), vars)
@@ -4886,13 +4946,10 @@ func newIndustriesGetCmd() *cobra.Command {
 
 func newIndustriesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of industries.",
+		Use:     "list",
+		Short:   "Get a list of industries.",
+		Example: "  worksome industries list --first 20\n  worksome industries list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -4903,7 +4960,12 @@ func newIndustriesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Industries", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -4932,9 +4994,11 @@ func newIndustriesListCmd() *cobra.Command {
 }
 
 func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Industries(context.Background(), vars)
 		if err != nil {
@@ -4958,6 +5022,7 @@ func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, industriesColumns)
 }
 
@@ -4986,13 +5051,10 @@ func NewInheritedCustomFieldsCmd() *cobra.Command {
 
 func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of inherited custom fields.",
+		Use:     "list",
+		Short:   "Get a list of inherited custom fields.",
+		Example: "  worksome inherited-custom-fields list --first 20\n  worksome inherited-custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -5015,7 +5077,12 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "InheritedCustomFields", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -5047,9 +5114,11 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 }
 
 func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.InheritedCustomFields(context.Background(), vars)
 		if err != nil {
@@ -5073,6 +5142,7 @@ func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars 
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, inheritedcustomfieldsColumns)
 }
 
@@ -5084,20 +5154,16 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
-	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
 
 func newInviteLinkGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate the company invite link token.",
+		Use:     "generate",
+		Short:   "Generate the company invite link token.",
+		Example: "  worksome invite-link generate --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5122,58 +5188,15 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "GenerateInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
-func newInviteLinkGeneratePersonalCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "generate-personal",
-		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -5208,20 +5231,22 @@ func NewInvoiceRowCmd() *cobra.Command {
 
 func newInvoiceRowGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific invoice row.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific invoice row.",
+		Example: "  worksome invoice-row get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "InvoiceRow", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.InvoiceRow(context.Background(), vars)
@@ -5261,13 +5286,10 @@ func NewInvoicesCmd() *cobra.Command {
 
 func newInvoicesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific invoice.",
+		Use:     "get",
+		Short:   "Get a specific invoice.",
+		Example: "  worksome invoices get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			if cmd.Flags().Changed("number") {
 				v, _ := cmd.Flags().GetString("number")
@@ -5276,7 +5298,12 @@ func newInvoicesGetCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Invoice", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Invoice(context.Background(), vars)
@@ -5293,13 +5320,10 @@ func newInvoicesGetCmd() *cobra.Command {
 
 func newInvoicesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of invoices.",
+		Use:     "list",
+		Short:   "Get a list of invoices.",
+		Example: "  worksome invoices list --first 20\n  worksome invoices list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -5338,7 +5362,12 @@ func newInvoicesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Invoices", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -5374,9 +5403,11 @@ func newInvoicesListCmd() *cobra.Command {
 }
 
 func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Invoices(context.Background(), vars)
 		if err != nil {
@@ -5400,6 +5431,7 @@ func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, invoicesColumns)
 }
 
@@ -5417,13 +5449,10 @@ func NewJobCandidatePreferredCmd() *cobra.Command {
 
 func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update job candidates \"preferred\" status.",
+		Use:     "update",
+		Short:   "Update job candidates \"preferred\" status.",
+		Example: "  worksome job-candidate-preferred update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5452,7 +5481,12 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateJobCandidatePreferred", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateJobCandidatePreferred(context.Background(), vars)
@@ -5482,13 +5516,10 @@ func NewJobCandidateStatusCmd() *cobra.Command {
 
 func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a job candidate status. A reason and comment can be provided.",
+		Use:     "update",
+		Short:   "Update a job candidate status. A reason and comment can be provided.",
+		Example: "  worksome job-candidate-status update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5529,7 +5560,12 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateJobCandidateStatus", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateJobCandidateStatus(context.Background(), vars)
@@ -5575,20 +5611,22 @@ func NewJobCandidatesCmd() *cobra.Command {
 
 func newJobCandidatesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific job candidate.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific job candidate.",
+		Example: "  worksome job-candidates get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "JobCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.JobCandidate(context.Background(), vars)
@@ -5604,13 +5642,10 @@ func newJobCandidatesGetCmd() *cobra.Command {
 
 func newJobCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of job candidates.",
+		Use:     "list",
+		Short:   "Get a list of job candidates.",
+		Example: "  worksome job-candidates list --first 20\n  worksome job-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -5641,7 +5676,12 @@ func newJobCandidatesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "JobCandidates", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -5675,9 +5715,11 @@ func newJobCandidatesListCmd() *cobra.Command {
 }
 
 func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.JobCandidates(context.Background(), vars)
 		if err != nil {
@@ -5701,18 +5743,16 @@ func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, jobcandidatesColumns)
 }
 
 func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a job candidate. This will make the workers eligible and proposed for a job.",
+		Use:     "create",
+		Short:   "Create a job candidate. This will make the workers eligible and proposed for a job.",
+		Example: "  worksome job-candidates create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5741,7 +5781,12 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateJobCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateJobCandidate(context.Background(), vars)
@@ -5774,20 +5819,17 @@ func NewJobSharesCmd() *cobra.Command {
 
 	cmd.AddCommand(newJobSharesListCmd())
 	cmd.AddCommand(newJobSharesCreateCmd())
-	cmd.AddCommand(newJobSharesRemoveJobShareCmd())
+	cmd.AddCommand(newJobSharesRemoveCmd())
 
 	return cmd
 }
 
 func newJobSharesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of job shares.",
+		Use:     "list",
+		Short:   "Get a list of job shares.",
+		Example: "  worksome job-shares list --first 20\n  worksome job-shares list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -5814,7 +5856,12 @@ func newJobSharesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "JobShares", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -5847,9 +5894,11 @@ func newJobSharesListCmd() *cobra.Command {
 }
 
 func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.JobShares(context.Background(), vars)
 		if err != nil {
@@ -5873,18 +5922,16 @@ func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, jobsharesColumns)
 }
 
 func newJobSharesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a job share.",
+		Use:     "create",
+		Short:   "Create a job share.",
+		Example: "  worksome job-shares create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5909,7 +5956,12 @@ func newJobSharesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateJobShare", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateJobShare(context.Background(), vars)
@@ -5924,15 +5976,11 @@ func newJobSharesCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func newJobSharesRemoveJobShareCmd() *cobra.Command {
+func newJobSharesRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-job-share",
+		Use:   "remove",
 		Short: "Remove a job share.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5947,7 +5995,12 @@ func newJobSharesRemoveJobShareCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RemoveJobShare", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RemoveJobShare(context.Background(), vars)
@@ -5982,9 +6035,9 @@ func NewJobsCmd() *cobra.Command {
 	cmd.AddCommand(newJobsGetCmd())
 	cmd.AddCommand(newJobsListCmd())
 	cmd.AddCommand(newJobsCreateCmd())
-	cmd.AddCommand(newJobsDuplicateJobCmd())
-	cmd.AddCommand(newJobsEndJobCmd())
-	cmd.AddCommand(newJobsSetInternalBudgetOnJobCmd())
+	cmd.AddCommand(newJobsDuplicateCmd())
+	cmd.AddCommand(newJobsEndCmd())
+	cmd.AddCommand(newJobsSetInternalBudgetOnCmd())
 	cmd.AddCommand(newJobsUpdateCmd())
 
 	return cmd
@@ -5992,20 +6045,22 @@ func NewJobsCmd() *cobra.Command {
 
 func newJobsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific job.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific job.",
+		Example: "  worksome jobs get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Job", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Job(context.Background(), vars)
@@ -6021,13 +6076,10 @@ func newJobsGetCmd() *cobra.Command {
 
 func newJobsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of jobs.",
+		Use:     "list",
+		Short:   "Get a list of jobs.",
+		Example: "  worksome jobs list --first 20\n  worksome jobs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -6146,7 +6198,12 @@ func newJobsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Jobs", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -6202,9 +6259,11 @@ func newJobsListCmd() *cobra.Command {
 }
 
 func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Jobs(context.Background(), vars)
 		if err != nil {
@@ -6228,18 +6287,16 @@ func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, jobsColumns)
 }
 
 func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a job. Only companies can create jobs.",
+		Use:     "create",
+		Short:   "Create a job. Only companies can create jobs.",
+		Example: "  worksome jobs create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6268,7 +6325,12 @@ func newJobsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateJob", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateJob(context.Background(), vars)
@@ -6284,15 +6346,12 @@ func newJobsCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func newJobsDuplicateJobCmd() *cobra.Command {
+func newJobsDuplicateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "duplicate-job",
-		Short: "Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.",
+		Use:     "duplicate",
+		Short:   "Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.",
+		Example: "  worksome jobs duplicate --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6321,7 +6380,12 @@ func newJobsDuplicateJobCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DuplicateJob", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DuplicateJob(context.Background(), vars)
@@ -6337,15 +6401,12 @@ func newJobsDuplicateJobCmd() *cobra.Command {
 	return cmd
 }
 
-func newJobsEndJobCmd() *cobra.Command {
+func newJobsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "end-job",
-		Short: "End a job. Only companies can end jobs.",
+		Use:     "end",
+		Short:   "End a job. Only companies can end jobs.",
+		Example: "  worksome jobs end --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6374,7 +6435,12 @@ func newJobsEndJobCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "EndJob", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.EndJob(context.Background(), vars)
@@ -6390,15 +6456,12 @@ func newJobsEndJobCmd() *cobra.Command {
 	return cmd
 }
 
-func newJobsSetInternalBudgetOnJobCmd() *cobra.Command {
+func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-internal-budget-on-job",
-		Short: "Set the internal budget of a job. Only companies can set the internal budget on the job.",
+		Use:     "set-internal-budget-on",
+		Short:   "Set the internal budget of a job. Only companies can set the internal budget on the job.",
+		Example: "  worksome jobs set-internal-budget-on --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6427,7 +6490,12 @@ func newJobsSetInternalBudgetOnJobCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "SetInternalBudgetOnJob", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.SetInternalBudgetOnJob(context.Background(), vars)
@@ -6445,13 +6513,10 @@ func newJobsSetInternalBudgetOnJobCmd() *cobra.Command {
 
 func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a job. Only companies can update jobs.",
+		Use:     "update",
+		Short:   "Update a job. Only companies can update jobs.",
+		Example: "  worksome jobs update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6540,7 +6605,12 @@ func newJobsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateJob", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateJob(context.Background(), vars)
@@ -6600,20 +6670,22 @@ func NewMilestonesCmd() *cobra.Command {
 
 func newMilestonesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single milestone.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a single milestone.",
+		Example: "  worksome milestones get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Milestone", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Milestone(context.Background(), vars)
@@ -6629,13 +6701,10 @@ func newMilestonesGetCmd() *cobra.Command {
 
 func newMilestonesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of milestones.",
+		Use:     "list",
+		Short:   "Get a list of milestones.",
+		Example: "  worksome milestones list --first 20\n  worksome milestones list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -6654,7 +6723,12 @@ func newMilestonesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Milestones", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -6685,9 +6759,11 @@ func newMilestonesListCmd() *cobra.Command {
 }
 
 func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Milestones(context.Background(), vars)
 		if err != nil {
@@ -6711,6 +6787,7 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, milestonesColumns)
 }
 
@@ -6719,10 +6796,6 @@ func newMilestonesCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6737,7 +6810,12 @@ func newMilestonesCreateCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateMilestones", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateMilestones(context.Background(), vars)
@@ -6756,10 +6834,6 @@ func newMilestonesDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6774,7 +6848,12 @@ func newMilestonesDeleteCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteMilestones", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteMilestones(context.Background(), vars)
@@ -6793,10 +6872,6 @@ func newMilestonesUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6811,7 +6886,12 @@ func newMilestonesUpdateCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateMilestones", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateMilestones(context.Background(), vars)
@@ -6836,29 +6916,31 @@ func NewMultiFactorsCmd() *cobra.Command {
 	cmd.AddCommand(newMultiFactorsListCmd())
 	cmd.AddCommand(newMultiFactorsCreateSmsCmd())
 	cmd.AddCommand(newMultiFactorsCreateTotpCmd())
-	cmd.AddCommand(newMultiFactorsRemoveMultiFactorCmd())
-	cmd.AddCommand(newMultiFactorsVerifySmsMultiFactorCmd())
-	cmd.AddCommand(newMultiFactorsVerifyTotpMultiFactorCmd())
+	cmd.AddCommand(newMultiFactorsRemoveCmd())
+	cmd.AddCommand(newMultiFactorsVerifySmsCmd())
+	cmd.AddCommand(newMultiFactorsVerifyTotpCmd())
 
 	return cmd
 }
 
 func newMultiFactorsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Retrieve a specific multi-factor authentication implementation.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Retrieve a specific multi-factor authentication implementation.",
+		Example: "  worksome multi-factors get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "MultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.MultiFactor(context.Background(), vars)
@@ -6874,13 +6956,10 @@ func newMultiFactorsGetCmd() *cobra.Command {
 
 func newMultiFactorsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Retrieve all multi-factor authentication implementation.",
+		Use:     "list",
+		Short:   "Retrieve all multi-factor authentication implementation.",
+		Example: "  worksome multi-factors list --first 20\n  worksome multi-factors list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -6899,7 +6978,12 @@ func newMultiFactorsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "MultiFactors", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -6924,9 +7008,11 @@ func newMultiFactorsListCmd() *cobra.Command {
 }
 
 func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.MultiFactors(context.Background(), vars)
 		if err != nil {
@@ -6950,18 +7036,16 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, nil)
 }
 
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-sms",
-		Short: "Create a new multi-factor authentication implementation.",
+		Use:     "create-sms",
+		Short:   "Create a new multi-factor authentication implementation.",
+		Example: "  worksome multi-factors create-sms --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6986,7 +7070,12 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateSmsMultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateSmsMultiFactor(context.Background(), vars)
@@ -7003,13 +7092,10 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 
 func newMultiFactorsCreateTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-totp",
-		Short: "Create a new multi-factor authentication implementation.",
+		Use:     "create-totp",
+		Short:   "Create a new multi-factor authentication implementation.",
+		Example: "  worksome multi-factors create-totp --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7034,7 +7120,12 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateTotpMultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateTotpMultiFactor(context.Background(), vars)
@@ -7049,15 +7140,12 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 	return cmd
 }
 
-func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
+func newMultiFactorsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove-multi-factor",
-		Short: "Remove a multi-factor authentication implementation.",
+		Use:     "remove",
+		Short:   "Remove a multi-factor authentication implementation.",
+		Example: "  worksome multi-factors remove --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7082,7 +7170,12 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RemoveMultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RemoveMultiFactor(context.Background(), vars)
@@ -7097,15 +7190,12 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 	return cmd
 }
 
-func newMultiFactorsVerifySmsMultiFactorCmd() *cobra.Command {
+func newMultiFactorsVerifySmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "verify-sms-multi-factor",
-		Short: "Verify a multi-factor authentication implementation.",
+		Use:     "verify-sms",
+		Short:   "Verify a multi-factor authentication implementation.",
+		Example: "  worksome multi-factors verify-sms --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7134,7 +7224,12 @@ func newMultiFactorsVerifySmsMultiFactorCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "VerifySmsMultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.VerifySmsMultiFactor(context.Background(), vars)
@@ -7150,15 +7245,12 @@ func newMultiFactorsVerifySmsMultiFactorCmd() *cobra.Command {
 	return cmd
 }
 
-func newMultiFactorsVerifyTotpMultiFactorCmd() *cobra.Command {
+func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "verify-totp-multi-factor",
-		Short: "Verify a TOTP multi-factor authentication implementation.",
+		Use:     "verify-totp",
+		Short:   "Verify a TOTP multi-factor authentication implementation.",
+		Example: "  worksome multi-factors verify-totp --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7187,7 +7279,12 @@ func newMultiFactorsVerifyTotpMultiFactorCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "VerifyTotpMultiFactor", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.VerifyTotpMultiFactor(context.Background(), vars)
@@ -7219,13 +7316,10 @@ func NewNoteCmd() *cobra.Command {
 
 func newNoteCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a note.",
+		Use:     "create",
+		Short:   "Create a note.",
+		Example: "  worksome note create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7262,7 +7356,12 @@ func newNoteCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateNote", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateNote(context.Background(), vars)
@@ -7282,13 +7381,10 @@ func newNoteCreateCmd() *cobra.Command {
 
 func newNoteDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a note.",
+		Use:     "delete",
+		Short:   "Delete a note.",
+		Example: "  worksome note delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7313,7 +7409,12 @@ func newNoteDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteNote", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteNote(context.Background(), vars)
@@ -7330,13 +7431,10 @@ func newNoteDeleteCmd() *cobra.Command {
 
 func newNoteUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a note.",
+		Use:     "update",
+		Short:   "Update a note.",
+		Example: "  worksome note update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7369,7 +7467,12 @@ func newNoteUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateNote", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateNote(context.Background(), vars)
@@ -7401,13 +7504,10 @@ func NewOnboardingDocumentsCmd() *cobra.Command {
 
 func newOnboardingDocumentsManageCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "manage",
-		Short: "Manage Onboarding documents.",
+		Use:     "manage",
+		Short:   "Manage Onboarding documents.",
+		Example: "  worksome onboarding-documents manage --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7432,7 +7532,12 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ManageOnboardingDocuments", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ManageOnboardingDocuments(context.Background(), vars)
@@ -7449,13 +7554,10 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 
 func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove Onboarding documents.",
+		Use:     "remove",
+		Short:   "Remove Onboarding documents.",
+		Example: "  worksome onboarding-documents remove --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7480,7 +7582,12 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RemoveOnboardingDocuments", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RemoveOnboardingDocuments(context.Background(), vars)
@@ -7516,20 +7623,22 @@ func NewOrganisationCmd() *cobra.Command {
 
 func newOrganisationGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific organisation.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific organisation.",
+		Example: "  worksome organisation get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Organisation", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Organisation(context.Background(), vars)
@@ -7569,20 +7678,22 @@ func NewOrganisationTrustedContactsCmd() *cobra.Command {
 
 func newOrganisationTrustedContactsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific organisation trusted contact.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific organisation trusted contact.",
+		Example: "  worksome organisation-trusted-contacts get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "OrganisationTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.OrganisationTrustedContact(context.Background(), vars)
@@ -7598,13 +7709,10 @@ func newOrganisationTrustedContactsGetCmd() *cobra.Command {
 
 func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of organisation trusted contacts.",
+		Use:     "list",
+		Short:   "Get a list of organisation trusted contacts.",
+		Example: "  worksome organisation-trusted-contacts list --first 20\n  worksome organisation-trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -7687,7 +7795,12 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "OrganisationTrustedContacts", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -7734,9 +7847,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 }
 
 func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.OrganisationTrustedContacts(context.Background(), vars)
 		if err != nil {
@@ -7760,6 +7875,7 @@ func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier,
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, organisationtrustedcontactsColumns)
 }
 
@@ -7788,20 +7904,22 @@ func NewPartnerCmd() *cobra.Command {
 
 func newPartnerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific partner.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific partner.",
+		Example: "  worksome partner get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Partner", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Partner(context.Background(), vars)
@@ -7830,13 +7948,10 @@ func NewPasswordCmd() *cobra.Command {
 
 func newPasswordCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Use:     "create",
+		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Example: "  worksome password create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7861,7 +7976,12 @@ func newPasswordCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreatePassword", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreatePassword(context.Background(), vars)
@@ -7878,13 +7998,10 @@ func newPasswordCreateCmd() *cobra.Command {
 
 func newPasswordUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a user's password.",
+		Use:     "update",
+		Short:   "Update a user's password.",
+		Example: "  worksome password update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7917,7 +8034,12 @@ func newPasswordUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdatePassword", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdatePassword(context.Background(), vars)
@@ -7963,20 +8085,22 @@ func NewPaymentRequestsCmd() *cobra.Command {
 
 func newPaymentRequestsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific payment request.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific payment request.",
+		Example: "  worksome payment-requests get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "PaymentRequest", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.PaymentRequest(context.Background(), vars)
@@ -7992,13 +8116,10 @@ func newPaymentRequestsGetCmd() *cobra.Command {
 
 func newPaymentRequestsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of payment requests.",
+		Use:     "list",
+		Short:   "Get a list of payment requests.",
+		Example: "  worksome payment-requests list --first 20\n  worksome payment-requests list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -8097,7 +8218,12 @@ func newPaymentRequestsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "PaymentRequests", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -8148,9 +8274,11 @@ func newPaymentRequestsListCmd() *cobra.Command {
 }
 
 func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.PaymentRequests(context.Background(), vars)
 		if err != nil {
@@ -8174,18 +8302,16 @@ func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, paymentrequestsColumns)
 }
 
 func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a payment request.",
+		Use:     "create",
+		Short:   "Create a payment request.",
+		Example: "  worksome payment-requests create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8250,7 +8376,12 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreatePaymentRequest", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreatePaymentRequest(context.Background(), vars)
@@ -8277,13 +8408,10 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 
 func newPaymentRequestsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a payment request.",
+		Use:     "delete",
+		Short:   "Delete a payment request.",
+		Example: "  worksome payment-requests delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8308,7 +8436,12 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeletePaymentRequest", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeletePaymentRequest(context.Background(), vars)
@@ -8325,13 +8458,10 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 
 func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a payment request.",
+		Use:     "update",
+		Short:   "Update a payment request.",
+		Example: "  worksome payment-requests update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8388,7 +8518,12 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdatePaymentRequest", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdatePaymentRequest(context.Background(), vars)
@@ -8408,6 +8543,68 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	cmd.Flags().String("purchase-order-number", "", "The purchase order number for the payment request.")
+	return cmd
+}
+
+// NewPersonalInviteLinkCmd creates the personal-invite-link resource command group.
+func NewPersonalInviteLinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "personal-invite-link",
+		Short: "",
+	}
+
+	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
+
+	return cmd
+}
+
+func newPersonalInviteLinkGenerateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome personal-invite-link generate --input data.json",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -8431,12 +8628,12 @@ func NewProjectsCmd() *cobra.Command {
 
 	cmd.AddCommand(newProjectsGetCmd())
 	cmd.AddCommand(newProjectsListCmd())
-	cmd.AddCommand(newProjectsAttachJobsToProjectCmd())
+	cmd.AddCommand(newProjectsAttachJobsToCmd())
 	cmd.AddCommand(newProjectsCreateCmd())
 	cmd.AddCommand(newProjectsDeleteCmd())
-	cmd.AddCommand(newProjectsDetachJobFromProjectCmd())
-	cmd.AddCommand(newProjectsEndProjectCmd())
-	cmd.AddCommand(newProjectsOpenProjectCmd())
+	cmd.AddCommand(newProjectsDetachJobFromCmd())
+	cmd.AddCommand(newProjectsEndCmd())
+	cmd.AddCommand(newProjectsOpenCmd())
 	cmd.AddCommand(newProjectsUpdateCmd())
 
 	return cmd
@@ -8444,20 +8641,22 @@ func NewProjectsCmd() *cobra.Command {
 
 func newProjectsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific project.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific project.",
+		Example: "  worksome projects get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Project", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Project(context.Background(), vars)
@@ -8473,13 +8672,10 @@ func newProjectsGetCmd() *cobra.Command {
 
 func newProjectsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of projects.",
+		Use:     "list",
+		Short:   "Get a list of projects.",
+		Example: "  worksome projects list --first 20\n  worksome projects list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -8510,7 +8706,12 @@ func newProjectsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Projects", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -8544,9 +8745,11 @@ func newProjectsListCmd() *cobra.Command {
 }
 
 func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Projects(context.Background(), vars)
 		if err != nil {
@@ -8570,18 +8773,16 @@ func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, projectsColumns)
 }
 
-func newProjectsAttachJobsToProjectCmd() *cobra.Command {
+func newProjectsAttachJobsToCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "attach-jobs-to-project",
-		Short: "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
+		Use:     "attach-jobs-to",
+		Short:   "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
+		Example: "  worksome projects attach-jobs-to --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8606,7 +8807,12 @@ func newProjectsAttachJobsToProjectCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "AttachJobsToProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.AttachJobsToProject(context.Background(), vars)
@@ -8623,13 +8829,10 @@ func newProjectsAttachJobsToProjectCmd() *cobra.Command {
 
 func newProjectsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a project. Only companies can create projects.",
+		Use:     "create",
+		Short:   "Create a project. Only companies can create projects.",
+		Example: "  worksome projects create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8670,7 +8873,12 @@ func newProjectsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateProject(context.Background(), vars)
@@ -8691,13 +8899,10 @@ func newProjectsCreateCmd() *cobra.Command {
 
 func newProjectsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Soft delete a project. Only companies can delete projects.",
+		Use:     "delete",
+		Short:   "Soft delete a project. Only companies can delete projects.",
+		Example: "  worksome projects delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8722,7 +8927,12 @@ func newProjectsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteProject(context.Background(), vars)
@@ -8737,15 +8947,12 @@ func newProjectsDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func newProjectsDetachJobFromProjectCmd() *cobra.Command {
+func newProjectsDetachJobFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "detach-job-from-project",
-		Short: "Detach a job from a project Only companies can detach a job from a project.",
+		Use:     "detach-job-from",
+		Short:   "Detach a job from a project Only companies can detach a job from a project.",
+		Example: "  worksome projects detach-job-from --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8774,7 +8981,12 @@ func newProjectsDetachJobFromProjectCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DetachJobFromProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DetachJobFromProject(context.Background(), vars)
@@ -8790,15 +9002,12 @@ func newProjectsDetachJobFromProjectCmd() *cobra.Command {
 	return cmd
 }
 
-func newProjectsEndProjectCmd() *cobra.Command {
+func newProjectsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "end-project",
-		Short: "End a project. This is used to set an end date on the project to consider it no longer active.",
+		Use:     "end",
+		Short:   "End a project. This is used to set an end date on the project to consider it no longer active.",
+		Example: "  worksome projects end --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8823,7 +9032,12 @@ func newProjectsEndProjectCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "EndProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.EndProject(context.Background(), vars)
@@ -8838,15 +9052,12 @@ func newProjectsEndProjectCmd() *cobra.Command {
 	return cmd
 }
 
-func newProjectsOpenProjectCmd() *cobra.Command {
+func newProjectsOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "open-project",
-		Short: "Open a project. This is used to set the end date on the project to `null` to make it open again.",
+		Use:     "open",
+		Short:   "Open a project. This is used to set the end date on the project to `null` to make it open again.",
+		Example: "  worksome projects open --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8871,7 +9082,12 @@ func newProjectsOpenProjectCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "OpenProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.OpenProject(context.Background(), vars)
@@ -8888,13 +9104,10 @@ func newProjectsOpenProjectCmd() *cobra.Command {
 
 func newProjectsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a project. Only companies can update projects.",
+		Use:     "update",
+		Short:   "Update a project. Only companies can update projects.",
+		Example: "  worksome projects update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8935,7 +9148,12 @@ func newProjectsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateProject", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateProject(context.Background(), vars)
@@ -8983,20 +9201,22 @@ func NewRecruiterCandidatesCmd() *cobra.Command {
 
 func newRecruiterCandidatesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific recruiter candidate.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific recruiter candidate.",
+		Example: "  worksome recruiter-candidates get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "RecruiterCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RecruiterCandidate(context.Background(), vars)
@@ -9012,13 +9232,10 @@ func newRecruiterCandidatesGetCmd() *cobra.Command {
 
 func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of recruiter candidates.",
+		Use:     "list",
+		Short:   "Get a list of recruiter candidates.",
+		Example: "  worksome recruiter-candidates list --first 20\n  worksome recruiter-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -9041,7 +9258,12 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "RecruiterCandidates", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -9073,9 +9295,11 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 }
 
 func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.RecruiterCandidates(context.Background(), vars)
 		if err != nil {
@@ -9099,18 +9323,16 @@ func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, recruitercandidatesColumns)
 }
 
 func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add and invite a new candidate. Only recruiters can add and invite candidates.",
+		Use:     "create",
+		Short:   "Add and invite a new candidate. Only recruiters can add and invite candidates.",
+		Example: "  worksome recruiter-candidates create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9171,7 +9393,12 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateRecruiterCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateRecruiterCandidate(context.Background(), vars)
@@ -9197,13 +9424,10 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 
 func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.",
+		Use:     "delete",
+		Short:   "Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.",
+		Example: "  worksome recruiter-candidates delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9228,7 +9452,12 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteRecruiterCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteRecruiterCandidate(context.Background(), vars)
@@ -9245,13 +9474,10 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 
 func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a recruiter candidate information. Only recruiters can edit the relationship.",
+		Use:     "update",
+		Short:   "Update a recruiter candidate information. Only recruiters can edit the relationship.",
+		Example: "  worksome recruiter-candidates update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9296,7 +9522,12 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateRecruiterCandidate", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateRecruiterCandidate(context.Background(), vars)
@@ -9341,13 +9572,10 @@ func NewRecruitersCmd() *cobra.Command {
 
 func newRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of recruiters.",
+		Use:     "list",
+		Short:   "Get a list of recruiters.",
+		Example: "  worksome recruiters list --first 20\n  worksome recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -9362,7 +9590,12 @@ func newRecruitersListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Recruiters", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -9392,9 +9625,11 @@ func newRecruitersListCmd() *cobra.Command {
 }
 
 func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Recruiters(context.Background(), vars)
 		if err != nil {
@@ -9418,6 +9653,7 @@ func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, recruitersColumns)
 }
 
@@ -9435,13 +9671,10 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 
 func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reinvite-trusted-contact",
-		Short: "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
+		Use:     "reinvite-trusted-contact",
+		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
+		Example: "  worksome reinvite-trusted-contact reinvite-trusted-contact --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9466,7 +9699,12 @@ func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ReinviteTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ReinviteTrustedContact(context.Background(), vars)
@@ -9500,13 +9738,10 @@ func NewSkillsCmd() *cobra.Command {
 
 func newSkillsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of skills.",
+		Use:     "list",
+		Short:   "Get a list of skills.",
+		Example: "  worksome skills list --first 20\n  worksome skills list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -9529,7 +9764,12 @@ func newSkillsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Skills", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -9561,9 +9801,11 @@ func newSkillsListCmd() *cobra.Command {
 }
 
 func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Skills(context.Background(), vars)
 		if err != nil {
@@ -9587,6 +9829,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, skillsColumns)
 }
 
@@ -9605,13 +9848,10 @@ func NewTimesheetRegistrationCmd() *cobra.Command {
 
 func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
+		Use:     "delete",
+		Short:   "Delete a timesheet registration. Only workers can delete timesheet registrations.",
+		Example: "  worksome timesheet-registration delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9636,7 +9876,12 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteTimesheetRegistration", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteTimesheetRegistration(context.Background(), vars)
@@ -9653,13 +9898,10 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 
 func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Use:     "update",
+		Short:   "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Example: "  worksome timesheet-registration update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9716,7 +9958,12 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateTimesheetRegistration", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateTimesheetRegistration(context.Background(), vars)
@@ -9769,20 +10016,22 @@ func NewTimesheetsCmd() *cobra.Command {
 
 func newTimesheetsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific timesheet.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific timesheet.",
+		Example: "  worksome timesheets get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Timesheet", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Timesheet(context.Background(), vars)
@@ -9798,13 +10047,10 @@ func newTimesheetsGetCmd() *cobra.Command {
 
 func newTimesheetsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of timesheets.",
+		Use:     "list",
+		Short:   "Get a list of timesheets.",
+		Example: "  worksome timesheets list --first 20\n  worksome timesheets list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -9819,7 +10065,12 @@ func newTimesheetsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Timesheets", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -9849,9 +10100,11 @@ func newTimesheetsListCmd() *cobra.Command {
 }
 
 func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Timesheets(context.Background(), vars)
 		if err != nil {
@@ -9875,18 +10128,16 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, timesheetsColumns)
 }
 
 func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create-custom",
-		Short: "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
+		Use:     "create-custom",
+		Short:   "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
+		Example: "  worksome timesheets create-custom --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9915,7 +10166,12 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateCustomTimesheet", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateCustomTimesheet(context.Background(), vars)
@@ -9933,13 +10189,10 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 
 func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a timesheet. Only workers can create timesheets.",
+		Use:     "create",
+		Short:   "Create a timesheet. Only workers can create timesheets.",
+		Example: "  worksome timesheets create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9976,7 +10229,12 @@ func newTimesheetsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateTimesheet", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateTimesheet(context.Background(), vars)
@@ -9996,13 +10254,10 @@ func newTimesheetsCreateCmd() *cobra.Command {
 
 func newTimesheetsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a timesheet. Only workers can delete timesheets.",
+		Use:     "delete",
+		Short:   "Delete a timesheet. Only workers can delete timesheets.",
+		Example: "  worksome timesheets delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10027,7 +10282,12 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteTimesheet", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteTimesheet(context.Background(), vars)
@@ -10044,13 +10304,10 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 
 func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a timesheet. Only workers can update timesheets.",
+		Use:     "update",
+		Short:   "Update a timesheet. Only workers can update timesheets.",
+		Example: "  worksome timesheets update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10083,7 +10340,12 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateTimesheet", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateTimesheet(context.Background(), vars)
@@ -10120,7 +10382,7 @@ func NewTrustedContactsCmd() *cobra.Command {
 
 	cmd.AddCommand(newTrustedContactsGetCmd())
 	cmd.AddCommand(newTrustedContactsListCmd())
-	cmd.AddCommand(newTrustedContactsApproveTrustedContactCmd())
+	cmd.AddCommand(newTrustedContactsApproveCmd())
 	cmd.AddCommand(newTrustedContactsCreateCmd())
 	cmd.AddCommand(newTrustedContactsDeleteCmd())
 	cmd.AddCommand(newTrustedContactsUpdateCmd())
@@ -10130,20 +10392,22 @@ func NewTrustedContactsCmd() *cobra.Command {
 
 func newTrustedContactsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific trusted contact.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific trusted contact.",
+		Example: "  worksome trusted-contacts get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "TrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.TrustedContact(context.Background(), vars)
@@ -10159,13 +10423,10 @@ func newTrustedContactsGetCmd() *cobra.Command {
 
 func newTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of trusted contacts.",
+		Use:     "list",
+		Short:   "Get a list of trusted contacts.",
+		Example: "  worksome trusted-contacts list --first 20\n  worksome trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -10252,7 +10513,12 @@ func newTrustedContactsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "TrustedContacts", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -10300,9 +10566,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 }
 
 func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.TrustedContacts(context.Background(), vars)
 		if err != nil {
@@ -10326,18 +10594,16 @@ func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, trustedcontactsColumns)
 }
 
-func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
+func newTrustedContactsApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "approve-trusted-contact",
-		Short: "Approve a trusted contact. Only companies can approve trusted contacts.",
+		Use:     "approve",
+		Short:   "Approve a trusted contact. Only companies can approve trusted contacts.",
+		Example: "  worksome trusted-contacts approve --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10362,7 +10628,12 @@ func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "ApproveTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.ApproveTrustedContact(context.Background(), vars)
@@ -10379,13 +10650,10 @@ func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 
 func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
+		Use:     "create",
+		Short:   "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
+		Example: "  worksome trusted-contacts create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10458,7 +10726,12 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateTrustedContact(context.Background(), vars)
@@ -10487,13 +10760,10 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 
 func newTrustedContactsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a trusted contact. Only companies can delete trusted contacts.",
+		Use:     "delete",
+		Short:   "Delete a trusted contact. Only companies can delete trusted contacts.",
+		Example: "  worksome trusted-contacts delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10522,7 +10792,12 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteTrustedContact(context.Background(), vars)
@@ -10540,13 +10815,10 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 
 func newTrustedContactsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a trusted contact. Only companies can edit trusted contacts.",
+		Use:     "update",
+		Short:   "Update a trusted contact. Only companies can edit trusted contacts.",
+		Example: "  worksome trusted-contacts update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10575,7 +10847,12 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateTrustedContact", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateTrustedContact(context.Background(), vars)
@@ -10609,10 +10886,10 @@ func NewUserGroupsCmd() *cobra.Command {
 
 	cmd.AddCommand(newUserGroupsGetCmd())
 	cmd.AddCommand(newUserGroupsListCmd())
-	cmd.AddCommand(newUserGroupsAttachUsersToUserGroupCmd())
+	cmd.AddCommand(newUserGroupsAttachUsersToCmd())
 	cmd.AddCommand(newUserGroupsCreateCmd())
 	cmd.AddCommand(newUserGroupsDeleteCmd())
-	cmd.AddCommand(newUserGroupsDetachUsersFromUserGroupCmd())
+	cmd.AddCommand(newUserGroupsDetachUsersFromCmd())
 	cmd.AddCommand(newUserGroupsUpdateCmd())
 
 	return cmd
@@ -10620,20 +10897,22 @@ func NewUserGroupsCmd() *cobra.Command {
 
 func newUserGroupsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific user group.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific user group.",
+		Example: "  worksome user-groups get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "UserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UserGroup(context.Background(), vars)
@@ -10649,13 +10928,10 @@ func newUserGroupsGetCmd() *cobra.Command {
 
 func newUserGroupsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of user groups.",
+		Use:     "list",
+		Short:   "Get a list of user groups.",
+		Example: "  worksome user-groups list --first 20\n  worksome user-groups list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -10682,7 +10958,12 @@ func newUserGroupsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "UserGroups", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -10715,9 +10996,11 @@ func newUserGroupsListCmd() *cobra.Command {
 }
 
 func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.UserGroups(context.Background(), vars)
 		if err != nil {
@@ -10741,18 +11024,16 @@ func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, usergroupsColumns)
 }
 
-func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
+func newUserGroupsAttachUsersToCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "attach-users-to-user-group",
-		Short: "Attach one or more users to a group. Only companies can attach users to groups.",
+		Use:     "attach-users-to",
+		Short:   "Attach one or more users to a group. Only companies can attach users to groups.",
+		Example: "  worksome user-groups attach-users-to --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10777,7 +11058,12 @@ func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "AttachUsersToUserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.AttachUsersToUserGroup(context.Background(), vars)
@@ -10794,13 +11080,10 @@ func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
 
 func newUserGroupsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a user group. Only companies can create user groups.",
+		Use:     "create",
+		Short:   "Create a user group. Only companies can create user groups.",
+		Example: "  worksome user-groups create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10837,7 +11120,12 @@ func newUserGroupsCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateUserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateUserGroup(context.Background(), vars)
@@ -10857,13 +11145,10 @@ func newUserGroupsCreateCmd() *cobra.Command {
 
 func newUserGroupsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Soft delete a user group. Only companies can delete user groups.",
+		Use:     "delete",
+		Short:   "Soft delete a user group. Only companies can delete user groups.",
+		Example: "  worksome user-groups delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10888,7 +11173,12 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteUserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteUserGroup(context.Background(), vars)
@@ -10903,15 +11193,12 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func newUserGroupsDetachUsersFromUserGroupCmd() *cobra.Command {
+func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "detach-users-from-user-group",
-		Short: "Detach one or more user from a group. Only companies can detach users from a group.",
+		Use:     "detach-users-from",
+		Short:   "Detach one or more user from a group. Only companies can detach users from a group.",
+		Example: "  worksome user-groups detach-users-from --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10936,7 +11223,12 @@ func newUserGroupsDetachUsersFromUserGroupCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DetachUsersFromUserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DetachUsersFromUserGroup(context.Background(), vars)
@@ -10953,13 +11245,10 @@ func newUserGroupsDetachUsersFromUserGroupCmd() *cobra.Command {
 
 func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a user group. Only companies can update user groups.",
+		Use:     "update",
+		Short:   "Update a user group. Only companies can update user groups.",
+		Example: "  worksome user-groups update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10996,7 +11285,12 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateUserGroup", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateUserGroup(context.Background(), vars)
@@ -11011,6 +11305,56 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
+	return cmd
+}
+
+// NewVerificationEmailCmd creates the verification-email resource command group.
+func NewVerificationEmailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verification-email",
+		Short: "",
+	}
+
+	cmd.AddCommand(newVerificationEmailSendCmd())
+
+	return cmd
+}
+
+func newVerificationEmailSendCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
 	return cmd
 }
 
@@ -11039,18 +11383,20 @@ func NewViewerCmd() *cobra.Command {
 
 func newViewerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get the authenticated user that is viewing the API.",
+		Use:     "get",
+		Short:   "Get the authenticated user that is viewing the API.",
+		Example: "  worksome viewer get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Profile", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Profile(context.Background(), vars)
@@ -11089,13 +11435,10 @@ func NewWebhookEventLogsCmd() *cobra.Command {
 
 func newWebhookEventLogsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of webhook event logs. They are returned in descending order of creation.",
+		Use:     "list",
+		Short:   "Get a list of webhook event logs. They are returned in descending order of creation.",
+		Example: "  worksome webhook-event-logs list --first 20\n  worksome webhook-event-logs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -11118,7 +11461,12 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "WebhookEventLogs", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -11150,9 +11498,11 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 }
 
 func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.WebhookEventLogs(context.Background(), vars)
 		if err != nil {
@@ -11176,6 +11526,7 @@ func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[s
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, webhookeventlogsColumns)
 }
 
@@ -11199,27 +11550,29 @@ func NewWebhookEventsCmd() *cobra.Command {
 
 	cmd.AddCommand(newWebhookEventsGetCmd())
 	cmd.AddCommand(newWebhookEventsListCmd())
-	cmd.AddCommand(newWebhookEventsRetryWebhookEventCmd())
+	cmd.AddCommand(newWebhookEventsRetryCmd())
 
 	return cmd
 }
 
 func newWebhookEventsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific webhook event.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific webhook event.",
+		Example: "  worksome webhook-events get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "WebhookEvent", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.WebhookEvent(context.Background(), vars)
@@ -11235,13 +11588,10 @@ func newWebhookEventsGetCmd() *cobra.Command {
 
 func newWebhookEventsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of webhook events. They are returned in descending order of creation.",
+		Use:     "list",
+		Short:   "Get a list of webhook events. They are returned in descending order of creation.",
+		Example: "  worksome webhook-events list --first 20\n  worksome webhook-events list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -11256,7 +11606,12 @@ func newWebhookEventsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "WebhookEvents", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -11286,9 +11641,11 @@ func newWebhookEventsListCmd() *cobra.Command {
 }
 
 func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.WebhookEvents(context.Background(), vars)
 		if err != nil {
@@ -11312,18 +11669,16 @@ func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, webhookeventsColumns)
 }
 
-func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
+func newWebhookEventsRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "retry-webhook-event",
-		Short: "Retry a webhook event. Only companies can retry webhook events.",
+		Use:     "retry",
+		Short:   "Retry a webhook event. Only companies can retry webhook events.",
+		Example: "  worksome webhook-events retry --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11348,7 +11703,12 @@ func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "RetryWebhookEvent", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.RetryWebhookEvent(context.Background(), vars)
@@ -11392,20 +11752,22 @@ func NewWebhooksCmd() *cobra.Command {
 
 func newWebhooksGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific webhook.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific webhook.",
+		Example: "  worksome webhooks get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Webhook", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Webhook(context.Background(), vars)
@@ -11421,13 +11783,10 @@ func newWebhooksGetCmd() *cobra.Command {
 
 func newWebhooksListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get a list of webhooks.",
+		Use:     "list",
+		Short:   "Get a list of webhooks.",
+		Example: "  worksome webhooks list --first 20\n  worksome webhooks list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -11442,7 +11801,12 @@ func newWebhooksListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Webhooks", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -11472,9 +11836,11 @@ func newWebhooksListCmd() *cobra.Command {
 }
 
 func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Webhooks(context.Background(), vars)
 		if err != nil {
@@ -11498,18 +11864,16 @@ func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, webhooksColumns)
 }
 
 func newWebhooksCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a webhook. Only companies can create webhooks.",
+		Use:     "create",
+		Short:   "Create a webhook. Only companies can create webhooks.",
+		Example: "  worksome webhooks create --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11562,7 +11926,12 @@ func newWebhooksCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateWebhook", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateWebhook(context.Background(), vars)
@@ -11586,13 +11955,10 @@ func newWebhooksCreateCmd() *cobra.Command {
 
 func newWebhooksDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a webhook.",
+		Use:     "delete",
+		Short:   "Delete a webhook.",
+		Example: "  worksome webhooks delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11617,7 +11983,12 @@ func newWebhooksDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteWebhook", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteWebhook(context.Background(), vars)
@@ -11634,13 +12005,10 @@ func newWebhooksDeleteCmd() *cobra.Command {
 
 func newWebhooksUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a webhook.",
+		Use:     "update",
+		Short:   "Update a webhook.",
+		Example: "  worksome webhooks update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11693,7 +12061,12 @@ func newWebhooksUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateWebhook", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateWebhook(context.Background(), vars)
@@ -11741,20 +12114,22 @@ func NewWorkerCmd() *cobra.Command {
 
 func newWorkerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific worker.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific worker.",
+		Example: "  worksome worker get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Worker", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Worker(context.Background(), vars)
@@ -11770,13 +12145,10 @@ func newWorkerGetCmd() *cobra.Command {
 
 func newWorkerUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a worker.",
+		Use:     "update",
+		Short:   "Update a worker.",
+		Example: "  worksome worker update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11805,7 +12177,12 @@ func newWorkerUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateWorker", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateWorker(context.Background(), vars)
@@ -11835,13 +12212,10 @@ func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 
 func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
+		Use:     "update",
+		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
+		Example: "  worksome worker-custom-field-values update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11866,7 +12240,12 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateWorkerCustomFieldValues", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateWorkerCustomFieldValues(context.Background(), vars)
@@ -11895,13 +12274,10 @@ func NewWorkflowVariablesCmd() *cobra.Command {
 
 func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all workflow variables.",
+		Use:     "list",
+		Short:   "Get all workflow variables.",
+		Example: "  worksome workflow-variables list --first 20\n  worksome workflow-variables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -11920,7 +12296,12 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "WorkflowVariables", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -11945,9 +12326,11 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 }
 
 func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.WorkflowVariables(context.Background(), vars)
 		if err != nil {
@@ -11971,6 +12354,7 @@ func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, nil)
 }
 
@@ -11996,20 +12380,22 @@ func NewWorkflowsCmd() *cobra.Command {
 
 func newWorkflowsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a specific workflow.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "get",
+		Short:   "Get a specific workflow.",
+		Example: "  worksome workflows get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Workflow", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.Workflow(context.Background(), vars)
@@ -12025,13 +12411,10 @@ func newWorkflowsGetCmd() *cobra.Command {
 
 func newWorkflowsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Get all workflows.",
+		Use:     "list",
+		Short:   "Get all workflows.",
+		Example: "  worksome workflows list --first 20\n  worksome workflows list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -12046,7 +12429,12 @@ func newWorkflowsListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "Workflows", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -12076,9 +12464,11 @@ func newWorkflowsListCmd() *cobra.Command {
 }
 
 func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.Workflows(context.Background(), vars)
 		if err != nil {
@@ -12102,6 +12492,7 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	return printResult(cmd, allData, workflowsColumns)
 }
 
@@ -12110,10 +12501,6 @@ func newWorkflowsCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12128,7 +12515,12 @@ func newWorkflowsCreateCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "CreateWorkflow", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.CreateWorkflow(context.Background(), vars)
@@ -12144,13 +12536,10 @@ func newWorkflowsCreateCmd() *cobra.Command {
 
 func newWorkflowsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a workflow. Only companies can delete workflows.",
+		Use:     "delete",
+		Short:   "Delete a workflow. Only companies can delete workflows.",
+		Example: "  worksome workflows delete --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12175,7 +12564,12 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "DeleteWorkflow", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.DeleteWorkflow(context.Background(), vars)
@@ -12195,10 +12589,6 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12213,7 +12603,12 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateWorkflow", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateWorkflow(context.Background(), vars)
@@ -12241,13 +12636,10 @@ func NewWorksomeIntelligenceConsentCmd() *cobra.Command {
 
 func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update consent to use Worksome Intelligence for the current user.",
+		Use:     "update",
+		Short:   "Update consent to use Worksome Intelligence for the current user.",
+		Example: "  worksome worksome-intelligence-consent update --input data.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12272,7 +12664,12 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "UpdateWorksomeIntelligenceConsent", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.UpdateWorksomeIntelligenceConsent(context.Background(), vars)
@@ -12287,8 +12684,8 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func printDryRun(cmd *cobra.Command, opType string, vars map[string]any) error {
-	fmt.Fprintf(os.Stderr, "[dry-run] Operation type: %s\n", opType)
+func printDryRun(cmd *cobra.Command, opType string, opName string, vars map[string]any) error {
+	fmt.Fprintf(os.Stderr, "[dry-run] %s %s\n", opType, opName)
 	data, _ := json.MarshalIndent(vars, "", "  ")
 	fmt.Fprintf(os.Stdout, "%s\n", data)
 	return nil

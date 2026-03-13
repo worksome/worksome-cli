@@ -379,6 +379,195 @@ func TestMatchMutationToResource_MultiWord(t *testing.T) {
 	}
 }
 
+func TestIgnoreMutationsNotQueries(t *testing.T) {
+	// Schema with both a "hire" query and a "hire" mutation (deprecated).
+	// The "hire" mutation should be ignored, but the "hire" query should remain.
+	schema := `
+type Query {
+	"Get a specific hire."
+	hire(id: ID!): Hire
+	"Get all hires."
+	hires(first: Int! = 10, page: Int): HirePaginator!
+}
+
+type Mutation {
+	"Deprecated: use createDraftHire."
+	hire(input: HireInput!): Hire! @deprecated(reason: "Use createDraftHire")
+	"Create a draft hire."
+	createDraftHire(input: HireInput!): Hire!
+}
+
+type Hire {
+	id: ID!
+	status: String!
+}
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+input HireInput {
+	jobId: ID!
+	workerId: ID!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+	overridesContent := `
+ignore: []
+ignore_mutations:
+  - "hire"
+`
+	if err := os.WriteFile(overridesPath, []byte(overridesContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find the hires resource
+	var hiresResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "hires" {
+			hiresResource = &parsed.Resources[i]
+			break
+		}
+	}
+	if hiresResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'hires' resource, got resources: %v", names)
+	}
+
+	// The hire query should be present as the get query
+	if hiresResource.GetQuery == nil {
+		t.Error("hires should have a get query (the hire(id: ID!) query should NOT be ignored)")
+	}
+
+	// The deprecated "hire" mutation should be excluded
+	for _, m := range hiresResource.Mutations {
+		if m.Name == "hire" {
+			t.Error("deprecated 'hire' mutation should be ignored via ignore_mutations")
+		}
+	}
+
+	// The createDraftHire mutation should still be present
+	mutationNames := make(map[string]bool)
+	for _, m := range hiresResource.Mutations {
+		mutationNames[m.Name] = true
+	}
+	if !mutationNames["createDraftHire"] {
+		t.Error("expected createDraftHire mutation in hires resource")
+	}
+}
+
+func TestIgnoreIntrospectionQueries(t *testing.T) {
+	// Schema with __schema and __type queries — they should be filtered out.
+	schema := `
+type Query {
+	"Get a specific hire."
+	hire(id: ID!): Hire
+	"Get all hires."
+	hires(first: Int! = 10, page: Int): HirePaginator!
+}
+
+type Hire {
+	id: ID!
+	status: String!
+}
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+	overridesContent := `
+ignore:
+  - "__schema"
+  - "__type"
+`
+	if err := os.WriteFile(overridesPath, []byte(overridesContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Verify no resource is created for __schema or __type
+	for _, r := range parsed.Resources {
+		if r.Name == "--schema" || r.Name == "--type" || r.Name == "__schema" || r.Name == "__type" {
+			t.Errorf("unexpected resource %q — introspection queries should be ignored", r.Name)
+		}
+	}
+}
+
+func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
+	p := &parser{}
+
+	tests := []struct {
+		mutation     string
+		resource     string
+		expectedCLI  string
+	}{
+		// Singular resource name in mutation should be stripped
+		{"terminateHire", "hires", "terminate"},
+		{"cancelHire", "hires", "cancel"},
+		{"rejectHire", "hires", "reject"},
+		{"shareHire", "hires", "share"},
+		{"endJob", "jobs", "end"},
+		{"duplicateJob", "jobs", "duplicate"},
+		// Multi-word mutations — singular suffix still stripped
+		{"attributeRecruiterToHire", "hires", "attribute-recruiter-to"},
+		// CRUD prefix still works as before
+		{"createJob", "jobs", "create"},
+		{"deleteJob", "jobs", "delete"},
+		{"updateJob", "jobs", "update"},
+	}
+	for _, tt := range tests {
+		got := p.deriveMutationCLIName(tt.mutation, tt.resource)
+		if got != tt.expectedCLI {
+			t.Errorf("deriveMutationCLIName(%q, %q) = %q, want %q", tt.mutation, tt.resource, got, tt.expectedCLI)
+		}
+	}
+}
+
 func TestParseSchemaMultiWordMutations(t *testing.T) {
 	// Schema with multi-word mutations that should be grouped under "hires"
 	schema := `

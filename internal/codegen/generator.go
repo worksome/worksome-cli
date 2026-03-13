@@ -405,14 +405,11 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: {{quote $res.GetQuery.Description}},
+		Example: "  worksome {{$res.Name}} get <id>",
 		{{- if hasIDArg $res.GetQuery.Arguments}}
 		Args: cobra.ExactArgs(1),
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			{{- if hasIDArg $res.GetQuery.Arguments}}
 			vars["id"] = args[0]
@@ -428,7 +425,12 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "{{$res.GetQuery.GoName}}", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.{{$res.GetQuery.GoName}}(context.Background(), vars)
@@ -456,11 +458,8 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: {{quote $res.ListQuery.Description}},
+		Example: "  worksome {{$res.Name}} list --first 20\n  worksome {{$res.Name}} list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
 			vars["first"] = first
@@ -479,7 +478,12 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "query", vars)
+				return printDryRun(cmd, "query", "{{$res.ListQuery.GoName}}", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -516,9 +520,11 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 }
 
 func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	vars["first"] = 100 // Use large page size for --all
 	var allData []any
 	page := 1
 	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
 		result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
 		if err != nil {
@@ -542,6 +548,7 @@ func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, var
 		}
 		page++
 	}
+	fmt.Fprintf(os.Stderr, "\rFetched %d items across %d pages.\n", len(allData), page)
 	{{- if $res.TableColumns}}
 	return printResult(cmd, allData, {{$res.GoName | lower}}Columns)
 	{{- else}}
@@ -555,11 +562,10 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "{{$mut.CLIName}}",
 		Short: {{quote $mut.Description}},
+		{{- if $mut.InputFields}}
+		Example: "  worksome {{$res.Name}} {{$mut.CLIName}} --input data.json",
+		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -597,7 +603,12 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
+				return printDryRun(cmd, "mutation", "{{$mut.GoName}}", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
 			}
 
 			result, err := q.{{$mut.GoName}}(context.Background(), vars)
@@ -624,8 +635,8 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 {{end}}
 {{end}}
 
-func printDryRun(cmd *cobra.Command, opType string, vars map[string]any) error {
-	fmt.Fprintf(os.Stderr, "[dry-run] Operation type: %s\n", opType)
+func printDryRun(cmd *cobra.Command, opType string, opName string, vars map[string]any) error {
+	fmt.Fprintf(os.Stderr, "[dry-run] %s %s\n", opType, opName)
 	data, _ := json.MarshalIndent(vars, "", "  ")
 	fmt.Fprintf(os.Stdout, "%s\n", data)
 	return nil
