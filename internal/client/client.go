@@ -19,6 +19,7 @@ type Client struct {
 	token      string
 	httpClient *http.Client
 	verbose    bool
+	timeout    time.Duration
 }
 
 // Option configures the Client.
@@ -31,7 +32,17 @@ func WithVerbose(v bool) Option {
 	}
 }
 
+// WithTimeout sets the timeout for HTTP requests. If zero, the default 30s
+// timeout is used. This is ignored when a custom HTTP client is provided via
+// WithHTTPClient.
+func WithTimeout(d time.Duration) Option {
+	return func(c *Client) {
+		c.timeout = d
+	}
+}
+
 // WithHTTPClient overrides the default HTTP client used for requests.
+// When set, any timeout configured via WithTimeout is ignored.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		c.httpClient = hc
@@ -41,12 +52,20 @@ func WithHTTPClient(hc *http.Client) Option {
 // New creates a new GraphQL Client for the given endpoint and bearer token.
 func New(endpoint, token string, opts ...Option) *Client {
 	c := &Client{
-		endpoint:   endpoint,
-		token:      token,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		endpoint: endpoint,
+		token:    token,
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	// If no custom HTTP client was provided, create a default one with the
+	// configured (or default 30s) timeout.
+	if c.httpClient == nil {
+		timeout := c.timeout
+		if timeout == 0 {
+			timeout = 30 * time.Second
+		}
+		c.httpClient = &http.Client{Timeout: timeout}
 	}
 	return c
 }

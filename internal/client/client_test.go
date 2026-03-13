@@ -375,6 +375,48 @@ func TestExecute_NilResult(t *testing.T) {
 	}
 }
 
+func TestWithTimeout(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		// Simulate a slow server that takes longer than the client timeout.
+		time.Sleep(2 * time.Second)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"data":{"ok":true}}`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "token", WithTimeout(100*time.Millisecond))
+
+	err := c.Execute(context.Background(), "{ health }", nil, nil)
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+	if !strings.Contains(err.Error(), "Client.Timeout") && !strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Errorf("expected timeout-related error, got: %v", err)
+	}
+}
+
+func TestWithTimeout_Default(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"data":{"ok":true}}`)
+	})
+	defer srv.Close()
+
+	// No WithTimeout option — should use the default 30s and succeed quickly.
+	c := New(srv.URL, "token")
+
+	var result struct {
+		OK bool `json:"ok"`
+	}
+	err := c.Execute(context.Background(), "{ health }", nil, &result)
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if !result.OK {
+		t.Error("expected ok=true")
+	}
+}
+
 func TestExecute_HTTPError(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
