@@ -804,6 +804,24 @@ func (q *Querier) ChangeEmail(ctx context.Context, vars map[string]any) (map[str
 	return result, nil
 }
 
+// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
+func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation SendVerificationEmail {
+	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
+	}
+	if data, ok := result["sendVerificationEmail"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // ApproveEmploymentChanges — Mark an employment as updated.
 func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ApproveEmploymentChanges($input: ApproveEmploymentChangesInput!) {
@@ -1168,6 +1186,24 @@ func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (
 		return nil, fmt.Errorf("generateInviteLink: %w", err)
 	}
 	if data, ok := result["generateInviteLink"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
+func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
+	generatePersonalInviteLink(input: $input) 
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
+	}
+	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1963,24 +1999,6 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 	return result, nil
 }
 
-// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
-func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
-	generatePersonalInviteLink(input: $input) 
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
-	}
-	if data, ok := result["generatePersonalInviteLink"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // Project — Get a specific project.
 func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Project($id: ID!) {
@@ -2623,24 +2641,6 @@ func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map
 		return nil, fmt.Errorf("updateUserGroup: %w", err)
 	}
 	if data, ok := result["updateUserGroup"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
-func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation SendVerificationEmail {
-	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
-	}
-	if data, ok := result["sendVerificationEmail"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

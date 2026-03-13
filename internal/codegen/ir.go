@@ -17,12 +17,19 @@ type Schema struct {
 // Resource represents a CLI resource group (e.g., "hires", "jobs") with its
 // associated queries and mutations.
 type Resource struct {
-	Name        string // kebab-case name, e.g., "hires"
-	GoName      string // PascalCase, e.g., "Hires"
-	Description string
-	GetQuery    *Operation // singular get query, e.g., hire(id: ID!)
-	ListQuery   *Operation // plural list query, e.g., hires(...)
-	Mutations   []Operation
+	Name         string // kebab-case name, e.g., "hires"
+	GoName       string // PascalCase, e.g., "Hires"
+	Description  string
+	GetQuery     *Operation // singular get query, e.g., hire(id: ID!)
+	ListQuery    *Operation // plural list query, e.g., hires(...)
+	Mutations    []Operation
+	TableColumns []TableColumn // Columns for table output in list/get commands
+}
+
+// TableColumn describes a column for table output.
+type TableColumn struct {
+	Header string // Display header, e.g., "ID"
+	Field  string // Dot-path to extract from result, e.g., "id" or "company.name"
 }
 
 // Operation represents a single GraphQL query or mutation.

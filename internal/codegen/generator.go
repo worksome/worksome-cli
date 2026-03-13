@@ -352,8 +352,11 @@ func getFormatter(cmd *cobra.Command) *output.Formatter {
 	return output.Auto(os.Stdout, noColor)
 }
 
-func printResult(cmd *cobra.Command, data any) error {
+func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
 	f := getFormatter(cmd)
+	if f.Format() == output.FormatTable && len(columns) > 0 {
+		return f.PrintTable(data, columns)
+	}
 	return f.PrintJSON(data)
 }
 
@@ -370,6 +373,14 @@ func readInputFile(path string) (map[string]any, error) {
 }
 
 {{range $res := .Resources}}
+{{- if $res.TableColumns}}
+var {{$res.GoName | lower}}Columns = []output.Column{
+{{- range $res.TableColumns}}
+	{Header: {{quote .Header}}, Field: {{quote .Field}}},
+{{- end}}
+}
+{{- end}}
+
 // New{{$res.GoName}}Cmd creates the {{$res.Name}} resource command group.
 func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -424,7 +435,11 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			{{- if $res.TableColumns}}
+			return printResult(cmd, result, {{$res.GoName | lower}}Columns)
+			{{- else}}
+			return printResult(cmd, result, nil)
+			{{- end}}
 		},
 	}
 	{{range $res.GetQuery.Arguments -}}
@@ -476,7 +491,17 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			{{- if $res.TableColumns}}
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["{{$res.ListQuery.Name}}"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, {{$res.GoName | lower}}Columns)
+				}
+			}
+			return printResult(cmd, result, nil)
+			{{- else}}
+			return printResult(cmd, result, nil)
+			{{- end}}
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -513,11 +538,15 @@ func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, var
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	{{- if $res.TableColumns}}
+	return printResult(cmd, allData, {{$res.GoName | lower}}Columns)
+	{{- else}}
+	return printResult(cmd, allData, nil)
+	{{- end}}
 }
 {{end}}
 
@@ -575,7 +604,7 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")

@@ -573,6 +573,10 @@ func (p *parser) buildResources() []Resource {
 		sort.Slice(res.Mutations, func(i, j int) bool {
 			return res.Mutations[i].Name < res.Mutations[j].Name
 		})
+
+		// Generate table columns from the return type
+		res.TableColumns = p.buildTableColumns(res)
+
 		resources = append(resources, *res)
 	}
 	sort.Slice(resources, func(i, j int) bool {
@@ -580,6 +584,132 @@ func (p *parser) buildResources() []Resource {
 	})
 
 	return resources
+}
+
+// buildTableColumns generates table column definitions for a resource.
+// It inspects the return type of the get query (or the paginated type from
+// the list query) and produces columns for scalar fields and up to 2 fields
+// from nested objects. Max 8 columns total, with "id" first if present.
+func (p *parser) buildTableColumns(res *Resource) []TableColumn {
+	// Determine which type to inspect: prefer get query return type,
+	// fall back to list query's paginated type.
+	var typeName string
+	if res.GetQuery != nil {
+		typeName = res.GetQuery.ReturnType.Name
+	} else if res.ListQuery != nil {
+		ret := res.ListQuery.ReturnType
+		if ret.IsPaginator && ret.PaginatedType != "" {
+			typeName = ret.PaginatedType
+		} else {
+			typeName = ret.Name
+		}
+	}
+	if typeName == "" {
+		return nil
+	}
+
+	def := p.doc.Types[typeName]
+	if def == nil || def.Kind != ast.Object {
+		return nil
+	}
+
+	const maxColumns = 8
+
+	var columns []TableColumn
+	var idCol *TableColumn
+
+	for _, f := range def.Fields {
+		if len(columns) >= maxColumns {
+			break
+		}
+		if f.Name == "__typename" {
+			continue
+		}
+
+		innerType := unwrapType(f.Type)
+
+		// Scalar or enum field
+		if knownScalars[innerType] || p.enums[innerType] {
+			col := TableColumn{
+				Header: toTitleCase(f.Name),
+				Field:  f.Name,
+			}
+			if f.Name == "id" {
+				idCol = &col
+			} else {
+				columns = append(columns, col)
+			}
+			continue
+		}
+
+		// Nested object: include up to 2 scalar fields as "parent.child"
+		nestedDef := p.doc.Types[innerType]
+		if nestedDef == nil || nestedDef.Kind != ast.Object {
+			continue
+		}
+		nestedCount := 0
+		for _, nf := range nestedDef.Fields {
+			if nestedCount >= 2 || len(columns) >= maxColumns {
+				break
+			}
+			nfType := unwrapType(nf.Type)
+			if knownScalars[nfType] || p.enums[nfType] {
+				columns = append(columns, TableColumn{
+					Header: toTitleCase(f.Name) + " " + toTitleCase(nf.Name),
+					Field:  f.Name + "." + nf.Name,
+				})
+				nestedCount++
+			}
+		}
+	}
+
+	// Put "id" first if present
+	if idCol != nil {
+		columns = append([]TableColumn{*idCol}, columns...)
+	}
+
+	// Enforce max columns
+	if len(columns) > maxColumns {
+		columns = columns[:maxColumns]
+	}
+
+	return columns
+}
+
+// toTitleCase converts a camelCase or snake_case field name to a display title.
+// "id" -> "ID", "firstName" -> "First Name", "company_name" -> "Company Name"
+func toTitleCase(s string) string {
+	if strings.EqualFold(s, "id") {
+		return "ID"
+	}
+
+	// Split on camelCase boundaries and underscores/hyphens
+	var words []string
+	start := 0
+	for i := 1; i < len(s); i++ {
+		if unicode.IsUpper(rune(s[i])) || s[i] == '_' || s[i] == '-' {
+			word := s[start:i]
+			if word != "" && word != "_" && word != "-" {
+				words = append(words, word)
+			}
+			start = i
+			if s[i] == '_' || s[i] == '-' {
+				start = i + 1
+			}
+		}
+	}
+	if start < len(s) {
+		words = append(words, s[start:])
+	}
+
+	// Title-case each word
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
+		}
+	}
+
+	return strings.Join(words, " ")
 }
 
 func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, resourceName string) Operation {

@@ -59,6 +59,11 @@ func Auto(w io.Writer, noColor bool) *Formatter {
 	}
 }
 
+// Format returns the configured output format.
+func (f *Formatter) Format() Format {
+	return f.format
+}
+
 // Print dispatches to PrintJSON or PrintTable based on the configured format.
 func (f *Formatter) Print(data any, columns []Column) error {
 	switch f.format {

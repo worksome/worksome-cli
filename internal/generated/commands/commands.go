@@ -41,8 +41,11 @@ func getFormatter(cmd *cobra.Command) *output.Formatter {
 	return output.Auto(os.Stdout, noColor)
 }
 
-func printResult(cmd *cobra.Command, data any) error {
+func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
 	f := getFormatter(cmd)
+	if f.Format() == output.FormatTable && len(columns) > 0 {
+		return f.PrintTable(data, columns)
+	}
 	return f.PrintJSON(data)
 }
 
@@ -56,6 +59,17 @@ func readInputFile(path string) (map[string]any, error) {
 		return nil, fmt.Errorf("parsing input file: %w", err)
 	}
 	return result, nil
+}
+
+var schemaColumns = []output.Column{
+	{Header: "Description", Field: "description"},
+	{Header: "Types Name", Field: "types.name"},
+	{Header: "Types Description", Field: "types.description"},
+	{Header: "Query Type Name", Field: "queryType.name"},
+	{Header: "Query Type Description", Field: "queryType.description"},
+	{Header: "Mutation Type Name", Field: "mutationType.name"},
+	{Header: "Mutation Type Description", Field: "mutationType.description"},
+	{Header: "Subscription Type Name", Field: "subscriptionType.name"},
 }
 
 // NewSchemaCmd creates the --schema resource command group.
@@ -90,11 +104,22 @@ func newSchemaGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, schemaColumns)
 		},
 	}
 
 	return cmd
+}
+
+var typeColumns = []output.Column{
+	{Header: "Name", Field: "name"},
+	{Header: "Description", Field: "description"},
+	{Header: "Specified By U R L", Field: "specifiedByURL"},
+	{Header: "Fields Name", Field: "fields.name"},
+	{Header: "Fields Description", Field: "fields.description"},
+	{Header: "Interfaces Name", Field: "interfaces.name"},
+	{Header: "Interfaces Description", Field: "interfaces.description"},
+	{Header: "Possible Types Name", Field: "possibleTypes.name"},
 }
 
 // NewTypeCmd creates the --type resource command group.
@@ -133,7 +158,7 @@ func newTypeGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, typeColumns)
 		},
 	}
 	cmd.Flags().String("name", "", "")
@@ -273,7 +298,7 @@ func newAcceptBidAcceptBidCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -333,11 +358,22 @@ func newAccountsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 
 	return cmd
+}
+
+var approvalapprovablesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Approval ID", Field: "approval.id"},
+	{Header: "Approval Name", Field: "approval.name"},
+	{Header: "Approval Rule ID", Field: "approvalRule.id"},
+	{Header: "Approval Rule Approver Count", Field: "approvalRule.approverCount"},
+	{Header: "Approval States ID", Field: "approvalStates.id"},
+	{Header: "Approval States State", Field: "approvalStates.state"},
+	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
 // NewApprovalApprovablesCmd creates the approval-approvables resource command group.
@@ -376,7 +412,7 @@ func newApprovalApprovablesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, approvalapprovablesColumns)
 		},
 	}
 
@@ -442,7 +478,13 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalapprovablesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -482,11 +524,11 @@ func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, approvalapprovablesColumns)
 }
 
 func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
@@ -537,7 +579,7 @@ func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -545,6 +587,17 @@ func newApprovalApprovablesActionApprovalApprovableCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "The status given.")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
 	return cmd
+}
+
+var approvalrulesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Approval ID", Field: "approval.id"},
+	{Header: "Approval Name", Field: "approval.name"},
+	{Header: "Fields ID", Field: "fields.id"},
+	{Header: "Fields Title", Field: "fields.title"},
+	{Header: "Rules ID", Field: "rules.id"},
+	{Header: "Rules Field Id", Field: "rules.fieldId"},
+	{Header: "Approvers ID", Field: "approvers.id"},
 }
 
 // NewApprovalRulesCmd creates the approval-rules resource command group.
@@ -583,7 +636,7 @@ func newApprovalRulesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, approvalrulesColumns)
 		},
 	}
 
@@ -625,7 +678,13 @@ func newApprovalRulesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalRules"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalrulesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -659,11 +718,11 @@ func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, approvalrulesColumns)
 }
 
 func newApprovalRulesCreateCmd() *cobra.Command {
@@ -706,12 +765,23 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("approval", "", "The approval owning this rule.")
 	return cmd
+}
+
+var approvalstatesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "State", Field: "state"},
+	{Header: "Actioned By ID", Field: "actionedBy.id"},
+	{Header: "Actioned By Name", Field: "actionedBy.name"},
+	{Header: "Message", Field: "message"},
+	{Header: "Cancellation Reason", Field: "cancellationReason"},
+	{Header: "Approver ID", Field: "approver.id"},
+	{Header: "Approver Position", Field: "approver.position"},
 }
 
 // NewApprovalStatesCmd creates the approval-states resource command group.
@@ -769,7 +839,13 @@ func newApprovalStatesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalStates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalstatesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -805,11 +881,22 @@ func approvalstatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[str
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, approvalstatesColumns)
+}
+
+var approvalsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Version", Field: "version"},
+	{Header: "Status", Field: "status"},
+	{Header: "Trigger", Field: "trigger"},
+	{Header: "Description", Field: "description"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
 }
 
 // NewApprovalsCmd creates the approvals resource command group.
@@ -849,7 +936,7 @@ func newApprovalsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, approvalsColumns)
 		},
 	}
 
@@ -895,7 +982,13 @@ func newApprovalsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvals"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -930,11 +1023,11 @@ func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, approvalsColumns)
 }
 
 func newApprovalsCreateCmd() *cobra.Command {
@@ -993,7 +1086,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1061,7 +1154,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1071,6 +1164,17 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	return cmd
+}
+
+var approversColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Approval Rule ID", Field: "approvalRule.id"},
+	{Header: "Approval Rule Approver Count", Field: "approvalRule.approverCount"},
+	{Header: "User Group ID", Field: "userGroup.id"},
+	{Header: "User Group Name", Field: "userGroup.name"},
+	{Header: "Position", Field: "position"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Updated At", Field: "updatedAt"},
 }
 
 // NewApproversCmd creates the approvers resource command group.
@@ -1110,7 +1214,7 @@ func newApproversGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, approversColumns)
 		},
 	}
 
@@ -1156,7 +1260,13 @@ func newApproversListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvers"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approversColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -1191,11 +1301,11 @@ func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, approversColumns)
 }
 
 func newApproversCreateCmd() *cobra.Command {
@@ -1246,7 +1356,7 @@ func newApproversCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1304,7 +1414,7 @@ func newApproversUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1394,7 +1504,7 @@ func newBankDetailsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1407,6 +1517,16 @@ func newBankDetailsCmd() *cobra.Command {
 	cmd.Flags().String("iban", "", "The bank account IBAN (if applicable).")
 	cmd.Flags().String("swift", "", "The bank account SWIFT code (if applicable).")
 	return cmd
+}
+
+var batchColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Type", Field: "type"},
+	{Header: "Items Count By Status", Field: "itemsCountByStatus"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Updated At", Field: "updatedAt"},
+	{Header: "Deleted At", Field: "deletedAt"},
 }
 
 // NewBatchCmd creates the batch resource command group.
@@ -1444,7 +1564,7 @@ func newBatchGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, batchColumns)
 		},
 	}
 
@@ -1495,7 +1615,7 @@ func newBatchCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1564,7 +1684,7 @@ func newBatchActionRunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -1572,6 +1692,16 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd.Flags().String("action", "", "The action to perform.")
 	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
 	return cmd
+}
+
+var batchesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Type", Field: "type"},
+	{Header: "Items Count By Status", Field: "itemsCountByStatus"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Updated At", Field: "updatedAt"},
+	{Header: "Deleted At", Field: "deletedAt"},
 }
 
 // NewBatchesCmd creates the batches resource command group.
@@ -1629,7 +1759,13 @@ func newBatchesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["batches"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, batchesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -1665,11 +1801,22 @@ func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, batchesColumns)
+}
+
+var bidsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Status", Field: "status"},
+	{Header: "Job ID", Field: "job.id"},
+	{Header: "Job Number", Field: "job.number"},
+	{Header: "Conversation ID", Field: "conversation.id"},
+	{Header: "Conversation Subject", Field: "conversation.subject"},
+	{Header: "Message ID", Field: "message.id"},
+	{Header: "Message Body", Field: "message.body"},
 }
 
 // NewBidsCmd creates the bids resource command group.
@@ -1707,7 +1854,7 @@ func newBidsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, bidsColumns)
 		},
 	}
 
@@ -1757,7 +1904,13 @@ func newBidsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["bids"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, bidsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -1793,11 +1946,11 @@ func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, bidsColumns)
 }
 
 // NewBlockTrustedContactCmd creates the block-trusted-contact resource command group.
@@ -1856,13 +2009,24 @@ func newBlockTrustedContactBlockTrustedContactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be blocked.")
 	cmd.Flags().String("account", "", "The account performing the block.")
 	return cmd
+}
+
+var classificationsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Hire ID", Field: "hire.id"},
+	{Header: "Hire Number", Field: "hire.number"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Freelancer ID", Field: "freelancer.id"},
 }
 
 // NewClassificationsCmd creates the classifications resource command group.
@@ -1900,7 +2064,7 @@ func newClassificationsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, classificationsColumns)
 		},
 	}
 
@@ -1942,7 +2106,13 @@ func newClassificationsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["classifications"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, classificationsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -1976,11 +2146,22 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, classificationsColumns)
+}
+
+var companyColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Market", Field: "market"},
+	{Header: "Avatar", Field: "avatar"},
+	{Header: "Profile ID", Field: "profile.id"},
+	{Header: "Profile Url", Field: "profile.url"},
+	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 // NewCompanyCmd creates the company resource command group.
@@ -2017,11 +2198,22 @@ func newCompanyGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, companyColumns)
 		},
 	}
 
 	return cmd
+}
+
+var companyrecruitersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Email", Field: "email"},
+	{Header: "Status", Field: "status"},
+	{Header: "Token", Field: "token"},
+	{Header: "Message", Field: "message"},
+	{Header: "Recruiter Fee", Field: "recruiterFee"},
+	{Header: "Recruiter Ownership Days", Field: "recruiterOwnershipDays"},
+	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
 }
 
 // NewCompanyRecruitersCmd creates the company-recruiters resource command group.
@@ -2063,7 +2255,7 @@ func newCompanyRecruitersGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, companyrecruitersColumns)
 		},
 	}
 
@@ -2129,7 +2321,13 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, companyrecruitersColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -2169,11 +2367,11 @@ func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, companyrecruitersColumns)
 }
 
 func newCompanyRecruitersCreateCmd() *cobra.Command {
@@ -2244,7 +2442,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -2299,7 +2497,7 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -2367,7 +2565,7 @@ func newCompanyRecruitersInviteCompanyRecruiterCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -2436,7 +2634,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -2446,6 +2644,17 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
 	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
+}
+
+var complianceColumns = []output.Column{
+	{Header: "Actor", Field: "actor"},
+	{Header: "Name", Field: "name"},
+	{Header: "Applicable", Field: "applicable"},
+	{Header: "Completed", Field: "completed"},
+	{Header: "Type", Field: "type"},
+	{Header: "Title", Field: "title"},
+	{Header: "Description", Field: "description"},
+	{Header: "Action Action", Field: "action.action"},
 }
 
 // NewComplianceCmd creates the compliance resource command group.
@@ -2486,12 +2695,23 @@ func newComplianceGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, complianceColumns)
 		},
 	}
 	cmd.Flags().String("names", "", "Optional compliance names to filter for specific compliances")
 
 	return cmd
+}
+
+var contractsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Job Name", Field: "jobName"},
+	{Header: "Job Description", Field: "jobDescription"},
+	{Header: "Location Preference", Field: "locationPreference"},
+	{Header: "Status", Field: "status"},
+	{Header: "Start Date", Field: "startDate"},
+	{Header: "End Date", Field: "endDate"},
+	{Header: "Location Address", Field: "location.address"},
 }
 
 // NewContractsCmd creates the contracts resource command group.
@@ -2529,7 +2749,7 @@ func newContractsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, contractsColumns)
 		},
 	}
 
@@ -2583,7 +2803,13 @@ func newContractsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["contracts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, contractsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -2620,11 +2846,22 @@ func contractsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, contractsColumns)
+}
+
+var conversationsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Subject", Field: "subject"},
+	{Header: "Job ID", Field: "job.id"},
+	{Header: "Job Number", Field: "job.number"},
+	{Header: "Latest Message ID", Field: "latestMessage.id"},
+	{Header: "Latest Message Body", Field: "latestMessage.body"},
+	{Header: "Url", Field: "url"},
+	{Header: "Created At", Field: "createdAt"},
 }
 
 // NewConversationsCmd creates the conversations resource command group.
@@ -2662,7 +2899,7 @@ func newConversationsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, conversationsColumns)
 		},
 	}
 
@@ -2708,7 +2945,13 @@ func newConversationsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["conversations"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, conversationsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -2743,11 +2986,22 @@ func conversationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, conversationsColumns)
+}
+
+var customfieldsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Title", Field: "title"},
+	{Header: "Slug", Field: "slug"},
+	{Header: "Description", Field: "description"},
+	{Header: "Field Type", Field: "fieldType"},
+	{Header: "Applies To", Field: "appliesTo"},
 }
 
 // NewCustomFieldsCmd creates the custom-fields resource command group.
@@ -2788,7 +3042,7 @@ func newCustomFieldsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, customfieldsColumns)
 		},
 	}
 
@@ -2838,7 +3092,13 @@ func newCustomFieldsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["customFields"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, customfieldsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -2874,11 +3134,11 @@ func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, customfieldsColumns)
 }
 
 func newCustomFieldsCreateCmd() *cobra.Command {
@@ -2957,7 +3217,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3014,7 +3274,7 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3094,7 +3354,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3118,6 +3378,7 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
+	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -3166,12 +3427,49 @@ func newEmailChangeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
+	return cmd
+}
+
+func newEmailSendVerificationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-verification",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
 	return cmd
 }
 
@@ -3227,12 +3525,23 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("employment", "", "The ID of the employment to approve changes for.")
 	return cmd
+}
+
+var employmentsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Hiring Managers ID", Field: "hiringManagers.id"},
+	{Header: "Hiring Managers Name", Field: "hiringManagers.name"},
+	{Header: "Status", Field: "status"},
+	{Header: "Onboarding Status", Field: "onboardingStatus"},
+	{Header: "Start Date", Field: "startDate"},
 }
 
 // NewEmploymentsCmd creates the employments resource command group.
@@ -3271,7 +3580,7 @@ func newEmploymentsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, employmentsColumns)
 		},
 	}
 
@@ -3361,7 +3670,13 @@ func newEmploymentsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["employments"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, employmentsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -3407,11 +3722,11 @@ func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, employmentsColumns)
 }
 
 func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
@@ -3454,7 +3769,7 @@ func newEmploymentsOnboardEmploymentCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3534,7 +3849,7 @@ func newExportCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3545,6 +3860,15 @@ func newExportCreateCmd() *cobra.Command {
 	cmd.Flags().String("type", "", "The type of processor to use for the export.")
 	cmd.Flags().String("generator-type", "", "The type of generator (format) that is creating the export.")
 	return cmd
+}
+
+var filesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Title", Field: "title"},
+	{Header: "Size", Field: "size"},
+	{Header: "Mime Type", Field: "mimeType"},
+	{Header: "Url", Field: "url"},
 }
 
 // NewFilesCmd creates the files resource command group.
@@ -3583,7 +3907,7 @@ func newFilesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, filesColumns)
 		},
 	}
 
@@ -3629,7 +3953,13 @@ func newFilesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["files"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, filesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -3664,11 +3994,11 @@ func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, filesColumns)
 }
 
 func newFilesUploadCmd() *cobra.Command {
@@ -3701,7 +4031,7 @@ func newFilesUploadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -3750,11 +4080,22 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	return cmd
+}
+
+var gateColumns = []output.Column{
+	{Header: "Actor", Field: "actor"},
+	{Header: "Name", Field: "name"},
+	{Header: "Compliances Actor", Field: "compliances.actor"},
+	{Header: "Compliances Name", Field: "compliances.name"},
+	{Header: "Completed", Field: "completed"},
+	{Header: "Applicable", Field: "applicable"},
+	{Header: "Title", Field: "title"},
+	{Header: "Description", Field: "description"},
 }
 
 // NewGateCmd creates the gate resource command group.
@@ -3795,12 +4136,23 @@ func newGateGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, gateColumns)
 		},
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
 
 	return cmd
+}
+
+var hiresColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Number", Field: "number"},
+	{Header: "Latest Contract ID", Field: "latestContract.id"},
+	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
+	{Header: "Active Contract ID", Field: "activeContract.id"},
+	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
+	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
+	{Header: "Company ID", Field: "company.id"},
 }
 
 // NewHiresCmd creates the hires resource command group.
@@ -3953,7 +4305,13 @@ func newHiresListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["hires"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, hiresColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -4011,11 +4369,11 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, hiresColumns)
 }
 
 func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
@@ -4074,7 +4432,7 @@ func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4130,7 +4488,7 @@ func newHiresCancelHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4235,7 +4593,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4301,7 +4659,7 @@ func newHiresRejectHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4350,7 +4708,7 @@ func newHiresRemoveRecruiterFromHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4402,7 +4760,7 @@ func newHiresShareHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4467,7 +4825,7 @@ func newHiresTerminateHireCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -4477,6 +4835,11 @@ func newHiresTerminateHireCmd() *cobra.Command {
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
 	return cmd
+}
+
+var industriesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
 }
 
 // NewIndustriesCmd creates the industries resource command group.
@@ -4514,7 +4877,7 @@ func newIndustriesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, industriesColumns)
 		},
 	}
 
@@ -4552,7 +4915,13 @@ func newIndustriesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["industries"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, industriesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -4585,11 +4954,22 @@ func industriesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, industriesColumns)
+}
+
+var inheritedcustomfieldsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Title", Field: "title"},
+	{Header: "Slug", Field: "slug"},
+	{Header: "Description", Field: "description"},
+	{Header: "Field Type", Field: "fieldType"},
+	{Header: "Applies To", Field: "appliesTo"},
 }
 
 // NewInheritedCustomFieldsCmd creates the inherited-custom-fields resource command group.
@@ -4647,7 +5027,13 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, inheritedcustomfieldsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -4683,11 +5069,11 @@ func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars 
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, inheritedcustomfieldsColumns)
 }
 
 // NewInviteLinkCmd creates the invite-link resource command group.
@@ -4698,6 +5084,7 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
+	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -4742,12 +5129,69 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
+}
+
+func newInviteLinkGeneratePersonalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate-personal",
+		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
+var invoicerowColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Payment Request ID", Field: "paymentRequest.id"},
+	{Header: "Payment Request Number", Field: "paymentRequest.number"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Custom Text", Field: "customText"},
 }
 
 // NewInvoiceRowCmd creates the invoice-row resource command group.
@@ -4784,11 +5228,22 @@ func newInvoiceRowGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, invoicerowColumns)
 		},
 	}
 
 	return cmd
+}
+
+var invoicesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Number", Field: "number"},
+	{Header: "Pdf Url", Field: "pdfUrl"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Gross Amount", Field: "grossAmount"},
+	{Header: "Gross Open Amount", Field: "grossOpenAmount"},
+	{Header: "Tax Amount", Field: "taxAmount"},
+	{Header: "Net Amount", Field: "netAmount"},
 }
 
 // NewInvoicesCmd creates the invoices resource command group.
@@ -4828,7 +5283,7 @@ func newInvoicesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, invoicesColumns)
 		},
 	}
 	cmd.Flags().String("number", "", "The invoice number on the PDF.")
@@ -4895,7 +5350,13 @@ func newInvoicesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["invoices"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, invoicesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -4935,11 +5396,11 @@ func invoicesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, invoicesColumns)
 }
 
 // NewJobCandidatePreferredCmd creates the job-candidate-preferred resource command group.
@@ -4998,7 +5459,7 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5075,7 +5536,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5085,6 +5546,17 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
 	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
 	return cmd
+}
+
+var jobcandidatesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Job ID", Field: "job.id"},
+	{Header: "Job Number", Field: "job.number"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Bid ID", Field: "bid.id"},
+	{Header: "Bid Status", Field: "bid.status"},
+	{Header: "Hire ID", Field: "hire.id"},
 }
 
 // NewJobCandidatesCmd creates the job-candidates resource command group.
@@ -5123,7 +5595,7 @@ func newJobCandidatesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, jobcandidatesColumns)
 		},
 	}
 
@@ -5181,7 +5653,13 @@ func newJobCandidatesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobCandidates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobcandidatesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -5219,11 +5697,11 @@ func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, jobcandidatesColumns)
 }
 
 func newJobCandidatesCreateCmd() *cobra.Command {
@@ -5270,13 +5748,21 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
 	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
 	return cmd
+}
+
+var jobsharesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Is Active", Field: "isActive"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Job ID", Field: "job.id"},
+	{Header: "Job Number", Field: "job.number"},
 }
 
 // NewJobSharesCmd creates the job-shares resource command group.
@@ -5340,7 +5826,13 @@ func newJobSharesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobShares"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobsharesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -5377,11 +5869,11 @@ func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, jobsharesColumns)
 }
 
 func newJobSharesCreateCmd() *cobra.Command {
@@ -5424,7 +5916,7 @@ func newJobSharesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5462,11 +5954,22 @@ func newJobSharesRemoveJobShareCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	return cmd
+}
+
+var jobsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Number", Field: "number"},
+	{Header: "Name", Field: "name"},
+	{Header: "Skills ID", Field: "skills.id"},
+	{Header: "Skills Name", Field: "skills.name"},
+	{Header: "Description", Field: "description"},
+	{Header: "Market", Field: "market"},
+	{Header: "Status", Field: "status"},
 }
 
 // NewJobsCmd creates the jobs resource command group.
@@ -5509,7 +6012,7 @@ func newJobsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, jobsColumns)
 		},
 	}
 
@@ -5655,7 +6158,13 @@ func newJobsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobs"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -5715,11 +6224,11 @@ func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, jobsColumns)
 }
 
 func newJobsCreateCmd() *cobra.Command {
@@ -5766,7 +6275,7 @@ func newJobsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5819,7 +6328,7 @@ func newJobsDuplicateJobCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5872,7 +6381,7 @@ func newJobsEndJobCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -5925,7 +6434,7 @@ func newJobsSetInternalBudgetOnJobCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6038,7 +6547,7 @@ func newJobsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6060,6 +6569,17 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
 	return cmd
+}
+
+var milestonesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Purchase Order Number", Field: "purchaseOrderNumber"},
+	{Header: "Status", Field: "status"},
+	{Header: "Details ID", Field: "details.id"},
+	{Header: "Details Due Date", Field: "details.dueDate"},
+	{Header: "Hire ID", Field: "hire.id"},
+	{Header: "Hire Number", Field: "hire.number"},
 }
 
 // NewMilestonesCmd creates the milestones resource command group.
@@ -6100,7 +6620,7 @@ func newMilestonesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, milestonesColumns)
 		},
 	}
 
@@ -6146,7 +6666,13 @@ func newMilestonesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["milestones"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, milestonesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -6181,11 +6707,11 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, milestonesColumns)
 }
 
 func newMilestonesCreateCmd() *cobra.Command {
@@ -6218,7 +6744,7 @@ func newMilestonesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6255,7 +6781,7 @@ func newMilestonesDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6292,7 +6818,7 @@ func newMilestonesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6339,7 +6865,7 @@ func newMultiFactorsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 
@@ -6385,7 +6911,7 @@ func newMultiFactorsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -6420,11 +6946,11 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, nil)
 }
 
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
@@ -6467,7 +6993,7 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6515,7 +7041,7 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6563,7 +7089,7 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6615,7 +7141,7 @@ func newMultiFactorsVerifySmsMultiFactorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6668,7 +7194,7 @@ func newMultiFactorsVerifyTotpMultiFactorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6743,7 +7269,7 @@ func newNoteCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6794,7 +7320,7 @@ func newNoteDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6850,7 +7376,7 @@ func newNoteUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6913,7 +7439,7 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -6961,12 +7487,19 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
+}
+
+var organisationColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Market", Field: "market"},
+	{Header: "Avatar", Field: "avatar"},
 }
 
 // NewOrganisationCmd creates the organisation resource command group.
@@ -7003,11 +7536,22 @@ func newOrganisationGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, organisationColumns)
 		},
 	}
 
 	return cmd
+}
+
+var organisationtrustedcontactsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Invited By User ID", Field: "invitedByUser.id"},
+	{Header: "Invited By User Name", Field: "invitedByUser.name"},
+	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 // NewOrganisationTrustedContactsCmd creates the organisation-trusted-contacts resource command group.
@@ -7045,7 +7589,7 @@ func newOrganisationTrustedContactsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, organisationtrustedcontactsColumns)
 		},
 	}
 
@@ -7155,7 +7699,13 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, organisationtrustedcontactsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -7206,11 +7756,22 @@ func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier,
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, organisationtrustedcontactsColumns)
+}
+
+var partnerColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Slug", Field: "slug"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Market", Field: "market"},
+	{Header: "Avatar", Field: "avatar"},
+	{Header: "Address Address", Field: "address.address"},
+	{Header: "Address Post Code", Field: "address.postCode"},
 }
 
 // NewPartnerCmd creates the partner resource command group.
@@ -7247,7 +7808,7 @@ func newPartnerGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, partnerColumns)
 		},
 	}
 
@@ -7307,7 +7868,7 @@ func newPasswordCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -7363,7 +7924,7 @@ func newPasswordUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -7371,6 +7932,17 @@ func newPasswordUpdateCmd() *cobra.Command {
 	cmd.Flags().String("password", "", "The new password for the user.")
 	cmd.Flags().String("password-confirmation", "", "The confirmation of the password for the user.")
 	return cmd
+}
+
+var paymentrequestsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Recruiter ID", Field: "recruiter.id"},
+	{Header: "Recruiter Name", Field: "recruiter.name"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Number", Field: "number"},
 }
 
 // NewPaymentRequestsCmd creates the payment-requests resource command group.
@@ -7411,7 +7983,7 @@ func newPaymentRequestsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, paymentrequestsColumns)
 		},
 	}
 
@@ -7537,7 +8109,13 @@ func newPaymentRequestsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["paymentRequests"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, paymentrequestsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -7592,11 +8170,11 @@ func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, paymentrequestsColumns)
 }
 
 func newPaymentRequestsCreateCmd() *cobra.Command {
@@ -7679,7 +8257,7 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -7737,7 +8315,7 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -7817,7 +8395,7 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -7833,64 +8411,15 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewPersonalInviteLinkCmd creates the personal-invite-link resource command group.
-func NewPersonalInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "personal-invite-link",
-		Short: "",
-	}
-
-	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
-
-	return cmd
-}
-
-func newPersonalInviteLinkGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
+var projectsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Description", Field: "description"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Creator ID", Field: "creator.id"},
+	{Header: "Creator Name", Field: "creator.name"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
 }
 
 // NewProjectsCmd creates the projects resource command group.
@@ -7935,7 +8464,7 @@ func newProjectsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, projectsColumns)
 		},
 	}
 
@@ -7993,7 +8522,13 @@ func newProjectsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["projects"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, projectsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -8031,11 +8566,11 @@ func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, projectsColumns)
 }
 
 func newProjectsAttachJobsToProjectCmd() *cobra.Command {
@@ -8078,7 +8613,7 @@ func newProjectsAttachJobsToProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8142,7 +8677,7 @@ func newProjectsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8194,7 +8729,7 @@ func newProjectsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8246,7 +8781,7 @@ func newProjectsDetachJobFromProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8295,7 +8830,7 @@ func newProjectsEndProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8343,7 +8878,7 @@ func newProjectsOpenProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8407,7 +8942,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8417,6 +8952,17 @@ func newProjectsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
+}
+
+var recruitercandidatesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Recruiter ID", Field: "recruiter.id"},
+	{Header: "Recruiter Name", Field: "recruiter.name"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Email", Field: "email"},
+	{Header: "Status", Field: "status"},
+	{Header: "Token", Field: "token"},
 }
 
 // NewRecruiterCandidatesCmd creates the recruiter-candidates resource command group.
@@ -8457,7 +9003,7 @@ func newRecruiterCandidatesGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, recruitercandidatesColumns)
 		},
 	}
 
@@ -8507,7 +9053,13 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, recruitercandidatesColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -8543,11 +9095,11 @@ func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, recruitercandidatesColumns)
 }
 
 func newRecruiterCandidatesCreateCmd() *cobra.Command {
@@ -8626,7 +9178,7 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8683,7 +9235,7 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8751,7 +9303,7 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -8762,6 +9314,17 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd.Flags().String("daily-rate", "", "The daily rate to update.")
 	cmd.Flags().String("monthly-rate", "", "The monthly rate to update.")
 	return cmd
+}
+
+var recruitersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Market Code", Field: "market.code"},
+	{Header: "Market Name", Field: "market.name"},
+	{Header: "Initials", Field: "initials"},
+	{Header: "Avatar", Field: "avatar"},
+	{Header: "Owner ID", Field: "owner.id"},
+	{Header: "Owner Name", Field: "owner.name"},
 }
 
 // NewRecruitersCmd creates the recruiters resource command group.
@@ -8811,7 +9374,13 @@ func newRecruitersListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["recruiters"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, recruitersColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -8845,11 +9414,11 @@ func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, recruitersColumns)
 }
 
 // NewReinviteTrustedContactCmd creates the reinvite-trusted-contact resource command group.
@@ -8904,12 +9473,17 @@ func newReinviteTrustedContactReinviteTrustedContactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the Trusted Contact to re-invite. (Note, this is different from the Worker ID)")
 	return cmd
+}
+
+var skillsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
 }
 
 // NewSkillsCmd creates the skills resource command group.
@@ -8967,7 +9541,13 @@ func newSkillsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["skills"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, skillsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -9003,11 +9583,11 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, skillsColumns)
 }
 
 // NewTimesheetRegistrationCmd creates the timesheet-registration resource command group.
@@ -9063,7 +9643,7 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9143,7 +9723,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9157,6 +9737,17 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
 	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
 	return cmd
+}
+
+var timesheetsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Hire ID", Field: "hire.id"},
+	{Header: "Hire Number", Field: "hire.number"},
+	{Header: "Start Date", Field: "startDate"},
+	{Header: "End Date", Field: "endDate"},
+	{Header: "Created At", Field: "createdAt"},
 }
 
 // NewTimesheetsCmd creates the timesheets resource command group.
@@ -9198,7 +9789,7 @@ func newTimesheetsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, timesheetsColumns)
 		},
 	}
 
@@ -9240,7 +9831,13 @@ func newTimesheetsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["timesheets"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, timesheetsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -9274,11 +9871,11 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, timesheetsColumns)
 }
 
 func newTimesheetsCreateCustomCmd() *cobra.Command {
@@ -9325,7 +9922,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9386,7 +9983,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9437,7 +10034,7 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9493,7 +10090,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9501,6 +10098,17 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
 	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
 	return cmd
+}
+
+var trustedcontactsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Worker ID", Field: "worker.id"},
+	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Invited By User ID", Field: "invitedByUser.id"},
+	{Header: "Invited By User Name", Field: "invitedByUser.name"},
+	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 // NewTrustedContactsCmd creates the trusted-contacts resource command group.
@@ -9542,7 +10150,7 @@ func newTrustedContactsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, trustedcontactsColumns)
 		},
 	}
 
@@ -9656,7 +10264,13 @@ func newTrustedContactsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["trustedContacts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, trustedcontactsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -9708,11 +10322,11 @@ func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, trustedcontactsColumns)
 }
 
 func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
@@ -9755,7 +10369,7 @@ func newTrustedContactsApproveTrustedContactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9851,7 +10465,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9915,7 +10529,7 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -9968,13 +10582,22 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be edited.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	return cmd
+}
+
+var usergroupsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Description", Field: "description"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Status", Field: "status"},
 }
 
 // NewUserGroupsCmd creates the user-groups resource command group.
@@ -10017,7 +10640,7 @@ func newUserGroupsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, usergroupsColumns)
 		},
 	}
 
@@ -10071,7 +10694,13 @@ func newUserGroupsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["userGroups"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, usergroupsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -10108,11 +10737,11 @@ func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, usergroupsColumns)
 }
 
 func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
@@ -10155,7 +10784,7 @@ func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10215,7 +10844,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10266,7 +10895,7 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10314,7 +10943,7 @@ func newUserGroupsDetachUsersFromUserGroupCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10374,7 +11003,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10385,53 +11014,15 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewVerificationEmailCmd creates the verification-email resource command group.
-func NewVerificationEmailCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verification-email",
-		Short: "",
-	}
-
-	cmd.AddCommand(newVerificationEmailSendCmd())
-
-	return cmd
-}
-
-func newVerificationEmailSendCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	return cmd
+var viewerColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Email", Field: "email"},
+	{Header: "Avatar", Field: "avatar"},
+	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
+	{Header: "Can Create Password", Field: "canCreatePassword"},
+	{Header: "Missing Authentication", Field: "missingAuthentication"},
+	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 // NewViewerCmd creates the viewer resource command group.
@@ -10466,11 +11057,22 @@ func newViewerGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, viewerColumns)
 		},
 	}
 
 	return cmd
+}
+
+var webhookeventlogsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Key", Field: "key"},
+	{Header: "Result", Field: "result"},
+	{Header: "Status Code", Field: "statusCode"},
+	{Header: "Webhook ID", Field: "webhook.id"},
+	{Header: "Webhook Title", Field: "webhook.title"},
+	{Header: "Webhook Event ID", Field: "webhookEvent.id"},
+	{Header: "Webhook Event Key", Field: "webhookEvent.key"},
 }
 
 // NewWebhookEventLogsCmd creates the webhook-event-logs resource command group.
@@ -10528,7 +11130,13 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhookeventlogsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -10564,11 +11172,22 @@ func webhookeventlogsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[s
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, webhookeventlogsColumns)
+}
+
+var webhookeventsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Key", Field: "key"},
+	{Header: "Webhook Id", Field: "webhookId"},
+	{Header: "Event", Field: "event"},
+	{Header: "Description", Field: "description"},
+	{Header: "Status", Field: "status"},
+	{Header: "Payload", Field: "payload"},
+	{Header: "Logs ID", Field: "logs.id"},
 }
 
 // NewWebhookEventsCmd creates the webhook-events resource command group.
@@ -10607,7 +11226,7 @@ func newWebhookEventsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, webhookeventsColumns)
 		},
 	}
 
@@ -10649,7 +11268,13 @@ func newWebhookEventsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhookEvents"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhookeventsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -10683,11 +11308,11 @@ func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, webhookeventsColumns)
 }
 
 func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
@@ -10730,12 +11355,23 @@ func newWebhookEventsRetryWebhookEventCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the webhook event to be retried.")
 	return cmd
+}
+
+var webhooksColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Title", Field: "title"},
+	{Header: "Description", Field: "description"},
+	{Header: "Owner", Field: "owner"},
+	{Header: "Url", Field: "url"},
+	{Header: "Secret", Field: "secret"},
+	{Header: "Is Active", Field: "isActive"},
+	{Header: "Client Id", Field: "clientId"},
 }
 
 // NewWebhooksCmd creates the webhooks resource command group.
@@ -10776,7 +11412,7 @@ func newWebhooksGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, webhooksColumns)
 		},
 	}
 
@@ -10818,7 +11454,13 @@ func newWebhooksListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhooks"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhooksColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -10852,11 +11494,11 @@ func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, webhooksColumns)
 }
 
 func newWebhooksCreateCmd() *cobra.Command {
@@ -10927,7 +11569,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -10982,7 +11624,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11058,7 +11700,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11071,6 +11713,17 @@ func newWebhooksUpdateCmd() *cobra.Command {
 	cmd.Flags().String("client-id", "", "The client ID of the webhook, when using OAuth.")
 	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
 	return cmd
+}
+
+var workerColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "First Name", Field: "firstName"},
+	{Header: "Last Name", Field: "lastName"},
+	{Header: "Middle Name", Field: "middleName"},
+	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
+	{Header: "Avatar", Field: "avatar"},
 }
 
 // NewWorkerCmd creates the worker resource command group.
@@ -11108,7 +11761,7 @@ func newWorkerGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, workerColumns)
 		},
 	}
 
@@ -11159,7 +11812,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11220,7 +11873,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11279,7 +11932,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -11314,11 +11967,15 @@ func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, nil)
+}
+
+var workflowsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
 }
 
 // NewWorkflowsCmd creates the workflows resource command group.
@@ -11359,7 +12016,7 @@ func newWorkflowsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, workflowsColumns)
 		},
 	}
 
@@ -11401,7 +12058,13 @@ func newWorkflowsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["workflows"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, workflowsColumns)
+				}
+			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
@@ -11435,11 +12098,11 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 			}
 		} else {
 			// Not a paginator response, return single result
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		}
 		page++
 	}
-	return printResult(cmd, allData)
+	return printResult(cmd, allData, workflowsColumns)
 }
 
 func newWorkflowsCreateCmd() *cobra.Command {
@@ -11472,7 +12135,7 @@ func newWorkflowsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11519,7 +12182,7 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11557,7 +12220,7 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
@@ -11616,7 +12279,7 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
