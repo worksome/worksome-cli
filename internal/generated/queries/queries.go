@@ -786,42 +786,6 @@ func (q *Querier) UpdateCustomField(ctx context.Context, vars map[string]any) (m
 	return result, nil
 }
 
-// CreateCustomTimesheet — Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.
-func (q *Querier) CreateCustomTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation CreateCustomTimesheet($input: CreateCustomTimesheetInput!) {
-	createCustomTimesheet(input: $input) { providedRegistrations successfulRegistrations }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("createCustomTimesheet: %w", err)
-	}
-	if data, ok := result["createCustomTimesheet"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// CreateDraftHire — Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.
-func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation CreateDraftHire($input: HireInput!) {
-	createDraftHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("createDraftHire: %w", err)
-	}
-	if data, ok := result["createDraftHire"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // ChangeEmail — Change the email of the currently authenticated user.
 func (q *Querier) ChangeEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ChangeEmail($input: ChangeEmailInput!) {
@@ -1023,6 +987,24 @@ func (q *Querier) Hires(ctx context.Context, vars map[string]any) (map[string]an
 	return result, nil
 }
 
+// AttributeRecruiterToHire — Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.
+func (q *Querier) AttributeRecruiterToHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation AttributeRecruiterToHire($input: AttributeRecruiterToHireInput!) {
+	attributeRecruiterToHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("attributeRecruiterToHire: %w", err)
+	}
+	if data, ok := result["attributeRecruiterToHire"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // CancelHire — Cancel a hire. Only companies can cancel their hires.
 func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CancelHire($input: CancelHireInput!) {
@@ -1041,6 +1023,24 @@ func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[stri
 	return result, nil
 }
 
+// CreateDraftHire — Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.
+func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation CreateDraftHire($input: HireInput!) {
+	createDraftHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("createDraftHire: %w", err)
+	}
+	if data, ok := result["createDraftHire"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // RejectHire — Reject a hire.
 func (q *Querier) RejectHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RejectHire($input: RejectHireInput!) {
@@ -1052,6 +1052,24 @@ func (q *Querier) RejectHire(ctx context.Context, vars map[string]any) (map[stri
 		return nil, fmt.Errorf("rejectHire: %w", err)
 	}
 	if data, ok := result["rejectHire"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// RemoveRecruiterFromHire — Remove a recruiter from a hire. Only companies can remove recruiters from their hires.
+func (q *Querier) RemoveRecruiterFromHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation RemoveRecruiterFromHire($input: RemoveRecruiterFromHireInput!) {
+	removeRecruiterFromHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("removeRecruiterFromHire: %w", err)
+	}
+	if data, ok := result["removeRecruiterFromHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1135,24 +1153,6 @@ func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
 		return nil, fmt.Errorf("inheritedCustomFields: %w", err)
-	}
-	return result, nil
-}
-
-// SetInternalBudgetOnJob — Set the internal budget of a job. Only companies can set the internal budget on the job.
-func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation SetInternalBudgetOnJob($input: SetInternalBudgetOnJobInput!) {
-	setInternalBudgetOnJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("setInternalBudgetOnJob: %w", err)
-	}
-	if data, ok := result["setInternalBudgetOnJob"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
 	}
 	return result, nil
 }
@@ -1309,24 +1309,6 @@ func (q *Querier) CreateJobCandidate(ctx context.Context, vars map[string]any) (
 	return result, nil
 }
 
-// DetachJobFromProject — Detach a job from a project Only companies can detach a job from a project.
-func (q *Querier) DetachJobFromProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation DetachJobFromProject($input: DetachJobFromProjectInput!) {
-	detachJobFromProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("detachJobFromProject: %w", err)
-	}
-	if data, ok := result["detachJobFromProject"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // JobShares — Get a list of job shares.
 func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query JobShares($jobs: [ID!], $accountTypes: [AccountType!], $isActive: Boolean, $orderBy: [JobShareOrderByClauseInput!], $first: Int! = 10, $page: Int) {
@@ -1461,6 +1443,24 @@ func (q *Querier) EndJob(ctx context.Context, vars map[string]any) (map[string]a
 	return result, nil
 }
 
+// SetInternalBudgetOnJob — Set the internal budget of a job. Only companies can set the internal budget on the job.
+func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation SetInternalBudgetOnJob($input: SetInternalBudgetOnJobInput!) {
+	setInternalBudgetOnJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("setInternalBudgetOnJob: %w", err)
+	}
+	if data, ok := result["setInternalBudgetOnJob"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // UpdateJob — Update a job. Only companies can update jobs.
 func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateJob($input: UpdateJobInput!) {
@@ -1472,24 +1472,6 @@ func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[strin
 		return nil, fmt.Errorf("updateJob: %w", err)
 	}
 	if data, ok := result["updateJob"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// AttachJobsToProject — Attach one or more jobs to a project. Only companies can attach jobs to projects.
-func (q *Querier) AttachJobsToProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation AttachJobsToProject($input: AttachJobsToProjectInput!) {
-	attachJobsToProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("attachJobsToProject: %w", err)
-	}
-	if data, ok := result["attachJobsToProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1613,6 +1595,42 @@ func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[st
 	return result, nil
 }
 
+// CreateSmsMultiFactor — Create a new multi-factor authentication implementation.
+func (q *Querier) CreateSmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation CreateSmsMultiFactor($input: CreateSmsMultiFactorInput!) {
+	createSmsMultiFactor(input: $input) { multiFactor { id name phoneNumber status verifiedAt createdAt updatedAt } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("createSmsMultiFactor: %w", err)
+	}
+	if data, ok := result["createSmsMultiFactor"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// CreateTotpMultiFactor — Create a new multi-factor authentication implementation.
+func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation CreateTotpMultiFactor($input: CreateTotpMultiFactorInput!) {
+	createTotpMultiFactor(input: $input) { multiFactor { id name status verifiedAt createdAt updatedAt } secret qrCode }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("createTotpMultiFactor: %w", err)
+	}
+	if data, ok := result["createTotpMultiFactor"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // RemoveMultiFactor — Remove a multi-factor authentication implementation.
 func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveMultiFactor($input: RemoveMultiFactorInput!) {
@@ -1624,6 +1642,42 @@ func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (m
 		return nil, fmt.Errorf("removeMultiFactor: %w", err)
 	}
 	if data, ok := result["removeMultiFactor"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// VerifySmsMultiFactor — Verify a multi-factor authentication implementation.
+func (q *Querier) VerifySmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation VerifySmsMultiFactor($input: VerifySmsMultiFactorInput!) {
+	verifySmsMultiFactor(input: $input) { id name phoneNumber status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("verifySmsMultiFactor: %w", err)
+	}
+	if data, ok := result["verifySmsMultiFactor"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// VerifyTotpMultiFactor — Verify a TOTP multi-factor authentication implementation.
+func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation VerifyTotpMultiFactor($input: VerifyTotpMultiFactorInput!) {
+	verifyTotpMultiFactor(input: $input) { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("verifyTotpMultiFactor: %w", err)
+	}
+	if data, ok := result["verifyTotpMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -1958,6 +2012,24 @@ func (q *Querier) Projects(ctx context.Context, vars map[string]any) (map[string
 	return result, nil
 }
 
+// AttachJobsToProject — Attach one or more jobs to a project. Only companies can attach jobs to projects.
+func (q *Querier) AttachJobsToProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation AttachJobsToProject($input: AttachJobsToProjectInput!) {
+	attachJobsToProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("attachJobsToProject: %w", err)
+	}
+	if data, ok := result["attachJobsToProject"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // CreateProject — Create a project. Only companies can create projects.
 func (q *Querier) CreateProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateProject($input: CreateProjectInput!) {
@@ -1987,6 +2059,24 @@ func (q *Querier) DeleteProject(ctx context.Context, vars map[string]any) (map[s
 		return nil, fmt.Errorf("deleteProject: %w", err)
 	}
 	if data, ok := result["deleteProject"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// DetachJobFromProject — Detach a job from a project Only companies can detach a job from a project.
+func (q *Querier) DetachJobFromProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation DetachJobFromProject($input: DetachJobFromProjectInput!) {
+	detachJobFromProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("detachJobFromProject: %w", err)
+	}
+	if data, ok := result["detachJobFromProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -2133,42 +2223,6 @@ func (q *Querier) UpdateRecruiterCandidate(ctx context.Context, vars map[string]
 	return result, nil
 }
 
-// RemoveRecruiterFromHire — Remove a recruiter from a hire. Only companies can remove recruiters from their hires.
-func (q *Querier) RemoveRecruiterFromHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation RemoveRecruiterFromHire($input: RemoveRecruiterFromHireInput!) {
-	removeRecruiterFromHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("removeRecruiterFromHire: %w", err)
-	}
-	if data, ok := result["removeRecruiterFromHire"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// AttributeRecruiterToHire — Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.
-func (q *Querier) AttributeRecruiterToHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation AttributeRecruiterToHire($input: AttributeRecruiterToHireInput!) {
-	attributeRecruiterToHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("attributeRecruiterToHire: %w", err)
-	}
-	if data, ok := result["attributeRecruiterToHire"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // Recruiters — Get a list of recruiters.
 func (q *Querier) Recruiters(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Recruiters($search: String, $first: Int! = 10, $page: Int) {
@@ -2209,42 +2263,6 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
 		return nil, fmt.Errorf("skills: %w", err)
-	}
-	return result, nil
-}
-
-// CreateSmsMultiFactor — Create a new multi-factor authentication implementation.
-func (q *Querier) CreateSmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation CreateSmsMultiFactor($input: CreateSmsMultiFactorInput!) {
-	createSmsMultiFactor(input: $input) { multiFactor { id name phoneNumber status verifiedAt createdAt updatedAt } }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("createSmsMultiFactor: %w", err)
-	}
-	if data, ok := result["createSmsMultiFactor"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// VerifySmsMultiFactor — Verify a multi-factor authentication implementation.
-func (q *Querier) VerifySmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation VerifySmsMultiFactor($input: VerifySmsMultiFactorInput!) {
-	verifySmsMultiFactor(input: $input) { id name phoneNumber status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("verifySmsMultiFactor: %w", err)
-	}
-	if data, ok := result["verifySmsMultiFactor"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
 	}
 	return result, nil
 }
@@ -2316,6 +2334,24 @@ func (q *Querier) Timesheets(ctx context.Context, vars map[string]any) (map[stri
 	return result, nil
 }
 
+// CreateCustomTimesheet — Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.
+func (q *Querier) CreateCustomTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation CreateCustomTimesheet($input: CreateCustomTimesheetInput!) {
+	createCustomTimesheet(input: $input) { providedRegistrations successfulRegistrations }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("createCustomTimesheet: %w", err)
+	}
+	if data, ok := result["createCustomTimesheet"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // CreateTimesheet — Create a timesheet. Only workers can create timesheets.
 func (q *Querier) CreateTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateTimesheet($input: CreateTimesheetInput!) {
@@ -2363,42 +2399,6 @@ func (q *Querier) UpdateTimesheet(ctx context.Context, vars map[string]any) (map
 		return nil, fmt.Errorf("updateTimesheet: %w", err)
 	}
 	if data, ok := result["updateTimesheet"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// CreateTotpMultiFactor — Create a new multi-factor authentication implementation.
-func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation CreateTotpMultiFactor($input: CreateTotpMultiFactorInput!) {
-	createTotpMultiFactor(input: $input) { multiFactor { id name status verifiedAt createdAt updatedAt } secret qrCode }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("createTotpMultiFactor: %w", err)
-	}
-	if data, ok := result["createTotpMultiFactor"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// VerifyTotpMultiFactor — Verify a TOTP multi-factor authentication implementation.
-func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation VerifyTotpMultiFactor($input: VerifyTotpMultiFactorInput!) {
-	verifyTotpMultiFactor(input: $input) { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("verifyTotpMultiFactor: %w", err)
-	}
-	if data, ok := result["verifyTotpMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}
@@ -2540,6 +2540,24 @@ func (q *Querier) UserGroups(ctx context.Context, vars map[string]any) (map[stri
 	return result, nil
 }
 
+// AttachUsersToUserGroup — Attach one or more users to a group. Only companies can attach users to groups.
+func (q *Querier) AttachUsersToUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation AttachUsersToUserGroup($input: AttachUsersToUserGroupInput!) {
+	attachUsersToUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("attachUsersToUserGroup: %w", err)
+	}
+	if data, ok := result["attachUsersToUserGroup"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // CreateUserGroup — Create a user group. Only companies can create user groups.
 func (q *Querier) CreateUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateUserGroup($input: CreateUserGroupInput!) {
@@ -2576,24 +2594,6 @@ func (q *Querier) DeleteUserGroup(ctx context.Context, vars map[string]any) (map
 	return result, nil
 }
 
-// UpdateUserGroup — Update a user group. Only companies can update user groups.
-func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation UpdateUserGroup($input: UpdateUserGroupInput!) {
-	updateUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("updateUserGroup: %w", err)
-	}
-	if data, ok := result["updateUserGroup"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // DetachUsersFromUserGroup — Detach one or more user from a group. Only companies can detach users from a group.
 func (q *Querier) DetachUsersFromUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DetachUsersFromUserGroup($input: DetachUsersFromUserGroupInput!) {
@@ -2612,17 +2612,17 @@ func (q *Querier) DetachUsersFromUserGroup(ctx context.Context, vars map[string]
 	return result, nil
 }
 
-// AttachUsersToUserGroup — Attach one or more users to a group. Only companies can attach users to groups.
-func (q *Querier) AttachUsersToUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation AttachUsersToUserGroup($input: AttachUsersToUserGroupInput!) {
-	attachUsersToUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+// UpdateUserGroup — Update a user group. Only companies can update user groups.
+func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation UpdateUserGroup($input: UpdateUserGroupInput!) {
+	updateUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("attachUsersToUserGroup: %w", err)
+		return nil, fmt.Errorf("updateUserGroup: %w", err)
 	}
-	if data, ok := result["attachUsersToUserGroup"]; ok {
+	if data, ok := result["updateUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

@@ -799,16 +799,31 @@ func (p *parser) matchMutationToResource(mutationName string, resources map[stri
 func (p *parser) deriveMutationCLIName(mutationName, resourceName string) string {
 	resourcePascal := toPascalCase(resourceName)
 
-	// Standard CRUD patterns
-	crudPrefixes := map[string]string{
-		"create": "create",
-		"update": "update",
-		"delete": "delete",
-	}
+	// Standard CRUD patterns: only use the short form ("create") if the rest
+	// matches the resource name exactly. Otherwise keep the full suffix to
+	// disambiguate (e.g., "createSmsMultiFactor" under "multi-factors" → "create-sms").
+	crudPrefixes := []string{"create", "update", "delete"}
 
-	for prefix, cliName := range crudPrefixes {
+	for _, prefix := range crudPrefixes {
 		if strings.HasPrefix(mutationName, prefix) {
-			return cliName
+			rest := mutationName[len(prefix):]
+			restLower := strings.ToLower(rest)
+			resLower := strings.ToLower(resourcePascal)
+			resSingular := strings.ToLower(toSingular(resourcePascal))
+			if restLower == resLower || restLower == resSingular {
+				return prefix
+			}
+			// The rest doesn't match the resource — include the distinguishing part.
+			// e.g., "createCustomTimesheet" under "timesheets" → "create-custom"
+			// Strip the resource suffix from rest to get the qualifier.
+			words := splitPascalWords(rest)
+			resWords := splitPascalWords(resourcePascal)
+			resSingWords := splitPascalWords(toPascalCase(toSingular(resourceName)))
+			qualifier := stripResourceSuffix(words, resWords, resSingWords)
+			if qualifier != "" {
+				return prefix + "-" + toKebabCase(qualifier)
+			}
+			return toKebabCase(mutationName)
 		}
 	}
 
@@ -824,6 +839,31 @@ func (p *parser) deriveMutationCLIName(mutationName, resourceName string) string
 
 	// Fallback: use the full mutation name in kebab-case
 	return toKebabCase(mutationName)
+}
+
+// stripResourceSuffix removes the resource name words from the end of a word list
+// and returns the remaining words joined. For example:
+// words=["Custom","Timesheet"], resWords=["Timesheets"] → "Custom"
+// words=["Sms","Multi","Factor"], resWords=["Multi","Factors"] → "Sms"
+func stripResourceSuffix(words, resWords, resSingWords []string) string {
+	// Try matching singular resource words from the end
+	for _, rw := range [][]string{resSingWords, resWords} {
+		if len(rw) > 0 && len(rw) < len(words) {
+			match := true
+			for i := range rw {
+				wi := len(words) - len(rw) + i
+				if strings.ToLower(words[wi]) != strings.ToLower(rw[i]) {
+					match = false
+					break
+				}
+			}
+			if match {
+				remaining := words[:len(words)-len(rw)]
+				return strings.Join(remaining, "")
+			}
+		}
+	}
+	return ""
 }
 
 // Helper functions

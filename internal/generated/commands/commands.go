@@ -3110,201 +3110,6 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewCustomTimesheetCmd creates the custom-timesheet resource command group.
-func NewCustomTimesheetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "custom-timesheet",
-		Short: "",
-	}
-
-	cmd.AddCommand(newCustomTimesheetCreateCmd())
-
-	return cmd
-}
-
-func newCustomTimesheetCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("schema") {
-				v, _ := cmd.Flags().GetString("schema")
-				inputObj["schema"] = v
-			}
-			if cmd.Flags().Changed("data") {
-				v, _ := cmd.Flags().GetString("data")
-				inputObj["data"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.CreateCustomTimesheet(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
-	cmd.Flags().String("data", "", "The custom data for the timesheet.")
-	return cmd
-}
-
-// NewDraftHireCmd creates the draft-hire resource command group.
-func NewDraftHireCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "draft-hire",
-		Short: "",
-	}
-
-	cmd.AddCommand(newDraftHireCreateCmd())
-
-	return cmd
-}
-
-func newDraftHireCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("trusted-contact") {
-				v, _ := cmd.Flags().GetString("trusted-contact")
-				inputObj["trustedContact"] = v
-			}
-			if cmd.Flags().Changed("job") {
-				v, _ := cmd.Flags().GetString("job")
-				inputObj["job"] = v
-			}
-			if cmd.Flags().Changed("name") {
-				v, _ := cmd.Flags().GetString("name")
-				inputObj["name"] = v
-			}
-			if cmd.Flags().Changed("description") {
-				v, _ := cmd.Flags().GetString("description")
-				inputObj["description"] = v
-			}
-			if cmd.Flags().Changed("message") {
-				v, _ := cmd.Flags().GetString("message")
-				inputObj["message"] = v
-			}
-			if cmd.Flags().Changed("rate-type") {
-				v, _ := cmd.Flags().GetString("rate-type")
-				inputObj["rateType"] = v
-			}
-			if cmd.Flags().Changed("rate") {
-				v, _ := cmd.Flags().GetString("rate")
-				inputObj["rate"] = v
-			}
-			if cmd.Flags().Changed("start-date") {
-				v, _ := cmd.Flags().GetString("start-date")
-				inputObj["startDate"] = v
-			}
-			if cmd.Flags().Changed("end-date") {
-				v, _ := cmd.Flags().GetString("end-date")
-				inputObj["endDate"] = v
-			}
-			if cmd.Flags().Changed("include-standard-contract") {
-				v, _ := cmd.Flags().GetString("include-standard-contract")
-				inputObj["includeStandardContract"] = v
-			}
-			if cmd.Flags().Changed("purchase-order-number") {
-				v, _ := cmd.Flags().GetString("purchase-order-number")
-				inputObj["purchaseOrderNumber"] = v
-			}
-			if cmd.Flags().Changed("conversation") {
-				v, _ := cmd.Flags().GetString("conversation")
-				inputObj["conversation"] = v
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			if cmd.Flags().Changed("external-identifier") {
-				v, _ := cmd.Flags().GetString("external-identifier")
-				inputObj["externalIdentifier"] = v
-			}
-			if cmd.Flags().Changed("hire-description") {
-				v, _ := cmd.Flags().GetString("hire-description")
-				inputObj["hireDescription"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.CreateDraftHire(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly.")
-	cmd.Flags().String("job", "", "The ID of the job.")
-	cmd.Flags().String("name", "", "The name of the job to bid.")
-	cmd.Flags().String("description", "", "The description of the job to bid.")
-	cmd.Flags().String("message", "", "The message to send the trusted contact.")
-	cmd.Flags().String("rate-type", "", "The rate type that is due.")
-	cmd.Flags().String("rate", "", "The rate that is due.")
-	cmd.Flags().String("start-date", "", "The date that the contract should start. This date is used on the draft contract.")
-	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
-	cmd.Flags().String("include-standard-contract", "", "Whether to include the standard contract. The default is to include a standard contract.")
-	cmd.Flags().String("purchase-order-number", "", "A Purchase Order (PO) number to attribute to the direct hire.")
-	cmd.Flags().String("conversation", "", "The conversation that the direct hire should be attributed to.")
-	cmd.Flags().String("company", "", "The company that the direct hire is for.")
-	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
-	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
-	return cmd
-}
-
 // NewEmailCmd creates the email resource command group.
 func NewEmailCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -4006,8 +3811,11 @@ func NewHiresCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newHiresListCmd())
+	cmd.AddCommand(newHiresAttributeRecruiterToHireCmd())
 	cmd.AddCommand(newHiresCancelHireCmd())
+	cmd.AddCommand(newHiresCreateDraftCmd())
 	cmd.AddCommand(newHiresRejectHireCmd())
+	cmd.AddCommand(newHiresRemoveRecruiterFromHireCmd())
 	cmd.AddCommand(newHiresShareHireCmd())
 	cmd.AddCommand(newHiresTerminateHireCmd())
 
@@ -4210,6 +4018,74 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 	return printResult(cmd, allData)
 }
 
+func newHiresAttributeRecruiterToHireCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attribute-recruiter-to-hire",
+		Short: "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			if cmd.Flags().Changed("recruiter") {
+				v, _ := cmd.Flags().GetString("recruiter")
+				inputObj["recruiter"] = v
+			}
+			if cmd.Flags().Changed("fee") {
+				v, _ := cmd.Flags().GetString("fee")
+				inputObj["fee"] = v
+			}
+			if cmd.Flags().Changed("ownership-days") {
+				v, _ := cmd.Flags().GetInt("ownership-days")
+				inputObj["ownershipDays"] = v
+			}
+			if cmd.Flags().Changed("ownership-start-date") {
+				v, _ := cmd.Flags().GetString("ownership-start-date")
+				inputObj["ownershipStartDate"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.AttributeRecruiterToHire(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
+	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
+	cmd.Flags().String("fee", "", "The fee the recruiter is taking as a percentage.")
+	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in.")
+	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
+	return cmd
+}
+
 func newHiresCancelHireCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel-hire",
@@ -4263,6 +4139,124 @@ func newHiresCancelHireCmd() *cobra.Command {
 	return cmd
 }
 
+func newHiresCreateDraftCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-draft",
+		Short: "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("trusted-contact") {
+				v, _ := cmd.Flags().GetString("trusted-contact")
+				inputObj["trustedContact"] = v
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("message") {
+				v, _ := cmd.Flags().GetString("message")
+				inputObj["message"] = v
+			}
+			if cmd.Flags().Changed("rate-type") {
+				v, _ := cmd.Flags().GetString("rate-type")
+				inputObj["rateType"] = v
+			}
+			if cmd.Flags().Changed("rate") {
+				v, _ := cmd.Flags().GetString("rate")
+				inputObj["rate"] = v
+			}
+			if cmd.Flags().Changed("start-date") {
+				v, _ := cmd.Flags().GetString("start-date")
+				inputObj["startDate"] = v
+			}
+			if cmd.Flags().Changed("end-date") {
+				v, _ := cmd.Flags().GetString("end-date")
+				inputObj["endDate"] = v
+			}
+			if cmd.Flags().Changed("include-standard-contract") {
+				v, _ := cmd.Flags().GetString("include-standard-contract")
+				inputObj["includeStandardContract"] = v
+			}
+			if cmd.Flags().Changed("purchase-order-number") {
+				v, _ := cmd.Flags().GetString("purchase-order-number")
+				inputObj["purchaseOrderNumber"] = v
+			}
+			if cmd.Flags().Changed("conversation") {
+				v, _ := cmd.Flags().GetString("conversation")
+				inputObj["conversation"] = v
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			if cmd.Flags().Changed("external-identifier") {
+				v, _ := cmd.Flags().GetString("external-identifier")
+				inputObj["externalIdentifier"] = v
+			}
+			if cmd.Flags().Changed("hire-description") {
+				v, _ := cmd.Flags().GetString("hire-description")
+				inputObj["hireDescription"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.CreateDraftHire(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly.")
+	cmd.Flags().String("job", "", "The ID of the job.")
+	cmd.Flags().String("name", "", "The name of the job to bid.")
+	cmd.Flags().String("description", "", "The description of the job to bid.")
+	cmd.Flags().String("message", "", "The message to send the trusted contact.")
+	cmd.Flags().String("rate-type", "", "The rate type that is due.")
+	cmd.Flags().String("rate", "", "The rate that is due.")
+	cmd.Flags().String("start-date", "", "The date that the contract should start. This date is used on the draft contract.")
+	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
+	cmd.Flags().String("include-standard-contract", "", "Whether to include the standard contract. The default is to include a standard contract.")
+	cmd.Flags().String("purchase-order-number", "", "A Purchase Order (PO) number to attribute to the direct hire.")
+	cmd.Flags().String("conversation", "", "The conversation that the direct hire should be attributed to.")
+	cmd.Flags().String("company", "", "The company that the direct hire is for.")
+	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
+	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
+	return cmd
+}
+
 func newHiresRejectHireCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reject-hire",
@@ -4313,6 +4307,54 @@ func newHiresRejectHireCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("account", "", "The account that is rejecting the hire.")
 	cmd.Flags().String("hire", "", "The ID of the hire to be rejected.")
+	return cmd
+}
+
+func newHiresRemoveRecruiterFromHireCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "remove-recruiter-from-hire",
+		Short: "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("hire") {
+				v, _ := cmd.Flags().GetString("hire")
+				inputObj["hire"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.RemoveRecruiterFromHire(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("hire", "", "The ID of the hire.")
 	return cmd
 }
 
@@ -4646,71 +4688,6 @@ func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars 
 		page++
 	}
 	return printResult(cmd, allData)
-}
-
-// NewInternalBudgetOnJobCmd creates the internal-budget-on-job resource command group.
-func NewInternalBudgetOnJobCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "internal-budget-on-job",
-		Short: "",
-	}
-
-	cmd.AddCommand(newInternalBudgetOnJobSetCmd())
-
-	return cmd
-}
-
-func newInternalBudgetOnJobSetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set the internal budget of a job. Only companies can set the internal budget on the job.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("job") {
-				v, _ := cmd.Flags().GetString("job")
-				inputObj["job"] = v
-			}
-			if cmd.Flags().Changed("amount") {
-				v, _ := cmd.Flags().GetFloat64("amount")
-				inputObj["amount"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.SetInternalBudgetOnJob(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("job", "", "The job that the budget is for.")
-	cmd.Flags().Float64("amount", 0, "The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.")
-	return cmd
 }
 
 // NewInviteLinkCmd creates the invite-link resource command group.
@@ -5302,71 +5279,6 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewJobFromProjectCmd creates the job-from-project resource command group.
-func NewJobFromProjectCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "job-from-project",
-		Short: "",
-	}
-
-	cmd.AddCommand(newJobFromProjectDetachCmd())
-
-	return cmd
-}
-
-func newJobFromProjectDetachCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "detach",
-		Short: "Detach a job from a project Only companies can detach a job from a project.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("job") {
-				v, _ := cmd.Flags().GetString("job")
-				inputObj["job"] = v
-			}
-			if cmd.Flags().Changed("project") {
-				v, _ := cmd.Flags().GetString("project")
-				inputObj["project"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.DetachJobFromProject(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("job", "", "Jobs to be detached from the project.")
-	cmd.Flags().String("project", "", "The project containing jobs.")
-	return cmd
-}
-
 // NewJobSharesCmd creates the job-shares resource command group.
 func NewJobSharesCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -5569,6 +5481,7 @@ func NewJobsCmd() *cobra.Command {
 	cmd.AddCommand(newJobsCreateCmd())
 	cmd.AddCommand(newJobsDuplicateJobCmd())
 	cmd.AddCommand(newJobsEndJobCmd())
+	cmd.AddCommand(newJobsSetInternalBudgetOnJobCmd())
 	cmd.AddCommand(newJobsUpdateCmd())
 
 	return cmd
@@ -5968,6 +5881,59 @@ func newJobsEndJobCmd() *cobra.Command {
 	return cmd
 }
 
+func newJobsSetInternalBudgetOnJobCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-internal-budget-on-job",
+		Short: "Set the internal budget of a job. Only companies can set the internal budget on the job.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("amount") {
+				v, _ := cmd.Flags().GetFloat64("amount")
+				inputObj["amount"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.SetInternalBudgetOnJob(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "The job that the budget is for.")
+	cmd.Flags().Float64("amount", 0, "The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.")
+	return cmd
+}
+
 func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -6093,66 +6059,6 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
-	return cmd
-}
-
-// NewJobsToProjectCmd creates the jobs-to-project resource command group.
-func NewJobsToProjectCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "jobs-to-project",
-		Short: "",
-	}
-
-	cmd.AddCommand(newJobsToProjectAttachCmd())
-
-	return cmd
-}
-
-func newJobsToProjectAttachCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "attach",
-		Short: "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("project") {
-				v, _ := cmd.Flags().GetString("project")
-				inputObj["project"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.AttachJobsToProject(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
 }
 
@@ -6402,7 +6308,11 @@ func NewMultiFactorsCmd() *cobra.Command {
 
 	cmd.AddCommand(newMultiFactorsGetCmd())
 	cmd.AddCommand(newMultiFactorsListCmd())
+	cmd.AddCommand(newMultiFactorsCreateSmsCmd())
+	cmd.AddCommand(newMultiFactorsCreateTotpCmd())
 	cmd.AddCommand(newMultiFactorsRemoveMultiFactorCmd())
+	cmd.AddCommand(newMultiFactorsVerifySmsMultiFactorCmd())
+	cmd.AddCommand(newMultiFactorsVerifyTotpMultiFactorCmd())
 
 	return cmd
 }
@@ -6517,6 +6427,102 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 	return printResult(cmd, allData)
 }
 
+func newMultiFactorsCreateSmsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-sms",
+		Short: "Create a new multi-factor authentication implementation.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.CreateSmsMultiFactor(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "An optional name for the SMS multi-factor authentication implementation.")
+	return cmd
+}
+
+func newMultiFactorsCreateTotpCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-totp",
+		Short: "Create a new multi-factor authentication implementation.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("name") {
+				v, _ := cmd.Flags().GetString("name")
+				inputObj["name"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.CreateTotpMultiFactor(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("name", "", "An optional name for the TOTP multi-factor authentication implementation.")
+	return cmd
+}
+
 func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-multi-factor",
@@ -6562,6 +6568,112 @@ func newMultiFactorsRemoveMultiFactorCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the multi-factor authentication implementation to remove.")
+	return cmd
+}
+
+func newMultiFactorsVerifySmsMultiFactorCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verify-sms-multi-factor",
+		Short: "Verify a multi-factor authentication implementation.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("code") {
+				v, _ := cmd.Flags().GetString("code")
+				inputObj["code"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.VerifySmsMultiFactor(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the SMS multi-factor authentication implementation to verify.")
+	cmd.Flags().String("code", "", "The current SMS authentication code to verify the implementation with.")
+	return cmd
+}
+
+func newMultiFactorsVerifyTotpMultiFactorCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verify-totp-multi-factor",
+		Short: "Verify a TOTP multi-factor authentication implementation.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("code") {
+				v, _ := cmd.Flags().GetString("code")
+				inputObj["code"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.VerifyTotpMultiFactor(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("id", "", "The ID of the TOTP multi-factor authentication implementation to verify.")
+	cmd.Flags().String("code", "", "The current TOTP authentication code to verify the implementation with.")
 	return cmd
 }
 
@@ -7790,8 +7902,10 @@ func NewProjectsCmd() *cobra.Command {
 
 	cmd.AddCommand(newProjectsGetCmd())
 	cmd.AddCommand(newProjectsListCmd())
+	cmd.AddCommand(newProjectsAttachJobsToProjectCmd())
 	cmd.AddCommand(newProjectsCreateCmd())
 	cmd.AddCommand(newProjectsDeleteCmd())
+	cmd.AddCommand(newProjectsDetachJobFromProjectCmd())
 	cmd.AddCommand(newProjectsEndProjectCmd())
 	cmd.AddCommand(newProjectsOpenProjectCmd())
 	cmd.AddCommand(newProjectsUpdateCmd())
@@ -7924,6 +8038,54 @@ func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 	return printResult(cmd, allData)
 }
 
+func newProjectsAttachJobsToProjectCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attach-jobs-to-project",
+		Short: "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("project") {
+				v, _ := cmd.Flags().GetString("project")
+				inputObj["project"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.AttachJobsToProject(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("project", "", "The project containing jobs.")
+	return cmd
+}
+
 func newProjectsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -8037,6 +8199,59 @@ func newProjectsDeleteCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file")
 	cmd.Flags().String("id", "", "The ID of the project.")
+	return cmd
+}
+
+func newProjectsDetachJobFromProjectCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "detach-job-from-project",
+		Short: "Detach a job from a project Only companies can detach a job from a project.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("job") {
+				v, _ := cmd.Flags().GetString("job")
+				inputObj["job"] = v
+			}
+			if cmd.Flags().Changed("project") {
+				v, _ := cmd.Flags().GetString("project")
+				inputObj["project"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.DetachJobFromProject(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("job", "", "Jobs to be detached from the project.")
+	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
 }
 
@@ -8549,146 +8764,6 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewRecruiterFromHireCmd creates the recruiter-from-hire resource command group.
-func NewRecruiterFromHireCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "recruiter-from-hire",
-		Short: "",
-	}
-
-	cmd.AddCommand(newRecruiterFromHireRemoveCmd())
-
-	return cmd
-}
-
-func newRecruiterFromHireRemoveCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("hire") {
-				v, _ := cmd.Flags().GetString("hire")
-				inputObj["hire"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.RemoveRecruiterFromHire(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("hire", "", "The ID of the hire.")
-	return cmd
-}
-
-// NewRecruiterToHireCmd creates the recruiter-to-hire resource command group.
-func NewRecruiterToHireCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "recruiter-to-hire",
-		Short: "",
-	}
-
-	cmd.AddCommand(newRecruiterToHireAttributeCmd())
-
-	return cmd
-}
-
-func newRecruiterToHireAttributeCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "attribute",
-		Short: "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("hire") {
-				v, _ := cmd.Flags().GetString("hire")
-				inputObj["hire"] = v
-			}
-			if cmd.Flags().Changed("recruiter") {
-				v, _ := cmd.Flags().GetString("recruiter")
-				inputObj["recruiter"] = v
-			}
-			if cmd.Flags().Changed("fee") {
-				v, _ := cmd.Flags().GetString("fee")
-				inputObj["fee"] = v
-			}
-			if cmd.Flags().Changed("ownership-days") {
-				v, _ := cmd.Flags().GetInt("ownership-days")
-				inputObj["ownershipDays"] = v
-			}
-			if cmd.Flags().Changed("ownership-start-date") {
-				v, _ := cmd.Flags().GetString("ownership-start-date")
-				inputObj["ownershipStartDate"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.AttributeRecruiterToHire(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("hire", "", "The ID of the hire.")
-	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
-	cmd.Flags().String("fee", "", "The fee the recruiter is taking as a percentage.")
-	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in.")
-	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
-	return cmd
-}
-
 // NewRecruitersCmd creates the recruiters resource command group.
 func NewRecruitersCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -8935,120 +9010,6 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 	return printResult(cmd, allData)
 }
 
-// NewSmsMultiFactorCmd creates the sms-multi-factor resource command group.
-func NewSmsMultiFactorCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "sms-multi-factor",
-		Short: "",
-	}
-
-	cmd.AddCommand(newSmsMultiFactorCreateCmd())
-	cmd.AddCommand(newSmsMultiFactorVerifyCmd())
-
-	return cmd
-}
-
-func newSmsMultiFactorCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new multi-factor authentication implementation.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("name") {
-				v, _ := cmd.Flags().GetString("name")
-				inputObj["name"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.CreateSmsMultiFactor(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("name", "", "An optional name for the SMS multi-factor authentication implementation.")
-	return cmd
-}
-
-func newSmsMultiFactorVerifyCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify a multi-factor authentication implementation.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("id") {
-				v, _ := cmd.Flags().GetString("id")
-				inputObj["id"] = v
-			}
-			if cmd.Flags().Changed("code") {
-				v, _ := cmd.Flags().GetString("code")
-				inputObj["code"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.VerifySmsMultiFactor(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("id", "", "The ID of the SMS multi-factor authentication implementation to verify.")
-	cmd.Flags().String("code", "", "The current SMS authentication code to verify the implementation with.")
-	return cmd
-}
-
 // NewTimesheetRegistrationCmd creates the timesheet-registration resource command group.
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -9207,6 +9168,7 @@ func NewTimesheetsCmd() *cobra.Command {
 
 	cmd.AddCommand(newTimesheetsGetCmd())
 	cmd.AddCommand(newTimesheetsListCmd())
+	cmd.AddCommand(newTimesheetsCreateCustomCmd())
 	cmd.AddCommand(newTimesheetsCreateCmd())
 	cmd.AddCommand(newTimesheetsDeleteCmd())
 	cmd.AddCommand(newTimesheetsUpdateCmd())
@@ -9317,6 +9279,59 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 		page++
 	}
 	return printResult(cmd, allData)
+}
+
+func newTimesheetsCreateCustomCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-custom",
+		Short: "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("schema") {
+				v, _ := cmd.Flags().GetString("schema")
+				inputObj["schema"] = v
+			}
+			if cmd.Flags().Changed("data") {
+				v, _ := cmd.Flags().GetString("data")
+				inputObj["data"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.CreateCustomTimesheet(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
+	cmd.Flags().String("data", "", "The custom data for the timesheet.")
+	return cmd
 }
 
 func newTimesheetsCreateCmd() *cobra.Command {
@@ -9485,120 +9500,6 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The ID of the timesheet to update.")
 	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
 	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
-	return cmd
-}
-
-// NewTotpMultiFactorCmd creates the totp-multi-factor resource command group.
-func NewTotpMultiFactorCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "totp-multi-factor",
-		Short: "",
-	}
-
-	cmd.AddCommand(newTotpMultiFactorCreateCmd())
-	cmd.AddCommand(newTotpMultiFactorVerifyCmd())
-
-	return cmd
-}
-
-func newTotpMultiFactorCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new multi-factor authentication implementation.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("name") {
-				v, _ := cmd.Flags().GetString("name")
-				inputObj["name"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.CreateTotpMultiFactor(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("name", "", "An optional name for the TOTP multi-factor authentication implementation.")
-	return cmd
-}
-
-func newTotpMultiFactorVerifyCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify a TOTP multi-factor authentication implementation.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("id") {
-				v, _ := cmd.Flags().GetString("id")
-				inputObj["id"] = v
-			}
-			if cmd.Flags().Changed("code") {
-				v, _ := cmd.Flags().GetString("code")
-				inputObj["code"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.VerifyTotpMultiFactor(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("id", "", "The ID of the TOTP multi-factor authentication implementation to verify.")
-	cmd.Flags().String("code", "", "The current TOTP authentication code to verify the implementation with.")
 	return cmd
 }
 
@@ -10085,8 +9986,10 @@ func NewUserGroupsCmd() *cobra.Command {
 
 	cmd.AddCommand(newUserGroupsGetCmd())
 	cmd.AddCommand(newUserGroupsListCmd())
+	cmd.AddCommand(newUserGroupsAttachUsersToUserGroupCmd())
 	cmd.AddCommand(newUserGroupsCreateCmd())
 	cmd.AddCommand(newUserGroupsDeleteCmd())
+	cmd.AddCommand(newUserGroupsDetachUsersFromUserGroupCmd())
 	cmd.AddCommand(newUserGroupsUpdateCmd())
 
 	return cmd
@@ -10212,6 +10115,54 @@ func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 	return printResult(cmd, allData)
 }
 
+func newUserGroupsAttachUsersToUserGroupCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "attach-users-to-user-group",
+		Short: "Attach one or more users to a group. Only companies can attach users to groups.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.AttachUsersToUserGroup(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("user-group", "", "The user group containing users.")
+	return cmd
+}
+
 func newUserGroupsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -10323,6 +10274,54 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 	return cmd
 }
 
+func newUserGroupsDetachUsersFromUserGroupCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "detach-users-from-user-group",
+		Short: "Detach one or more user from a group. Only companies can detach users from a group.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("user-group") {
+				v, _ := cmd.Flags().GetString("user-group")
+				inputObj["userGroup"] = v
+			}
+			vars["input"] = inputObj
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", vars)
+			}
+
+			result, err := q.DetachUsersFromUserGroup(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file")
+	cmd.Flags().String("user-group", "", "The user group containing users.")
+	return cmd
+}
+
 func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -10383,126 +10382,6 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
-	return cmd
-}
-
-// NewUsersFromUserGroupCmd creates the users-from-user-group resource command group.
-func NewUsersFromUserGroupCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "users-from-user-group",
-		Short: "",
-	}
-
-	cmd.AddCommand(newUsersFromUserGroupDetachCmd())
-
-	return cmd
-}
-
-func newUsersFromUserGroupDetachCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "detach",
-		Short: "Detach one or more user from a group. Only companies can detach users from a group.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("user-group") {
-				v, _ := cmd.Flags().GetString("user-group")
-				inputObj["userGroup"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.DetachUsersFromUserGroup(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("user-group", "", "The user group containing users.")
-	return cmd
-}
-
-// NewUsersToUserGroupCmd creates the users-to-user-group resource command group.
-func NewUsersToUserGroupCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "users-to-user-group",
-		Short: "",
-	}
-
-	cmd.AddCommand(newUsersToUserGroupAttachCmd())
-
-	return cmd
-}
-
-func newUsersToUserGroupAttachCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "attach",
-		Short: "Attach one or more users to a group. Only companies can attach users to groups.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("user-group") {
-				v, _ := cmd.Flags().GetString("user-group")
-				inputObj["userGroup"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", vars)
-			}
-
-			result, err := q.AttachUsersToUserGroup(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file")
-	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
 }
 
