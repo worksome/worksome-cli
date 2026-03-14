@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -194,6 +195,125 @@ func TestMaskToken(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("MaskToken(%q) = %q, want %q", tc.input, got, tc.want)
 		}
+	}
+}
+
+func TestSaveToCreatesParentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "deep", "nested", "dir", "config.yaml")
+
+	cfg := &Config{
+		CurrentProfile: "test",
+		Profiles: map[string]Profile{
+			"test": {Token: "tok", Endpoint: "https://example.com"},
+		},
+	}
+
+	if err := cfg.SaveTo(nested); err != nil {
+		t.Fatalf("SaveTo should create parent dirs: %v", err)
+	}
+
+	loaded, err := LoadFrom(nested)
+	if err != nil {
+		t.Fatalf("LoadFrom failed: %v", err)
+	}
+	if loaded.CurrentProfile != "test" {
+		t.Errorf("CurrentProfile = %q, want %q", loaded.CurrentProfile, "test")
+	}
+}
+
+func TestMaskTokenEdgeCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"empty string", "", ""},
+		{"3 char fully masked", "abc", "***"},
+		{"4 char fully masked", "abcd", "****"},
+		{"5 char shows last 4", "abcde", "*bcde"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := MaskToken(tc.input)
+			if got != tc.want {
+				t.Errorf("MaskToken(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveEndpointEnvVarPrecedence(t *testing.T) {
+	cfg := &Config{
+		CurrentProfile: "prod",
+		Profiles: map[string]Profile{
+			"prod": {Endpoint: "https://config.example.com/graphql"},
+		},
+	}
+
+	// Env var takes precedence over config
+	t.Setenv("WORKSOME_ENDPOINT", "https://env.example.com/graphql")
+	got := cfg.ResolveEndpoint("")
+	if got != "https://env.example.com/graphql" {
+		t.Errorf("ResolveEndpoint with env = %q, want env value", got)
+	}
+
+	// Flag takes precedence over env var
+	got = cfg.ResolveEndpoint("https://flag.example.com/graphql")
+	if got != "https://flag.example.com/graphql" {
+		t.Errorf("ResolveEndpoint with flag = %q, want flag value", got)
+	}
+}
+
+func TestLoadFromInvalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.yaml")
+
+	if err := os.WriteFile(path, []byte(":\n\t: bad:\nyaml: [unclosed"), 0600); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	_, err := LoadFrom(path)
+	if err == nil {
+		t.Fatal("LoadFrom should return an error for invalid YAML")
+	}
+	if !strings.Contains(err.Error(), "parsing config file") {
+		t.Errorf("error should mention parsing, got: %v", err)
+	}
+}
+
+func TestResolveProfilePrecedence(t *testing.T) {
+	cfg := &Config{
+		CurrentProfile: "config-profile",
+		Profiles:       map[string]Profile{},
+	}
+
+	// 1. Flag takes highest precedence.
+	got := cfg.ResolveProfile("flag-profile")
+	if got != "flag-profile" {
+		t.Errorf("ResolveProfile with flag = %q, want %q", got, "flag-profile")
+	}
+
+	// 2. Env var beats config.
+	t.Setenv("WORKSOME_PROFILE", "env-profile")
+	got = cfg.ResolveProfile("")
+	if got != "env-profile" {
+		t.Errorf("ResolveProfile with env = %q, want %q", got, "env-profile")
+	}
+
+	// 3. Config file is the fallback.
+	t.Setenv("WORKSOME_PROFILE", "")
+	got = cfg.ResolveProfile("")
+	if got != "config-profile" {
+		t.Errorf("ResolveProfile from config = %q, want %q", got, "config-profile")
+	}
+
+	// 4. Empty when nothing is set.
+	cfg.CurrentProfile = ""
+	got = cfg.ResolveProfile("")
+	if got != "" {
+		t.Errorf("ResolveProfile with nothing = %q, want empty", got)
 	}
 }
 

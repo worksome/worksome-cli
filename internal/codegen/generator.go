@@ -405,9 +405,16 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 		Use:   "{{$res.Name}}",
 		Short: {{quote $mut.Description}},
 		{{- if $mut.InputFields}}
-		Example: "  worksome {{$res.Name}} --input data.json",
+		Example: "  worksome {{$res.Name}} --input data.json{{with inputFlagExampleHoisted $res.Name $mut.InputFields}}\n  {{.}}{{end}}",
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -441,6 +448,10 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 			}
 			{{end -}}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			{{end -}}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -477,6 +488,10 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
 		Short: {{quote $res.Description}},
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	{{if $res.GetQuery -}}
@@ -496,13 +511,24 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 {{if $res.GetQuery}}
 func new{{$res.GoName}}GetCmd() *cobra.Command {
 	cmd := &cobra.Command{
+		{{- if hasIDArg $res.GetQuery.Arguments}}
+		Use:   "get <id>",
+		{{- else}}
 		Use:   "get",
+		{{- end}}
 		Short: {{quote $res.GetQuery.Description}},
 		Example: "  worksome {{$res.Name}} get <id>",
 		{{- if hasIDArg $res.GetQuery.Arguments}}
 		Args: cobra.ExactArgs(1),
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			{{- if hasIDArg $res.GetQuery.Arguments}}
 			vars["id"] = args[0]
@@ -551,10 +577,20 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: {{quote $res.ListQuery.Description}},
-		Example: "  worksome {{$res.Name}} list --first 20\n  worksome {{$res.Name}} list --all",
+		Example: "  worksome {{$res.Name}} list -n 20\n  worksome {{$res.Name}} list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -569,6 +605,12 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			{{- end}}
 			{{- end}}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "{{$res.ListQuery.GoName}}", vars)
@@ -579,10 +621,6 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return {{$res.GoName | lower}}FetchAll(cmd, q, vars)
 			}
@@ -604,7 +642,7 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			{{- end}}
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	{{range $res.ListQuery.Arguments -}}
@@ -663,9 +701,16 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 		Use:   "{{$mut.CLIName}}",
 		Short: {{quote $mut.Description}},
 		{{- if $mut.InputFields}}
-		Example: "  worksome {{$res.Name}} {{$mut.CLIName}} --input data.json",
+		Example: "  worksome {{$res.Name}} {{$mut.CLIName}} --input data.json{{with inputFlagExample $res.Name $mut.CLIName $mut.InputFields}}\n  {{.}}{{end}}",
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -699,6 +744,10 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			}
 			{{end -}}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			{{end -}}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -766,6 +815,42 @@ func init() {
 	templateFuncs["buildSelectionHint"] = buildSelectionHint
 	templateFuncs["hasIDArg"] = hasIDArg
 	templateFuncs["not"] = func(b bool) bool { return !b }
+	templateFuncs["inputFlagExample"] = inputFlagExample
+	templateFuncs["inputFlagExampleHoisted"] = inputFlagExampleHoisted
+}
+
+// inputFlagExample returns an example command line showing up to 3 flag-based
+// arguments for a mutation. Returns "" if there are no fields to show.
+func inputFlagExample(resName, cliName string, fields []Argument) string {
+	limit := 3
+	if len(fields) < limit {
+		limit = len(fields)
+	}
+	if limit == 0 {
+		return ""
+	}
+	parts := []string{"worksome", resName, cliName}
+	for _, f := range fields[:limit] {
+		parts = append(parts, fmt.Sprintf(`--%s \"value\"`, f.CLIFlag))
+	}
+	return strings.Join(parts, " ")
+}
+
+// inputFlagExampleHoisted is like inputFlagExample but for hoisted commands
+// where the resource name IS the command (no subcommand).
+func inputFlagExampleHoisted(resName string, fields []Argument) string {
+	limit := 3
+	if len(fields) < limit {
+		limit = len(fields)
+	}
+	if limit == 0 {
+		return ""
+	}
+	parts := []string{"worksome", resName}
+	for _, f := range fields[:limit] {
+		parts = append(parts, fmt.Sprintf(`--%s \"value\"`, f.CLIFlag))
+	}
+	return strings.Join(parts, " ")
 }
 
 func buildQueryArgs(args []Argument) string {

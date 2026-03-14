@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -17,6 +18,10 @@ func newAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Manage authentication",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newAuthLoginCmd())
@@ -273,6 +278,26 @@ func newAuthListCmd() *cobra.Command {
 			if len(cfg.Profiles) == 0 {
 				fmt.Println("No profiles configured. Run 'worksome auth login' to set up.")
 				return nil
+			}
+
+			outputFlag, _ := cmd.Root().PersistentFlags().GetString("output")
+			if outputFlag == "json" {
+				type profileInfo struct {
+					Name     string `json:"name"`
+					Endpoint string `json:"endpoint"`
+					Active   bool   `json:"active"`
+				}
+				var profiles []profileInfo
+				for name, profile := range cfg.Profiles {
+					profiles = append(profiles, profileInfo{
+						Name:     name,
+						Endpoint: profile.Endpoint,
+						Active:   name == cfg.CurrentProfile,
+					})
+				}
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(profiles)
 			}
 
 			for name, profile := range cfg.Profiles {

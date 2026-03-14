@@ -51,13 +51,16 @@ func newRootCmd() *cobra.Command {
 			return nil, fmt.Errorf("loading config: %w", err)
 		}
 
+		timeout, _ := rootCmd.PersistentFlags().GetInt("timeout")
+		if timeout < 0 {
+			return nil, fmt.Errorf("--timeout must be non-negative (got %d)", timeout)
+		}
+
 		tokenFlag, _ := rootCmd.PersistentFlags().GetString("token")
 		endpointFlag, _ := rootCmd.PersistentFlags().GetString("endpoint")
 		profileFlag, _ := rootCmd.PersistentFlags().GetString("profile")
 
-		if profileFlag != "" {
-			cfg.CurrentProfile = profileFlag
-		}
+		cfg.CurrentProfile = cfg.ResolveProfile(profileFlag)
 
 		token := cfg.ResolveToken(tokenFlag)
 		endpoint := cfg.ResolveEndpoint(endpointFlag)
@@ -67,7 +70,6 @@ func newRootCmd() *cobra.Command {
 		}
 
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
-		timeout, _ := rootCmd.PersistentFlags().GetInt("timeout")
 		opts := []client.Option{}
 		opts = append(opts, client.WithUserAgent(fmt.Sprintf("worksome-cli/%s", version)))
 		if verbose {

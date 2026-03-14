@@ -82,8 +82,15 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "accept-bid",
 		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
-		Example: "  worksome accept-bid --input data.json",
+		Example: "  worksome accept-bid --input data.json\n  worksome accept-bid --bid \"value\" --contact-person \"value\" --billing-contact-person \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -186,6 +193,10 @@ func NewAcceptBidCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AcceptBid", vars)
@@ -233,6 +244,10 @@ func NewAccountsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "accounts",
 		Short: "Get a list of accounts which the current authentication has access to.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newAccountsGetCmd())
@@ -246,6 +261,13 @@ func newAccountsGetCmd() *cobra.Command {
 		Short:   "Get a list of accounts which the current authentication has access to.",
 		Example: "  worksome accounts get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -285,6 +307,10 @@ func NewApprovalApprovablesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-approvables",
 		Short: "Get all approvable approvals.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newApprovalApprovablesGetCmd())
@@ -296,11 +322,18 @@ func NewApprovalApprovablesCmd() *cobra.Command {
 
 func newApprovalApprovablesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get approvable approval.",
 		Example: "  worksome approval-approvables get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -329,10 +362,20 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvable approvals.",
-		Example: "  worksome approval-approvables list --first 20\n  worksome approval-approvables list --all",
+		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -367,6 +410,12 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalApprovables", vars)
@@ -377,10 +426,6 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return approvalapprovablesFetchAll(cmd, q, vars)
 			}
@@ -398,7 +443,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
@@ -453,8 +498,15 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "action",
 		Short:   "Create action for an approval approvable.",
-		Example: "  worksome approval-approvables action --input data.json",
+		Example: "  worksome approval-approvables action --input data.json\n  worksome approval-approvables action --id \"value\" --status \"value\" --reason \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -485,6 +537,10 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 				inputObj["reason"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ActionApprovalApprovable", vars)
@@ -525,6 +581,10 @@ func NewApprovalRulesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-rules",
 		Short: "Get all approval rules.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newApprovalRulesGetCmd())
@@ -536,11 +596,18 @@ func NewApprovalRulesCmd() *cobra.Command {
 
 func newApprovalRulesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific approval rule.",
 		Example: "  worksome approval-rules get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -569,10 +636,20 @@ func newApprovalRulesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval rules.",
-		Example: "  worksome approval-rules list --first 20\n  worksome approval-rules list --all",
+		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -581,6 +658,12 @@ func newApprovalRulesListCmd() *cobra.Command {
 			if cmd.Flags().Changed("accounts") {
 				v, _ := cmd.Flags().GetString("accounts")
 				vars["accounts"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -593,10 +676,6 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return approvalrulesFetchAll(cmd, q, vars)
 			}
@@ -614,7 +693,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval rules based on one or more accounts.")
@@ -663,8 +742,15 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval rule for one or more fields.",
-		Example: "  worksome approval-rules create --input data.json",
+		Example: "  worksome approval-rules create --input data.json\n  worksome approval-rules create --approval \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -687,6 +773,10 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 				inputObj["approval"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateApprovalRule", vars)
@@ -725,6 +815,10 @@ func NewApprovalStatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approval-states",
 		Short: "Get all approval states.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newApprovalStatesListCmd())
@@ -736,10 +830,20 @@ func newApprovalStatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval states.",
-		Example: "  worksome approval-states list --first 20\n  worksome approval-states list --all",
+		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -758,6 +862,12 @@ func newApprovalStatesListCmd() *cobra.Command {
 				vars["users"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalStates", vars)
@@ -768,10 +878,6 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return approvalstatesFetchAll(cmd, q, vars)
 			}
@@ -789,7 +895,7 @@ func newApprovalStatesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
@@ -852,6 +958,10 @@ func NewApprovalsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approvals",
 		Short: "Get all approvals.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newApprovalsGetCmd())
@@ -864,11 +974,18 @@ func NewApprovalsCmd() *cobra.Command {
 
 func newApprovalsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific approval.",
 		Example: "  worksome approvals get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -897,10 +1014,20 @@ func newApprovalsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvals.",
-		Example: "  worksome approvals list --first 20\n  worksome approvals list --all",
+		Example: "  worksome approvals list -n 20\n  worksome approvals list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -915,6 +1042,12 @@ func newApprovalsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvals", vars)
@@ -925,10 +1058,6 @@ func newApprovalsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return approvalsFetchAll(cmd, q, vars)
 			}
@@ -946,7 +1075,7 @@ func newApprovalsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approvals based on one or more accounts.")
@@ -996,8 +1125,15 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval. Only companies can create approvals.",
-		Example: "  worksome approvals create --input data.json",
+		Example: "  worksome approvals create --input data.json\n  worksome approvals create --name \"value\" --status \"value\" --trigger \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1036,6 +1172,10 @@ func newApprovalsCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateApproval", vars)
@@ -1066,8 +1206,15 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approval.",
-		Example: "  worksome approvals update --input data.json",
+		Example: "  worksome approvals update --input data.json\n  worksome approvals update --id \"value\" --name \"value\" --status \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1106,6 +1253,10 @@ func newApprovalsUpdateCmd() *cobra.Command {
 				inputObj["description"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateApproval", vars)
@@ -1148,6 +1299,10 @@ func NewApproversCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approvers",
 		Short: "Get all approvers.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newApproversGetCmd())
@@ -1160,11 +1315,18 @@ func NewApproversCmd() *cobra.Command {
 
 func newApproversGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific approver.",
 		Example: "  worksome approvers get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -1193,10 +1355,20 @@ func newApproversListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvers.",
-		Example: "  worksome approvers list --first 20\n  worksome approvers list --all",
+		Example: "  worksome approvers list -n 20\n  worksome approvers list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -1211,6 +1383,12 @@ func newApproversListCmd() *cobra.Command {
 				vars["approvalRule"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvers", vars)
@@ -1221,10 +1399,6 @@ func newApproversListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return approversFetchAll(cmd, q, vars)
 			}
@@ -1242,7 +1416,7 @@ func newApproversListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approvers based on one or more accounts.")
@@ -1292,8 +1466,15 @@ func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approver for an approver rule.",
-		Example: "  worksome approvers create --input data.json",
+		Example: "  worksome approvers create --input data.json\n  worksome approvers create --approval-rule \"value\" --user-group \"value\" --position \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1324,6 +1505,10 @@ func newApproversCreateCmd() *cobra.Command {
 				inputObj["position"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateApprover", vars)
@@ -1352,8 +1537,15 @@ func newApproversUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approver.",
-		Example: "  worksome approvers update --input data.json",
+		Example: "  worksome approvers update --input data.json\n  worksome approvers update --id \"value\" --user-group \"value\" --position \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1384,6 +1576,10 @@ func newApproversUpdateCmd() *cobra.Command {
 				inputObj["position"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateApprover", vars)
@@ -1413,6 +1609,10 @@ func NewBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bank-details",
 		Short: "Update the bank account details.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newBankDetailsCmd())
@@ -1424,8 +1624,15 @@ func newBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "",
 		Short:   "Update the bank account details.",
-		Example: "  worksome bank-details  --input data.json",
+		Example: "  worksome bank-details  --input data.json\n  worksome bank-details  --account-id \"value\" --name \"value\" --bank-address \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1476,6 +1683,10 @@ func newBankDetailsCmd() *cobra.Command {
 				inputObj["swift"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "StoreBankDetails", vars)
@@ -1510,6 +1721,10 @@ func NewBatchActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batch-action",
 		Short: "Run an action on a batch.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newBatchActionRunCmd())
@@ -1521,8 +1736,15 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run",
 		Short:   "Run an action on a batch.",
-		Example: "  worksome batch-action run --input data.json",
+		Example: "  worksome batch-action run --input data.json\n  worksome batch-action run --batch \"value\" --action \"value\" --delete-if-emptied \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1553,6 +1775,10 @@ func newBatchActionRunCmd() *cobra.Command {
 				inputObj["deleteIfEmptied"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RunBatchAction", vars)
@@ -1592,6 +1818,10 @@ func NewBatchesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batches",
 		Short: "Get a list of batches.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newBatchesGetCmd())
@@ -1603,11 +1833,18 @@ func NewBatchesCmd() *cobra.Command {
 
 func newBatchesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific batch.",
 		Example: "  worksome batches get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -1636,10 +1873,20 @@ func newBatchesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of batches.",
-		Example: "  worksome batches list --first 20\n  worksome batches list --all",
+		Example: "  worksome batches list -n 20\n  worksome batches list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -1658,6 +1905,12 @@ func newBatchesListCmd() *cobra.Command {
 				vars["containsItemsWithStatus"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Batches", vars)
@@ -1668,10 +1921,6 @@ func newBatchesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return batchesFetchAll(cmd, q, vars)
 			}
@@ -1689,7 +1938,7 @@ func newBatchesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
@@ -1740,8 +1989,15 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a new batch of items for processing.",
-		Example: "  worksome batches create --input data.json",
+		Example: "  worksome batches create --input data.json\n  worksome batches create --account \"value\" --type \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1768,6 +2024,10 @@ func newBatchesCreateCmd() *cobra.Command {
 				inputObj["type"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateBatch", vars)
@@ -1807,6 +2067,10 @@ func NewBidsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bids",
 		Short: "Get a list of all bids which the viewer has access to.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newBidsGetCmd())
@@ -1817,11 +2081,18 @@ func NewBidsCmd() *cobra.Command {
 
 func newBidsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific bid which the user has access to.",
 		Example: "  worksome bids get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -1850,10 +2121,20 @@ func newBidsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of all bids which the viewer has access to.",
-		Example: "  worksome bids list --first 20\n  worksome bids list --all",
+		Example: "  worksome bids list -n 20\n  worksome bids list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -1872,6 +2153,12 @@ func newBidsListCmd() *cobra.Command {
 				vars["accounts"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Bids", vars)
@@ -1882,10 +2169,6 @@ func newBidsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return bidsFetchAll(cmd, q, vars)
 			}
@@ -1903,7 +2186,7 @@ func newBidsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses.")
@@ -1955,8 +2238,15 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "block-trusted-contact",
 		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
-		Example: "  worksome block-trusted-contact --input data.json",
+		Example: "  worksome block-trusted-contact --input data.json\n  worksome block-trusted-contact --id \"value\" --account \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -1983,6 +2273,10 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 				inputObj["account"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "BlockTrustedContact", vars)
@@ -2022,6 +2316,10 @@ func NewClassificationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "classifications",
 		Short: "Get all classifications for a specific hire.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newClassificationsGetCmd())
@@ -2032,11 +2330,18 @@ func NewClassificationsCmd() *cobra.Command {
 
 func newClassificationsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific classification by ID.",
 		Example: "  worksome classifications get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -2065,10 +2370,20 @@ func newClassificationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all classifications for a specific hire.",
-		Example: "  worksome classifications list --first 20\n  worksome classifications list --all",
+		Example: "  worksome classifications list -n 20\n  worksome classifications list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -2077,6 +2392,12 @@ func newClassificationsListCmd() *cobra.Command {
 			if cmd.Flags().Changed("hire") {
 				v, _ := cmd.Flags().GetString("hire")
 				vars["hire"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -2089,10 +2410,6 @@ func newClassificationsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return classificationsFetchAll(cmd, q, vars)
 			}
@@ -2110,7 +2427,7 @@ func newClassificationsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("hire", "", "The ID of the hire to get classifications for")
@@ -2171,6 +2488,10 @@ func NewCompanyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "company",
 		Short: "Get a specific company.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newCompanyGetCmd())
@@ -2180,11 +2501,18 @@ func NewCompanyCmd() *cobra.Command {
 
 func newCompanyGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific company.",
 		Example: "  worksome company get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -2225,6 +2553,10 @@ func NewCompanyRecruitersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "company-recruiters",
 		Short: "Get a list of company recruiters.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newCompanyRecruitersGetCmd())
@@ -2239,11 +2571,18 @@ func NewCompanyRecruitersCmd() *cobra.Command {
 
 func newCompanyRecruitersGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific company recruiter.",
 		Example: "  worksome company-recruiters get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -2272,10 +2611,20 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of company recruiters.",
-		Example: "  worksome company-recruiters list --first 20\n  worksome company-recruiters list --all",
+		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -2310,6 +2659,12 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "CompanyRecruiters", vars)
@@ -2320,10 +2675,6 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return companyrecruitersFetchAll(cmd, q, vars)
 			}
@@ -2341,7 +2692,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
@@ -2396,8 +2747,15 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
-		Example: "  worksome company-recruiters create --input data.json",
+		Example: "  worksome company-recruiters create --input data.json\n  worksome company-recruiters create --company \"value\" --name \"value\" --email \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2448,6 +2806,10 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCompanyRecruiter", vars)
@@ -2481,8 +2843,15 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.",
-		Example: "  worksome company-recruiters delete --input data.json",
+		Example: "  worksome company-recruiters delete --input data.json\n  worksome company-recruiters delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2505,6 +2874,10 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteCompanyRecruiter", vars)
@@ -2531,8 +2904,15 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "invite",
 		Short:   "Invite an existing recruiter. Only companies can invite the recruiter.",
-		Example: "  worksome company-recruiters invite --input data.json",
+		Example: "  worksome company-recruiters invite --input data.json\n  worksome company-recruiters invite --id \"value\" --company \"value\" --recruiter-fee \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2575,6 +2955,10 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "InviteCompanyRecruiter", vars)
@@ -2606,8 +2990,15 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
-		Example: "  worksome company-recruiters update --input data.json",
+		Example: "  worksome company-recruiters update --input data.json\n  worksome company-recruiters update --id \"value\" --recruiter-fee \"value\" --recruiter-ownership-days \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -2646,6 +3037,10 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateCompanyRecruiter", vars)
@@ -2688,6 +3083,10 @@ func NewComplianceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compliance",
 		Short: "Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newComplianceGetCmd())
@@ -2697,11 +3096,18 @@ func NewComplianceCmd() *cobra.Command {
 
 func newComplianceGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.",
 		Example: "  worksome compliance get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 			if cmd.Flags().Changed("names") {
@@ -2747,6 +3153,10 @@ func NewContractsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "contracts",
 		Short: "Get a list of contracts.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newContractsGetCmd())
@@ -2757,11 +3167,18 @@ func NewContractsCmd() *cobra.Command {
 
 func newContractsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific contract.",
 		Example: "  worksome contracts get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -2790,10 +3207,20 @@ func newContractsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of contracts.",
-		Example: "  worksome contracts list --first 20\n  worksome contracts list --all",
+		Example: "  worksome contracts list -n 20\n  worksome contracts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -2816,6 +3243,12 @@ func newContractsListCmd() *cobra.Command {
 				vars["locationPreferences"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Contracts", vars)
@@ -2826,10 +3259,6 @@ func newContractsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return contractsFetchAll(cmd, q, vars)
 			}
@@ -2847,7 +3276,7 @@ func newContractsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
@@ -2911,6 +3340,10 @@ func NewConversationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conversations",
 		Short: "Get a list of conversations.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newConversationsGetCmd())
@@ -2921,11 +3354,18 @@ func NewConversationsCmd() *cobra.Command {
 
 func newConversationsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific conversation.",
 		Example: "  worksome conversations get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -2954,10 +3394,20 @@ func newConversationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of conversations.",
-		Example: "  worksome conversations list --first 20\n  worksome conversations list --all",
+		Example: "  worksome conversations list -n 20\n  worksome conversations list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -2972,6 +3422,12 @@ func newConversationsListCmd() *cobra.Command {
 				vars["isOpen"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Conversations", vars)
@@ -2982,10 +3438,6 @@ func newConversationsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return conversationsFetchAll(cmd, q, vars)
 			}
@@ -3003,7 +3455,7 @@ func newConversationsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
@@ -3065,6 +3517,10 @@ func NewCustomFieldsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "custom-fields",
 		Short: "Get a list of custom fields.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newCustomFieldsGetCmd())
@@ -3078,11 +3534,18 @@ func NewCustomFieldsCmd() *cobra.Command {
 
 func newCustomFieldsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific custom field.",
 		Example: "  worksome custom-fields get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -3111,10 +3574,20 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of custom fields.",
-		Example: "  worksome custom-fields list --first 20\n  worksome custom-fields list --all",
+		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -3133,6 +3606,12 @@ func newCustomFieldsListCmd() *cobra.Command {
 				vars["appliesTo"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "CustomFields", vars)
@@ -3143,10 +3622,6 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return customfieldsFetchAll(cmd, q, vars)
 			}
@@ -3164,7 +3639,7 @@ func newCustomFieldsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
@@ -3215,8 +3690,15 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a custom field.",
-		Example: "  worksome custom-fields create --input data.json",
+		Example: "  worksome custom-fields create --input data.json\n  worksome custom-fields create --account \"value\" --field-type \"value\" --applies-to \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3275,6 +3757,10 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCustomField", vars)
@@ -3310,8 +3796,15 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a custom field. All fields details must be provided.",
-		Example: "  worksome custom-fields delete --input data.json",
+		Example: "  worksome custom-fields delete --input data.json\n  worksome custom-fields delete --custom-field \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3334,6 +3827,10 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 				inputObj["customField"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteCustomField", vars)
@@ -3360,8 +3857,15 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a custom field. All fields must be provided.",
-		Example: "  worksome custom-fields update --input data.json",
+		Example: "  worksome custom-fields update --input data.json\n  worksome custom-fields update --custom-field \"value\" --field-type \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3416,6 +3920,10 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateCustomField", vars)
@@ -3451,9 +3959,14 @@ func NewEmailCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "email",
 		Short: "Change the email of the currently authenticated user.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
+	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -3462,8 +3975,15 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "change",
 		Short:   "Change the email of the currently authenticated user.",
-		Example: "  worksome email change --input data.json",
+		Example: "  worksome email change --input data.json\n  worksome email change --user \"value\" --email \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3490,6 +4010,10 @@ func newEmailChangeCmd() *cobra.Command {
 				inputObj["email"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ChangeEmail", vars)
@@ -3513,11 +4037,60 @@ func newEmailChangeCmd() *cobra.Command {
 	return cmd
 }
 
+func newEmailSendVerificationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-verification",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	return cmd
+}
+
 // NewEmploymentChangesCmd creates the employment-changes resource command.
 func NewEmploymentChangesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "employment-changes",
 		Short: "Mark an employment as updated.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newEmploymentChangesApproveCmd())
@@ -3529,8 +4102,15 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Mark an employment as updated.",
-		Example: "  worksome employment-changes approve --input data.json",
+		Example: "  worksome employment-changes approve --input data.json\n  worksome employment-changes approve --employment \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3553,6 +4133,10 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 				inputObj["employment"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ApproveEmploymentChanges", vars)
@@ -3591,6 +4175,10 @@ func NewEmploymentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "employments",
 		Short: "Get a list of employments.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newEmploymentsGetCmd())
@@ -3602,11 +4190,18 @@ func NewEmploymentsCmd() *cobra.Command {
 
 func newEmploymentsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific employment.",
 		Example: "  worksome employments get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -3635,10 +4230,20 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of employments.",
-		Example: "  worksome employments list --first 20\n  worksome employments list --all",
+		Example: "  worksome employments list -n 20\n  worksome employments list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -3697,6 +4302,12 @@ func newEmploymentsListCmd() *cobra.Command {
 				vars["previouslyHired"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Employments", vars)
@@ -3707,10 +4318,6 @@ func newEmploymentsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return employmentsFetchAll(cmd, q, vars)
 			}
@@ -3728,7 +4335,7 @@ func newEmploymentsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
@@ -3789,8 +4396,15 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "onboard",
 		Short:   "Onboard an employment with optional employment costs.",
-		Example: "  worksome employments onboard --input data.json",
+		Example: "  worksome employments onboard --input data.json\n  worksome employments onboard --employment \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3813,6 +4427,10 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 				inputObj["employment"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "OnboardEmployment", vars)
@@ -3840,6 +4458,10 @@ func NewExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Create an export. The export URL and the number of rows will be returned (excluding headings).",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newExportCreateCmd())
@@ -3851,8 +4473,15 @@ func newExportCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an export. The export URL and the number of rows will be returned (excluding headings).",
-		Example: "  worksome export create --input data.json",
+		Example: "  worksome export create --input data.json\n  worksome export create --user-id \"value\" --impersonator-id \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -3895,6 +4524,10 @@ func newExportCreateCmd() *cobra.Command {
 				inputObj["generatorType"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateExport", vars)
@@ -3936,6 +4569,10 @@ func NewFilesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "files",
 		Short: "Get a list of files.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newFilesGetCmd())
@@ -3947,11 +4584,18 @@ func NewFilesCmd() *cobra.Command {
 
 func newFilesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific file.",
 		Example: "  worksome files get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -3980,10 +4624,20 @@ func newFilesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of files.",
-		Example: "  worksome files list --first 20\n  worksome files list --all",
+		Example: "  worksome files list -n 20\n  worksome files list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -3998,6 +4652,12 @@ func newFilesListCmd() *cobra.Command {
 				vars["mimeTypes"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Files", vars)
@@ -4008,10 +4668,6 @@ func newFilesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return filesFetchAll(cmd, q, vars)
 			}
@@ -4029,7 +4685,7 @@ func newFilesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
@@ -4080,6 +4736,13 @@ func newFilesUploadCmd() *cobra.Command {
 		Use:   "upload",
 		Short: "Generate temporary upload URLs for files for the given account. The temporary URL will expire after 1 week.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4118,6 +4781,10 @@ func NewFilesAsUploadedCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "files-as-uploaded",
 		Short: "Mark one or more files as uploaded to the temporary URL.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newFilesAsUploadedMarkCmd())
@@ -4130,6 +4797,13 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 		Use:   "mark",
 		Short: "Mark one or more files as uploaded to the temporary URL.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4179,6 +4853,10 @@ func NewGateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gate",
 		Short: "Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newGateGetCmd())
@@ -4188,11 +4866,18 @@ func NewGateCmd() *cobra.Command {
 
 func newGateGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.",
 		Example: "  worksome gate get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 			if cmd.Flags().Changed("gate") {
@@ -4238,6 +4923,10 @@ func NewHiresCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hires",
 		Short: "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newHiresGetCmd())
@@ -4255,11 +4944,18 @@ func NewHiresCmd() *cobra.Command {
 
 func newHiresGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific hire. All parties of the hire can use this field for seeing their hire.",
 		Example: "  worksome hires get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -4288,10 +4984,20 @@ func newHiresListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
-		Example: "  worksome hires list --first 20\n  worksome hires list --all",
+		Example: "  worksome hires list -n 20\n  worksome hires list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -4398,6 +5104,12 @@ func newHiresListCmd() *cobra.Command {
 				vars["jobs"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Hires", vars)
@@ -4408,10 +5120,6 @@ func newHiresListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return hiresFetchAll(cmd, q, vars)
 			}
@@ -4429,7 +5137,7 @@ func newHiresListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
@@ -4502,8 +5210,15 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attribute-recruiter-to",
 		Short:   "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
-		Example: "  worksome hires attribute-recruiter-to --input data.json",
+		Example: "  worksome hires attribute-recruiter-to --input data.json\n  worksome hires attribute-recruiter-to --hire \"value\" --recruiter \"value\" --fee \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4542,6 +5257,10 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 				inputObj["ownershipStartDate"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttributeRecruiterToHire", vars)
@@ -4572,8 +5291,15 @@ func newHiresCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cancel",
 		Short:   "Cancel a hire. Only companies can cancel their hires.",
-		Example: "  worksome hires cancel --input data.json",
+		Example: "  worksome hires cancel --input data.json\n  worksome hires cancel --hire \"value\" --message \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4600,6 +5326,10 @@ func newHiresCancelCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CancelHire", vars)
@@ -4627,8 +5357,15 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-draft",
 		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
-		Example: "  worksome hires create-draft --input data.json",
+		Example: "  worksome hires create-draft --input data.json\n  worksome hires create-draft --trusted-contact \"value\" --job \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4707,6 +5444,10 @@ func newHiresCreateDraftCmd() *cobra.Command {
 				inputObj["hireDescription"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateDraftHire", vars)
@@ -4747,8 +5488,15 @@ func newHiresRejectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reject",
 		Short:   "Reject a hire.",
-		Example: "  worksome hires reject --input data.json",
+		Example: "  worksome hires reject --input data.json\n  worksome hires reject --account \"value\" --hire \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4775,6 +5523,10 @@ func newHiresRejectCmd() *cobra.Command {
 				inputObj["hire"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RejectHire", vars)
@@ -4802,8 +5554,15 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove-recruiter-from",
 		Short:   "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
-		Example: "  worksome hires remove-recruiter-from --input data.json",
+		Example: "  worksome hires remove-recruiter-from --input data.json\n  worksome hires remove-recruiter-from --hire \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4826,6 +5585,10 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 				inputObj["hire"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveRecruiterFromHire", vars)
@@ -4852,8 +5615,15 @@ func newHiresShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "share",
 		Short:   "Share/offer a hire with a worker. Only companies can remove recruiters from their hires.",
-		Example: "  worksome hires share --input data.json",
+		Example: "  worksome hires share --input data.json\n  worksome hires share --hire \"value\" --message \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4880,6 +5650,10 @@ func newHiresShareCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ShareHire", vars)
@@ -4907,8 +5681,15 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "terminate",
 		Short:   "Terminate a hire.",
-		Example: "  worksome hires terminate --input data.json",
+		Example: "  worksome hires terminate --input data.json\n  worksome hires terminate --hire \"value\" --reason \"value\" --comments \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -4947,6 +5728,10 @@ func newHiresTerminateCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "TerminateHire", vars)
@@ -4983,6 +5768,10 @@ func NewIndustriesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "industries",
 		Short: "Get a list of industries.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newIndustriesGetCmd())
@@ -4993,11 +5782,18 @@ func NewIndustriesCmd() *cobra.Command {
 
 func newIndustriesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific industry.",
 		Example: "  worksome industries get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -5026,14 +5822,30 @@ func newIndustriesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of industries.",
-		Example: "  worksome industries list --first 20\n  worksome industries list --all",
+		Example: "  worksome industries list -n 20\n  worksome industries list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
 				vars["page"] = page
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -5046,10 +5858,6 @@ func newIndustriesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return industriesFetchAll(cmd, q, vars)
 			}
@@ -5067,7 +5875,7 @@ func newIndustriesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 
@@ -5127,6 +5935,10 @@ func NewInheritedCustomFieldsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inherited-custom-fields",
 		Short: "Get a list of inherited custom fields.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newInheritedCustomFieldsListCmd())
@@ -5138,10 +5950,20 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of inherited custom fields.",
-		Example: "  worksome inherited-custom-fields list --first 20\n  worksome inherited-custom-fields list --all",
+		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -5160,6 +5982,12 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				vars["appliesTo"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "InheritedCustomFields", vars)
@@ -5170,10 +5998,6 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return inheritedcustomfieldsFetchAll(cmd, q, vars)
 			}
@@ -5191,7 +6015,7 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
@@ -5243,10 +6067,13 @@ func NewInviteLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invite-link",
 		Short: "Generate the company invite link token.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
-	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -5255,8 +6082,15 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Short:   "Generate the company invite link token.",
-		Example: "  worksome invite-link generate --input data.json",
+		Example: "  worksome invite-link generate --input data.json\n  worksome invite-link generate --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5279,6 +6113,10 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "GenerateInviteLink", vars)
@@ -5290,56 +6128,6 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
-func newInviteLinkGeneratePersonalCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate-personal",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome invite-link generate-personal --input data.json",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -5365,6 +6153,10 @@ func NewInvoiceRowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invoice-row",
 		Short: "Get a specific invoice row.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newInvoiceRowGetCmd())
@@ -5374,11 +6166,18 @@ func NewInvoiceRowCmd() *cobra.Command {
 
 func newInvoiceRowGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific invoice row.",
 		Example: "  worksome invoice-row get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -5419,6 +6218,10 @@ func NewInvoicesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invoices",
 		Short: "Get a list of invoices.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newInvoicesGetCmd())
@@ -5433,6 +6236,13 @@ func newInvoicesGetCmd() *cobra.Command {
 		Short:   "Get a specific invoice.",
 		Example: "  worksome invoices get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			if cmd.Flags().Changed("number") {
 				v, _ := cmd.Flags().GetString("number")
@@ -5465,10 +6275,20 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of invoices.",
-		Example: "  worksome invoices list --first 20\n  worksome invoices list --all",
+		Example: "  worksome invoices list -n 20\n  worksome invoices list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -5503,6 +6323,12 @@ func newInvoicesListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Invoices", vars)
@@ -5513,10 +6339,6 @@ func newInvoicesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return invoicesFetchAll(cmd, q, vars)
 			}
@@ -5534,7 +6356,7 @@ func newInvoicesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
@@ -5590,6 +6412,10 @@ func NewJobCandidatePreferredCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidate-preferred",
 		Short: "Update job candidates \"preferred\" status.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newJobCandidatePreferredUpdateCmd())
@@ -5601,8 +6427,15 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update job candidates \"preferred\" status.",
-		Example: "  worksome job-candidate-preferred update --input data.json",
+		Example: "  worksome job-candidate-preferred update --input data.json\n  worksome job-candidate-preferred update --job-candidate \"value\" --is-preferred \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5629,6 +6462,10 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 				inputObj["isPreferred"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateJobCandidatePreferred", vars)
@@ -5657,6 +6494,10 @@ func NewJobCandidateStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidate-status",
 		Short: "Update a job candidate status. A reason and comment can be provided.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newJobCandidateStatusUpdateCmd())
@@ -5668,8 +6509,15 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job candidate status. A reason and comment can be provided.",
-		Example: "  worksome job-candidate-status update --input data.json",
+		Example: "  worksome job-candidate-status update --input data.json\n  worksome job-candidate-status update --job-candidate \"value\" --status \"value\" --status-reason \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5708,6 +6556,10 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 				inputObj["feedback"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateJobCandidateStatus", vars)
@@ -5750,6 +6602,10 @@ func NewJobCandidatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidates",
 		Short: "Get a list of job candidates.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newJobCandidatesGetCmd())
@@ -5761,11 +6617,18 @@ func NewJobCandidatesCmd() *cobra.Command {
 
 func newJobCandidatesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific job candidate.",
 		Example: "  worksome job-candidates get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -5794,10 +6657,20 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job candidates.",
-		Example: "  worksome job-candidates list --first 20\n  worksome job-candidates list --all",
+		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -5824,6 +6697,12 @@ func newJobCandidatesListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "JobCandidates", vars)
@@ -5834,10 +6713,6 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return jobcandidatesFetchAll(cmd, q, vars)
 			}
@@ -5855,7 +6730,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
@@ -5908,8 +6783,15 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job candidate. This will make the workers eligible and proposed for a job.",
-		Example: "  worksome job-candidates create --input data.json",
+		Example: "  worksome job-candidates create --input data.json\n  worksome job-candidates create --job \"value\" --sourcing-channel \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -5936,6 +6818,10 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 				inputObj["sourcingChannel"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateJobCandidate", vars)
@@ -5972,6 +6858,10 @@ func NewJobSharesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-shares",
 		Short: "Get a list of job shares.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newJobSharesListCmd())
@@ -5985,10 +6875,20 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job shares.",
-		Example: "  worksome job-shares list --first 20\n  worksome job-shares list --all",
+		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -6011,6 +6911,12 @@ func newJobSharesListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "JobShares", vars)
@@ -6021,10 +6927,6 @@ func newJobSharesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return jobsharesFetchAll(cmd, q, vars)
 			}
@@ -6042,7 +6944,7 @@ func newJobSharesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
@@ -6094,8 +6996,15 @@ func newJobSharesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job share.",
-		Example: "  worksome job-shares create --input data.json",
+		Example: "  worksome job-shares create --input data.json\n  worksome job-shares create --job \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6118,6 +7027,10 @@ func newJobSharesCreateCmd() *cobra.Command {
 				inputObj["job"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateJobShare", vars)
@@ -6145,6 +7058,13 @@ func newJobSharesRemoveCmd() *cobra.Command {
 		Use:   "remove",
 		Short: "Remove a job share.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6194,6 +7114,10 @@ func NewJobsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "jobs",
 		Short: "Get a list of jobs.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newJobsGetCmd())
@@ -6209,11 +7133,18 @@ func NewJobsCmd() *cobra.Command {
 
 func newJobsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific job.",
 		Example: "  worksome jobs get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -6242,10 +7173,20 @@ func newJobsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of jobs.",
-		Example: "  worksome jobs list --first 20\n  worksome jobs list --all",
+		Example: "  worksome jobs list -n 20\n  worksome jobs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -6360,6 +7301,12 @@ func newJobsListCmd() *cobra.Command {
 				vars["statuses"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Jobs", vars)
@@ -6370,10 +7317,6 @@ func newJobsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return jobsFetchAll(cmd, q, vars)
 			}
@@ -6391,7 +7334,7 @@ func newJobsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
@@ -6466,8 +7409,15 @@ func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job. Only companies can create jobs.",
-		Example: "  worksome jobs create --input data.json",
+		Example: "  worksome jobs create --input data.json\n  worksome jobs create --company \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6494,6 +7444,10 @@ func newJobsCreateCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateJob", vars)
@@ -6521,8 +7475,15 @@ func newJobsDuplicateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "duplicate",
 		Short:   "Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.",
-		Example: "  worksome jobs duplicate --input data.json",
+		Example: "  worksome jobs duplicate --input data.json\n  worksome jobs duplicate --id \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6549,6 +7510,10 @@ func newJobsDuplicateCmd() *cobra.Command {
 				inputObj["title"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DuplicateJob", vars)
@@ -6576,8 +7541,15 @@ func newJobsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a job. Only companies can end jobs.",
-		Example: "  worksome jobs end --input data.json",
+		Example: "  worksome jobs end --input data.json\n  worksome jobs end --id \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6604,6 +7576,10 @@ func newJobsEndCmd() *cobra.Command {
 				inputObj["accountId"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "EndJob", vars)
@@ -6631,8 +7607,15 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-internal-budget-on",
 		Short:   "Set the internal budget of a job. Only companies can set the internal budget on the job.",
-		Example: "  worksome jobs set-internal-budget-on --input data.json",
+		Example: "  worksome jobs set-internal-budget-on --input data.json\n  worksome jobs set-internal-budget-on --job \"value\" --amount \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6659,6 +7642,10 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 				inputObj["amount"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "SetInternalBudgetOnJob", vars)
@@ -6686,8 +7673,15 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job. Only companies can update jobs.",
-		Example: "  worksome jobs update --input data.json",
+		Example: "  worksome jobs update --input data.json\n  worksome jobs update --id \"value\" --locale \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -6774,6 +7768,10 @@ func newJobsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateJob", vars)
@@ -6828,6 +7826,10 @@ func NewMilestonesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "milestones",
 		Short: "Get a list of milestones.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newMilestonesGetCmd())
@@ -6841,11 +7843,18 @@ func NewMilestonesCmd() *cobra.Command {
 
 func newMilestonesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a single milestone.",
 		Example: "  worksome milestones get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -6874,10 +7883,20 @@ func newMilestonesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of milestones.",
-		Example: "  worksome milestones list --first 20\n  worksome milestones list --all",
+		Example: "  worksome milestones list -n 20\n  worksome milestones list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -6892,6 +7911,12 @@ func newMilestonesListCmd() *cobra.Command {
 				vars["hires"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Milestones", vars)
@@ -6902,10 +7927,6 @@ func newMilestonesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return milestonesFetchAll(cmd, q, vars)
 			}
@@ -6923,7 +7944,7 @@ func newMilestonesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
@@ -6974,6 +7995,13 @@ func newMilestonesCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7012,6 +8040,13 @@ func newMilestonesDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7050,6 +8085,13 @@ func newMilestonesUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7088,6 +8130,10 @@ func NewMultiFactorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "multi-factors",
 		Short: "Retrieve all multi-factor authentication implementation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newMultiFactorsGetCmd())
@@ -7103,11 +8149,18 @@ func NewMultiFactorsCmd() *cobra.Command {
 
 func newMultiFactorsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Retrieve a specific multi-factor authentication implementation.",
 		Example: "  worksome multi-factors get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -7136,10 +8189,20 @@ func newMultiFactorsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Retrieve all multi-factor authentication implementation.",
-		Example: "  worksome multi-factors list --first 20\n  worksome multi-factors list --all",
+		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -7154,6 +8217,12 @@ func newMultiFactorsListCmd() *cobra.Command {
 				vars["channels"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "MultiFactors", vars)
@@ -7164,10 +8233,6 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return multifactorsFetchAll(cmd, q, vars)
 			}
@@ -7179,7 +8244,7 @@ func newMultiFactorsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on.")
@@ -7229,8 +8294,15 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-sms",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  worksome multi-factors create-sms --input data.json",
+		Example: "  worksome multi-factors create-sms --input data.json\n  worksome multi-factors create-sms --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7253,6 +8325,10 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateSmsMultiFactor", vars)
@@ -7279,8 +8355,15 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-totp",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  worksome multi-factors create-totp --input data.json",
+		Example: "  worksome multi-factors create-totp --input data.json\n  worksome multi-factors create-totp --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7303,6 +8386,10 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateTotpMultiFactor", vars)
@@ -7329,8 +8416,15 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove a multi-factor authentication implementation.",
-		Example: "  worksome multi-factors remove --input data.json",
+		Example: "  worksome multi-factors remove --input data.json\n  worksome multi-factors remove --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7353,6 +8447,10 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveMultiFactor", vars)
@@ -7379,8 +8477,15 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-sms",
 		Short:   "Verify a multi-factor authentication implementation.",
-		Example: "  worksome multi-factors verify-sms --input data.json",
+		Example: "  worksome multi-factors verify-sms --input data.json\n  worksome multi-factors verify-sms --id \"value\" --code \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7407,6 +8512,10 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 				inputObj["code"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "VerifySmsMultiFactor", vars)
@@ -7434,8 +8543,15 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-totp",
 		Short:   "Verify a TOTP multi-factor authentication implementation.",
-		Example: "  worksome multi-factors verify-totp --input data.json",
+		Example: "  worksome multi-factors verify-totp --input data.json\n  worksome multi-factors verify-totp --id \"value\" --code \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7462,6 +8578,10 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 				inputObj["code"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "VerifyTotpMultiFactor", vars)
@@ -7489,7 +8609,11 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Create a note.",
+		Short: "Delete a note.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newNoteCreateCmd())
@@ -7503,8 +8627,15 @@ func newNoteCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a note.",
-		Example: "  worksome note create --input data.json",
+		Example: "  worksome note create --input data.json\n  worksome note create --body \"value\" --title \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7539,6 +8670,10 @@ func newNoteCreateCmd() *cobra.Command {
 				inputObj["notableId"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateNote", vars)
@@ -7568,8 +8703,15 @@ func newNoteDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a note.",
-		Example: "  worksome note delete --input data.json",
+		Example: "  worksome note delete --input data.json\n  worksome note delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7592,6 +8734,10 @@ func newNoteDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteNote", vars)
@@ -7618,8 +8764,15 @@ func newNoteUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a note.",
-		Example: "  worksome note update --input data.json",
+		Example: "  worksome note update --input data.json\n  worksome note update --id \"value\" --body \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7650,6 +8803,10 @@ func newNoteUpdateCmd() *cobra.Command {
 				inputObj["title"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateNote", vars)
@@ -7678,7 +8835,11 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Manage Onboarding documents.",
+		Short: "Remove Onboarding documents.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newOnboardingDocumentsManageCmd())
@@ -7691,8 +8852,15 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "manage",
 		Short:   "Manage Onboarding documents.",
-		Example: "  worksome onboarding-documents manage --input data.json",
+		Example: "  worksome onboarding-documents manage --input data.json\n  worksome onboarding-documents manage --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7715,6 +8883,10 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ManageOnboardingDocuments", vars)
@@ -7741,8 +8913,15 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove Onboarding documents.",
-		Example: "  worksome onboarding-documents remove --input data.json",
+		Example: "  worksome onboarding-documents remove --input data.json\n  worksome onboarding-documents remove --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -7765,6 +8944,10 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveOnboardingDocuments", vars)
@@ -7799,6 +8982,10 @@ func NewOrganisationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organisation",
 		Short: "Get a specific organisation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newOrganisationGetCmd())
@@ -7808,11 +8995,18 @@ func NewOrganisationCmd() *cobra.Command {
 
 func newOrganisationGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific organisation.",
 		Example: "  worksome organisation get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -7853,6 +9047,10 @@ func NewOrganisationTrustedContactsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organisation-trusted-contacts",
 		Short: "Get a list of organisation trusted contacts.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newOrganisationTrustedContactsGetCmd())
@@ -7863,11 +9061,18 @@ func NewOrganisationTrustedContactsCmd() *cobra.Command {
 
 func newOrganisationTrustedContactsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific organisation trusted contact.",
 		Example: "  worksome organisation-trusted-contacts get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -7896,10 +9101,20 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of organisation trusted contacts.",
-		Example: "  worksome organisation-trusted-contacts list --first 20\n  worksome organisation-trusted-contacts list --all",
+		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -7978,6 +9193,12 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "OrganisationTrustedContacts", vars)
@@ -7988,10 +9209,6 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return organisationtrustedcontactsFetchAll(cmd, q, vars)
 			}
@@ -8009,7 +9226,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
@@ -8087,6 +9304,10 @@ func NewPartnerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "partner",
 		Short: "Get a specific partner.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newPartnerGetCmd())
@@ -8096,11 +9317,18 @@ func NewPartnerCmd() *cobra.Command {
 
 func newPartnerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific partner.",
 		Example: "  worksome partner get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -8130,6 +9358,10 @@ func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
 		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newPasswordCreateCmd())
@@ -8142,8 +9374,15 @@ func newPasswordCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
-		Example: "  worksome password create --input data.json",
+		Example: "  worksome password create --input data.json\n  worksome password create --password \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8166,6 +9405,10 @@ func newPasswordCreateCmd() *cobra.Command {
 				inputObj["password"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreatePassword", vars)
@@ -8192,8 +9435,15 @@ func newPasswordUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user's password.",
-		Example: "  worksome password update --input data.json",
+		Example: "  worksome password update --input data.json\n  worksome password update --current-password \"value\" --password \"value\" --password-confirmation \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8224,6 +9474,10 @@ func newPasswordUpdateCmd() *cobra.Command {
 				inputObj["passwordConfirmation"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdatePassword", vars)
@@ -8264,6 +9518,10 @@ func NewPaymentRequestsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment-requests",
 		Short: "Get a list of payment requests.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newPaymentRequestsGetCmd())
@@ -8277,11 +9535,18 @@ func NewPaymentRequestsCmd() *cobra.Command {
 
 func newPaymentRequestsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific payment request.",
 		Example: "  worksome payment-requests get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -8310,10 +9575,20 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of payment requests.",
-		Example: "  worksome payment-requests list --first 20\n  worksome payment-requests list --all",
+		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -8408,6 +9683,12 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "PaymentRequests", vars)
@@ -8418,10 +9699,6 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return paymentrequestsFetchAll(cmd, q, vars)
 			}
@@ -8439,7 +9716,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
@@ -8509,8 +9786,15 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a payment request.",
-		Example: "  worksome payment-requests create --input data.json",
+		Example: "  worksome payment-requests create --input data.json\n  worksome payment-requests create --worker \"value\" --job \"value\" --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8573,6 +9857,10 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 				inputObj["timesheet"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreatePaymentRequest", vars)
@@ -8609,8 +9897,15 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a payment request.",
-		Example: "  worksome payment-requests delete --input data.json",
+		Example: "  worksome payment-requests delete --input data.json\n  worksome payment-requests delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8633,6 +9928,10 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeletePaymentRequest", vars)
@@ -8659,8 +9958,15 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a payment request.",
-		Example: "  worksome payment-requests update --input data.json",
+		Example: "  worksome payment-requests update --input data.json\n  worksome payment-requests update --id \"value\" --start-date \"value\" --end-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8715,6 +10021,10 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 				inputObj["purchaseOrderNumber"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdatePaymentRequest", vars)
@@ -8745,6 +10055,83 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
+func NewPersonalInviteLinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "personal-invite-link",
+		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
+
+	return cmd
+}
+
+func newPersonalInviteLinkGenerateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
 var projectsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -8761,6 +10148,10 @@ func NewProjectsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "projects",
 		Short: "Get a list of projects.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newProjectsGetCmd())
@@ -8778,11 +10169,18 @@ func NewProjectsCmd() *cobra.Command {
 
 func newProjectsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific project.",
 		Example: "  worksome projects get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -8811,10 +10209,20 @@ func newProjectsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of projects.",
-		Example: "  worksome projects list --first 20\n  worksome projects list --all",
+		Example: "  worksome projects list -n 20\n  worksome projects list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -8841,6 +10249,12 @@ func newProjectsListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Projects", vars)
@@ -8851,10 +10265,6 @@ func newProjectsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return projectsFetchAll(cmd, q, vars)
 			}
@@ -8872,7 +10282,7 @@ func newProjectsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
@@ -8925,8 +10335,15 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-jobs-to",
 		Short:   "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
-		Example: "  worksome projects attach-jobs-to --input data.json",
+		Example: "  worksome projects attach-jobs-to --input data.json\n  worksome projects attach-jobs-to --project \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -8949,6 +10366,10 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 				inputObj["project"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttachJobsToProject", vars)
@@ -8975,8 +10396,15 @@ func newProjectsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a project. Only companies can create projects.",
-		Example: "  worksome projects create --input data.json",
+		Example: "  worksome projects create --input data.json\n  worksome projects create --name \"value\" --description \"value\" --internal-budget \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9015,6 +10443,10 @@ func newProjectsCreateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateProject", vars)
@@ -9045,8 +10477,15 @@ func newProjectsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a project. Only companies can delete projects.",
-		Example: "  worksome projects delete --input data.json",
+		Example: "  worksome projects delete --input data.json\n  worksome projects delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9069,6 +10508,10 @@ func newProjectsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteProject", vars)
@@ -9095,8 +10538,15 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-job-from",
 		Short:   "Detach a job from a project Only companies can detach a job from a project.",
-		Example: "  worksome projects detach-job-from --input data.json",
+		Example: "  worksome projects detach-job-from --input data.json\n  worksome projects detach-job-from --job \"value\" --project \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9123,6 +10573,10 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 				inputObj["project"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DetachJobFromProject", vars)
@@ -9150,8 +10604,15 @@ func newProjectsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a project. This is used to set an end date on the project to consider it no longer active.",
-		Example: "  worksome projects end --input data.json",
+		Example: "  worksome projects end --input data.json\n  worksome projects end --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9174,6 +10635,10 @@ func newProjectsEndCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "EndProject", vars)
@@ -9200,8 +10665,15 @@ func newProjectsOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "open",
 		Short:   "Open a project. This is used to set the end date on the project to `null` to make it open again.",
-		Example: "  worksome projects open --input data.json",
+		Example: "  worksome projects open --input data.json\n  worksome projects open --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9224,6 +10696,10 @@ func newProjectsOpenCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "OpenProject", vars)
@@ -9250,8 +10726,15 @@ func newProjectsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a project. Only companies can update projects.",
-		Example: "  worksome projects update --input data.json",
+		Example: "  worksome projects update --input data.json\n  worksome projects update --id \"value\" --name \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9290,6 +10773,10 @@ func newProjectsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateProject", vars)
@@ -9332,6 +10819,10 @@ func NewRecruiterCandidatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "recruiter-candidates",
 		Short: "Get a list of recruiter candidates.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newRecruiterCandidatesGetCmd())
@@ -9345,11 +10836,18 @@ func NewRecruiterCandidatesCmd() *cobra.Command {
 
 func newRecruiterCandidatesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific recruiter candidate.",
 		Example: "  worksome recruiter-candidates get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -9378,10 +10876,20 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiter candidates.",
-		Example: "  worksome recruiter-candidates list --first 20\n  worksome recruiter-candidates list --all",
+		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -9400,6 +10908,12 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "RecruiterCandidates", vars)
@@ -9410,10 +10924,6 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return recruitercandidatesFetchAll(cmd, q, vars)
 			}
@@ -9431,7 +10941,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
@@ -9482,8 +10992,15 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new candidate. Only recruiters can add and invite candidates.",
-		Example: "  worksome recruiter-candidates create --input data.json",
+		Example: "  worksome recruiter-candidates create --input data.json\n  worksome recruiter-candidates create --recruiter \"value\" --first-name \"value\" --middle-name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9542,6 +11059,10 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateRecruiterCandidate", vars)
@@ -9577,8 +11098,15 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.",
-		Example: "  worksome recruiter-candidates delete --input data.json",
+		Example: "  worksome recruiter-candidates delete --input data.json\n  worksome recruiter-candidates delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9601,6 +11129,10 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteRecruiterCandidate", vars)
@@ -9627,8 +11159,15 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter candidate information. Only recruiters can edit the relationship.",
-		Example: "  worksome recruiter-candidates update --input data.json",
+		Example: "  worksome recruiter-candidates update --input data.json\n  worksome recruiter-candidates update --id \"value\" --job-title \"value\" --currency \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9671,6 +11210,10 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateRecruiterCandidate", vars)
@@ -9714,6 +11257,10 @@ func NewRecruitersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "recruiters",
 		Short: "Get a list of recruiters.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newRecruitersListCmd())
@@ -9725,10 +11272,20 @@ func newRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiters.",
-		Example: "  worksome recruiters list --first 20\n  worksome recruiters list --all",
+		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -9737,6 +11294,12 @@ func newRecruitersListCmd() *cobra.Command {
 			if cmd.Flags().Changed("search") {
 				v, _ := cmd.Flags().GetString("search")
 				vars["search"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -9749,10 +11312,6 @@ func newRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return recruitersFetchAll(cmd, q, vars)
 			}
@@ -9770,7 +11329,7 @@ func newRecruitersListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("search", "", "The search value used to search recruiters.")
@@ -9820,8 +11379,15 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reinvite-trusted-contact",
 		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
-		Example: "  worksome reinvite-trusted-contact --input data.json",
+		Example: "  worksome reinvite-trusted-contact --input data.json\n  worksome reinvite-trusted-contact --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -9844,6 +11410,10 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ReinviteTrustedContact", vars)
@@ -9876,6 +11446,10 @@ func NewSkillsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "skills",
 		Short: "Get a list of skills.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newSkillsListCmd())
@@ -9887,10 +11461,20 @@ func newSkillsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of skills.",
-		Example: "  worksome skills list --first 20\n  worksome skills list --all",
+		Example: "  worksome skills list -n 20\n  worksome skills list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -9909,6 +11493,12 @@ func newSkillsListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "Skills", vars)
@@ -9919,10 +11509,6 @@ func newSkillsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return skillsFetchAll(cmd, q, vars)
 			}
@@ -9940,7 +11526,7 @@ func newSkillsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
@@ -9992,6 +11578,10 @@ func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
 		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newTimesheetRegistrationDeleteCmd())
@@ -10004,8 +11594,15 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet registration. Only workers can delete timesheet registrations.",
-		Example: "  worksome timesheet-registration delete --input data.json",
+		Example: "  worksome timesheet-registration delete --input data.json\n  worksome timesheet-registration delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10028,6 +11625,10 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteTimesheetRegistration", vars)
@@ -10054,8 +11655,15 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet registration. Only workers can update timesheet registrations.",
-		Example: "  worksome timesheet-registration update --input data.json",
+		Example: "  worksome timesheet-registration update --input data.json\n  worksome timesheet-registration update --id \"value\" --start-time \"value\" --end-time \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10110,6 +11718,10 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 				inputObj["isBillable"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateTimesheetRegistration", vars)
@@ -10156,6 +11768,10 @@ func NewTimesheetsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheets",
 		Short: "Get a list of timesheets.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newTimesheetsGetCmd())
@@ -10170,11 +11786,18 @@ func NewTimesheetsCmd() *cobra.Command {
 
 func newTimesheetsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific timesheet.",
 		Example: "  worksome timesheets get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -10203,10 +11826,20 @@ func newTimesheetsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of timesheets.",
-		Example: "  worksome timesheets list --first 20\n  worksome timesheets list --all",
+		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -10215,6 +11848,12 @@ func newTimesheetsListCmd() *cobra.Command {
 			if cmd.Flags().Changed("accounts") {
 				v, _ := cmd.Flags().GetString("accounts")
 				vars["accounts"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -10227,10 +11866,6 @@ func newTimesheetsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return timesheetsFetchAll(cmd, q, vars)
 			}
@@ -10248,7 +11883,7 @@ func newTimesheetsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
@@ -10297,8 +11932,15 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-custom",
 		Short:   "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
-		Example: "  worksome timesheets create-custom --input data.json",
+		Example: "  worksome timesheets create-custom --input data.json\n  worksome timesheets create-custom --schema \"value\" --data \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10325,6 +11967,10 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 				inputObj["data"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCustomTimesheet", vars)
@@ -10352,8 +11998,15 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a timesheet. Only workers can create timesheets.",
-		Example: "  worksome timesheets create --input data.json",
+		Example: "  worksome timesheets create --input data.json\n  worksome timesheets create --worker \"value\" --hire \"value\" --start-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10388,6 +12041,10 @@ func newTimesheetsCreateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateTimesheet", vars)
@@ -10417,8 +12074,15 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet. Only workers can delete timesheets.",
-		Example: "  worksome timesheets delete --input data.json",
+		Example: "  worksome timesheets delete --input data.json\n  worksome timesheets delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10441,6 +12105,10 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteTimesheet", vars)
@@ -10467,8 +12135,15 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet. Only workers can update timesheets.",
-		Example: "  worksome timesheets update --input data.json",
+		Example: "  worksome timesheets update --input data.json\n  worksome timesheets update --id \"value\" --start-date \"value\" --end-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10499,6 +12174,10 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateTimesheet", vars)
@@ -10539,6 +12218,10 @@ func NewTrustedContactsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trusted-contacts",
 		Short: "Get a list of trusted contacts.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newTrustedContactsGetCmd())
@@ -10553,11 +12236,18 @@ func NewTrustedContactsCmd() *cobra.Command {
 
 func newTrustedContactsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific trusted contact.",
 		Example: "  worksome trusted-contacts get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -10586,10 +12276,20 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of trusted contacts.",
-		Example: "  worksome trusted-contacts list --first 20\n  worksome trusted-contacts list --all",
+		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -10672,6 +12372,12 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["createdAtDateRange"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "TrustedContacts", vars)
@@ -10682,10 +12388,6 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return trustedcontactsFetchAll(cmd, q, vars)
 			}
@@ -10703,7 +12405,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
@@ -10770,8 +12472,15 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Approve a trusted contact. Only companies can approve trusted contacts.",
-		Example: "  worksome trusted-contacts approve --input data.json",
+		Example: "  worksome trusted-contacts approve --input data.json\n  worksome trusted-contacts approve --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10794,6 +12503,10 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ApproveTrustedContact", vars)
@@ -10820,8 +12533,15 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
-		Example: "  worksome trusted-contacts create --input data.json",
+		Example: "  worksome trusted-contacts create --input data.json\n  worksome trusted-contacts create --company \"value\" --first-name \"value\" --middle-name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10892,6 +12612,10 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 				inputObj["originChannel"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateTrustedContact", vars)
@@ -10930,8 +12654,15 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a trusted contact. Only companies can delete trusted contacts.",
-		Example: "  worksome trusted-contacts delete --input data.json",
+		Example: "  worksome trusted-contacts delete --input data.json\n  worksome trusted-contacts delete --id \"value\" --account \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -10958,6 +12689,10 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 				inputObj["account"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteTrustedContact", vars)
@@ -10985,8 +12720,15 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a trusted contact. Only companies can edit trusted contacts.",
-		Example: "  worksome trusted-contacts update --input data.json",
+		Example: "  worksome trusted-contacts update --input data.json\n  worksome trusted-contacts update --id \"value\" --external-identifier \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11013,6 +12755,10 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateTrustedContact", vars)
@@ -11050,6 +12796,10 @@ func NewUserGroupsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user-groups",
 		Short: "Get a list of user groups.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newUserGroupsGetCmd())
@@ -11065,11 +12815,18 @@ func NewUserGroupsCmd() *cobra.Command {
 
 func newUserGroupsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific user group.",
 		Example: "  worksome user-groups get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -11098,10 +12855,20 @@ func newUserGroupsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of user groups.",
-		Example: "  worksome user-groups list --first 20\n  worksome user-groups list --all",
+		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -11124,6 +12891,12 @@ func newUserGroupsListCmd() *cobra.Command {
 				vars["status"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "UserGroups", vars)
@@ -11134,10 +12907,6 @@ func newUserGroupsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return usergroupsFetchAll(cmd, q, vars)
 			}
@@ -11155,7 +12924,7 @@ func newUserGroupsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
@@ -11207,8 +12976,15 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-users-to",
 		Short:   "Attach one or more users to a group. Only companies can attach users to groups.",
-		Example: "  worksome user-groups attach-users-to --input data.json",
+		Example: "  worksome user-groups attach-users-to --input data.json\n  worksome user-groups attach-users-to --user-group \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11231,6 +13007,10 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 				inputObj["userGroup"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttachUsersToUserGroup", vars)
@@ -11257,8 +13037,15 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a user group. Only companies can create user groups.",
-		Example: "  worksome user-groups create --input data.json",
+		Example: "  worksome user-groups create --input data.json\n  worksome user-groups create --name \"value\" --description \"value\" --status \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11293,6 +13080,10 @@ func newUserGroupsCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateUserGroup", vars)
@@ -11322,8 +13113,15 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a user group. Only companies can delete user groups.",
-		Example: "  worksome user-groups delete --input data.json",
+		Example: "  worksome user-groups delete --input data.json\n  worksome user-groups delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11346,6 +13144,10 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteUserGroup", vars)
@@ -11372,8 +13174,15 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-users-from",
 		Short:   "Detach one or more user from a group. Only companies can detach users from a group.",
-		Example: "  worksome user-groups detach-users-from --input data.json",
+		Example: "  worksome user-groups detach-users-from --input data.json\n  worksome user-groups detach-users-from --user-group \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11396,6 +13205,10 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 				inputObj["userGroup"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DetachUsersFromUserGroup", vars)
@@ -11422,8 +13235,15 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user group. Only companies can update user groups.",
-		Example: "  worksome user-groups update --input data.json",
+		Example: "  worksome user-groups update --input data.json\n  worksome user-groups update --id \"value\" --name \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11458,6 +13278,10 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 				inputObj["status"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateUserGroup", vars)
@@ -11483,56 +13307,6 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewVerificationEmailCmd creates the verification-email resource command.
-func NewVerificationEmailCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verification-email",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-	}
-
-	cmd.AddCommand(newVerificationEmailSendCmd())
-
-	return cmd
-}
-
-func newVerificationEmailSendCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	return cmd
-}
-
 var viewerColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -11549,6 +13323,10 @@ func NewViewerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "viewer",
 		Short: "Get the authenticated user that is viewing the API.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newViewerGetCmd())
@@ -11562,6 +13340,13 @@ func newViewerGetCmd() *cobra.Command {
 		Short:   "Get the authenticated user that is viewing the API.",
 		Example: "  worksome viewer get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11601,6 +13386,10 @@ func NewWebhookEventLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-event-logs",
 		Short: "Get a list of webhook event logs. They are returned in descending order of creation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWebhookEventLogsListCmd())
@@ -11612,10 +13401,20 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook event logs. They are returned in descending order of creation.",
-		Example: "  worksome webhook-event-logs list --first 20\n  worksome webhook-event-logs list --all",
+		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -11634,6 +13433,12 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				vars["accounts"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "WebhookEventLogs", vars)
@@ -11644,10 +13449,6 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return webhookeventlogsFetchAll(cmd, q, vars)
 			}
@@ -11665,7 +13466,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook event logs based on the ID of the webhook.")
@@ -11728,6 +13529,10 @@ func NewWebhookEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-events",
 		Short: "Get a list of webhook events. They are returned in descending order of creation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWebhookEventsGetCmd())
@@ -11739,11 +13544,18 @@ func NewWebhookEventsCmd() *cobra.Command {
 
 func newWebhookEventsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific webhook event.",
 		Example: "  worksome webhook-events get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -11772,10 +13584,20 @@ func newWebhookEventsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook events. They are returned in descending order of creation.",
-		Example: "  worksome webhook-events list --first 20\n  worksome webhook-events list --all",
+		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -11784,6 +13606,12 @@ func newWebhookEventsListCmd() *cobra.Command {
 			if cmd.Flags().Changed("webhook-id") {
 				v, _ := cmd.Flags().GetString("webhook-id")
 				vars["webhookId"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11796,10 +13624,6 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return webhookeventsFetchAll(cmd, q, vars)
 			}
@@ -11817,7 +13641,7 @@ func newWebhookEventsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook events based on the ID of the webhook.")
@@ -11866,8 +13690,15 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "retry",
 		Short:   "Retry a webhook event. Only companies can retry webhook events.",
-		Example: "  worksome webhook-events retry --input data.json",
+		Example: "  worksome webhook-events retry --input data.json\n  worksome webhook-events retry --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -11890,6 +13721,10 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RetryWebhookEvent", vars)
@@ -11928,6 +13763,10 @@ func NewWebhooksCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhooks",
 		Short: "Get a list of webhooks.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWebhooksGetCmd())
@@ -11941,11 +13780,18 @@ func NewWebhooksCmd() *cobra.Command {
 
 func newWebhooksGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific webhook.",
 		Example: "  worksome webhooks get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -11974,10 +13820,20 @@ func newWebhooksListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhooks.",
-		Example: "  worksome webhooks list --first 20\n  worksome webhooks list --all",
+		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -11986,6 +13842,12 @@ func newWebhooksListCmd() *cobra.Command {
 			if cmd.Flags().Changed("accounts") {
 				v, _ := cmd.Flags().GetString("accounts")
 				vars["accounts"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11998,10 +13860,6 @@ func newWebhooksListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return webhooksFetchAll(cmd, q, vars)
 			}
@@ -12019,7 +13877,7 @@ func newWebhooksListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
@@ -12068,8 +13926,15 @@ func newWebhooksCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a webhook. Only companies can create webhooks.",
-		Example: "  worksome webhooks create --input data.json",
+		Example: "  worksome webhooks create --input data.json\n  worksome webhooks create --title \"value\" --description \"value\" --url \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12120,6 +13985,10 @@ func newWebhooksCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateWebhook", vars)
@@ -12153,8 +14022,15 @@ func newWebhooksDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a webhook.",
-		Example: "  worksome webhooks delete --input data.json",
+		Example: "  worksome webhooks delete --input data.json\n  worksome webhooks delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12177,6 +14053,10 @@ func newWebhooksDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteWebhook", vars)
@@ -12203,8 +14083,15 @@ func newWebhooksUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a webhook.",
-		Example: "  worksome webhooks update --input data.json",
+		Example: "  worksome webhooks update --input data.json\n  worksome webhooks update --id \"value\" --title \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12255,6 +14142,10 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				inputObj["clientUrl"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWebhook", vars)
@@ -12300,6 +14191,10 @@ func NewWorkerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker",
 		Short: "Get a specific worker.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWorkerGetCmd())
@@ -12310,11 +14205,18 @@ func NewWorkerCmd() *cobra.Command {
 
 func newWorkerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific worker.",
 		Example: "  worksome worker get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -12343,8 +14245,15 @@ func newWorkerUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a worker.",
-		Example: "  worksome worker update --input data.json",
+		Example: "  worksome worker update --input data.json\n  worksome worker update --id \"value\" --job-title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12371,6 +14280,10 @@ func newWorkerUpdateCmd() *cobra.Command {
 				inputObj["jobTitle"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWorker", vars)
@@ -12399,6 +14312,10 @@ func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker-custom-field-values",
 		Short: "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWorkerCustomFieldValuesUpdateCmd())
@@ -12410,8 +14327,15 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
-		Example: "  worksome worker-custom-field-values update --input data.json",
+		Example: "  worksome worker-custom-field-values update --input data.json\n  worksome worker-custom-field-values update --applies-to \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12434,6 +14358,10 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 				inputObj["appliesTo"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWorkerCustomFieldValues", vars)
@@ -12461,6 +14389,10 @@ func NewWorkflowVariablesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflow-variables",
 		Short: "Get all workflow variables.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWorkflowVariablesListCmd())
@@ -12472,10 +14404,20 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflow variables.",
-		Example: "  worksome workflow-variables list --first 20\n  worksome workflow-variables list --all",
+		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -12490,6 +14432,12 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				vars["appliesTo"] = v
 			}
 
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "query", "WorkflowVariables", vars)
@@ -12500,10 +14448,6 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return workflowvariablesFetchAll(cmd, q, vars)
 			}
@@ -12515,7 +14459,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
@@ -12570,6 +14514,10 @@ func NewWorkflowsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflows",
 		Short: "Get all workflows.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWorkflowsGetCmd())
@@ -12583,11 +14531,18 @@ func NewWorkflowsCmd() *cobra.Command {
 
 func newWorkflowsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific workflow.",
 		Example: "  worksome workflows get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 
@@ -12616,10 +14571,20 @@ func newWorkflowsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflows.",
-		Example: "  worksome workflows list --first 20\n  worksome workflows list --all",
+		Example: "  worksome workflows list -n 20\n  worksome workflows list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
 			vars["first"] = first
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
@@ -12628,6 +14593,12 @@ func newWorkflowsListCmd() *cobra.Command {
 			if cmd.Flags().Changed("accounts") {
 				v, _ := cmd.Flags().GetString("accounts")
 				vars["accounts"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -12640,10 +14611,6 @@ func newWorkflowsListCmd() *cobra.Command {
 				return err
 			}
 
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
 			if fetchAll {
 				return workflowsFetchAll(cmd, q, vars)
 			}
@@ -12661,7 +14628,7 @@ func newWorkflowsListCmd() *cobra.Command {
 			return printResult(cmd, result, nil)
 		},
 	}
-	cmd.Flags().Int("first", 10, "Number of items to fetch per page")
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflows based on one or more accounts.")
@@ -12711,6 +14678,13 @@ func newWorkflowsCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12748,8 +14722,15 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a workflow. Only companies can delete workflows.",
-		Example: "  worksome workflows delete --input data.json",
+		Example: "  worksome workflows delete --input data.json\n  worksome workflows delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12772,6 +14753,10 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteWorkflow", vars)
@@ -12799,6 +14784,13 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Update a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12837,6 +14829,10 @@ func NewWorksomeIntelligenceConsentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worksome-intelligence-consent",
 		Short: "Update consent to use Worksome Intelligence for the current user.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	cmd.AddCommand(newWorksomeIntelligenceConsentUpdateCmd())
@@ -12848,8 +14844,15 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update consent to use Worksome Intelligence for the current user.",
-		Example: "  worksome worksome-intelligence-consent update --input data.json",
+		Example: "  worksome worksome-intelligence-consent update --input data.json\n  worksome worksome-intelligence-consent update --consent \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
 			vars := make(map[string]any)
 
 			// Load from input file if provided
@@ -12872,6 +14875,10 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 				inputObj["consent"] = v
 			}
 			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWorksomeIntelligenceConsent", vars)

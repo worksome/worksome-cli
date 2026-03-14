@@ -15,6 +15,7 @@ const (
 	configFile      = "config.yaml"
 	envToken        = "WORKSOME_API_TOKEN"
 	envEndpoint     = "WORKSOME_ENDPOINT"
+	envProfile      = "WORKSOME_PROFILE"
 )
 
 // Config holds all CLI configuration, including named profiles.
@@ -133,6 +134,21 @@ func (c *Config) ActiveProfile() (Profile, bool) {
 
 	p, ok := c.Profiles[c.CurrentProfile]
 	return p, ok
+}
+
+// ResolveProfile determines the active profile name with the following precedence:
+//
+//  1. flagValue (explicit CLI flag, e.g. --profile)
+//  2. WORKSOME_PROFILE environment variable
+//  3. CurrentProfile from the config file
+func (c *Config) ResolveProfile(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if v := os.Getenv(envProfile); v != "" {
+		return v
+	}
+	return c.CurrentProfile
 }
 
 // ResolveToken determines the API token with the following precedence:
