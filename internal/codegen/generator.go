@@ -567,6 +567,11 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	{{if ne .Name "id" -}}
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
 	{{end -}}
+	{{end -}}
+	{{range $res.GetQuery.Arguments -}}
+	{{if and (ne .Name "id") .Type.IsRequired -}}
+	_ = cmd.MarkFlagRequired("{{.CLIFlag}}")
+	{{end -}}
 	{{end}}
 	return cmd
 }
@@ -648,6 +653,11 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") -}}
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	{{end -}}
+	{{end -}}
+	{{range $res.ListQuery.Arguments -}}
+	{{if and (ne .Name "first") (ne .Name "page") .Type.IsRequired -}}
+	_ = cmd.MarkFlagRequired("{{.CLIFlag}}")
 	{{end -}}
 	{{end}}
 	return cmd
