@@ -319,6 +319,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"{{.ModulePath}}/internal/client"
@@ -649,7 +650,7 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: {{quote $res.ListQuery.Description}},
-		Example: "  worksome {{$res.Name}} list -n 20\n  worksome {{$res.Name}} list --all",
+		Example: "  worksome {{$res.Name}} list -n 20\n  worksome {{$res.Name}} list --all\n  worksome {{$res.Name}} list --watch\n  worksome {{$res.Name}} list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -693,7 +694,16 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "{{$res.ListQuery.GoName}}", vars)
 			}
@@ -703,30 +713,51 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return {{$res.GoName | lower}}FetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return {{$res.GoName | lower}}FetchAll(cmd, q, vars)
+				}
+
+				result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				{{- if $res.TableColumns}}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["{{$res.ListQuery.Name}}"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, {{$res.GoName | lower}}Columns)
+					}
+				}
+				return printResult(cmd, result, nil)
+				{{- else}}
+				return printResult(cmd, result, nil)
+				{{- end}}
 			}
 
-			result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			{{- if $res.TableColumns}}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["{{$res.ListQuery.Name}}"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, {{$res.GoName | lower}}Columns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
-			{{- else}}
-			return printResult(cmd, result, nil)
-			{{- end}}
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") -}}
 	{{if eq (flagBaseType .Type) "bool" -}}
@@ -1122,7 +1153,6 @@ func hasIDArg(args []Argument) bool {
 	return false
 }
 
-<<<<<<< HEAD
 // flagBaseType returns the Cobra flag type for an argument's TypeRef.
 // Lists of scalars/enums map to "stringSlice"; other lists to "string" (JSON).
 // Scalar pointers are unwrapped.

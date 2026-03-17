@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/worksome/worksome-cli/internal/client"
@@ -82,7 +83,7 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "accept-bid",
 		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
-		Example: "  # Using a JSON input file:\n  worksome accept-bid --input payload.json\n\n  # Using flags:\n  worksome accept-bid --bid \\\"value\\\" --contact-person \\\"value\\\" --billing-contact-person \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"additionalTerms\": \"...\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"bid\": \"<id>\",\n    \"billingContactPerson\": \"<id>\",\n    \"closeOtherConversations\": false,\n    \"closingMessage\": \"...\",\n    \"companyAddress\": \"...\",\n    \"companyCity\": \"...\",\n    \"companyCountry\": \"...\",\n    \"companyName\": \"...\",\n    \"companyZipCode\": \"...\",\n    \"contactPerson\": \"<id>\",\n    \"customInvoiceText\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"jobDescription\": \"...\",\n    \"jobTitle\": \"...\",\n    \"paymentTermDays\": \"EIGHT\",\n    \"paymentTermMethod\": \"END_OF_MONTH\",\n    \"purchaseOrderNumber\": \"...\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"workplaceAddress\": \"...\"\n  }",
+		Example: "  worksome accept-bid --input data.json\n  worksome accept-bid --bid \"value\" --contact-person \"value\" --billing-contact-person \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -236,12 +237,6 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd.Flags().String("close-other-conversations", "", "Close other conversations if true.")
 	cmd.Flags().String("closing-message", "", "Message to send when closing other conversations.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
-	cmd.RegisterFlagCompletionFunc("payment-term-method", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"END_OF_MONTH", "NET"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("payment-term-days", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"EIGHT", "FOURTEEN", "THIRTY", "FORTY_FIVE", "FIFTY_THREE", "SIXTY", "SEVENTY_FIVE", "NINETY"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -368,7 +363,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvable approvals.",
-		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all",
+		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all\n  worksome approval-approvables list --watch\n  worksome approval-approvables list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -422,7 +417,16 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalApprovables", vars)
 			}
@@ -432,26 +436,47 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return approvalapprovablesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return approvalapprovablesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ApprovalApprovables(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, approvalapprovablesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.ApprovalApprovables(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, approvalapprovablesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("requires-action", "", "Filter for approval approvables that require actioning.")
 	cmd.Flags().String("requires-action-users", "", "Filter the approval approvable based on users that need to take action.")
@@ -504,7 +529,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "action",
 		Short:   "Create action for an approval approvable.",
-		Example: "  # Using a JSON input file:\n  worksome approval-approvables action --input payload.json\n\n  # Using flags:\n  worksome approval-approvables action --id \\\"value\\\" --status \\\"value\\\" --reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"reason\": \"...\",\n    \"status\": \"UNKNOWN\"\n  }",
+		Example: "  worksome approval-approvables action --input data.json\n  worksome approval-approvables action --id \"value\" --status \"value\" --reason \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -568,9 +593,6 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The field related to the approval rule.")
 	cmd.Flags().String("status", "", "The status given.")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -645,7 +667,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval rules.",
-		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all",
+		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all\n  worksome approval-rules list --watch\n  worksome approval-rules list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -675,7 +697,16 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalRules", vars)
 			}
@@ -685,26 +716,47 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return approvalrulesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return approvalrulesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ApprovalRules(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["approvalRules"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, approvalrulesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.ApprovalRules(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["approvalRules"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, approvalrulesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval rules based on one or more accounts.")
 
 	return cmd
@@ -751,7 +803,7 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval rule for one or more fields.",
-		Example: "  # Using a JSON input file:\n  worksome approval-rules create --input payload.json\n\n  # Using flags:\n  worksome approval-rules create --approval \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approval\": \"<id>\",\n    \"rules\": [\n      {\n        \"id\": \"...\",\n        \"rule\": {\n          \"operator\": \"LESS\",\n          \"value\": \"...\"\n        }\n      }\n    ]\n  }",
+		Example: "  worksome approval-rules create --input data.json\n  worksome approval-rules create --approval \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -839,7 +891,7 @@ func newApprovalStatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval states.",
-		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all",
+		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all\n  worksome approval-states list --watch\n  worksome approval-states list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -877,7 +929,16 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalStates", vars)
 			}
@@ -887,26 +948,47 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return approvalstatesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return approvalstatesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ApprovalStates(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["approvalStates"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, approvalstatesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.ApprovalStates(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["approvalStates"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, approvalstatesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states.")
 	cmd.Flags().String("users", "", "Filter the approval approvable based on one or more users.")
@@ -1023,7 +1105,7 @@ func newApprovalsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvals.",
-		Example: "  worksome approvals list -n 20\n  worksome approvals list --all",
+		Example: "  worksome approvals list -n 20\n  worksome approvals list --all\n  worksome approvals list --watch\n  worksome approvals list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1057,7 +1139,16 @@ func newApprovalsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvals", vars)
 			}
@@ -1067,26 +1158,47 @@ func newApprovalsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return approvalsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return approvalsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Approvals(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["approvals"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, approvalsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Approvals(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["approvals"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, approvalsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approvals based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search approvals by name or description.")
 
@@ -1134,7 +1246,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval. Only companies can create approvals.",
-		Example: "  # Using a JSON input file:\n  worksome approvals create --input payload.json\n\n  # Using flags:\n  worksome approvals create --name \\\"value\\\" --status \\\"value\\\" --trigger \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"trigger\": \"NONE\"\n  }",
+		Example: "  worksome approvals create --input data.json\n  worksome approvals create --name \"value\" --status \"value\" --trigger \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1208,12 +1320,6 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	cmd.Flags().String("company", "", "The company that the approval is for.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -1221,7 +1327,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approval.",
-		Example: "  # Using a JSON input file:\n  worksome approvals update --input payload.json\n\n  # Using flags:\n  worksome approvals update --id \\\"value\\\" --name \\\"value\\\" --status \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"trigger\": \"NONE\"\n  }",
+		Example: "  worksome approvals update --input data.json\n  worksome approvals update --id \"value\" --name \"value\" --status \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1295,12 +1401,6 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "The status of the approval.")
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -1376,7 +1476,7 @@ func newApproversListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvers.",
-		Example: "  worksome approvers list -n 20\n  worksome approvers list --all",
+		Example: "  worksome approvers list -n 20\n  worksome approvers list --all\n  worksome approvers list --watch\n  worksome approvers list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1410,7 +1510,16 @@ func newApproversListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvers", vars)
 			}
@@ -1420,26 +1529,47 @@ func newApproversListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return approversFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return approversFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Approvers(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["approvers"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, approversColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Approvers(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["approvers"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, approversColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approvers based on one or more accounts.")
 	cmd.Flags().String("approval-rule", "", "Filter the approvers based on one approval rule.")
 
@@ -1487,7 +1617,7 @@ func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approver for an approver rule.",
-		Example: "  # Using a JSON input file:\n  worksome approvers create --input payload.json\n\n  # Using flags:\n  worksome approvers create --approval-rule \\\"value\\\" --user-group \\\"value\\\" --position \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approvalRule\": \"<id>\",\n    \"position\": 0,\n    \"userGroup\": \"<id>\"\n  }",
+		Example: "  worksome approvers create --input data.json\n  worksome approvers create --approval-rule \"value\" --user-group \"value\" --position \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1558,7 +1688,7 @@ func newApproversUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approver.",
-		Example: "  # Using a JSON input file:\n  worksome approvers update --input payload.json\n\n  # Using flags:\n  worksome approvers update --id \\\"value\\\" --user-group \\\"value\\\" --position \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"position\": 0,\n    \"userGroup\": \"<id>\"\n  }",
+		Example: "  worksome approvers update --input data.json\n  worksome approvers update --id \"value\" --user-group \"value\" --position \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1645,7 +1775,7 @@ func newBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "",
 		Short:   "Update the bank account details.",
-		Example: "  # Using a JSON input file:\n  worksome bank-details  --input payload.json\n\n  # Using flags:\n  worksome bank-details  --account-id \\\"value\\\" --name \\\"value\\\" --bank-address \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"bankAddress\": \"...\",\n    \"bankCountry\": \"...\",\n    \"bankName\": \"...\",\n    \"bban\": {\n      \"accountNumber\": \"...\",\n      \"accountSuffix\": \"...\",\n      \"bankCode\": \"...\",\n      \"bankId\": \"...\",\n      \"branchCode\": \"...\",\n      \"branchId\": \"...\",\n      \"bsb\": \"...\",\n      \"institutionNumber\": \"...\",\n      \"purposeOfPayment\": \"...\",\n      \"registrationNumber\": \"...\",\n      \"routingCode\": \"...\",\n      \"sortCode\": \"...\",\n      \"transitNumber\": \"...\"\n    },\n    \"beneficiaryName\": \"...\",\n    \"iban\": \"...\",\n    \"name\": \"...\",\n    \"swift\": \"...\"\n  }",
+		Example: "  worksome bank-details  --input data.json\n  worksome bank-details  --account-id \"value\" --name \"value\" --bank-address \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1757,7 +1887,7 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run",
 		Short:   "Run an action on a batch.",
-		Example: "  # Using a JSON input file:\n  worksome batch-action run --input payload.json\n\n  # Using flags:\n  worksome batch-action run --batch \\\"value\\\" --action \\\"value\\\" --delete-if-emptied \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"action\": \"PROCESS\",\n    \"batch\": \"<id>\",\n    \"deleteIfEmptied\": false,\n    \"scope\": {\n      \"excludeIds\": [\n        \"<id>\"\n      ],\n      \"ids\": [\n        \"<id>\"\n      ],\n      \"status\": \"PROCESSING\"\n    }\n  }",
+		Example: "  worksome batch-action run --input data.json\n  worksome batch-action run --batch \"value\" --action \"value\" --delete-if-emptied \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1821,9 +1951,6 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
 	cmd.Flags().String("action", "", "The action to perform.")
 	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
-	cmd.RegisterFlagCompletionFunc("action", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"PROCESS", "EXPORT", "UNDO"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -1897,7 +2024,7 @@ func newBatchesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of batches.",
-		Example: "  worksome batches list -n 20\n  worksome batches list --all",
+		Example: "  worksome batches list -n 20\n  worksome batches list --all\n  worksome batches list --watch\n  worksome batches list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1935,7 +2062,16 @@ func newBatchesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Batches", vars)
 			}
@@ -1945,26 +2081,47 @@ func newBatchesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return batchesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return batchesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Batches(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["batches"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, batchesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Batches(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["batches"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, batchesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
 	cmd.Flags().String("types", "", "Only show batches of the specified types.")
 	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses.")
@@ -2013,7 +2170,7 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a new batch of items for processing.",
-		Example: "  # Using a JSON input file:\n  worksome batches create --input payload.json\n\n  # Using flags:\n  worksome batches create --account \\\"value\\\" --type \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"items\": [\n      \"<id>\"\n    ],\n    \"type\": \"PARTNER_PAYMENT_REQUESTS\"\n  }",
+		Example: "  worksome batches create --input data.json\n  worksome batches create --account \"value\" --type \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2072,9 +2229,6 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that the batch is for.")
 	cmd.Flags().String("type", "", "The type of batch to create.")
-	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"PARTNER_PAYMENT_REQUESTS"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -2148,7 +2302,7 @@ func newBidsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of all bids which the viewer has access to.",
-		Example: "  worksome bids list -n 20\n  worksome bids list --all",
+		Example: "  worksome bids list -n 20\n  worksome bids list --all\n  worksome bids list --watch\n  worksome bids list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2186,7 +2340,16 @@ func newBidsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Bids", vars)
 			}
@@ -2196,26 +2359,47 @@ func newBidsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return bidsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return bidsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Bids(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["bids"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, bidsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Bids(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["bids"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, bidsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses.")
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().String("accounts", "", "Filter the bid based on one or more accounts.")
@@ -2265,7 +2449,7 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "block-trusted-contact",
 		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome block-trusted-contact --input payload.json\n\n  # Using flags:\n  worksome block-trusted-contact --id \\\"value\\\" --account \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome block-trusted-contact --input data.json\n  worksome block-trusted-contact --id \"value\" --account \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2397,7 +2581,7 @@ func newClassificationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all classifications for a specific hire.",
-		Example: "  worksome classifications list -n 20\n  worksome classifications list --all",
+		Example: "  worksome classifications list -n 20\n  worksome classifications list --all\n  worksome classifications list --watch\n  worksome classifications list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2427,7 +2611,16 @@ func newClassificationsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Classifications", vars)
 			}
@@ -2437,26 +2630,47 @@ func newClassificationsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return classificationsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return classificationsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Classifications(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["classifications"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, classificationsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Classifications(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["classifications"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, classificationsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("hire", "", "The ID of the hire to get classifications for")
 
 	return cmd
@@ -2638,7 +2852,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of company recruiters.",
-		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all",
+		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all\n  worksome company-recruiters list --watch\n  worksome company-recruiters list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2692,7 +2906,16 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "CompanyRecruiters", vars)
 			}
@@ -2702,26 +2925,47 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return companyrecruitersFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return companyrecruitersFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.CompanyRecruiters(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, companyrecruitersColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.CompanyRecruiters(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, companyrecruitersColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by.")
@@ -2774,7 +3018,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome company-recruiters create --input data.json\n  worksome company-recruiters create --company \"value\" --name \"value\" --email \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2870,7 +3114,7 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters delete --input payload.json\n\n  # Using flags:\n  worksome company-recruiters delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome company-recruiters delete --input data.json\n  worksome company-recruiters delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2931,7 +3175,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "invite",
 		Short:   "Invite an existing recruiter. Only companies can invite the recruiter.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters invite --input payload.json\n\n  # Using flags:\n  worksome company-recruiters invite --id \\\"value\\\" --company \\\"value\\\" --recruiter-fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome company-recruiters invite --input data.json\n  worksome company-recruiters invite --id \"value\" --company \"value\" --recruiter-fee \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3017,7 +3261,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome company-recruiters update --input data.json\n  worksome company-recruiters update --id \"value\" --recruiter-fee \"value\" --recruiter-ownership-days \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3234,7 +3478,7 @@ func newContractsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of contracts.",
-		Example: "  worksome contracts list -n 20\n  worksome contracts list --all",
+		Example: "  worksome contracts list -n 20\n  worksome contracts list --all\n  worksome contracts list --watch\n  worksome contracts list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3276,7 +3520,16 @@ func newContractsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Contracts", vars)
 			}
@@ -3286,26 +3539,47 @@ func newContractsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return contractsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return contractsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Contracts(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["contracts"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, contractsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Contracts(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["contracts"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, contractsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
 	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies.")
 	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses.")
@@ -3421,7 +3695,7 @@ func newConversationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of conversations.",
-		Example: "  worksome conversations list -n 20\n  worksome conversations list --all",
+		Example: "  worksome conversations list -n 20\n  worksome conversations list --all\n  worksome conversations list --watch\n  worksome conversations list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3455,7 +3729,16 @@ func newConversationsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Conversations", vars)
 			}
@@ -3465,26 +3748,47 @@ func newConversationsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return conversationsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return conversationsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Conversations(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["conversations"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, conversationsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Conversations(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["conversations"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, conversationsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
 	cmd.Flags().String("is-open", "", "If the conversation is open or closed. If not supplied show all conversations.")
 
@@ -3601,7 +3905,7 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of custom fields.",
-		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all",
+		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all\n  worksome custom-fields list --watch\n  worksome custom-fields list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3639,7 +3943,16 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "CustomFields", vars)
 			}
@@ -3649,26 +3962,47 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return customfieldsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return customfieldsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.CustomFields(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["customFields"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, customfieldsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.CustomFields(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["customFields"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, customfieldsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
@@ -3717,7 +4051,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a custom field.",
-		Example: "  # Using a JSON input file:\n  worksome custom-fields create --input payload.json\n\n  # Using flags:\n  worksome custom-fields create --account \\\"value\\\" --field-type \\\"value\\\" --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"apiOnly\": false,\n    \"appliesTo\": \"JOB\",\n    \"approval\": false,\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
+		Example: "  worksome custom-fields create --input data.json\n  worksome custom-fields create --account \"value\" --field-type \"value\" --applies-to \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3816,15 +4150,6 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
-	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -3832,7 +4157,7 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a custom field. All fields details must be provided.",
-		Example: "  # Using a JSON input file:\n  worksome custom-fields delete --input payload.json\n\n  # Using flags:\n  worksome custom-fields delete --custom-field \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customField\": \"<id>\"\n  }",
+		Example: "  worksome custom-fields delete --input data.json\n  worksome custom-fields delete --custom-field \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3893,7 +4218,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a custom field. All fields must be provided.",
-		Example: "  # Using a JSON input file:\n  worksome custom-fields update --input payload.json\n\n  # Using flags:\n  worksome custom-fields update --custom-field \\\"value\\\" --field-type \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"apiOnly\": false,\n    \"approval\": false,\n    \"customField\": \"<id>\",\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
+		Example: "  worksome custom-fields update --input data.json\n  worksome custom-fields update --custom-field \"value\" --field-type \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3987,12 +4312,6 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
-	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -4008,6 +4327,7 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
+	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -4016,7 +4336,7 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "change",
 		Short:   "Change the email of the currently authenticated user.",
-		Example: "  # Using a JSON input file:\n  worksome email change --input payload.json\n\n  # Using flags:\n  worksome email change --user \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"email\": \"...\",\n    \"user\": \"<id>\"\n  }",
+		Example: "  worksome email change --input data.json\n  worksome email change --user \"value\" --email \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4078,6 +4398,51 @@ func newEmailChangeCmd() *cobra.Command {
 	return cmd
 }
 
+func newEmailSendVerificationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-verification",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	return cmd
+}
+
 // NewEmploymentChangesCmd creates the employment-changes resource command.
 func NewEmploymentChangesCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -4098,7 +4463,7 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Mark an employment as updated.",
-		Example: "  # Using a JSON input file:\n  worksome employment-changes approve --input payload.json\n\n  # Using flags:\n  worksome employment-changes approve --employment \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"employment\": \"<id>\"\n  }",
+		Example: "  worksome employment-changes approve --input data.json\n  worksome employment-changes approve --employment \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4226,7 +4591,7 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of employments.",
-		Example: "  worksome employments list -n 20\n  worksome employments list --all",
+		Example: "  worksome employments list -n 20\n  worksome employments list --all\n  worksome employments list --watch\n  worksome employments list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4304,7 +4669,16 @@ func newEmploymentsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Employments", vars)
 			}
@@ -4314,26 +4688,47 @@ func newEmploymentsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return employmentsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return employmentsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Employments(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["employments"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, employmentsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Employments(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["employments"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, employmentsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
 	cmd.Flags().String("status", "", "Filter employments by employment status.")
 	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status.")
@@ -4392,7 +4787,7 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "onboard",
 		Short:   "Onboard an employment with optional employment costs.",
-		Example: "  # Using a JSON input file:\n  worksome employments onboard --input payload.json\n\n  # Using flags:\n  worksome employments onboard --employment \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"employment\": \"<id>\",\n    \"employmentCosts\": {\n      \"fixedAmount\": 0,\n      \"oneTimeAmount\": 0,\n      \"percentage\": 0\n    }\n  }",
+		Example: "  worksome employments onboard --input data.json\n  worksome employments onboard --employment \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4469,7 +4864,7 @@ func newExportCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an export. The export URL and the number of rows will be returned (excluding headings).",
-		Example: "  # Using a JSON input file:\n  worksome export create --input payload.json\n\n  # Using flags:\n  worksome export create --user-id \\\"value\\\" --impersonator-id \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": 0,\n    \"accountType\": \"...\",\n    \"args\": {\n      \"companies\": [\n        0\n      ],\n      \"dateFrom\": \"2024-01-01\",\n      \"dateTo\": \"2024-01-01\",\n      \"meta\": \"...\"\n    },\n    \"deliveries\": [\n      \"...\"\n    ],\n    \"generatorType\": \"...\",\n    \"impersonatorId\": 0,\n    \"type\": \"...\",\n    \"userId\": 0\n  }",
+		Example: "  worksome export create --input data.json\n  worksome export create --user-id \"value\" --impersonator-id \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4620,7 +5015,7 @@ func newFilesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of files.",
-		Example: "  worksome files list -n 20\n  worksome files list --all",
+		Example: "  worksome files list -n 20\n  worksome files list --all\n  worksome files list --watch\n  worksome files list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4654,7 +5049,16 @@ func newFilesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Files", vars)
 			}
@@ -4664,26 +5068,47 @@ func newFilesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return filesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return filesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Files(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["files"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, filesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Files(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["files"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, filesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("mime-types", "", "Only show files with the given IANA MIME types.")
 
@@ -4790,9 +5215,8 @@ func NewFilesAsUploadedCmd() *cobra.Command {
 
 func newFilesAsUploadedMarkCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "mark",
-		Short:   "Mark one or more files as uploaded to the temporary URL.",
-		Example: "  # Using a JSON input file:\n  worksome files-as-uploaded mark --input payload.json\n\n  # Example payload.json:\n  {\n    \"files\": [\n      \"<id>\"\n    ]\n  }",
+		Use:   "mark",
+		Short: "Mark one or more files as uploaded to the temporary URL.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4901,10 +5325,6 @@ func newGateGetCmd() *cobra.Command {
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
 
-	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_G_ACCOUNT", "KVK_VALID_NUMBER", "KVK_COMPANY_NAME_MATCH", "KVK_WAADI", "KVK_SNA_QUALITY_MARK"}, cobra.ShellCompDirectiveNoFileComp
-	})
-
 	return cmd
 }
 
@@ -4985,7 +5405,7 @@ func newHiresListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
-		Example: "  worksome hires list -n 20\n  worksome hires list --all",
+		Example: "  worksome hires list -n 20\n  worksome hires list --all\n  worksome hires list --watch\n  worksome hires list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5111,7 +5531,16 @@ func newHiresListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Hires", vars)
 			}
@@ -5121,26 +5550,47 @@ func newHiresListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return hiresFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return hiresFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Hires(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["hires"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, hiresColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Hires(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["hires"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, hiresColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
 	cmd.Flags().String("status", "", "Filter hires by hire status.")
@@ -5211,7 +5661,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attribute-recruiter-to",
 		Short:   "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
-		Example: "  # Using a JSON input file:\n  worksome hires attribute-recruiter-to --input payload.json\n\n  # Using flags:\n  worksome hires attribute-recruiter-to --hire \\\"value\\\" --recruiter \\\"value\\\" --fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"fee\": 0,\n    \"hire\": \"<id>\",\n    \"ownershipDays\": 0,\n    \"ownershipStartDate\": \"2024-01-01\",\n    \"recruiter\": \"<id>\"\n  }",
+		Example: "  worksome hires attribute-recruiter-to --input data.json\n  worksome hires attribute-recruiter-to --hire \"value\" --recruiter \"value\" --fee \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5292,7 +5742,7 @@ func newHiresCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cancel",
 		Short:   "Cancel a hire. Only companies can cancel their hires.",
-		Example: "  # Using a JSON input file:\n  worksome hires cancel --input payload.json\n\n  # Using flags:\n  worksome hires cancel --hire \\\"value\\\" --message \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\",\n    \"message\": \"...\"\n  }",
+		Example: "  worksome hires cancel --input data.json\n  worksome hires cancel --hire \"value\" --message \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5358,7 +5808,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-draft",
 		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
-		Example: "  # Using a JSON input file:\n  worksome hires create-draft --input payload.json\n\n  # Using flags:\n  worksome hires create-draft --trusted-contact \\\"value\\\" --job \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"conversation\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"hireDescription\": \"...\",\n    \"includeStandardContract\": false,\n    \"job\": \"<id>\",\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"rateType\": \"HOURLY\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"trustedContact\": \"<id>\"\n  }",
+		Example: "  worksome hires create-draft --input data.json\n  worksome hires create-draft --trusted-contact \"value\" --job \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5482,9 +5932,6 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd.Flags().String("company", "", "The company that the direct hire is for.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
-	cmd.RegisterFlagCompletionFunc("rate-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"HOURLY", "DAILY", "WEEKLY", "MONTHLY", "FIXED", "UNKNOWN"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -5492,7 +5939,7 @@ func newHiresRejectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reject",
 		Short:   "Reject a hire.",
-		Example: "  # Using a JSON input file:\n  worksome hires reject --input payload.json\n\n  # Using flags:\n  worksome hires reject --account \\\"value\\\" --hire \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"hire\": \"<id>\"\n  }",
+		Example: "  worksome hires reject --input data.json\n  worksome hires reject --account \"value\" --hire \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5558,7 +6005,7 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove-recruiter-from",
 		Short:   "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
-		Example: "  # Using a JSON input file:\n  worksome hires remove-recruiter-from --input payload.json\n\n  # Using flags:\n  worksome hires remove-recruiter-from --hire \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\"\n  }",
+		Example: "  worksome hires remove-recruiter-from --input data.json\n  worksome hires remove-recruiter-from --hire \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5619,7 +6066,7 @@ func newHiresShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "share",
 		Short:   "Share/offer a hire with a worker. Only companies can remove recruiters from their hires.",
-		Example: "  # Using a JSON input file:\n  worksome hires share --input payload.json\n\n  # Using flags:\n  worksome hires share --hire \\\"value\\\" --message \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\",\n    \"message\": \"...\"\n  }",
+		Example: "  worksome hires share --input data.json\n  worksome hires share --hire \"value\" --message \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5685,7 +6132,7 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "terminate",
 		Short:   "Terminate a hire.",
-		Example: "  # Using a JSON input file:\n  worksome hires terminate --input payload.json\n\n  # Using flags:\n  worksome hires terminate --hire \\\"value\\\" --reason \\\"value\\\" --comments \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"comments\": \"...\",\n    \"date\": \"2024-01-01\",\n    \"hire\": \"<id>\",\n    \"message\": \"...\",\n    \"reason\": \"WORKER_UNAVAILABILITY\"\n  }",
+		Example: "  worksome hires terminate --input data.json\n  worksome hires terminate --hire \"value\" --reason \"value\" --comments \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5759,9 +6206,6 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
-	cmd.RegisterFlagCompletionFunc("reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"WORKER_UNAVAILABILITY", "PROJECT_COMPLETED_EARLY", "MUTUAL_AGREEMENT_TO_TERMINATE", "BUDGET_CONSTRAINTS", "CHANGE_IN_PROJECT_SCOPE", "PERFORMANCE_ISSUES", "COMMUNICATION_ISSUES", "PERSONAL_REASONS", "LEGAL_OR_COMPLIANCE_ISSUES", "VIOLATION_OF_CONTRACT_TERMS", "UNFORESEEN_CIRCUMSTANCES", "DISSATISFACTION_WITH_QUALITY_OF_WORK", "CONFLICT_OF_INTEREST", "OTHER"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -5829,7 +6273,7 @@ func newIndustriesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of industries.",
-		Example: "  worksome industries list -n 20\n  worksome industries list --all",
+		Example: "  worksome industries list -n 20\n  worksome industries list --all\n  worksome industries list --watch\n  worksome industries list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5855,7 +6299,16 @@ func newIndustriesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Industries", vars)
 			}
@@ -5865,26 +6318,47 @@ func newIndustriesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return industriesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return industriesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Industries(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["industries"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, industriesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Industries(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["industries"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, industriesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 
 	return cmd
 }
@@ -5957,7 +6431,7 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of inherited custom fields.",
-		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all",
+		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all\n  worksome inherited-custom-fields list --watch\n  worksome inherited-custom-fields list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5995,7 +6469,16 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "InheritedCustomFields", vars)
 			}
@@ -6005,26 +6488,47 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return inheritedcustomfieldsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return inheritedcustomfieldsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.InheritedCustomFields(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, inheritedcustomfieldsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.InheritedCustomFields(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, inheritedcustomfieldsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
@@ -6081,6 +6585,7 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
+	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -6089,7 +6594,7 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Short:   "Generate the company invite link token.",
-		Example: "  # Using a JSON input file:\n  worksome invite-link generate --input payload.json\n\n  # Using flags:\n  worksome invite-link generate --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\"\n  }",
+		Example: "  worksome invite-link generate --input data.json\n  worksome invite-link generate --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6135,6 +6640,67 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
+func newInviteLinkGeneratePersonalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate-personal",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome invite-link generate-personal --input data.json\n  worksome invite-link generate-personal --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -6282,7 +6848,7 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of invoices.",
-		Example: "  worksome invoices list -n 20\n  worksome invoices list --all",
+		Example: "  worksome invoices list -n 20\n  worksome invoices list --all\n  worksome invoices list --watch\n  worksome invoices list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6336,7 +6902,16 @@ func newInvoicesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Invoices", vars)
 			}
@@ -6346,26 +6921,47 @@ func newInvoicesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return invoicesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return invoicesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Invoices(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["invoices"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, invoicesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Invoices(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["invoices"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, invoicesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Only show invoices which have the supplied status.")
 	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types.")
@@ -6434,7 +7030,7 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update job candidates \"preferred\" status.",
-		Example: "  # Using a JSON input file:\n  worksome job-candidate-preferred update --input payload.json\n\n  # Using flags:\n  worksome job-candidate-preferred update --job-candidate \\\"value\\\" --is-preferred \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"isPreferred\": false,\n    \"jobCandidate\": \"<id>\"\n  }",
+		Example: "  worksome job-candidate-preferred update --input data.json\n  worksome job-candidate-preferred update --job-candidate \"value\" --is-preferred \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6516,7 +7112,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job candidate status. A reason and comment can be provided.",
-		Example: "  # Using a JSON input file:\n  worksome job-candidate-status update --input payload.json\n\n  # Using flags:\n  worksome job-candidate-status update --job-candidate \\\"value\\\" --status \\\"value\\\" --status-reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"feedback\": \"...\",\n    \"jobCandidate\": \"<id>\",\n    \"status\": \"ELIGIBLE\",\n    \"statusComment\": \"...\",\n    \"statusReason\": \"SKILLS_OR_EXPERIENCE\"\n  }",
+		Example: "  worksome job-candidate-status update --input data.json\n  worksome job-candidate-status update --job-candidate \"value\" --status \"value\" --status-reason \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6590,12 +7186,6 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
 	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
 	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ELIGIBLE", "NON_ELIGIBLE", "DUPLICATE"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("status-reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SKILLS_OR_EXPERIENCE", "SPECIFIC_JOB_CRITERIA", "AVAILABILITY", "MARKET_ELIGIBILITY", "BUDGET", "ACCEPTED_OTHER_JOB", "OTHER_CANDIDATE_ACCEPTED", "ADDED_BY_MISTAKE", "EXISTING_APPLICATION_THROUGH_OTHER_CHANNELS"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -6670,7 +7260,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job candidates.",
-		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all",
+		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all\n  worksome job-candidates list --watch\n  worksome job-candidates list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6716,7 +7306,16 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "JobCandidates", vars)
 			}
@@ -6726,26 +7325,47 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return jobcandidatesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return jobcandidatesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.JobCandidates(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["jobCandidates"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, jobcandidatesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.JobCandidates(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["jobCandidates"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, jobcandidatesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
 	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses.")
 	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps.")
@@ -6796,7 +7416,7 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job candidate. This will make the workers eligible and proposed for a job.",
-		Example: "  # Using a JSON input file:\n  worksome job-candidates create --input payload.json\n\n  # Using flags:\n  worksome job-candidates create --job \\\"value\\\" --sourcing-channel \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"job\": \"<id>\",\n    \"sourcingChannel\": \"TRUSTED_CONTACT\",\n    \"workers\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome job-candidates create --input data.json\n  worksome job-candidates create --job \"value\" --sourcing-channel \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6855,9 +7475,6 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
 	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
-	cmd.RegisterFlagCompletionFunc("sourcing-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"TRUSTED_CONTACT", "CANDIDATE_SUBMISSION", "RECRUITER_ATTRIBUTION", "MARKETPLACE"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -6891,7 +7508,7 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job shares.",
-		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all",
+		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all\n  worksome job-shares list --watch\n  worksome job-shares list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6933,7 +7550,16 @@ func newJobSharesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "JobShares", vars)
 			}
@@ -6943,26 +7569,47 @@ func newJobSharesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return jobsharesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return jobsharesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.JobShares(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["jobShares"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, jobsharesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.JobShares(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["jobShares"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, jobsharesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
 	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts.")
 	cmd.Flags().String("is-active", "", "Whether the job share is active.")
@@ -7012,7 +7659,7 @@ func newJobSharesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job share.",
-		Example: "  # Using a JSON input file:\n  worksome job-shares create --input payload.json\n\n  # Using flags:\n  worksome job-shares create --job \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accounts\": [\n      \"<id>\"\n    ],\n    \"job\": \"<id>\"\n  }",
+		Example: "  worksome job-shares create --input data.json\n  worksome job-shares create --job \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7071,9 +7718,8 @@ func newJobSharesCreateCmd() *cobra.Command {
 
 func newJobSharesRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "remove",
-		Short:   "Remove a job share.",
-		Example: "  # Using a JSON input file:\n  worksome job-shares remove --input payload.json\n\n  # Example payload.json:\n  {\n    \"ids\": [\n      \"<id>\"\n    ]\n  }",
+		Use:   "remove",
+		Short: "Remove a job share.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7190,7 +7836,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of jobs.",
-		Example: "  worksome jobs list -n 20\n  worksome jobs list --all",
+		Example: "  worksome jobs list -n 20\n  worksome jobs list --all\n  worksome jobs list --watch\n  worksome jobs list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7324,7 +7970,16 @@ func newJobsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Jobs", vars)
 			}
@@ -7334,26 +7989,47 @@ func newJobsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return jobsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return jobsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Jobs(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["jobs"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, jobsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Jobs(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["jobs"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, jobsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
 	cmd.Flags().String("owners", "", "Only show jobs owned by specific users.")
 	cmd.Flags().String("markets", "", "Only show jobs in the specified markets.")
@@ -7426,7 +8102,7 @@ func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job. Only companies can create jobs.",
-		Example: "  # Using a JSON input file:\n  worksome jobs create --input payload.json\n\n  # Using flags:\n  worksome jobs create --company \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome jobs create --input data.json\n  worksome jobs create --company \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7492,7 +8168,7 @@ func newJobsDuplicateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "duplicate",
 		Short:   "Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.",
-		Example: "  # Using a JSON input file:\n  worksome jobs duplicate --input payload.json\n\n  # Using flags:\n  worksome jobs duplicate --id \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"title\": \"...\"\n  }",
+		Example: "  worksome jobs duplicate --input data.json\n  worksome jobs duplicate --id \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7558,7 +8234,7 @@ func newJobsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a job. Only companies can end jobs.",
-		Example: "  # Using a JSON input file:\n  worksome jobs end --input payload.json\n\n  # Using flags:\n  worksome jobs end --id \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome jobs end --input data.json\n  worksome jobs end --id \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7624,7 +8300,7 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-internal-budget-on",
 		Short:   "Set the internal budget of a job. Only companies can set the internal budget on the job.",
-		Example: "  # Using a JSON input file:\n  worksome jobs set-internal-budget-on --input payload.json\n\n  # Using flags:\n  worksome jobs set-internal-budget-on --job \\\"value\\\" --amount \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"amount\": 0,\n    \"job\": \"<id>\"\n  }",
+		Example: "  worksome jobs set-internal-budget-on --input data.json\n  worksome jobs set-internal-budget-on --job \"value\" --amount \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7690,7 +8366,7 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job. Only companies can update jobs.",
-		Example: "  # Using a JSON input file:\n  worksome jobs update --input payload.json\n\n  # Using flags:\n  worksome jobs update --id \\\"value\\\" --locale \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"association\": \"SMALL_TASK\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"endDateTimeframe\": \"ONE_MONTH\",\n    \"evaluationPeriod\": \"MONTH\",\n    \"expectedExperienceLevel\": [\n      \"STUDENT\"\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"industries\": [\n      \"<id>\"\n    ],\n    \"isExtensionAvailable\": false,\n    \"languages\": [\n      {\n        \"experience\": \"GOOD\",\n        \"name\": \"ARABIC\"\n      }\n    ],\n    \"locale\": \"ENGLISH\",\n    \"location\": {\n      \"address\": \"...\",\n      \"city\": \"...\",\n      \"country\": \"...\",\n      \"postCode\": \"...\",\n      \"state\": \"...\"\n    },\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"paymentScheme\": \"ANY\",\n    \"published\": false,\n    \"rateType\": {\n      \"range\": {\n        \"maximum\": 0,\n        \"minimum\": 0\n      },\n      \"rate\": 0,\n      \"type\": \"HOURLY\"\n    },\n    \"removed\": false,\n    \"removedCause\": \"...\",\n    \"requiredWorkers\": 0,\n    \"skills\": [\n      \"...\"\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"startDateTimeframe\": \"ASAP\",\n    \"visibility\": [\n      \"VISIBLE_FOR_TRUSTED_CONTACTS\"\n    ]\n  }",
+		Example: "  worksome jobs update --input data.json\n  worksome jobs update --id \"value\" --locale \"value\" --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7824,24 +8500,6 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
-	cmd.RegisterFlagCompletionFunc("locale", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ENGLISH", "DANISH", "FRENCH", "GERMAN", "DUTCH"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("association", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SMALL_TASK", "PROJECT", "BIG_PROJECT", "PART_TIME", "FULL_TIME"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("payment-scheme", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ANY", "COMPANY", "GLOBAL_PAYROLL", "UK_PAYE", "UK_PAYE_IR35", "US_PAYROLL", "US_PAYROLL_WS", "DK_PAYROLL", "DK_B_INCOME", "AU_PAYROLL", "PARTNER_EOR"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("start-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ASAP", "NEXT_MONTH", "ON_DATE"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("end-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ON_DATE", "OPEN"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("evaluation-period", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"MONTH", "WEEK", "QUICK"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -7918,7 +8576,7 @@ func newMilestonesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of milestones.",
-		Example: "  worksome milestones list -n 20\n  worksome milestones list --all",
+		Example: "  worksome milestones list -n 20\n  worksome milestones list --all\n  worksome milestones list --watch\n  worksome milestones list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7952,7 +8610,16 @@ func newMilestonesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Milestones", vars)
 			}
@@ -7962,26 +8629,47 @@ func newMilestonesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return milestonesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return milestonesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Milestones(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["milestones"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, milestonesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Milestones(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["milestones"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, milestonesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("hires", "", "Only show milestones for the specified hires.")
 
@@ -8027,9 +8715,8 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 
 func newMilestonesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "create",
-		Short:   "Create one or more milestones.",
-		Example: "  # Using a JSON input file:\n  worksome milestones create --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"amount\": 0,\n        \"dueDate\": \"2024-01-01\",\n        \"hire\": \"<id>\",\n        \"name\": \"...\",\n        \"purchaseOrderNumber\": \"...\"\n      }\n    ]\n  }",
+		Use:   "create",
+		Short: "Create one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8073,9 +8760,8 @@ func newMilestonesCreateCmd() *cobra.Command {
 
 func newMilestonesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "delete",
-		Short:   "Delete one or more milestones.",
-		Example: "  # Using a JSON input file:\n  worksome milestones delete --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"id\": \"<id>\"\n      }\n    ]\n  }",
+		Use:   "delete",
+		Short: "Delete one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8119,9 +8805,8 @@ func newMilestonesDeleteCmd() *cobra.Command {
 
 func newMilestonesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "update",
-		Short:   "Update one or more milestones.",
-		Example: "  # Using a JSON input file:\n  worksome milestones update --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"amount\": 0,\n        \"dueDate\": \"2024-01-01\",\n        \"id\": \"<id>\",\n        \"name\": \"...\",\n        \"purchaseOrderNumber\": \"...\"\n      }\n    ]\n  }",
+		Use:   "update",
+		Short: "Update one or more milestones.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8227,7 +8912,7 @@ func newMultiFactorsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Retrieve all multi-factor authentication implementation.",
-		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all",
+		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all\n  worksome multi-factors list --watch\n  worksome multi-factors list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8261,7 +8946,16 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "MultiFactors", vars)
 			}
@@ -8271,20 +8965,41 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return multifactorsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return multifactorsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.MultiFactors(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.MultiFactors(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			return printResult(cmd, result, nil)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on.")
 	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on.")
 
@@ -8332,7 +9047,7 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-sms",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  # Using a JSON input file:\n  worksome multi-factors create-sms --input payload.json\n\n  # Using flags:\n  worksome multi-factors create-sms --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"name\": \"...\"\n  }",
+		Example: "  worksome multi-factors create-sms --input data.json\n  worksome multi-factors create-sms --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8393,7 +9108,7 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-totp",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  # Using a JSON input file:\n  worksome multi-factors create-totp --input payload.json\n\n  # Using flags:\n  worksome multi-factors create-totp --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"name\": \"...\"\n  }",
+		Example: "  worksome multi-factors create-totp --input data.json\n  worksome multi-factors create-totp --name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8454,7 +9169,7 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove a multi-factor authentication implementation.",
-		Example: "  # Using a JSON input file:\n  worksome multi-factors remove --input payload.json\n\n  # Using flags:\n  worksome multi-factors remove --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome multi-factors remove --input data.json\n  worksome multi-factors remove --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8515,7 +9230,7 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-sms",
 		Short:   "Verify a multi-factor authentication implementation.",
-		Example: "  # Using a JSON input file:\n  worksome multi-factors verify-sms --input payload.json\n\n  # Using flags:\n  worksome multi-factors verify-sms --id \\\"value\\\" --code \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"code\": \"...\",\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome multi-factors verify-sms --input data.json\n  worksome multi-factors verify-sms --id \"value\" --code \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8581,7 +9296,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-totp",
 		Short:   "Verify a TOTP multi-factor authentication implementation.",
-		Example: "  # Using a JSON input file:\n  worksome multi-factors verify-totp --input payload.json\n\n  # Using flags:\n  worksome multi-factors verify-totp --id \\\"value\\\" --code \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"code\": \"...\",\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome multi-factors verify-totp --input data.json\n  worksome multi-factors verify-totp --id \"value\" --code \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8647,7 +9362,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Create a note.",
+		Short: "Delete a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8665,7 +9380,7 @@ func newNoteCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a note.",
-		Example: "  # Using a JSON input file:\n  worksome note create --input payload.json\n\n  # Using flags:\n  worksome note create --body \\\"value\\\" --title \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"body\": \"...\",\n    \"notableId\": \"<id>\",\n    \"title\": \"...\"\n  }",
+		Example: "  worksome note create --input data.json\n  worksome note create --body \"value\" --title \"value\" --account-id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8741,7 +9456,7 @@ func newNoteDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a note.",
-		Example: "  # Using a JSON input file:\n  worksome note delete --input payload.json\n\n  # Using flags:\n  worksome note delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome note delete --input data.json\n  worksome note delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8802,7 +9517,7 @@ func newNoteUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a note.",
-		Example: "  # Using a JSON input file:\n  worksome note update --input payload.json\n\n  # Using flags:\n  worksome note update --id \\\"value\\\" --body \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"body\": \"...\",\n    \"id\": \"<id>\",\n    \"title\": \"...\"\n  }",
+		Example: "  worksome note update --input data.json\n  worksome note update --id \"value\" --body \"value\" --title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8890,7 +9605,7 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "manage",
 		Short:   "Manage Onboarding documents.",
-		Example: "  # Using a JSON input file:\n  worksome onboarding-documents manage --input payload.json\n\n  # Using flags:\n  worksome onboarding-documents manage --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"documents\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome onboarding-documents manage --input data.json\n  worksome onboarding-documents manage --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8951,7 +9666,7 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove Onboarding documents.",
-		Example: "  # Using a JSON input file:\n  worksome onboarding-documents remove --input payload.json\n\n  # Using flags:\n  worksome onboarding-documents remove --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"documents\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome onboarding-documents remove --input data.json\n  worksome onboarding-documents remove --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9139,7 +9854,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of organisation trusted contacts.",
-		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all",
+		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all\n  worksome organisation-trusted-contacts list --watch\n  worksome organisation-trusted-contacts list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9237,7 +9952,16 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "OrganisationTrustedContacts", vars)
 			}
@@ -9247,26 +9971,47 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return organisationtrustedcontactsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return organisationtrustedcontactsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.OrganisationTrustedContacts(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, organisationtrustedcontactsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.OrganisationTrustedContacts(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, organisationtrustedcontactsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -9285,16 +10030,6 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("external-identifiers", "", "Only show trusted contacts with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
-
-	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 
 	return cmd
 }
@@ -9405,7 +10140,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Update a user's password.",
+		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9422,7 +10157,7 @@ func newPasswordCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
-		Example: "  # Using a JSON input file:\n  worksome password create --input payload.json\n\n  # Using flags:\n  worksome password create --password \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"password\": \"...\"\n  }",
+		Example: "  worksome password create --input data.json\n  worksome password create --password \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9483,7 +10218,7 @@ func newPasswordUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user's password.",
-		Example: "  # Using a JSON input file:\n  worksome password update --input payload.json\n\n  # Using flags:\n  worksome password update --current-password \\\"value\\\" --password \\\"value\\\" --password-confirmation \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currentPassword\": \"...\",\n    \"password\": \"...\",\n    \"passwordConfirmation\": \"...\"\n  }",
+		Example: "  worksome password update --input data.json\n  worksome password update --current-password \"value\" --password \"value\" --password-confirmation \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9623,7 +10358,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of payment requests.",
-		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all",
+		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all\n  worksome payment-requests list --watch\n  worksome payment-requests list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9737,7 +10472,16 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "PaymentRequests", vars)
 			}
@@ -9747,26 +10491,47 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return paymentrequestsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return paymentrequestsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.PaymentRequests(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["paymentRequests"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, paymentrequestsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.PaymentRequests(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["paymentRequests"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, paymentrequestsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
 	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies.")
 	cmd.Flags().String("has-purchase-order-number", "", "Only show payment requests that have a Purchase Order number.")
@@ -9834,7 +10599,7 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a payment request.",
-		Example: "  # Using a JSON input file:\n  worksome payment-requests create --input payload.json\n\n  # Using flags:\n  worksome payment-requests create --worker \\\"value\\\" --job \\\"value\\\" --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"billableTime\": 0,\n    \"billableTotal\": 0,\n    \"comments\": \"...\",\n    \"company\": \"<id>\",\n    \"endDate\": \"2024-01-01\",\n    \"expenseReports\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"job\": \"<id>\",\n    \"rate\": 0,\n    \"startDate\": \"2024-01-01\",\n    \"taxLines\": [\n      {\n        \"rate\": 0,\n        \"terminology\": \"...\"\n      }\n    ],\n    \"timesheet\": \"<id>\",\n    \"worker\": \"<id>\"\n  }",
+		Example: "  worksome payment-requests create --input data.json\n  worksome payment-requests create --worker \"value\" --job \"value\" --company \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9945,7 +10710,7 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a payment request.",
-		Example: "  # Using a JSON input file:\n  worksome payment-requests delete --input payload.json\n\n  # Using flags:\n  worksome payment-requests delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome payment-requests delete --input data.json\n  worksome payment-requests delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10006,7 +10771,7 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a payment request.",
-		Example: "  # Using a JSON input file:\n  worksome payment-requests update --input payload.json\n\n  # Using flags:\n  worksome payment-requests update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"billableTime\": 0,\n    \"billableTotal\": 0,\n    \"comments\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"expenseReports\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"startDate\": \"2024-01-01\",\n    \"taxLines\": [\n      {\n        \"rate\": 0,\n        \"terminology\": \"...\"\n      }\n    ],\n    \"timesheet\": \"<id>\"\n  }",
+		Example: "  worksome payment-requests update --input data.json\n  worksome payment-requests update --id \"value\" --start-date \"value\" --end-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10103,83 +10868,6 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
-func NewPersonalInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "personal-invite-link",
-		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
-
-	return cmd
-}
-
-func newPersonalInviteLinkGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  # Using a JSON input file:\n  worksome personal-invite-link generate --input payload.json\n\n  # Using flags:\n  worksome personal-invite-link generate --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\"\n  }",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
-			}
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
 var projectsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -10257,7 +10945,7 @@ func newProjectsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of projects.",
-		Example: "  worksome projects list -n 20\n  worksome projects list --all",
+		Example: "  worksome projects list -n 20\n  worksome projects list --all\n  worksome projects list --watch\n  worksome projects list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10303,7 +10991,16 @@ func newProjectsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Projects", vars)
 			}
@@ -10313,26 +11010,47 @@ func newProjectsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return projectsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return projectsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Projects(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["projects"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, projectsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Projects(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["projects"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, projectsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search between projects by budget, name, description and job name.")
 	cmd.Flags().String("status", "", "Only show projects which have the supplied status.")
@@ -10383,7 +11101,7 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-jobs-to",
 		Short:   "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
-		Example: "  # Using a JSON input file:\n  worksome projects attach-jobs-to --input payload.json\n\n  # Using flags:\n  worksome projects attach-jobs-to --project \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"jobs\": [\n      \"<id>\"\n    ],\n    \"project\": \"<id>\"\n  }",
+		Example: "  worksome projects attach-jobs-to --input data.json\n  worksome projects attach-jobs-to --project \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10444,7 +11162,7 @@ func newProjectsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a project. Only companies can create projects.",
-		Example: "  # Using a JSON input file:\n  worksome projects create --input payload.json\n\n  # Using flags:\n  worksome projects create --name \\\"value\\\" --description \\\"value\\\" --internal-budget \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"internalBudget\": 0,\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome projects create --input data.json\n  worksome projects create --name \"value\" --description \"value\" --internal-budget \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10525,7 +11243,7 @@ func newProjectsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a project. Only companies can delete projects.",
-		Example: "  # Using a JSON input file:\n  worksome projects delete --input payload.json\n\n  # Using flags:\n  worksome projects delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome projects delete --input data.json\n  worksome projects delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10586,7 +11304,7 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-job-from",
 		Short:   "Detach a job from a project Only companies can detach a job from a project.",
-		Example: "  # Using a JSON input file:\n  worksome projects detach-job-from --input payload.json\n\n  # Using flags:\n  worksome projects detach-job-from --job \\\"value\\\" --project \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"job\": \"<id>\",\n    \"project\": \"<id>\"\n  }",
+		Example: "  worksome projects detach-job-from --input data.json\n  worksome projects detach-job-from --job \"value\" --project \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10652,7 +11370,7 @@ func newProjectsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a project. This is used to set an end date on the project to consider it no longer active.",
-		Example: "  # Using a JSON input file:\n  worksome projects end --input payload.json\n\n  # Using flags:\n  worksome projects end --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome projects end --input data.json\n  worksome projects end --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10713,7 +11431,7 @@ func newProjectsOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "open",
 		Short:   "Open a project. This is used to set the end date on the project to `null` to make it open again.",
-		Example: "  # Using a JSON input file:\n  worksome projects open --input payload.json\n\n  # Using flags:\n  worksome projects open --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome projects open --input data.json\n  worksome projects open --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10774,7 +11492,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a project. Only companies can update projects.",
-		Example: "  # Using a JSON input file:\n  worksome projects update --input payload.json\n\n  # Using flags:\n  worksome projects update --id \\\"value\\\" --name \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"internalBudget\": 0,\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome projects update --input data.json\n  worksome projects update --id \"value\" --name \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10924,7 +11642,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiter candidates.",
-		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all",
+		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all\n  worksome recruiter-candidates list --watch\n  worksome recruiter-candidates list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10962,7 +11680,16 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "RecruiterCandidates", vars)
 			}
@@ -10972,33 +11699,50 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return recruitercandidatesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return recruitercandidatesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.RecruiterCandidates(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, recruitercandidatesColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.RecruiterCandidates(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, recruitercandidatesColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Supply to filter for status.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
-
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INVITED", "ACTIVE", "DECLINED", "APPLIED", "BLOCKED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 
 	return cmd
 }
@@ -11044,7 +11788,7 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new candidate. Only recruiters can add and invite candidates.",
-		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates create --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates create --recruiter \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currency\": \"...\",\n    \"dailyRate\": 0,\n    \"email\": \"...\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"firstName\": \"...\",\n    \"hourlyRate\": 0,\n    \"jobTitle\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"middleName\": \"...\",\n    \"monthlyRate\": 0,\n    \"recruiter\": \"<id>\",\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome recruiter-candidates create --input data.json\n  worksome recruiter-candidates create --recruiter \"value\" --first-name \"value\" --middle-name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11150,7 +11894,7 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.",
-		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates delete --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome recruiter-candidates delete --input data.json\n  worksome recruiter-candidates delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11211,7 +11955,7 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter candidate information. Only recruiters can edit the relationship.",
-		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates update --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates update --id \\\"value\\\" --job-title \\\"value\\\" --currency \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currency\": \"...\",\n    \"dailyRate\": 0,\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hourlyRate\": 0,\n    \"id\": \"<id>\",\n    \"jobTitle\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"monthlyRate\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome recruiter-candidates update --input data.json\n  worksome recruiter-candidates update --id \"value\" --job-title \"value\" --currency \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11324,7 +12068,7 @@ func newRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiters.",
-		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all",
+		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all\n  worksome recruiters list --watch\n  worksome recruiters list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11354,7 +12098,16 @@ func newRecruitersListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Recruiters", vars)
 			}
@@ -11364,26 +12117,47 @@ func newRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return recruitersFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return recruitersFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Recruiters(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["recruiters"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, recruitersColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Recruiters(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["recruiters"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, recruitersColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "The search value used to search recruiters.")
 
 	return cmd
@@ -11431,7 +12205,7 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reinvite-trusted-contact",
 		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
-		Example: "  # Using a JSON input file:\n  worksome reinvite-trusted-contact --input payload.json\n\n  # Using flags:\n  worksome reinvite-trusted-contact --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome reinvite-trusted-contact --input data.json\n  worksome reinvite-trusted-contact --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11513,7 +12287,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of skills.",
-		Example: "  worksome skills list -n 20\n  worksome skills list --all",
+		Example: "  worksome skills list -n 20\n  worksome skills list --all\n  worksome skills list --watch\n  worksome skills list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11551,7 +12325,16 @@ func newSkillsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Skills", vars)
 			}
@@ -11561,26 +12344,47 @@ func newSkillsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return skillsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return skillsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Skills(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["skills"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, skillsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Skills(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["skills"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, skillsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
 	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
@@ -11629,7 +12433,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
+		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -11646,7 +12450,7 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet registration. Only workers can delete timesheet registrations.",
-		Example: "  # Using a JSON input file:\n  worksome timesheet-registration delete --input payload.json\n\n  # Using flags:\n  worksome timesheet-registration delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome timesheet-registration delete --input data.json\n  worksome timesheet-registration delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11707,7 +12511,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet registration. Only workers can update timesheet registrations.",
-		Example: "  # Using a JSON input file:\n  worksome timesheet-registration update --input payload.json\n\n  # Using flags:\n  worksome timesheet-registration update --id \\\"value\\\" --start-time \\\"value\\\" --end-time \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"comments\": \"...\",\n    \"duration\": 0,\n    \"endTime\": \"12:00:00\",\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"invoiceReferenceNumber\": \"...\",\n    \"isBillable\": false,\n    \"startTime\": \"12:00:00\",\n    \"unit\": \"HOURS\"\n  }",
+		Example: "  worksome timesheet-registration update --input data.json\n  worksome timesheet-registration update --id \"value\" --start-time \"value\" --end-time \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11801,9 +12605,6 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd.Flags().String("invoice-reference-number", "", "The invoice reference number associated with the timesheet registration.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
 	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
-	cmd.RegisterFlagCompletionFunc("unit", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"HOURS", "DAYS"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -11881,7 +12682,7 @@ func newTimesheetsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of timesheets.",
-		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all",
+		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all\n  worksome timesheets list --watch\n  worksome timesheets list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11911,7 +12712,16 @@ func newTimesheetsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Timesheets", vars)
 			}
@@ -11921,26 +12731,47 @@ func newTimesheetsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return timesheetsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return timesheetsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Timesheets(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["timesheets"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, timesheetsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Timesheets(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["timesheets"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, timesheetsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
 
 	return cmd
@@ -11987,7 +12818,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-custom",
 		Short:   "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets create-custom --input payload.json\n\n  # Using flags:\n  worksome timesheets create-custom --schema \\\"value\\\" --data \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"data\": \"...\",\n    \"schema\": \"...\"\n  }",
+		Example: "  worksome timesheets create-custom --input data.json\n  worksome timesheets create-custom --schema \"value\" --data \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12053,7 +12884,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a timesheet. Only workers can create timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"freeText\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
+		Example: "  worksome timesheets create --input data.json\n  worksome timesheets create --worker \"value\" --hire \"value\" --start-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12129,7 +12960,7 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet. Only workers can delete timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets delete --input payload.json\n\n  # Using flags:\n  worksome timesheets delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome timesheets delete --input data.json\n  worksome timesheets delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12190,7 +13021,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet. Only workers can update timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"freeText\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
+		Example: "  worksome timesheets update --input data.json\n  worksome timesheets update --id \"value\" --start-date \"value\" --end-date \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12331,7 +13162,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of trusted contacts.",
-		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all",
+		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all\n  worksome trusted-contacts list --watch\n  worksome trusted-contacts list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12433,7 +13264,16 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "TrustedContacts", vars)
 			}
@@ -12443,26 +13283,47 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return trustedcontactsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return trustedcontactsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.TrustedContacts(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["trustedContacts"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, trustedcontactsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.TrustedContacts(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["trustedContacts"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, trustedcontactsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -12482,16 +13343,6 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created.")
-
-	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 
 	return cmd
 }
@@ -12537,7 +13388,7 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Approve a trusted contact. Only companies can approve trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts approve --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts approve --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome trusted-contacts approve --input data.json\n  worksome trusted-contacts approve --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12598,7 +13449,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts create --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts create --company \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"company\": \"<id>\",\n    \"country\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"firstName\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"message\": \"...\",\n    \"middleName\": \"...\",\n    \"name\": \"...\",\n    \"notifyWorker\": false,\n    \"origin\": \"INVITED\",\n    \"originChannel\": \"EXISTING_SETUP\",\n    \"skills\": [\n      \"...\"\n    ],\n    \"state\": \"...\"\n  }",
+		Example: "  worksome trusted-contacts create --input data.json\n  worksome trusted-contacts create --company \"value\" --first-name \"value\" --middle-name \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12712,12 +13563,6 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	cmd.Flags().String("origin", "", "The origin of the trusted contact")
 	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact")
-	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	cmd.RegisterFlagCompletionFunc("origin-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"EXISTING_SETUP", "DIRECT_INVITE", "PERSONAL_INVITE", "CANDIDATE_SUBMISSION", "MARKETPLACE_HIRE", "EXTERNAL_LINK", "ORGANISATION_HIRE"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -12725,7 +13570,7 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a trusted contact. Only companies can delete trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts delete --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts delete --id \\\"value\\\" --account \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome trusted-contacts delete --input data.json\n  worksome trusted-contacts delete --id \"value\" --account \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12791,7 +13636,7 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a trusted contact. Only companies can edit trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts update --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts update --id \\\"value\\\" --external-identifier \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome trusted-contacts update --input data.json\n  worksome trusted-contacts update --id \"value\" --external-identifier \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12926,7 +13771,7 @@ func newUserGroupsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of user groups.",
-		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all",
+		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all\n  worksome user-groups list --watch\n  worksome user-groups list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12968,7 +13813,16 @@ func newUserGroupsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "UserGroups", vars)
 			}
@@ -12978,26 +13832,47 @@ func newUserGroupsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return usergroupsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return usergroupsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.UserGroups(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["userGroups"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, usergroupsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.UserGroups(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["userGroups"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, usergroupsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search user groups by name, description and users name, email.")
 	cmd.Flags().String("users", "", "Filter user groups by users.")
@@ -13047,7 +13922,7 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-users-to",
 		Short:   "Attach one or more users to a group. Only companies can attach users to groups.",
-		Example: "  # Using a JSON input file:\n  worksome user-groups attach-users-to --input payload.json\n\n  # Using flags:\n  worksome user-groups attach-users-to --user-group \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"userGroup\": \"<id>\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome user-groups attach-users-to --input data.json\n  worksome user-groups attach-users-to --user-group \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13108,7 +13983,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a user group. Only companies can create user groups.",
-		Example: "  # Using a JSON input file:\n  worksome user-groups create --input payload.json\n\n  # Using flags:\n  worksome user-groups create --name \\\"value\\\" --description \\\"value\\\" --status \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome user-groups create --input data.json\n  worksome user-groups create --name \"value\" --description \"value\" --status \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13177,9 +14052,6 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
 	cmd.Flags().String("company", "", "The company that the group is for.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 	return cmd
 }
 
@@ -13187,7 +14059,7 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a user group. Only companies can delete user groups.",
-		Example: "  # Using a JSON input file:\n  worksome user-groups delete --input payload.json\n\n  # Using flags:\n  worksome user-groups delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome user-groups delete --input data.json\n  worksome user-groups delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13248,7 +14120,7 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-users-from",
 		Short:   "Detach one or more user from a group. Only companies can detach users from a group.",
-		Example: "  # Using a JSON input file:\n  worksome user-groups detach-users-from --input payload.json\n\n  # Using flags:\n  worksome user-groups detach-users-from --user-group \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"userGroup\": \"<id>\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome user-groups detach-users-from --input data.json\n  worksome user-groups detach-users-from --user-group \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13309,7 +14181,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user group. Only companies can update user groups.",
-		Example: "  # Using a JSON input file:\n  worksome user-groups update --input payload.json\n\n  # Using flags:\n  worksome user-groups update --id \\\"value\\\" --name \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
+		Example: "  worksome user-groups update --input data.json\n  worksome user-groups update --id \"value\" --name \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13378,131 +14250,6 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
-	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
-	})
-	return cmd
-}
-
-// NewVerificationEmailCmd creates the verification-email resource command.
-func NewVerificationEmailCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verification-email",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newVerificationEmailSendCmd())
-
-	return cmd
-}
-
-func newVerificationEmailSendCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	return cmd
-}
-
-// NewVerificationEmailCmd creates the verification-email resource command.
-func NewVerificationEmailCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verification-email",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newVerificationEmailSendCmd())
-
-	return cmd
-}
-
-func newVerificationEmailSendCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -13600,7 +14347,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook event logs. They are returned in descending order of creation.",
-		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all",
+		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all\n  worksome webhook-event-logs list --watch\n  worksome webhook-event-logs list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13638,7 +14385,16 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WebhookEventLogs", vars)
 			}
@@ -13648,26 +14404,47 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return webhookeventlogsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return webhookeventlogsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.WebhookEventLogs(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, webhookeventlogsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.WebhookEventLogs(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, webhookeventlogsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("webhook-event-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("accounts", "", "Filter the webhook event logss based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
@@ -13783,7 +14560,7 @@ func newWebhookEventsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook events. They are returned in descending order of creation.",
-		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all",
+		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all\n  worksome webhook-events list --watch\n  worksome webhook-events list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13813,7 +14590,16 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WebhookEvents", vars)
 			}
@@ -13823,26 +14609,47 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return webhookeventsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return webhookeventsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.WebhookEvents(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["webhookEvents"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, webhookeventsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.WebhookEvents(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["webhookEvents"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, webhookeventsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook events based on the ID of the webhook.")
 
 	return cmd
@@ -13889,7 +14696,7 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "retry",
 		Short:   "Retry a webhook event. Only companies can retry webhook events.",
-		Example: "  # Using a JSON input file:\n  worksome webhook-events retry --input payload.json\n\n  # Using flags:\n  worksome webhook-events retry --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome webhook-events retry --input data.json\n  worksome webhook-events retry --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14019,7 +14826,7 @@ func newWebhooksListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhooks.",
-		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all",
+		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all\n  worksome webhooks list --watch\n  worksome webhooks list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14049,7 +14856,16 @@ func newWebhooksListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Webhooks", vars)
 			}
@@ -14059,26 +14875,47 @@ func newWebhooksListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return webhooksFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return webhooksFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Webhooks(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["webhooks"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, webhooksColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Webhooks(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["webhooks"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, webhooksColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
@@ -14125,7 +14962,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a webhook. Only companies can create webhooks.",
-		Example: "  # Using a JSON input file:\n  worksome webhooks create --input payload.json\n\n  # Using flags:\n  worksome webhooks create --title \\\"value\\\" --description \\\"value\\\" --url \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"clientId\": \"...\",\n    \"clientUrl\": \"...\",\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"isActive\": false,\n    \"secret\": \"...\",\n    \"subscribedEvents\": [\n      \"CONTRACT_ACCEPTED\"\n    ],\n    \"title\": \"...\",\n    \"url\": \"...\"\n  }",
+		Example: "  worksome webhooks create --input data.json\n  worksome webhooks create --title \"value\" --description \"value\" --url \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14221,7 +15058,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a webhook.",
-		Example: "  # Using a JSON input file:\n  worksome webhooks delete --input payload.json\n\n  # Using flags:\n  worksome webhooks delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome webhooks delete --input data.json\n  worksome webhooks delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14282,7 +15119,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a webhook.",
-		Example: "  # Using a JSON input file:\n  worksome webhooks update --input payload.json\n\n  # Using flags:\n  worksome webhooks update --id \\\"value\\\" --title \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"clientId\": \"...\",\n    \"clientUrl\": \"...\",\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"isActive\": false,\n    \"secret\": \"...\",\n    \"subscribedEvents\": [\n      \"CONTRACT_ACCEPTED\"\n    ],\n    \"title\": \"...\",\n    \"url\": \"...\"\n  }",
+		Example: "  worksome webhooks update --input data.json\n  worksome webhooks update --id \"value\" --title \"value\" --description \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14444,7 +15281,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a worker.",
-		Example: "  # Using a JSON input file:\n  worksome worker update --input payload.json\n\n  # Using flags:\n  worksome worker update --id \\\"value\\\" --job-title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"jobTitle\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
+		Example: "  worksome worker update --input data.json\n  worksome worker update --id \"value\" --job-title \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14526,7 +15363,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
-		Example: "  # Using a JSON input file:\n  worksome worker-custom-field-values update --input payload.json\n\n  # Using flags:\n  worksome worker-custom-field-values update --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"appliesTo\": \"<id>\",\n    \"values\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ]\n  }",
+		Example: "  worksome worker-custom-field-values update --input data.json\n  worksome worker-custom-field-values update --applies-to \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14603,7 +15440,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflow variables.",
-		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all",
+		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all\n  worksome workflow-variables list --watch\n  worksome workflow-variables list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14637,7 +15474,16 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WorkflowVariables", vars)
 			}
@@ -14647,26 +15493,43 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return workflowvariablesFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return workflowvariablesFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.WorkflowVariables(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.WorkflowVariables(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			return printResult(cmd, result, nil)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
-
-	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
-	})
 
 	return cmd
 }
@@ -14774,7 +15637,7 @@ func newWorkflowsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflows.",
-		Example: "  worksome workflows list -n 20\n  worksome workflows list --all",
+		Example: "  worksome workflows list -n 20\n  worksome workflows list --all\n  worksome workflows list --watch\n  worksome workflows list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14804,7 +15667,16 @@ func newWorkflowsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Workflows", vars)
 			}
@@ -14814,26 +15686,47 @@ func newWorkflowsListCmd() *cobra.Command {
 				return err
 			}
 
-			if fetchAll {
-				return workflowsFetchAll(cmd, q, vars)
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return workflowsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.Workflows(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["workflows"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, workflowsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
 			}
 
-			result, err := q.Workflows(context.Background(), vars)
-			if err != nil {
-				return err
+			if !watchFlag {
+				return fetchAndPrint()
 			}
-			// Extract data array from paginator response for table output
-			if paginator, ok := result["workflows"].(map[string]any); ok {
-				if data, ok := paginator["data"].([]any); ok {
-					return printResult(cmd, data, workflowsColumns)
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
-			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the workflows based on one or more accounts.")
 
 	return cmd
@@ -14878,9 +15771,8 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 
 func newWorkflowsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "create",
-		Short:   "Create a workflow. Only companies can create workflows.",
-		Example: "  # Using a JSON input file:\n  worksome workflows create --input payload.json\n\n  # Example payload.json:\n  {\n    \"approvers\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          \"<id>\"\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ],\n    \"root\": {\n      \"children\": [\n        \"<id>\"\n      ],\n      \"data\": {\n        \"company\": \"<id>\",\n        \"description\": \"...\",\n        \"name\": \"...\",\n        \"status\": \"ACTIVE\",\n        \"trigger\": \"NONE\"\n      },\n      \"id\": \"<id>\"\n    },\n    \"rules\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          {\n            \"id\": \"...\",\n            \"rule\": {}\n          }\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ]\n  }",
+		Use:   "create",
+		Short: "Create a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14926,7 +15818,7 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a workflow. Only companies can delete workflows.",
-		Example: "  # Using a JSON input file:\n  worksome workflows delete --input payload.json\n\n  # Using flags:\n  worksome workflows delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		Example: "  worksome workflows delete --input data.json\n  worksome workflows delete --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14985,9 +15877,8 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 
 func newWorkflowsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "update",
-		Short:   "Update a workflow. Only companies can create workflows.",
-		Example: "  # Using a JSON input file:\n  worksome workflows update --input payload.json\n\n  # Example payload.json:\n  {\n    \"approvers\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          \"<id>\"\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ],\n    \"root\": {\n      \"children\": [\n        \"<id>\"\n      ],\n      \"data\": {\n        \"description\": \"...\",\n        \"name\": \"...\",\n        \"status\": \"ACTIVE\",\n        \"trigger\": \"NONE\"\n      },\n      \"id\": \"<id>\"\n    },\n    \"rules\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          {\n            \"id\": \"...\",\n            \"rule\": {}\n          }\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ]\n  }",
+		Use:   "update",
+		Short: "Update a workflow. Only companies can create workflows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -15049,7 +15940,7 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update consent to use Worksome Intelligence for the current user.",
-		Example: "  # Using a JSON input file:\n  worksome worksome-intelligence-consent update --input payload.json\n\n  # Using flags:\n  worksome worksome-intelligence-consent update --consent \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"consent\": false\n  }",
+		Example: "  worksome worksome-intelligence-consent update --input data.json\n  worksome worksome-intelligence-consent update --consent \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
