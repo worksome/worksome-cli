@@ -47,6 +47,7 @@ type Operation struct {
 	DeprecatedReason string
 	InputTypeName    string     // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
 	InputFields      []Argument // For mutations: flattened scalar/enum/ID fields from the input type
+	InputExample     string     // For mutations: pretty-printed JSON example of the full input structure
 }
 
 // OperationType distinguishes queries from mutations.

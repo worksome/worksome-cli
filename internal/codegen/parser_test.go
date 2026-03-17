@@ -1,8 +1,10 @@
 package codegen
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -893,5 +895,221 @@ input TerminateHireInput {
 		if r.Name == "recruiter-to-hire" || r.Name == "recruiter-from-hire" {
 			t.Errorf("unexpected resource %q — multi-word mutation should be grouped under 'hires'", r.Name)
 		}
+	}
+}
+
+func TestBuildInputExample_Simple(t *testing.T) {
+	// Use the minimal schema that has simple input types (HireInput, CreateJobInput)
+	schemaPath, overridesPath := writeTestSchema(t)
+
+	schema, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find the createJob mutation under the "job" resource
+	var createJob *Operation
+	for _, r := range schema.Resources {
+		for i, m := range r.Mutations {
+			if m.Name == "createJob" {
+				createJob = &r.Mutations[i]
+				break
+			}
+		}
+	}
+	if createJob == nil {
+		t.Fatal("expected createJob mutation")
+	}
+
+	if createJob.InputExample == "" {
+		t.Fatal("expected non-empty InputExample for createJob")
+	}
+
+	// Verify it's valid JSON
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(createJob.InputExample), &parsed); err != nil {
+		t.Fatalf("InputExample is not valid JSON: %v\n%s", err, createJob.InputExample)
+	}
+
+	// Check expected fields
+	if _, ok := parsed["title"]; !ok {
+		t.Error("expected 'title' field in InputExample")
+	}
+	if _, ok := parsed["description"]; !ok {
+		t.Error("expected 'description' field in InputExample")
+	}
+
+	// Check that title is a string placeholder
+	if title, ok := parsed["title"].(string); !ok || title != "..." {
+		t.Errorf("expected title to be \"...\", got %v", parsed["title"])
+	}
+}
+
+func TestBuildInputExample_NestedInput(t *testing.T) {
+	// Schema with nested input types
+	schema := `
+scalar Date
+
+type Query {
+	job(id: ID!): Job
+}
+
+type Mutation {
+	"Create a job with nested inputs."
+	createJob(input: CreateJobInput!): Job!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+enum RateUnit {
+	HOURLY
+	DAILY
+	WEEKLY
+}
+
+input AddressInput {
+	address: String
+	city: String
+	country: String
+	postCode: String
+}
+
+input RateInput {
+	amount: Float!
+	unit: RateUnit!
+}
+
+input CreateJobInput {
+	title: String!
+	description: String
+	location: AddressInput
+	rate: RateInput!
+	tags: [String!]
+	active: Boolean
+	startDate: Date
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find createJob mutation
+	var createJob *Operation
+	for _, r := range parsed.Resources {
+		for i, m := range r.Mutations {
+			if m.Name == "createJob" {
+				createJob = &r.Mutations[i]
+				break
+			}
+		}
+	}
+	if createJob == nil {
+		t.Fatal("expected createJob mutation")
+	}
+
+	if createJob.InputExample == "" {
+		t.Fatal("expected non-empty InputExample for createJob")
+	}
+
+	// Verify it's valid JSON
+	var example map[string]any
+	if err := json.Unmarshal([]byte(createJob.InputExample), &example); err != nil {
+		t.Fatalf("InputExample is not valid JSON: %v\n%s", err, createJob.InputExample)
+	}
+
+	// Check scalar fields
+	if v, ok := example["title"].(string); !ok || v != "..." {
+		t.Errorf("title: got %v, want \"...\"", example["title"])
+	}
+	if v, ok := example["active"].(bool); !ok || v != false {
+		t.Errorf("active: got %v, want false", example["active"])
+	}
+	if v, ok := example["startDate"].(string); !ok || v != "2024-01-01" {
+		t.Errorf("startDate: got %v, want \"2024-01-01\"", example["startDate"])
+	}
+
+	// Check nested input object (AddressInput)
+	location, ok := example["location"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected 'location' to be a nested object, got %T", example["location"])
+	}
+	if v, ok := location["city"].(string); !ok || v != "..." {
+		t.Errorf("location.city: got %v, want \"...\"", location["city"])
+	}
+
+	// Check nested input object with enum (RateInput)
+	rate, ok := example["rate"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected 'rate' to be a nested object, got %T", example["rate"])
+	}
+	if v, ok := rate["amount"].(float64); !ok || v != 0.0 {
+		t.Errorf("rate.amount: got %v, want 0.0", rate["amount"])
+	}
+	if v, ok := rate["unit"].(string); !ok || v != "HOURLY" {
+		t.Errorf("rate.unit: got %v, want \"HOURLY\"", rate["unit"])
+	}
+
+	// Check list field
+	tags, ok := example["tags"].([]any)
+	if !ok {
+		t.Fatalf("expected 'tags' to be a list, got %T", example["tags"])
+	}
+	if len(tags) != 1 {
+		t.Errorf("expected tags to have 1 element, got %d", len(tags))
+	}
+
+	// Verify pretty-printing (indented with 2 spaces)
+	if !strings.Contains(createJob.InputExample, "  \"title\"") {
+		t.Error("expected InputExample to be pretty-printed with 2-space indent")
+	}
+}
+
+func TestBuildInputExample_NoNestedInput(t *testing.T) {
+	// Schema with only scalar fields — InputExample should still be set
+	schemaPath, overridesPath := writeTestSchema(t)
+
+	schema, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find terminateHire mutation (TerminateHireInput has only id + reason, both scalars)
+	var terminateHire *Operation
+	for _, r := range schema.Resources {
+		for i, m := range r.Mutations {
+			if m.Name == "terminateHire" {
+				terminateHire = &r.Mutations[i]
+				break
+			}
+		}
+	}
+	if terminateHire == nil {
+		t.Fatal("expected terminateHire mutation")
+	}
+
+	if terminateHire.InputExample == "" {
+		t.Fatal("expected non-empty InputExample for terminateHire")
+	}
+
+	var example map[string]any
+	if err := json.Unmarshal([]byte(terminateHire.InputExample), &example); err != nil {
+		t.Fatalf("InputExample is not valid JSON: %v", err)
+	}
+
+	if v, ok := example["id"].(string); !ok || v != "<id>" {
+		t.Errorf("id: got %v, want \"<id>\"", example["id"])
+	}
+	if v, ok := example["reason"].(string); !ok || v != "..." {
+		t.Errorf("reason: got %v, want \"...\"", example["reason"])
 	}
 }

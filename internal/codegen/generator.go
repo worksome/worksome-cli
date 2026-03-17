@@ -404,7 +404,9 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
 		Short: {{quote $mut.Description}},
-		{{- if $mut.InputFields}}
+		{{- if $mut.InputExample}}
+		Example: {{inputExampleBlockHoisted $res.Name $mut.InputFields $mut.InputExample | quote}},
+		{{- else if $mut.InputFields}}
 		Example: "  worksome {{$res.Name}} --input data.json{{with inputFlagExampleHoisted $res.Name $mut.InputFields}}\n  {{.}}{{end}}",
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -700,7 +702,9 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "{{$mut.CLIName}}",
 		Short: {{quote $mut.Description}},
-		{{- if $mut.InputFields}}
+		{{- if $mut.InputExample}}
+		Example: {{inputExampleBlock $res.Name $mut.CLIName $mut.InputFields $mut.InputExample | quote}},
+		{{- else if $mut.InputFields}}
 		Example: "  worksome {{$res.Name}} {{$mut.CLIName}} --input data.json{{with inputFlagExample $res.Name $mut.CLIName $mut.InputFields}}\n  {{.}}{{end}}",
 		{{- end}}
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -817,6 +821,8 @@ func init() {
 	templateFuncs["not"] = func(b bool) bool { return !b }
 	templateFuncs["inputFlagExample"] = inputFlagExample
 	templateFuncs["inputFlagExampleHoisted"] = inputFlagExampleHoisted
+	templateFuncs["inputExampleBlock"] = inputExampleBlock
+	templateFuncs["inputExampleBlockHoisted"] = inputExampleBlockHoisted
 }
 
 // inputFlagExample returns an example command line showing up to 3 flag-based
@@ -851,6 +857,47 @@ func inputFlagExampleHoisted(resName string, fields []Argument) string {
 		parts = append(parts, fmt.Sprintf(`--%s \"value\"`, f.CLIFlag))
 	}
 	return strings.Join(parts, " ")
+}
+
+// inputExampleBlock returns a multi-line Example string for a mutation command
+// that includes both usage and a JSON payload example when InputExample is set.
+func inputExampleBlock(resName, cliName string, fields []Argument, inputExample string) string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("  # Using a JSON input file:"))
+	lines = append(lines, fmt.Sprintf("  worksome %s %s --input payload.json", resName, cliName))
+	if flagEx := inputFlagExample(resName, cliName, fields); flagEx != "" {
+		lines = append(lines, "")
+		lines = append(lines, "  # Using flags:")
+		lines = append(lines, "  "+flagEx)
+	}
+	if inputExample != "" {
+		lines = append(lines, "")
+		lines = append(lines, "  # Example payload.json:")
+		for _, l := range strings.Split(inputExample, "\n") {
+			lines = append(lines, "  "+l)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// inputExampleBlockHoisted is like inputExampleBlock but for hoisted commands.
+func inputExampleBlockHoisted(resName string, fields []Argument, inputExample string) string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("  # Using a JSON input file:"))
+	lines = append(lines, fmt.Sprintf("  worksome %s --input payload.json", resName))
+	if flagEx := inputFlagExampleHoisted(resName, fields); flagEx != "" {
+		lines = append(lines, "")
+		lines = append(lines, "  # Using flags:")
+		lines = append(lines, "  "+flagEx)
+	}
+	if inputExample != "" {
+		lines = append(lines, "")
+		lines = append(lines, "  # Example payload.json:")
+		for _, l := range strings.Split(inputExample, "\n") {
+			lines = append(lines, "  "+l)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func buildQueryArgs(args []Argument) string {

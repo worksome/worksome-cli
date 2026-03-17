@@ -82,7 +82,7 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "accept-bid",
 		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
-		Example: "  worksome accept-bid --input data.json\n  worksome accept-bid --bid \"value\" --contact-person \"value\" --billing-contact-person \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome accept-bid --input payload.json\n\n  # Using flags:\n  worksome accept-bid --bid \\\"value\\\" --contact-person \\\"value\\\" --billing-contact-person \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"additionalTerms\": \"...\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"bid\": \"<id>\",\n    \"billingContactPerson\": \"<id>\",\n    \"closeOtherConversations\": false,\n    \"closingMessage\": \"...\",\n    \"companyAddress\": \"...\",\n    \"companyCity\": \"...\",\n    \"companyCountry\": \"...\",\n    \"companyName\": \"...\",\n    \"companyZipCode\": \"...\",\n    \"contactPerson\": \"<id>\",\n    \"customInvoiceText\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"jobDescription\": \"...\",\n    \"jobTitle\": \"...\",\n    \"paymentTermDays\": \"EIGHT\",\n    \"paymentTermMethod\": \"END_OF_MONTH\",\n    \"purchaseOrderNumber\": \"...\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"workplaceAddress\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -498,7 +498,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "action",
 		Short:   "Create action for an approval approvable.",
-		Example: "  worksome approval-approvables action --input data.json\n  worksome approval-approvables action --id \"value\" --status \"value\" --reason \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approval-approvables action --input payload.json\n\n  # Using flags:\n  worksome approval-approvables action --id \\\"value\\\" --status \\\"value\\\" --reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"reason\": \"...\",\n    \"status\": \"UNKNOWN\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -742,7 +742,7 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval rule for one or more fields.",
-		Example: "  worksome approval-rules create --input data.json\n  worksome approval-rules create --approval \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approval-rules create --input payload.json\n\n  # Using flags:\n  worksome approval-rules create --approval \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approval\": \"<id>\",\n    \"rules\": [\n      {\n        \"id\": \"...\",\n        \"rule\": {\n          \"operator\": \"LESS\",\n          \"value\": \"...\"\n        }\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1125,7 +1125,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approval. Only companies can create approvals.",
-		Example: "  worksome approvals create --input data.json\n  worksome approvals create --name \"value\" --status \"value\" --trigger \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approvals create --input payload.json\n\n  # Using flags:\n  worksome approvals create --name \\\"value\\\" --status \\\"value\\\" --trigger \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"trigger\": \"NONE\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1206,7 +1206,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approval.",
-		Example: "  worksome approvals update --input data.json\n  worksome approvals update --id \"value\" --name \"value\" --status \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approvals update --input payload.json\n\n  # Using flags:\n  worksome approvals update --id \\\"value\\\" --name \\\"value\\\" --status \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"trigger\": \"NONE\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1466,7 +1466,7 @@ func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an approver for an approver rule.",
-		Example: "  worksome approvers create --input data.json\n  worksome approvers create --approval-rule \"value\" --user-group \"value\" --position \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approvers create --input payload.json\n\n  # Using flags:\n  worksome approvers create --approval-rule \\\"value\\\" --user-group \\\"value\\\" --position \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approvalRule\": \"<id>\",\n    \"position\": 0,\n    \"userGroup\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1537,7 +1537,7 @@ func newApproversUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update an approver.",
-		Example: "  worksome approvers update --input data.json\n  worksome approvers update --id \"value\" --user-group \"value\" --position \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome approvers update --input payload.json\n\n  # Using flags:\n  worksome approvers update --id \\\"value\\\" --user-group \\\"value\\\" --position \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"position\": 0,\n    \"userGroup\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1624,7 +1624,7 @@ func newBankDetailsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "",
 		Short:   "Update the bank account details.",
-		Example: "  worksome bank-details  --input data.json\n  worksome bank-details  --account-id \"value\" --name \"value\" --bank-address \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome bank-details  --input payload.json\n\n  # Using flags:\n  worksome bank-details  --account-id \\\"value\\\" --name \\\"value\\\" --bank-address \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"bankAddress\": \"...\",\n    \"bankCountry\": \"...\",\n    \"bankName\": \"...\",\n    \"bban\": {\n      \"accountNumber\": \"...\",\n      \"accountSuffix\": \"...\",\n      \"bankCode\": \"...\",\n      \"bankId\": \"...\",\n      \"branchCode\": \"...\",\n      \"branchId\": \"...\",\n      \"bsb\": \"...\",\n      \"institutionNumber\": \"...\",\n      \"purposeOfPayment\": \"...\",\n      \"registrationNumber\": \"...\",\n      \"routingCode\": \"...\",\n      \"sortCode\": \"...\",\n      \"transitNumber\": \"...\"\n    },\n    \"beneficiaryName\": \"...\",\n    \"iban\": \"...\",\n    \"name\": \"...\",\n    \"swift\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1736,7 +1736,7 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run",
 		Short:   "Run an action on a batch.",
-		Example: "  worksome batch-action run --input data.json\n  worksome batch-action run --batch \"value\" --action \"value\" --delete-if-emptied \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome batch-action run --input payload.json\n\n  # Using flags:\n  worksome batch-action run --batch \\\"value\\\" --action \\\"value\\\" --delete-if-emptied \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"action\": \"PROCESS\",\n    \"batch\": \"<id>\",\n    \"deleteIfEmptied\": false,\n    \"scope\": {\n      \"excludeIds\": [\n        \"<id>\"\n      ],\n      \"ids\": [\n        \"<id>\"\n      ],\n      \"status\": \"PROCESSING\"\n    }\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1989,7 +1989,7 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a new batch of items for processing.",
-		Example: "  worksome batches create --input data.json\n  worksome batches create --account \"value\" --type \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome batches create --input payload.json\n\n  # Using flags:\n  worksome batches create --account \\\"value\\\" --type \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"items\": [\n      \"<id>\"\n    ],\n    \"type\": \"PARTNER_PAYMENT_REQUESTS\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2238,7 +2238,7 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "block-trusted-contact",
 		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
-		Example: "  worksome block-trusted-contact --input data.json\n  worksome block-trusted-contact --id \"value\" --account \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome block-trusted-contact --input payload.json\n\n  # Using flags:\n  worksome block-trusted-contact --id \\\"value\\\" --account \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2747,7 +2747,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
-		Example: "  worksome company-recruiters create --input data.json\n  worksome company-recruiters create --company \"value\" --name \"value\" --email \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2843,7 +2843,7 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.",
-		Example: "  worksome company-recruiters delete --input data.json\n  worksome company-recruiters delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters delete --input payload.json\n\n  # Using flags:\n  worksome company-recruiters delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2904,7 +2904,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "invite",
 		Short:   "Invite an existing recruiter. Only companies can invite the recruiter.",
-		Example: "  worksome company-recruiters invite --input data.json\n  worksome company-recruiters invite --id \"value\" --company \"value\" --recruiter-fee \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters invite --input payload.json\n\n  # Using flags:\n  worksome company-recruiters invite --id \\\"value\\\" --company \\\"value\\\" --recruiter-fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -2990,7 +2990,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
-		Example: "  worksome company-recruiters update --input data.json\n  worksome company-recruiters update --id \"value\" --recruiter-fee \"value\" --recruiter-ownership-days \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3690,7 +3690,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a custom field.",
-		Example: "  worksome custom-fields create --input data.json\n  worksome custom-fields create --account \"value\" --field-type \"value\" --applies-to \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields create --input payload.json\n\n  # Using flags:\n  worksome custom-fields create --account \\\"value\\\" --field-type \\\"value\\\" --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"apiOnly\": false,\n    \"appliesTo\": \"JOB\",\n    \"approval\": false,\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3796,7 +3796,7 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a custom field. All fields details must be provided.",
-		Example: "  worksome custom-fields delete --input data.json\n  worksome custom-fields delete --custom-field \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields delete --input payload.json\n\n  # Using flags:\n  worksome custom-fields delete --custom-field \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customField\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3857,7 +3857,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a custom field. All fields must be provided.",
-		Example: "  worksome custom-fields update --input data.json\n  worksome custom-fields update --custom-field \"value\" --field-type \"value\" --title \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields update --input payload.json\n\n  # Using flags:\n  worksome custom-fields update --custom-field \\\"value\\\" --field-type \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"apiOnly\": false,\n    \"approval\": false,\n    \"customField\": \"<id>\",\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3966,7 +3966,6 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
-	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -3975,7 +3974,7 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "change",
 		Short:   "Change the email of the currently authenticated user.",
-		Example: "  worksome email change --input data.json\n  worksome email change --user \"value\" --email \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome email change --input payload.json\n\n  # Using flags:\n  worksome email change --user \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"email\": \"...\",\n    \"user\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4037,51 +4036,6 @@ func newEmailChangeCmd() *cobra.Command {
 	return cmd
 }
 
-func newEmailSendVerificationCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send-verification",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	return cmd
-}
-
 // NewEmploymentChangesCmd creates the employment-changes resource command.
 func NewEmploymentChangesCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -4102,7 +4056,7 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Mark an employment as updated.",
-		Example: "  worksome employment-changes approve --input data.json\n  worksome employment-changes approve --employment \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome employment-changes approve --input payload.json\n\n  # Using flags:\n  worksome employment-changes approve --employment \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"employment\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4396,7 +4350,7 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "onboard",
 		Short:   "Onboard an employment with optional employment costs.",
-		Example: "  worksome employments onboard --input data.json\n  worksome employments onboard --employment \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome employments onboard --input payload.json\n\n  # Using flags:\n  worksome employments onboard --employment \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"employment\": \"<id>\",\n    \"employmentCosts\": {\n      \"fixedAmount\": 0,\n      \"oneTimeAmount\": 0,\n      \"percentage\": 0\n    }\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4473,7 +4427,7 @@ func newExportCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create an export. The export URL and the number of rows will be returned (excluding headings).",
-		Example: "  worksome export create --input data.json\n  worksome export create --user-id \"value\" --impersonator-id \"value\" --account-id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome export create --input payload.json\n\n  # Using flags:\n  worksome export create --user-id \\\"value\\\" --impersonator-id \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": 0,\n    \"accountType\": \"...\",\n    \"args\": {\n      \"companies\": [\n        0\n      ],\n      \"dateFrom\": \"2024-01-01\",\n      \"dateTo\": \"2024-01-01\",\n      \"meta\": \"...\"\n    },\n    \"deliveries\": [\n      \"...\"\n    ],\n    \"generatorType\": \"...\",\n    \"impersonatorId\": 0,\n    \"type\": \"...\",\n    \"userId\": 0\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4794,8 +4748,9 @@ func NewFilesAsUploadedCmd() *cobra.Command {
 
 func newFilesAsUploadedMarkCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "mark",
-		Short: "Mark one or more files as uploaded to the temporary URL.",
+		Use:     "mark",
+		Short:   "Mark one or more files as uploaded to the temporary URL.",
+		Example: "  # Using a JSON input file:\n  worksome files-as-uploaded mark --input payload.json\n\n  # Example payload.json:\n  {\n    \"files\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5210,7 +5165,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attribute-recruiter-to",
 		Short:   "Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.",
-		Example: "  worksome hires attribute-recruiter-to --input data.json\n  worksome hires attribute-recruiter-to --hire \"value\" --recruiter \"value\" --fee \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires attribute-recruiter-to --input payload.json\n\n  # Using flags:\n  worksome hires attribute-recruiter-to --hire \\\"value\\\" --recruiter \\\"value\\\" --fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"fee\": 0,\n    \"hire\": \"<id>\",\n    \"ownershipDays\": 0,\n    \"ownershipStartDate\": \"2024-01-01\",\n    \"recruiter\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5291,7 +5246,7 @@ func newHiresCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cancel",
 		Short:   "Cancel a hire. Only companies can cancel their hires.",
-		Example: "  worksome hires cancel --input data.json\n  worksome hires cancel --hire \"value\" --message \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires cancel --input payload.json\n\n  # Using flags:\n  worksome hires cancel --hire \\\"value\\\" --message \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\",\n    \"message\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5357,7 +5312,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-draft",
 		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.",
-		Example: "  worksome hires create-draft --input data.json\n  worksome hires create-draft --trusted-contact \"value\" --job \"value\" --name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires create-draft --input payload.json\n\n  # Using flags:\n  worksome hires create-draft --trusted-contact \\\"value\\\" --job \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"conversation\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"hireDescription\": \"...\",\n    \"includeStandardContract\": false,\n    \"job\": \"<id>\",\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"rateType\": \"HOURLY\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"trustedContact\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5488,7 +5443,7 @@ func newHiresRejectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reject",
 		Short:   "Reject a hire.",
-		Example: "  worksome hires reject --input data.json\n  worksome hires reject --account \"value\" --hire \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires reject --input payload.json\n\n  # Using flags:\n  worksome hires reject --account \\\"value\\\" --hire \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"hire\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5554,7 +5509,7 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove-recruiter-from",
 		Short:   "Remove a recruiter from a hire. Only companies can remove recruiters from their hires.",
-		Example: "  worksome hires remove-recruiter-from --input data.json\n  worksome hires remove-recruiter-from --hire \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires remove-recruiter-from --input payload.json\n\n  # Using flags:\n  worksome hires remove-recruiter-from --hire \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5615,7 +5570,7 @@ func newHiresShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "share",
 		Short:   "Share/offer a hire with a worker. Only companies can remove recruiters from their hires.",
-		Example: "  worksome hires share --input data.json\n  worksome hires share --hire \"value\" --message \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires share --input payload.json\n\n  # Using flags:\n  worksome hires share --hire \\\"value\\\" --message \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"hire\": \"<id>\",\n    \"message\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5681,7 +5636,7 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "terminate",
 		Short:   "Terminate a hire.",
-		Example: "  worksome hires terminate --input data.json\n  worksome hires terminate --hire \"value\" --reason \"value\" --comments \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome hires terminate --input payload.json\n\n  # Using flags:\n  worksome hires terminate --hire \\\"value\\\" --reason \\\"value\\\" --comments \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"comments\": \"...\",\n    \"date\": \"2024-01-01\",\n    \"hire\": \"<id>\",\n    \"message\": \"...\",\n    \"reason\": \"WORKER_UNAVAILABILITY\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6082,7 +6037,7 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Short:   "Generate the company invite link token.",
-		Example: "  worksome invite-link generate --input data.json\n  worksome invite-link generate --company \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome invite-link generate --input payload.json\n\n  # Using flags:\n  worksome invite-link generate --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6427,7 +6382,7 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update job candidates \"preferred\" status.",
-		Example: "  worksome job-candidate-preferred update --input data.json\n  worksome job-candidate-preferred update --job-candidate \"value\" --is-preferred \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome job-candidate-preferred update --input payload.json\n\n  # Using flags:\n  worksome job-candidate-preferred update --job-candidate \\\"value\\\" --is-preferred \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"isPreferred\": false,\n    \"jobCandidate\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6509,7 +6464,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job candidate status. A reason and comment can be provided.",
-		Example: "  worksome job-candidate-status update --input data.json\n  worksome job-candidate-status update --job-candidate \"value\" --status \"value\" --status-reason \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome job-candidate-status update --input payload.json\n\n  # Using flags:\n  worksome job-candidate-status update --job-candidate \\\"value\\\" --status \\\"value\\\" --status-reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"feedback\": \"...\",\n    \"jobCandidate\": \"<id>\",\n    \"status\": \"ELIGIBLE\",\n    \"statusComment\": \"...\",\n    \"statusReason\": \"SKILLS_OR_EXPERIENCE\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6783,7 +6738,7 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job candidate. This will make the workers eligible and proposed for a job.",
-		Example: "  worksome job-candidates create --input data.json\n  worksome job-candidates create --job \"value\" --sourcing-channel \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome job-candidates create --input payload.json\n\n  # Using flags:\n  worksome job-candidates create --job \\\"value\\\" --sourcing-channel \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"job\": \"<id>\",\n    \"sourcingChannel\": \"TRUSTED_CONTACT\",\n    \"workers\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6996,7 +6951,7 @@ func newJobSharesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job share.",
-		Example: "  worksome job-shares create --input data.json\n  worksome job-shares create --job \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome job-shares create --input payload.json\n\n  # Using flags:\n  worksome job-shares create --job \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accounts\": [\n      \"<id>\"\n    ],\n    \"job\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7055,8 +7010,9 @@ func newJobSharesCreateCmd() *cobra.Command {
 
 func newJobSharesRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove a job share.",
+		Use:     "remove",
+		Short:   "Remove a job share.",
+		Example: "  # Using a JSON input file:\n  worksome job-shares remove --input payload.json\n\n  # Example payload.json:\n  {\n    \"ids\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7409,7 +7365,7 @@ func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a job. Only companies can create jobs.",
-		Example: "  worksome jobs create --input data.json\n  worksome jobs create --company \"value\" --name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome jobs create --input payload.json\n\n  # Using flags:\n  worksome jobs create --company \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7475,7 +7431,7 @@ func newJobsDuplicateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "duplicate",
 		Short:   "Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.",
-		Example: "  worksome jobs duplicate --input data.json\n  worksome jobs duplicate --id \"value\" --title \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome jobs duplicate --input payload.json\n\n  # Using flags:\n  worksome jobs duplicate --id \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"title\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7541,7 +7497,7 @@ func newJobsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a job. Only companies can end jobs.",
-		Example: "  worksome jobs end --input data.json\n  worksome jobs end --id \"value\" --account-id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome jobs end --input payload.json\n\n  # Using flags:\n  worksome jobs end --id \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7607,7 +7563,7 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-internal-budget-on",
 		Short:   "Set the internal budget of a job. Only companies can set the internal budget on the job.",
-		Example: "  worksome jobs set-internal-budget-on --input data.json\n  worksome jobs set-internal-budget-on --job \"value\" --amount \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome jobs set-internal-budget-on --input payload.json\n\n  # Using flags:\n  worksome jobs set-internal-budget-on --job \\\"value\\\" --amount \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"amount\": 0,\n    \"job\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7673,7 +7629,7 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job. Only companies can update jobs.",
-		Example: "  worksome jobs update --input data.json\n  worksome jobs update --id \"value\" --locale \"value\" --name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome jobs update --input payload.json\n\n  # Using flags:\n  worksome jobs update --id \\\"value\\\" --locale \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"association\": \"SMALL_TASK\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"endDateTimeframe\": \"ONE_MONTH\",\n    \"evaluationPeriod\": \"MONTH\",\n    \"expectedExperienceLevel\": [\n      \"STUDENT\"\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"industries\": [\n      \"<id>\"\n    ],\n    \"isExtensionAvailable\": false,\n    \"languages\": [\n      {\n        \"experience\": \"GOOD\",\n        \"name\": \"ARABIC\"\n      }\n    ],\n    \"locale\": \"ENGLISH\",\n    \"location\": {\n      \"address\": \"...\",\n      \"city\": \"...\",\n      \"country\": \"...\",\n      \"postCode\": \"...\",\n      \"state\": \"...\"\n    },\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"paymentScheme\": \"ANY\",\n    \"published\": false,\n    \"rateType\": {\n      \"range\": {\n        \"maximum\": 0,\n        \"minimum\": 0\n      },\n      \"rate\": 0,\n      \"type\": \"HOURLY\"\n    },\n    \"removed\": false,\n    \"removedCause\": \"...\",\n    \"requiredWorkers\": 0,\n    \"skills\": [\n      \"...\"\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"startDateTimeframe\": \"ASAP\",\n    \"visibility\": [\n      \"VISIBLE_FOR_TRUSTED_CONTACTS\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -7992,8 +7948,9 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 
 func newMilestonesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create one or more milestones.",
+		Use:     "create",
+		Short:   "Create one or more milestones.",
+		Example: "  # Using a JSON input file:\n  worksome milestones create --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"amount\": 0,\n        \"dueDate\": \"2024-01-01\",\n        \"hire\": \"<id>\",\n        \"name\": \"...\",\n        \"purchaseOrderNumber\": \"...\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8037,8 +7994,9 @@ func newMilestonesCreateCmd() *cobra.Command {
 
 func newMilestonesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete one or more milestones.",
+		Use:     "delete",
+		Short:   "Delete one or more milestones.",
+		Example: "  # Using a JSON input file:\n  worksome milestones delete --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"id\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8082,8 +8040,9 @@ func newMilestonesDeleteCmd() *cobra.Command {
 
 func newMilestonesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update one or more milestones.",
+		Use:     "update",
+		Short:   "Update one or more milestones.",
+		Example: "  # Using a JSON input file:\n  worksome milestones update --input payload.json\n\n  # Example payload.json:\n  {\n    \"milestones\": [\n      {\n        \"amount\": 0,\n        \"dueDate\": \"2024-01-01\",\n        \"id\": \"<id>\",\n        \"name\": \"...\",\n        \"purchaseOrderNumber\": \"...\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8294,7 +8253,7 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-sms",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  worksome multi-factors create-sms --input data.json\n  worksome multi-factors create-sms --name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome multi-factors create-sms --input payload.json\n\n  # Using flags:\n  worksome multi-factors create-sms --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"name\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8355,7 +8314,7 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-totp",
 		Short:   "Create a new multi-factor authentication implementation.",
-		Example: "  worksome multi-factors create-totp --input data.json\n  worksome multi-factors create-totp --name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome multi-factors create-totp --input payload.json\n\n  # Using flags:\n  worksome multi-factors create-totp --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"name\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8416,7 +8375,7 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove a multi-factor authentication implementation.",
-		Example: "  worksome multi-factors remove --input data.json\n  worksome multi-factors remove --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome multi-factors remove --input payload.json\n\n  # Using flags:\n  worksome multi-factors remove --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8477,7 +8436,7 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-sms",
 		Short:   "Verify a multi-factor authentication implementation.",
-		Example: "  worksome multi-factors verify-sms --input data.json\n  worksome multi-factors verify-sms --id \"value\" --code \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome multi-factors verify-sms --input payload.json\n\n  # Using flags:\n  worksome multi-factors verify-sms --id \\\"value\\\" --code \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"code\": \"...\",\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8543,7 +8502,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-totp",
 		Short:   "Verify a TOTP multi-factor authentication implementation.",
-		Example: "  worksome multi-factors verify-totp --input data.json\n  worksome multi-factors verify-totp --id \"value\" --code \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome multi-factors verify-totp --input payload.json\n\n  # Using flags:\n  worksome multi-factors verify-totp --id \\\"value\\\" --code \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"code\": \"...\",\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8609,7 +8568,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Delete a note.",
+		Short: "Create a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8627,7 +8586,7 @@ func newNoteCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a note.",
-		Example: "  worksome note create --input data.json\n  worksome note create --body \"value\" --title \"value\" --account-id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome note create --input payload.json\n\n  # Using flags:\n  worksome note create --body \\\"value\\\" --title \\\"value\\\" --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"body\": \"...\",\n    \"notableId\": \"<id>\",\n    \"title\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8703,7 +8662,7 @@ func newNoteDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a note.",
-		Example: "  worksome note delete --input data.json\n  worksome note delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome note delete --input payload.json\n\n  # Using flags:\n  worksome note delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8764,7 +8723,7 @@ func newNoteUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a note.",
-		Example: "  worksome note update --input data.json\n  worksome note update --id \"value\" --body \"value\" --title \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome note update --input payload.json\n\n  # Using flags:\n  worksome note update --id \\\"value\\\" --body \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"body\": \"...\",\n    \"id\": \"<id>\",\n    \"title\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8835,7 +8794,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8852,7 +8811,7 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "manage",
 		Short:   "Manage Onboarding documents.",
-		Example: "  worksome onboarding-documents manage --input data.json\n  worksome onboarding-documents manage --company \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome onboarding-documents manage --input payload.json\n\n  # Using flags:\n  worksome onboarding-documents manage --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"documents\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8913,7 +8872,7 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove Onboarding documents.",
-		Example: "  worksome onboarding-documents remove --input data.json\n  worksome onboarding-documents remove --company \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome onboarding-documents remove --input payload.json\n\n  # Using flags:\n  worksome onboarding-documents remove --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"documents\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9357,7 +9316,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Update a user's password.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9374,7 +9333,7 @@ func newPasswordCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
-		Example: "  worksome password create --input data.json\n  worksome password create --password \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome password create --input payload.json\n\n  # Using flags:\n  worksome password create --password \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"password\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9435,7 +9394,7 @@ func newPasswordUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user's password.",
-		Example: "  worksome password update --input data.json\n  worksome password update --current-password \"value\" --password \"value\" --password-confirmation \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome password update --input payload.json\n\n  # Using flags:\n  worksome password update --current-password \\\"value\\\" --password \\\"value\\\" --password-confirmation \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currentPassword\": \"...\",\n    \"password\": \"...\",\n    \"passwordConfirmation\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9786,7 +9745,7 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a payment request.",
-		Example: "  worksome payment-requests create --input data.json\n  worksome payment-requests create --worker \"value\" --job \"value\" --company \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome payment-requests create --input payload.json\n\n  # Using flags:\n  worksome payment-requests create --worker \\\"value\\\" --job \\\"value\\\" --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"billableTime\": 0,\n    \"billableTotal\": 0,\n    \"comments\": \"...\",\n    \"company\": \"<id>\",\n    \"endDate\": \"2024-01-01\",\n    \"expenseReports\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"job\": \"<id>\",\n    \"rate\": 0,\n    \"startDate\": \"2024-01-01\",\n    \"taxLines\": [\n      {\n        \"rate\": 0,\n        \"terminology\": \"...\"\n      }\n    ],\n    \"timesheet\": \"<id>\",\n    \"worker\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9897,7 +9856,7 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a payment request.",
-		Example: "  worksome payment-requests delete --input data.json\n  worksome payment-requests delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome payment-requests delete --input payload.json\n\n  # Using flags:\n  worksome payment-requests delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9958,7 +9917,7 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a payment request.",
-		Example: "  worksome payment-requests update --input data.json\n  worksome payment-requests update --id \"value\" --start-date \"value\" --end-date \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome payment-requests update --input payload.json\n\n  # Using flags:\n  worksome payment-requests update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"billableTime\": 0,\n    \"billableTotal\": 0,\n    \"comments\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"expenseReports\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"startDate\": \"2024-01-01\",\n    \"taxLines\": [\n      {\n        \"rate\": 0,\n        \"terminology\": \"...\"\n      }\n    ],\n    \"timesheet\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10075,7 +10034,7 @@ func newPersonalInviteLinkGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome personal-invite-link generate --input payload.json\n\n  # Using flags:\n  worksome personal-invite-link generate --company \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10335,7 +10294,7 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-jobs-to",
 		Short:   "Attach one or more jobs to a project. Only companies can attach jobs to projects.",
-		Example: "  worksome projects attach-jobs-to --input data.json\n  worksome projects attach-jobs-to --project \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects attach-jobs-to --input payload.json\n\n  # Using flags:\n  worksome projects attach-jobs-to --project \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"jobs\": [\n      \"<id>\"\n    ],\n    \"project\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10396,7 +10355,7 @@ func newProjectsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a project. Only companies can create projects.",
-		Example: "  worksome projects create --input data.json\n  worksome projects create --name \"value\" --description \"value\" --internal-budget \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects create --input payload.json\n\n  # Using flags:\n  worksome projects create --name \\\"value\\\" --description \\\"value\\\" --internal-budget \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"internalBudget\": 0,\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10477,7 +10436,7 @@ func newProjectsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a project. Only companies can delete projects.",
-		Example: "  worksome projects delete --input data.json\n  worksome projects delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects delete --input payload.json\n\n  # Using flags:\n  worksome projects delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10538,7 +10497,7 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-job-from",
 		Short:   "Detach a job from a project Only companies can detach a job from a project.",
-		Example: "  worksome projects detach-job-from --input data.json\n  worksome projects detach-job-from --job \"value\" --project \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects detach-job-from --input payload.json\n\n  # Using flags:\n  worksome projects detach-job-from --job \\\"value\\\" --project \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"job\": \"<id>\",\n    \"project\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10604,7 +10563,7 @@ func newProjectsEndCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "end",
 		Short:   "End a project. This is used to set an end date on the project to consider it no longer active.",
-		Example: "  worksome projects end --input data.json\n  worksome projects end --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects end --input payload.json\n\n  # Using flags:\n  worksome projects end --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10665,7 +10624,7 @@ func newProjectsOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "open",
 		Short:   "Open a project. This is used to set the end date on the project to `null` to make it open again.",
-		Example: "  worksome projects open --input data.json\n  worksome projects open --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects open --input payload.json\n\n  # Using flags:\n  worksome projects open --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10726,7 +10685,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a project. Only companies can update projects.",
-		Example: "  worksome projects update --input data.json\n  worksome projects update --id \"value\" --name \"value\" --description \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome projects update --input payload.json\n\n  # Using flags:\n  worksome projects update --id \\\"value\\\" --name \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"internalBudget\": 0,\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -10992,7 +10951,7 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new candidate. Only recruiters can add and invite candidates.",
-		Example: "  worksome recruiter-candidates create --input data.json\n  worksome recruiter-candidates create --recruiter \"value\" --first-name \"value\" --middle-name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates create --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates create --recruiter \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currency\": \"...\",\n    \"dailyRate\": 0,\n    \"email\": \"...\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"firstName\": \"...\",\n    \"hourlyRate\": 0,\n    \"jobTitle\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"middleName\": \"...\",\n    \"monthlyRate\": 0,\n    \"recruiter\": \"<id>\",\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11098,7 +11057,7 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.",
-		Example: "  worksome recruiter-candidates delete --input data.json\n  worksome recruiter-candidates delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates delete --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11159,7 +11118,7 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter candidate information. Only recruiters can edit the relationship.",
-		Example: "  worksome recruiter-candidates update --input data.json\n  worksome recruiter-candidates update --id \"value\" --job-title \"value\" --currency \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome recruiter-candidates update --input payload.json\n\n  # Using flags:\n  worksome recruiter-candidates update --id \\\"value\\\" --job-title \\\"value\\\" --currency \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"currency\": \"...\",\n    \"dailyRate\": 0,\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hourlyRate\": 0,\n    \"id\": \"<id>\",\n    \"jobTitle\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"monthlyRate\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11379,7 +11338,7 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reinvite-trusted-contact",
 		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
-		Example: "  worksome reinvite-trusted-contact --input data.json\n  worksome reinvite-trusted-contact --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome reinvite-trusted-contact --input payload.json\n\n  # Using flags:\n  worksome reinvite-trusted-contact --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11577,7 +11536,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -11594,7 +11553,7 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet registration. Only workers can delete timesheet registrations.",
-		Example: "  worksome timesheet-registration delete --input data.json\n  worksome timesheet-registration delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheet-registration delete --input payload.json\n\n  # Using flags:\n  worksome timesheet-registration delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11655,7 +11614,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet registration. Only workers can update timesheet registrations.",
-		Example: "  worksome timesheet-registration update --input data.json\n  worksome timesheet-registration update --id \"value\" --start-time \"value\" --end-time \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheet-registration update --input payload.json\n\n  # Using flags:\n  worksome timesheet-registration update --id \\\"value\\\" --start-time \\\"value\\\" --end-time \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"comments\": \"...\",\n    \"duration\": 0,\n    \"endTime\": \"12:00:00\",\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"invoiceReferenceNumber\": \"...\",\n    \"isBillable\": false,\n    \"startTime\": \"12:00:00\",\n    \"unit\": \"HOURS\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11932,7 +11891,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-custom",
 		Short:   "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
-		Example: "  worksome timesheets create-custom --input data.json\n  worksome timesheets create-custom --schema \"value\" --data \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheets create-custom --input payload.json\n\n  # Using flags:\n  worksome timesheets create-custom --schema \\\"value\\\" --data \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"data\": \"...\",\n    \"schema\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -11998,7 +11957,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a timesheet. Only workers can create timesheets.",
-		Example: "  worksome timesheets create --input data.json\n  worksome timesheets create --worker \"value\" --hire \"value\" --start-date \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"freeText\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12074,7 +12033,7 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a timesheet. Only workers can delete timesheets.",
-		Example: "  worksome timesheets delete --input data.json\n  worksome timesheets delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheets delete --input payload.json\n\n  # Using flags:\n  worksome timesheets delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12135,7 +12094,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet. Only workers can update timesheets.",
-		Example: "  worksome timesheets update --input data.json\n  worksome timesheets update --id \"value\" --start-date \"value\" --end-date \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"freeText\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12472,7 +12431,7 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve",
 		Short:   "Approve a trusted contact. Only companies can approve trusted contacts.",
-		Example: "  worksome trusted-contacts approve --input data.json\n  worksome trusted-contacts approve --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts approve --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts approve --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12533,7 +12492,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
-		Example: "  worksome trusted-contacts create --input data.json\n  worksome trusted-contacts create --company \"value\" --first-name \"value\" --middle-name \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts create --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts create --company \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"company\": \"<id>\",\n    \"country\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"firstName\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"message\": \"...\",\n    \"middleName\": \"...\",\n    \"name\": \"...\",\n    \"notifyWorker\": false,\n    \"origin\": \"INVITED\",\n    \"originChannel\": \"EXISTING_SETUP\",\n    \"skills\": [\n      \"...\"\n    ],\n    \"state\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12654,7 +12613,7 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a trusted contact. Only companies can delete trusted contacts.",
-		Example: "  worksome trusted-contacts delete --input data.json\n  worksome trusted-contacts delete --id \"value\" --account \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts delete --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts delete --id \\\"value\\\" --account \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12720,7 +12679,7 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a trusted contact. Only companies can edit trusted contacts.",
-		Example: "  worksome trusted-contacts update --input data.json\n  worksome trusted-contacts update --id \"value\" --external-identifier \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts update --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts update --id \\\"value\\\" --external-identifier \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -12976,7 +12935,7 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-users-to",
 		Short:   "Attach one or more users to a group. Only companies can attach users to groups.",
-		Example: "  worksome user-groups attach-users-to --input data.json\n  worksome user-groups attach-users-to --user-group \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome user-groups attach-users-to --input payload.json\n\n  # Using flags:\n  worksome user-groups attach-users-to --user-group \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"userGroup\": \"<id>\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13037,7 +12996,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a user group. Only companies can create user groups.",
-		Example: "  worksome user-groups create --input data.json\n  worksome user-groups create --name \"value\" --description \"value\" --status \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome user-groups create --input payload.json\n\n  # Using flags:\n  worksome user-groups create --name \\\"value\\\" --description \\\"value\\\" --status \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13113,7 +13072,7 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Soft delete a user group. Only companies can delete user groups.",
-		Example: "  worksome user-groups delete --input data.json\n  worksome user-groups delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome user-groups delete --input payload.json\n\n  # Using flags:\n  worksome user-groups delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13174,7 +13133,7 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "detach-users-from",
 		Short:   "Detach one or more user from a group. Only companies can detach users from a group.",
-		Example: "  worksome user-groups detach-users-from --input data.json\n  worksome user-groups detach-users-from --user-group \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome user-groups detach-users-from --input payload.json\n\n  # Using flags:\n  worksome user-groups detach-users-from --user-group \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"userGroup\": \"<id>\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13235,7 +13194,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a user group. Only companies can update user groups.",
-		Example: "  worksome user-groups update --input data.json\n  worksome user-groups update --id \"value\" --name \"value\" --description \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome user-groups update --input payload.json\n\n  # Using flags:\n  worksome user-groups update --id \\\"value\\\" --name \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"name\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"users\": [\n      \"<id>\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13304,6 +13263,67 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
+	return cmd
+}
+
+// NewVerificationEmailCmd creates the verification-email resource command.
+func NewVerificationEmailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verification-email",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newVerificationEmailSendCmd())
+
+	return cmd
+}
+
+func newVerificationEmailSendCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -13690,7 +13710,7 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "retry",
 		Short:   "Retry a webhook event. Only companies can retry webhook events.",
-		Example: "  worksome webhook-events retry --input data.json\n  worksome webhook-events retry --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome webhook-events retry --input payload.json\n\n  # Using flags:\n  worksome webhook-events retry --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13926,7 +13946,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a webhook. Only companies can create webhooks.",
-		Example: "  worksome webhooks create --input data.json\n  worksome webhooks create --title \"value\" --description \"value\" --url \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome webhooks create --input payload.json\n\n  # Using flags:\n  worksome webhooks create --title \\\"value\\\" --description \\\"value\\\" --url \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"clientId\": \"...\",\n    \"clientUrl\": \"...\",\n    \"company\": \"<id>\",\n    \"description\": \"...\",\n    \"isActive\": false,\n    \"secret\": \"...\",\n    \"subscribedEvents\": [\n      \"CONTRACT_ACCEPTED\"\n    ],\n    \"title\": \"...\",\n    \"url\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14022,7 +14042,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a webhook.",
-		Example: "  worksome webhooks delete --input data.json\n  worksome webhooks delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome webhooks delete --input payload.json\n\n  # Using flags:\n  worksome webhooks delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14083,7 +14103,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a webhook.",
-		Example: "  worksome webhooks update --input data.json\n  worksome webhooks update --id \"value\" --title \"value\" --description \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome webhooks update --input payload.json\n\n  # Using flags:\n  worksome webhooks update --id \\\"value\\\" --title \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"clientId\": \"...\",\n    \"clientUrl\": \"...\",\n    \"description\": \"...\",\n    \"id\": \"<id>\",\n    \"isActive\": false,\n    \"secret\": \"...\",\n    \"subscribedEvents\": [\n      \"CONTRACT_ACCEPTED\"\n    ],\n    \"title\": \"...\",\n    \"url\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14245,7 +14265,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a worker.",
-		Example: "  worksome worker update --input data.json\n  worksome worker update --id \"value\" --job-title \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome worker update --input payload.json\n\n  # Using flags:\n  worksome worker update --id \\\"value\\\" --job-title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"jobTitle\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14327,7 +14347,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
-		Example: "  worksome worker-custom-field-values update --input data.json\n  worksome worker-custom-field-values update --applies-to \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome worker-custom-field-values update --input payload.json\n\n  # Using flags:\n  worksome worker-custom-field-values update --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"appliesTo\": \"<id>\",\n    \"values\": [\n      {\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14675,8 +14695,9 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 
 func newWorkflowsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a workflow. Only companies can create workflows.",
+		Use:     "create",
+		Short:   "Create a workflow. Only companies can create workflows.",
+		Example: "  # Using a JSON input file:\n  worksome workflows create --input payload.json\n\n  # Example payload.json:\n  {\n    \"approvers\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          \"<id>\"\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ],\n    \"root\": {\n      \"children\": [\n        \"<id>\"\n      ],\n      \"data\": {\n        \"company\": \"<id>\",\n        \"description\": \"...\",\n        \"name\": \"...\",\n        \"status\": \"ACTIVE\",\n        \"trigger\": \"NONE\"\n      },\n      \"id\": \"<id>\"\n    },\n    \"rules\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          {\n            \"id\": \"...\",\n            \"rule\": {}\n          }\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14722,7 +14743,7 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete a workflow. Only companies can delete workflows.",
-		Example: "  worksome workflows delete --input data.json\n  worksome workflows delete --id \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome workflows delete --input payload.json\n\n  # Using flags:\n  worksome workflows delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14781,8 +14802,9 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 
 func newWorkflowsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a workflow. Only companies can create workflows.",
+		Use:     "update",
+		Short:   "Update a workflow. Only companies can create workflows.",
+		Example: "  # Using a JSON input file:\n  worksome workflows update --input payload.json\n\n  # Example payload.json:\n  {\n    \"approvers\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          \"<id>\"\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ],\n    \"root\": {\n      \"children\": [\n        \"<id>\"\n      ],\n      \"data\": {\n        \"description\": \"...\",\n        \"name\": \"...\",\n        \"status\": \"ACTIVE\",\n        \"trigger\": \"NONE\"\n      },\n      \"id\": \"<id>\"\n    },\n    \"rules\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          {\n            \"id\": \"...\",\n            \"rule\": {}\n          }\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -14844,7 +14866,7 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update consent to use Worksome Intelligence for the current user.",
-		Example: "  worksome worksome-intelligence-consent update --input data.json\n  worksome worksome-intelligence-consent update --consent \"value\"",
+		Example: "  # Using a JSON input file:\n  worksome worksome-intelligence-consent update --input payload.json\n\n  # Using flags:\n  worksome worksome-intelligence-consent update --consent \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"consent\": false\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
