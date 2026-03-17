@@ -397,6 +397,17 @@ var {{$res.GoName | lower}}Columns = []output.Column{
 }
 {{- end}}
 
+{{- if $res.Hoisted}}
+{{- $mut := index $res.Mutations 0}}
+{{- if $mut.TableColumns}}
+var {{$res.GoName | lower}}HoistedColumns = []output.Column{
+{{- range $mut.TableColumns}}
+	{Header: {{quote .Header}}, Field: {{quote .Field}}},
+{{- end}}
+}
+{{- end}}
+{{- end}}
+
 // New{{$res.GoName}}Cmd creates the {{$res.Name}} resource command.
 func New{{$res.GoName}}Cmd() *cobra.Command {
 {{- if $res.Hoisted}}
@@ -468,7 +479,11 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			{{- if $mut.TableColumns}}
+			return printResult(cmd, result, {{$res.GoName | lower}}HoistedColumns)
+			{{- else}}
 			return printResult(cmd, result, nil)
+			{{- end}}
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -696,6 +711,14 @@ func {{$res.GoName | lower}}FetchAll(cmd *cobra.Command, q *queries.Querier, var
 {{end}}
 
 {{range $mut := $res.Mutations}}
+{{- if $mut.TableColumns}}
+var {{$res.GoName | lower}}{{pascal $mut.CLIName}}Columns = []output.Column{
+{{- range $mut.TableColumns}}
+	{Header: {{quote .Header}}, Field: {{quote .Field}}},
+{{- end}}
+}
+{{- end}}
+
 func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "{{$mut.CLIName}}",
@@ -764,7 +787,11 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			{{- if $mut.TableColumns}}
+			return printResult(cmd, result, {{$res.GoName | lower}}{{pascal $mut.CLIName}}Columns)
+			{{- else}}
 			return printResult(cmd, result, nil)
+			{{- end}}
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")

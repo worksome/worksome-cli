@@ -45,8 +45,9 @@ type Operation struct {
 	SelectionSet     string // Pre-computed GraphQL selection set for the return type
 	Deprecated       bool
 	DeprecatedReason string
-	InputTypeName    string     // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
-	InputFields      []Argument // For mutations: flattened scalar/enum/ID fields from the input type
+	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
+	InputFields      []Argument    // For mutations: flattened scalar/enum/ID fields from the input type
+	TableColumns     []TableColumn // Columns for table output (used by mutations)
 }
 
 // OperationType distinguishes queries from mutations.
