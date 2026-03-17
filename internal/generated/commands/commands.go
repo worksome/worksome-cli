@@ -2438,6 +2438,7 @@ func newClassificationsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("hire", "", "The ID of the hire to get classifications for")
+	_ = cmd.MarkFlagRequired("hire")
 
 	return cmd
 }
@@ -4864,6 +4865,7 @@ func newGateGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
+	_ = cmd.MarkFlagRequired("gate")
 
 	return cmd
 }
@@ -6228,6 +6230,7 @@ func newInvoicesGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("number", "", "The invoice number on the PDF.")
+	_ = cmd.MarkFlagRequired("number")
 
 	return cmd
 }
@@ -11538,7 +11541,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -14486,6 +14489,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
+	_ = cmd.MarkFlagRequired("applies-to")
 
 	return cmd
 }
