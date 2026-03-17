@@ -579,6 +579,11 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 		Short: {{quote $res.ListQuery.Description}},
 		Example: "  worksome {{$res.Name}} list -n 20\n  worksome {{$res.Name}} list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {

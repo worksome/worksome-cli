@@ -364,6 +364,11 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 		Short:   "Get all approvable approvals.",
 		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -638,6 +643,11 @@ func newApprovalRulesListCmd() *cobra.Command {
 		Short:   "Get all approval rules.",
 		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -832,6 +842,11 @@ func newApprovalStatesListCmd() *cobra.Command {
 		Short:   "Get all approval states.",
 		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -1016,6 +1031,11 @@ func newApprovalsListCmd() *cobra.Command {
 		Short:   "Get all approvals.",
 		Example: "  worksome approvals list -n 20\n  worksome approvals list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -1357,6 +1377,11 @@ func newApproversListCmd() *cobra.Command {
 		Short:   "Get all approvers.",
 		Example: "  worksome approvers list -n 20\n  worksome approvers list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -1875,6 +1900,11 @@ func newBatchesListCmd() *cobra.Command {
 		Short:   "Get a list of batches.",
 		Example: "  worksome batches list -n 20\n  worksome batches list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2123,6 +2153,11 @@ func newBidsListCmd() *cobra.Command {
 		Short:   "Get a list of all bids which the viewer has access to.",
 		Example: "  worksome bids list -n 20\n  worksome bids list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2372,6 +2407,11 @@ func newClassificationsListCmd() *cobra.Command {
 		Short:   "Get all classifications for a specific hire.",
 		Example: "  worksome classifications list -n 20\n  worksome classifications list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2613,6 +2653,11 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 		Short:   "Get a list of company recruiters.",
 		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3209,6 +3254,11 @@ func newContractsListCmd() *cobra.Command {
 		Short:   "Get a list of contracts.",
 		Example: "  worksome contracts list -n 20\n  worksome contracts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3396,6 +3446,11 @@ func newConversationsListCmd() *cobra.Command {
 		Short:   "Get a list of conversations.",
 		Example: "  worksome conversations list -n 20\n  worksome conversations list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3576,6 +3631,11 @@ func newCustomFieldsListCmd() *cobra.Command {
 		Short:   "Get a list of custom fields.",
 		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3966,7 +4026,6 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
-	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -4034,51 +4093,6 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
-	return cmd
-}
-
-func newEmailSendVerificationCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send-verification",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -4232,6 +4246,11 @@ func newEmploymentsListCmd() *cobra.Command {
 		Short:   "Get a list of employments.",
 		Example: "  worksome employments list -n 20\n  worksome employments list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -4626,6 +4645,11 @@ func newFilesListCmd() *cobra.Command {
 		Short:   "Get a list of files.",
 		Example: "  worksome files list -n 20\n  worksome files list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -4986,6 +5010,11 @@ func newHiresListCmd() *cobra.Command {
 		Short:   "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
 		Example: "  worksome hires list -n 20\n  worksome hires list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -5824,6 +5853,11 @@ func newIndustriesListCmd() *cobra.Command {
 		Short:   "Get a list of industries.",
 		Example: "  worksome industries list -n 20\n  worksome industries list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -5952,6 +5986,11 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 		Short:   "Get a list of inherited custom fields.",
 		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6074,6 +6113,7 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
+	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -6128,6 +6168,67 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
+func newInviteLinkGeneratePersonalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate-personal",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome invite-link generate-personal --input data.json\n  worksome invite-link generate-personal --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -6277,6 +6378,11 @@ func newInvoicesListCmd() *cobra.Command {
 		Short:   "Get a list of invoices.",
 		Example: "  worksome invoices list -n 20\n  worksome invoices list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6659,6 +6765,11 @@ func newJobCandidatesListCmd() *cobra.Command {
 		Short:   "Get a list of job candidates.",
 		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6877,6 +6988,11 @@ func newJobSharesListCmd() *cobra.Command {
 		Short:   "Get a list of job shares.",
 		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -7175,6 +7291,11 @@ func newJobsListCmd() *cobra.Command {
 		Short:   "Get a list of jobs.",
 		Example: "  worksome jobs list -n 20\n  worksome jobs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -7885,6 +8006,11 @@ func newMilestonesListCmd() *cobra.Command {
 		Short:   "Get a list of milestones.",
 		Example: "  worksome milestones list -n 20\n  worksome milestones list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -8191,6 +8317,11 @@ func newMultiFactorsListCmd() *cobra.Command {
 		Short:   "Retrieve all multi-factor authentication implementation.",
 		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -8609,7 +8740,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Delete a note.",
+		Short: "Create a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8835,7 +8966,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9103,6 +9234,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 		Short:   "Get a list of organisation trusted contacts.",
 		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -9577,6 +9713,11 @@ func newPaymentRequestsListCmd() *cobra.Command {
 		Short:   "Get a list of payment requests.",
 		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -10055,83 +10196,6 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
-func NewPersonalInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "personal-invite-link",
-		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
-
-	return cmd
-}
-
-func newPersonalInviteLinkGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
-			}
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
 var projectsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -10211,6 +10275,11 @@ func newProjectsListCmd() *cobra.Command {
 		Short:   "Get a list of projects.",
 		Example: "  worksome projects list -n 20\n  worksome projects list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -10878,6 +10947,11 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 		Short:   "Get a list of recruiter candidates.",
 		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -11274,6 +11348,11 @@ func newRecruitersListCmd() *cobra.Command {
 		Short:   "Get a list of recruiters.",
 		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -11463,6 +11542,11 @@ func newSkillsListCmd() *cobra.Command {
 		Short:   "Get a list of skills.",
 		Example: "  worksome skills list -n 20\n  worksome skills list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -11577,7 +11661,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -11828,6 +11912,11 @@ func newTimesheetsListCmd() *cobra.Command {
 		Short:   "Get a list of timesheets.",
 		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -12278,6 +12367,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 		Short:   "Get a list of trusted contacts.",
 		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -12857,6 +12951,11 @@ func newUserGroupsListCmd() *cobra.Command {
 		Short:   "Get a list of user groups.",
 		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -13307,6 +13406,67 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+// NewVerificationEmailCmd creates the verification-email resource command.
+func NewVerificationEmailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verification-email",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newVerificationEmailSendCmd())
+
+	return cmd
+}
+
+func newVerificationEmailSendCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	return cmd
+}
+
 var viewerColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -13403,6 +13563,11 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 		Short:   "Get a list of webhook event logs. They are returned in descending order of creation.",
 		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -13586,6 +13751,11 @@ func newWebhookEventsListCmd() *cobra.Command {
 		Short:   "Get a list of webhook events. They are returned in descending order of creation.",
 		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -13822,6 +13992,11 @@ func newWebhooksListCmd() *cobra.Command {
 		Short:   "Get a list of webhooks.",
 		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -14406,6 +14581,11 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 		Short:   "Get all workflow variables.",
 		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -14573,6 +14753,11 @@ func newWorkflowsListCmd() *cobra.Command {
 		Short:   "Get all workflows.",
 		Example: "  worksome workflows list -n 20\n  worksome workflows list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
