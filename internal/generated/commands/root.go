@@ -60,7 +60,6 @@ func RegisterAll(root *cobra.Command) {
 	root.AddCommand(NewTimesheetsCmd())
 	root.AddCommand(NewTrustedContactsCmd())
 	root.AddCommand(NewUserGroupsCmd())
-	root.AddCommand(NewVerificationEmailCmd())
 	root.AddCommand(NewViewerCmd())
 	root.AddCommand(NewWebhookEventLogsCmd())
 	root.AddCommand(NewWebhookEventsCmd())
