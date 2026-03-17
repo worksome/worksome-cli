@@ -318,6 +318,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"{{.ModulePath}}/internal/client"
@@ -360,6 +361,12 @@ func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
 	if colFlag, _ := cmd.Flags().GetString("columns"); colFlag != "" {
 		columns = output.FilterColumns(columns, colFlag)
 	}
+	fieldsFlag, _ := cmd.Root().PersistentFlags().GetString("fields")
+	if fieldsFlag != "" {
+		fields := strings.Split(fieldsFlag, ",")
+		data = output.FilterFields(data, fields)
+	}
+
 	f, err := getFormatter(cmd)
 	if err != nil {
 		return err
