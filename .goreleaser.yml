@@ -1,10 +1,16 @@
 version: 2
 
+before:
+  hooks:
+    - go mod tidy
+    - go run ./cmd/generate/
+
 builds:
-  - main: ./cmd/worksome/
+  - id: worksome
+    main: ./cmd/worksome
     binary: worksome
-    ldflags:
-      - -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
+    env:
+      - CGO_ENABLED=0
     goos:
       - darwin
       - linux
@@ -12,33 +18,25 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
 
 archives:
   - format: tar.gz
+    name_template: "worksome_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
-    files:
-      - README.md
 
-changelog:
-  sort: asc
-  use: github
-  groups:
-    - title: Features
-      regexp: '^feat(\(.+\))?:'
-    - title: Bug Fixes
-      regexp: '^fix(\(.+\))?:'
-    - title: Refactoring
-      regexp: '^refactor(\(.+\))?:'
-    - title: Documentation
-      regexp: '^docs(\(.+\))?:'
-    - title: Testing
-      regexp: '^test(\(.+\))?:'
-    - title: Chores
-      regexp: '^chore(\(.+\))?:'
-    - title: Other
-      order: 999
+checksum:
+  name_template: checksums.txt
+
+brews:
+  - repository:
+      owner: worksome
+      name: homebrew-tap
+    name: worksome
+    homepage: https://github.com/worksome/worksome-cli
+    description: CLI for the Worksome API
+    install: |
+      bin.install "worksome"
