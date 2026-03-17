@@ -236,6 +236,12 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd.Flags().String("close-other-conversations", "", "Close other conversations if true.")
 	cmd.Flags().String("closing-message", "", "Message to send when closing other conversations.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
+	cmd.RegisterFlagCompletionFunc("payment-term-method", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"END_OF_MONTH", "NET"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("payment-term-days", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"EIGHT", "FOURTEEN", "THIRTY", "FORTY_FIVE", "FIFTY_THREE", "SIXTY", "SEVENTY_FIVE", "NINETY"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -562,6 +568,9 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The field related to the approval rule.")
 	cmd.Flags().String("status", "", "The status given.")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -1199,6 +1208,12 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	cmd.Flags().String("company", "", "The company that the approval is for.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -1280,6 +1295,12 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "The status of the approval.")
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -1800,6 +1821,9 @@ func newBatchActionRunCmd() *cobra.Command {
 	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
 	cmd.Flags().String("action", "", "The action to perform.")
 	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
+	cmd.RegisterFlagCompletionFunc("action", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"PROCESS", "EXPORT", "UNDO"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -2048,6 +2072,9 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that the batch is for.")
 	cmd.Flags().String("type", "", "The type of batch to create.")
+	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"PARTNER_PAYMENT_REQUESTS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -3789,6 +3816,15 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -3951,6 +3987,12 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -3966,7 +4008,6 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
-	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -4034,51 +4075,6 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
-	return cmd
-}
-
-func newEmailSendVerificationCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send-verification",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -4904,6 +4900,10 @@ func newGateGetCmd() *cobra.Command {
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
 
+	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_G_ACCOUNT", "KVK_VALID_NUMBER", "KVK_COMPANY_NAME_MATCH", "KVK_WAADI", "KVK_SNA_QUALITY_MARK"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -5481,6 +5481,9 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd.Flags().String("company", "", "The company that the direct hire is for.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
+	cmd.RegisterFlagCompletionFunc("rate-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HOURLY", "DAILY", "WEEKLY", "MONTHLY", "FIXED", "UNKNOWN"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -5755,6 +5758,9 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
+	cmd.RegisterFlagCompletionFunc("reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"WORKER_UNAVAILABILITY", "PROJECT_COMPLETED_EARLY", "MUTUAL_AGREEMENT_TO_TERMINATE", "BUDGET_CONSTRAINTS", "CHANGE_IN_PROJECT_SCOPE", "PERFORMANCE_ISSUES", "COMMUNICATION_ISSUES", "PERSONAL_REASONS", "LEGAL_OR_COMPLIANCE_ISSUES", "VIOLATION_OF_CONTRACT_TERMS", "UNFORESEEN_CIRCUMSTANCES", "DISSATISFACTION_WITH_QUALITY_OF_WORK", "CONFLICT_OF_INTEREST", "OTHER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -6583,6 +6589,12 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
 	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
 	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ELIGIBLE", "NON_ELIGIBLE", "DUPLICATE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("status-reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SKILLS_OR_EXPERIENCE", "SPECIFIC_JOB_CRITERIA", "AVAILABILITY", "MARKET_ELIGIBILITY", "BUDGET", "ACCEPTED_OTHER_JOB", "OTHER_CANDIDATE_ACCEPTED", "ADDED_BY_MISTAKE", "EXISTING_APPLICATION_THROUGH_OTHER_CHANNELS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -6842,6 +6854,9 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
 	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
+	cmd.RegisterFlagCompletionFunc("sourcing-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"TRUSTED_CONTACT", "CANDIDATE_SUBMISSION", "RECRUITER_ATTRIBUTION", "MARKETPLACE"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -7807,6 +7822,24 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
+	cmd.RegisterFlagCompletionFunc("locale", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ENGLISH", "DANISH", "FRENCH", "GERMAN", "DUTCH"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("association", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SMALL_TASK", "PROJECT", "BIG_PROJECT", "PART_TIME", "FULL_TIME"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("payment-scheme", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ANY", "COMPANY", "GLOBAL_PAYROLL", "UK_PAYE", "UK_PAYE_IR35", "US_PAYROLL", "US_PAYROLL_WS", "DK_PAYROLL", "DK_B_INCOME", "AU_PAYROLL", "PARTNER_EOR"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("start-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ASAP", "NEXT_MONTH", "ON_DATE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("end-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ON_DATE", "OPEN"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("evaluation-period", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"MONTH", "WEEK", "QUICK"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -8609,7 +8642,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Delete a note.",
+		Short: "Create a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8835,7 +8868,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9248,6 +9281,16 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -9357,7 +9400,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Update a user's password.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -10948,6 +10991,10 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "Supply to filter for status.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ACTIVE", "DECLINED", "APPLIED", "BLOCKED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -11577,7 +11624,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -11749,6 +11796,9 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd.Flags().String("invoice-reference-number", "", "The invoice reference number associated with the timesheet registration.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
 	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
+	cmd.RegisterFlagCompletionFunc("unit", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HOURS", "DAYS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -12428,6 +12478,16 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created.")
 
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -12647,6 +12707,12 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	cmd.Flags().String("origin", "", "The origin of the trusted contact")
 	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact")
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("origin-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"EXISTING_SETUP", "DIRECT_INVITE", "PERSONAL_INVITE", "CANDIDATE_SUBMISSION", "MARKETPLACE_HIRE", "EXTERNAL_LINK", "ORGANISATION_HIRE"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -13106,6 +13172,9 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
 	cmd.Flags().String("company", "", "The company that the group is for.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -13304,6 +13373,70 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	return cmd
+}
+
+// NewVerificationEmailCmd creates the verification-email resource command.
+func NewVerificationEmailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verification-email",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newVerificationEmailSendCmd())
+
+	return cmd
+}
+
+func newVerificationEmailSendCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -14464,6 +14597,10 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
+
+	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	return cmd
 }

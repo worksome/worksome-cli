@@ -44,6 +44,24 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
 
+	// Register shell completion for --profile flag
+	rootCmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		cfg, err := config.Load()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		var names []string
+		for name := range cfg.Profiles {
+			names = append(names, name)
+		}
+		return names, cobra.ShellCompDirectiveNoFileComp
+	})
+
+	// Register shell completion for --output flag
+	rootCmd.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"json", "table"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	// Set up client factory for generated commands
 	commands.SetClientFactory(func() (*client.Client, error) {
 		cfg, err := config.Load()

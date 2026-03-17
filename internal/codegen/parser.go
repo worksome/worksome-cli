@@ -367,6 +367,11 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 	// Check enum
 	if p.enums[t.NamedType] {
 		ref.IsEnum = true
+		if def, ok := p.doc.Types[t.NamedType]; ok {
+			for _, v := range def.EnumValues {
+				ref.EnumValues = append(ref.EnumValues, v.Name)
+			}
+		}
 		if ref.IsRequired {
 			ref.GoType = t.NamedType
 		} else {
