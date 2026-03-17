@@ -683,6 +683,13 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 			typeName = ret.Name
 		}
 	}
+	return p.buildTableColumnsForType(typeName)
+}
+
+// buildTableColumnsForType generates table column definitions for a given GraphQL type name.
+// It produces columns for scalar fields and up to 2 fields from nested objects.
+// Max 8 columns total, with "id" first if present.
+func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 	if typeName == "" {
 		return nil
 	}
@@ -879,6 +886,8 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 	// For mutations with a single input argument, resolve the input type's fields as CLI flags
 	if opType == OperationMutation {
 		p.resolveInputFields(&op)
+		// Build table columns from the mutation's return type
+		op.TableColumns = p.buildTableColumnsForType(op.ReturnType.Name)
 	}
 
 	return op
