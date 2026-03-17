@@ -320,3 +320,250 @@ func TestExtractFields_nilMapValue(t *testing.T) {
 		t.Errorf("expected empty string for nil value, got %q", rows[0][0])
 	}
 }
+
+// --- FilterFields tests ---
+
+func TestFilterFields_emptyFields(t *testing.T) {
+	data := map[string]any{"id": "1", "name": "Alice"}
+	result := FilterFields(data, nil)
+
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if m["id"] != "1" || m["name"] != "Alice" {
+		t.Error("expected data unchanged when fields is nil")
+	}
+
+	result2 := FilterFields(data, []string{})
+	m2, ok := result2.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if m2["id"] != "1" || m2["name"] != "Alice" {
+		t.Error("expected data unchanged when fields is empty slice")
+	}
+}
+
+func TestFilterFields_mapTopLevel(t *testing.T) {
+	data := map[string]any{
+		"id":     "1",
+		"name":   "Alice",
+		"status": "active",
+		"email":  "alice@example.com",
+	}
+
+	result := FilterFields(data, []string{"id", "name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+
+	if len(m) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(m))
+	}
+	if m["id"] != "1" {
+		t.Errorf("expected id=1, got %v", m["id"])
+	}
+	if m["name"] != "Alice" {
+		t.Errorf("expected name=Alice, got %v", m["name"])
+	}
+	if _, ok := m["status"]; ok {
+		t.Error("status should have been filtered out")
+	}
+}
+
+func TestFilterFields_mapNestedDotPath(t *testing.T) {
+	data := map[string]any{
+		"id": "1",
+		"worker": map[string]any{
+			"id":    "w1",
+			"name":  "Bob",
+			"email": "bob@example.com",
+		},
+	}
+
+	result := FilterFields(data, []string{"id", "worker.name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+
+	if m["id"] != "1" {
+		t.Errorf("expected id=1, got %v", m["id"])
+	}
+
+	worker, ok := m["worker"].(map[string]any)
+	if !ok {
+		t.Fatal("expected worker to be map[string]any")
+	}
+	if worker["name"] != "Bob" {
+		t.Errorf("expected worker.name=Bob, got %v", worker["name"])
+	}
+	if _, ok := worker["email"]; ok {
+		t.Error("worker.email should have been filtered out")
+	}
+	if _, ok := worker["id"]; ok {
+		t.Error("worker.id should have been filtered out")
+	}
+}
+
+func TestFilterFields_multipleNestedPaths(t *testing.T) {
+	data := map[string]any{
+		"worker": map[string]any{
+			"id":    "w1",
+			"name":  "Bob",
+			"email": "bob@example.com",
+		},
+	}
+
+	result := FilterFields(data, []string{"worker.id", "worker.name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+
+	worker, ok := m["worker"].(map[string]any)
+	if !ok {
+		t.Fatal("expected worker to be map[string]any")
+	}
+	if len(worker) != 2 {
+		t.Fatalf("expected 2 worker fields, got %d", len(worker))
+	}
+	if worker["id"] != "w1" {
+		t.Errorf("expected worker.id=w1, got %v", worker["id"])
+	}
+	if worker["name"] != "Bob" {
+		t.Errorf("expected worker.name=Bob, got %v", worker["name"])
+	}
+}
+
+func TestFilterFields_sliceOfMaps(t *testing.T) {
+	data := []any{
+		map[string]any{"id": "1", "name": "Alice", "status": "active"},
+		map[string]any{"id": "2", "name": "Bob", "status": "inactive"},
+	}
+
+	result := FilterFields(data, []string{"id", "name"})
+	slice, ok := result.([]any)
+	if !ok {
+		t.Fatal("expected []any")
+	}
+	if len(slice) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(slice))
+	}
+
+	first, ok := slice[0].(map[string]any)
+	if !ok {
+		t.Fatal("expected first item to be map[string]any")
+	}
+	if len(first) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(first))
+	}
+	if first["id"] != "1" || first["name"] != "Alice" {
+		t.Error("unexpected values in first item")
+	}
+
+	second, ok := slice[1].(map[string]any)
+	if !ok {
+		t.Fatal("expected second item to be map[string]any")
+	}
+	if second["id"] != "2" || second["name"] != "Bob" {
+		t.Error("unexpected values in second item")
+	}
+}
+
+func TestFilterFields_typedSliceOfMaps(t *testing.T) {
+	data := []map[string]any{
+		{"id": "1", "name": "Alice"},
+		{"id": "2", "name": "Bob"},
+	}
+
+	result := FilterFields(data, []string{"name"})
+	slice, ok := result.([]any)
+	if !ok {
+		t.Fatal("expected []any")
+	}
+	if len(slice) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(slice))
+	}
+
+	first, ok := slice[0].(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if len(first) != 1 {
+		t.Fatalf("expected 1 field, got %d", len(first))
+	}
+	if first["name"] != "Alice" {
+		t.Errorf("expected name=Alice, got %v", first["name"])
+	}
+}
+
+func TestFilterFields_missingField(t *testing.T) {
+	data := map[string]any{"id": "1", "name": "Alice"}
+
+	result := FilterFields(data, []string{"id", "nonexistent"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if len(m) != 1 {
+		t.Fatalf("expected 1 field, got %d", len(m))
+	}
+	if m["id"] != "1" {
+		t.Errorf("expected id=1, got %v", m["id"])
+	}
+}
+
+func TestFilterFields_nonMapData(t *testing.T) {
+	// Non-map/slice data should be returned as-is.
+	data := "just a string"
+	result := FilterFields(data, []string{"id"})
+	if result != "just a string" {
+		t.Errorf("expected string to pass through, got %v", result)
+	}
+}
+
+func TestFilterFields_whitespace(t *testing.T) {
+	data := map[string]any{"id": "1", "name": "Alice"}
+	result := FilterFields(data, []string{" id ", " name "})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if m["id"] != "1" || m["name"] != "Alice" {
+		t.Error("expected whitespace-trimmed fields to match")
+	}
+}
+
+func TestFilterFields_deepNesting(t *testing.T) {
+	data := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
+				"c": "deep",
+				"d": "also deep",
+			},
+		},
+	}
+
+	result := FilterFields(data, []string{"a.b.c"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	a, ok := m["a"].(map[string]any)
+	if !ok {
+		t.Fatal("expected a to be map[string]any")
+	}
+	b, ok := a["b"].(map[string]any)
+	if !ok {
+		t.Fatal("expected a.b to be map[string]any")
+	}
+	if b["c"] != "deep" {
+		t.Errorf("expected a.b.c=deep, got %v", b["c"])
+	}
+	if _, ok := b["d"]; ok {
+		t.Error("a.b.d should have been filtered out")
+	}
+}

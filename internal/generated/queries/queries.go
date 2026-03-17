@@ -768,24 +768,6 @@ func (q *Querier) ChangeEmail(ctx context.Context, vars map[string]any) (map[str
 	return result, nil
 }
 
-// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
-func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation SendVerificationEmail {
-	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
-	}
-	if data, ok := result["sendVerificationEmail"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
 // ApproveEmploymentChanges — Mark an employment as updated.
 func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ApproveEmploymentChanges($input: ApproveEmploymentChangesInput!) {
@@ -2623,6 +2605,24 @@ func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map
 		return nil, fmt.Errorf("updateUserGroup: %w", err)
 	}
 	if data, ok := result["updateUserGroup"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
+// SendVerificationEmail — Sends a new verification email. This operation is only allowed if the user has not verified their email.
+func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation SendVerificationEmail {
+	sendVerificationEmail { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
+	}
+	if data, ok := result["sendVerificationEmail"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

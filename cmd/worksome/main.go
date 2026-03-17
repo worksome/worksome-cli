@@ -43,6 +43,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
+	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., id,name,worker.name)")
 
 	// Set up client factory for generated commands
 	commands.SetClientFactory(func() (*client.Client, error) {

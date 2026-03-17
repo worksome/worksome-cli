@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/worksome/worksome-cli/internal/client"
@@ -46,6 +47,12 @@ func getFormatter(cmd *cobra.Command) (*output.Formatter, error) {
 }
 
 func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
+	fieldsFlag, _ := cmd.Root().PersistentFlags().GetString("fields")
+	if fieldsFlag != "" {
+		fields := strings.Split(fieldsFlag, ",")
+		data = output.FilterFields(data, fields)
+	}
+
 	f, err := getFormatter(cmd)
 	if err != nil {
 		return err
@@ -3966,7 +3973,6 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
-	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -4034,51 +4040,6 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
-	return cmd
-}
-
-func newEmailSendVerificationCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send-verification",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -8609,7 +8570,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Delete a note.",
+		Short: "Update a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8835,7 +8796,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -13304,6 +13265,67 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
+	return cmd
+}
+
+// NewVerificationEmailCmd creates the verification-email resource command.
+func NewVerificationEmailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verification-email",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newVerificationEmailSendCmd())
+
+	return cmd
+}
+
+func newVerificationEmailSendCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
