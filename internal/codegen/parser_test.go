@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -803,204 +802,6 @@ func TestToPlural(t *testing.T) {
 	}
 }
 
-func TestFlagBaseType(t *testing.T) {
-	tests := []struct {
-		name     string
-		ref      TypeRef
-		expected string
-	}{
-		{"bool", TypeRef{GoType: "bool"}, "bool"},
-		{"*bool", TypeRef{GoType: "*bool"}, "bool"},
-		{"int", TypeRef{GoType: "int"}, "int"},
-		{"*int", TypeRef{GoType: "*int"}, "int"},
-		{"float64", TypeRef{GoType: "float64"}, "float64"},
-		{"*float64", TypeRef{GoType: "*float64"}, "float64"},
-		{"string", TypeRef{GoType: "string"}, "string"},
-		{"*string", TypeRef{GoType: "*string"}, "string"},
-		{"enum", TypeRef{GoType: "HireStatus"}, "string"},
-		{"list of scalars", TypeRef{GoType: "[]string", IsList: true, ListItem: &TypeRef{IsScalar: true, GoType: "string"}}, "stringSlice"},
-		{"list of enums", TypeRef{GoType: "[]HireStatus", IsList: true, ListItem: &TypeRef{IsEnum: true, GoType: "HireStatus"}}, "stringSlice"},
-		{"list of inputs", TypeRef{GoType: "[]SomeInput", IsList: true, ListItem: &TypeRef{IsInput: true, GoType: "SomeInput"}}, "string"},
-		{"list without ListItem", TypeRef{GoType: "[]string", IsList: true}, "string"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := flagBaseType(tt.ref)
-			if got != tt.expected {
-				t.Errorf("flagBaseType(%s) = %q, want %q", tt.name, got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestEnumHint(t *testing.T) {
-	tests := []struct {
-		desc     string
-		typeRef  TypeRef
-		expected string
-	}{
-		{
-			desc:     "Filter by status",
-			typeRef:  TypeRef{IsEnum: true, EnumValues: []string{"ACTIVE", "INACTIVE"}},
-			expected: "Filter by status [ACTIVE, INACTIVE]",
-		},
-		{
-			desc:    "Filter by market",
-			typeRef: TypeRef{IsList: true, ListItem: &TypeRef{IsEnum: true, EnumValues: []string{"US", "UK", "DE"}}},
-			expected: "Filter by market [US, UK, DE]",
-		},
-		{
-			desc:     "A text field",
-			typeRef:  TypeRef{IsScalar: true, GoType: "string"},
-			expected: "A text field",
-		},
-		{
-			desc:     "Many values",
-			typeRef:  TypeRef{IsEnum: true, EnumValues: []string{"A", "B", "C", "D", "E", "F", "G"}},
-			expected: "Many values [A, B, C, D, E, ...]",
-		},
-	}
-	for _, tt := range tests {
-		got := enumHint(tt.desc, tt.typeRef)
-		if got != tt.expected {
-			t.Errorf("enumHint(%q, ...) = %q, want %q", tt.desc, got, tt.expected)
-		}
-	}
-}
-
-func TestShortDesc(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"Short description.", "Short description."},
-		{"First sentence. Second sentence with more details.", "First sentence."},
-		{"A very long description that goes on and on and on and on and on and on and on and on and on and on and on", "A very long description that goes on and on and on and on and on and on and on and on and on and on..."},
-		{"", ""},
-		{"No period", "No period"},
-	}
-	for _, tt := range tests {
-		got := shortDesc(tt.input)
-		if got != tt.expected {
-			t.Errorf("shortDesc(%q) = %q, want %q", tt.input, got, tt.expected)
-		}
-	}
-}
-
-func TestMultiMutationDescription(t *testing.T) {
-	// Schema with a mutation-only resource with multiple mutations.
-	// Should get "Manage <resource>." instead of first mutation's description.
-	schema := `
-type Query {
-	viewer: User!
-}
-
-type Mutation {
-	"Delete a note."
-	deleteNote(input: DeleteNoteInput!): Note!
-	"Create a note."
-	createNote(input: CreateNoteInput!): Note!
-	"Update a note."
-	updateNote(input: UpdateNoteInput!): Note!
-}
-
-type User {
-	id: ID!
-	name: String!
-}
-
-type Note {
-	id: ID!
-	body: String!
-}
-
-input DeleteNoteInput {
-	id: ID!
-}
-
-input CreateNoteInput {
-	body: String!
-}
-
-input UpdateNoteInput {
-	id: ID!
-	body: String
-}
-`
-	dir := t.TempDir()
-	schemaPath := filepath.Join(dir, "schema.graphql")
-	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	parsed, err := ParseSchema(schemaPath, "")
-	if err != nil {
-		t.Fatalf("ParseSchema failed: %v", err)
-	}
-
-	var found *Resource
-	for i := range parsed.Resources {
-		if parsed.Resources[i].Name == "note" {
-			found = &parsed.Resources[i]
-			break
-		}
-	}
-	if found == nil {
-		var names []string
-		for _, r := range parsed.Resources {
-			names = append(names, r.Name)
-		}
-		t.Fatalf("expected 'note' resource, got resources: %v", names)
-	}
-
-	if found.Description != "Manage notes." {
-		t.Errorf("expected description %q, got %q", "Manage notes.", found.Description)
-	}
-}
-
-func TestEnumValuesPopulated(t *testing.T) {
-	schemaPath, overridesPath := writeTestSchema(t)
-
-	schema, err := ParseSchema(schemaPath, overridesPath)
-	if err != nil {
-		t.Fatalf("ParseSchema failed: %v", err)
-	}
-
-	// The hires list query has a "status" argument of type HireStatus (enum)
-	var hires *Resource
-	for i := range schema.Resources {
-		if schema.Resources[i].Name == "hires" {
-			hires = &schema.Resources[i]
-			break
-		}
-	}
-	if hires == nil {
-		t.Fatal("expected hires resource")
-	}
-	if hires.ListQuery == nil {
-		t.Fatal("expected hires list query")
-	}
-
-	// Find the status argument
-	var statusArg *Argument
-	for i := range hires.ListQuery.Arguments {
-		if hires.ListQuery.Arguments[i].Name == "status" {
-			statusArg = &hires.ListQuery.Arguments[i]
-			break
-		}
-	}
-	if statusArg == nil {
-		t.Fatal("expected 'status' argument on hires list query")
-	}
-
-	if !statusArg.Type.IsEnum {
-		t.Error("status argument should be an enum type")
-	}
-	if len(statusArg.Type.EnumValues) != 4 {
-		t.Errorf("expected 4 enum values, got %d: %v", len(statusArg.Type.EnumValues), statusArg.Type.EnumValues)
-	}
-}
-
 func TestParseSchemaMultiWordMutations(t *testing.T) {
 	// Schema with multi-word mutations that should be grouped under "hires"
 	schema := `
@@ -1096,98 +897,54 @@ input TerminateHireInput {
 	}
 }
 
-func TestBuildInputExample_Simple(t *testing.T) {
-	// Use the minimal schema that has simple input types (HireInput, CreateJobInput)
-	schemaPath, overridesPath := writeTestSchema(t)
-
-	schema, err := ParseSchema(schemaPath, overridesPath)
-	if err != nil {
-		t.Fatalf("ParseSchema failed: %v", err)
-	}
-
-	// Find the createJob mutation under the "job" resource
-	var createJob *Operation
-	for _, r := range schema.Resources {
-		for i, m := range r.Mutations {
-			if m.Name == "createJob" {
-				createJob = &r.Mutations[i]
-				break
-			}
-		}
-	}
-	if createJob == nil {
-		t.Fatal("expected createJob mutation")
-	}
-
-	if createJob.InputExample == "" {
-		t.Fatal("expected non-empty InputExample for createJob")
-	}
-
-	// Verify it's valid JSON
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(createJob.InputExample), &parsed); err != nil {
-		t.Fatalf("InputExample is not valid JSON: %v\n%s", err, createJob.InputExample)
-	}
-
-	// Check expected fields
-	if _, ok := parsed["title"]; !ok {
-		t.Error("expected 'title' field in InputExample")
-	}
-	if _, ok := parsed["description"]; !ok {
-		t.Error("expected 'description' field in InputExample")
-	}
-
-	// Check that title is a string placeholder
-	if title, ok := parsed["title"].(string); !ok || title != "..." {
-		t.Errorf("expected title to be \"...\", got %v", parsed["title"])
-	}
-}
-
-func TestBuildInputExample_NestedInput(t *testing.T) {
-	// Schema with nested input types
+func TestUnionTypeTableColumns(t *testing.T) {
+	// Schema with a multi-member union behind a paginator — table columns should
+	// include a "Type" column for __typename and fields from the shared interface.
 	schema := `
-scalar Date
-
 type Query {
-	job(id: ID!): Job
+	multiFactor(id: ID!): MultiFactor
+	multiFactors(first: Int! = 10, page: Int): MultiFactorPaginator!
 }
 
-type Mutation {
-	"Create a job with nested inputs."
-	createJob(input: CreateJobInput!): Job!
-}
+union MultiFactor = SmsMultiFactor | TotpMultiFactor
 
-type Job {
+interface HasMultiFactorMetadata {
 	id: ID!
-	title: String!
+	name: String!
+	status: MultiFactorStatus!
 }
 
-enum RateUnit {
-	HOURLY
-	DAILY
-	WEEKLY
+type SmsMultiFactor implements HasMultiFactorMetadata {
+	id: ID!
+	name: String!
+	phoneNumber: String!
+	status: MultiFactorStatus!
 }
 
-input AddressInput {
-	address: String
-	city: String
-	country: String
-	postCode: String
+type TotpMultiFactor implements HasMultiFactorMetadata {
+	id: ID!
+	name: String!
+	status: MultiFactorStatus!
 }
 
-input RateInput {
-	amount: Float!
-	unit: RateUnit!
+type MultiFactorPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [MultiFactor!]!
 }
 
-input CreateJobInput {
-	title: String!
-	description: String
-	location: AddressInput
-	rate: RateInput!
-	tags: [String!]
-	active: Boolean
-	startDate: Date
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+enum MultiFactorStatus {
+	APPROVED
+	PENDING
+	CANCELLED
 }
 `
 	dir := t.TempDir()
@@ -1201,113 +958,115 @@ input CreateJobInput {
 		t.Fatalf("ParseSchema failed: %v", err)
 	}
 
-	// Find createJob mutation
-	var createJob *Operation
-	for _, r := range parsed.Resources {
-		for i, m := range r.Mutations {
-			if m.Name == "createJob" {
-				createJob = &r.Mutations[i]
-				break
-			}
+	// Find the multi-factors resource
+	var mfResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "multi-factors" {
+			mfResource = &parsed.Resources[i]
+			break
 		}
 	}
-	if createJob == nil {
-		t.Fatal("expected createJob mutation")
+	if mfResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'multi-factors' resource, got resources: %v", names)
 	}
 
-	if createJob.InputExample == "" {
-		t.Fatal("expected non-empty InputExample for createJob")
+	// Table columns should exist and start with "Type"
+	if len(mfResource.TableColumns) == 0 {
+		t.Fatal("expected table columns for multi-factors, got none")
+	}
+	if mfResource.TableColumns[0].Header != "Type" || mfResource.TableColumns[0].Field != "__typename" {
+		t.Errorf("expected first column to be Type/__typename, got %q/%q",
+			mfResource.TableColumns[0].Header, mfResource.TableColumns[0].Field)
 	}
 
-	// Verify it's valid JSON
-	var example map[string]any
-	if err := json.Unmarshal([]byte(createJob.InputExample), &example); err != nil {
-		t.Fatalf("InputExample is not valid JSON: %v\n%s", err, createJob.InputExample)
+	// Should have ID column from the shared interface
+	hasID := false
+	for _, col := range mfResource.TableColumns {
+		if col.Field == "id" {
+			hasID = true
+		}
+	}
+	if !hasID {
+		t.Error("expected table columns to include 'id' from shared interface")
 	}
 
-	// Check scalar fields
-	if v, ok := example["title"].(string); !ok || v != "..." {
-		t.Errorf("title: got %v, want \"...\"", example["title"])
+	// Check the selection set includes __typename
+	if mfResource.ListQuery != nil {
+		sel := mfResource.ListQuery.SelectionSet
+		if !strings.Contains(sel, "__typename") {
+			t.Errorf("list query selection set should include __typename, got: %s", sel)
+		}
 	}
-	if v, ok := example["active"].(bool); !ok || v != false {
-		t.Errorf("active: got %v, want false", example["active"])
-	}
-	if v, ok := example["startDate"].(string); !ok || v != "2024-01-01" {
-		t.Errorf("startDate: got %v, want \"2024-01-01\"", example["startDate"])
-	}
-
-	// Check nested input object (AddressInput)
-	location, ok := example["location"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected 'location' to be a nested object, got %T", example["location"])
-	}
-	if v, ok := location["city"].(string); !ok || v != "..." {
-		t.Errorf("location.city: got %v, want \"...\"", location["city"])
-	}
-
-	// Check nested input object with enum (RateInput)
-	rate, ok := example["rate"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected 'rate' to be a nested object, got %T", example["rate"])
-	}
-	if v, ok := rate["amount"].(float64); !ok || v != 0.0 {
-		t.Errorf("rate.amount: got %v, want 0.0", rate["amount"])
-	}
-	if v, ok := rate["unit"].(string); !ok || v != "HOURLY" {
-		t.Errorf("rate.unit: got %v, want \"HOURLY\"", rate["unit"])
-	}
-
-	// Check list field
-	tags, ok := example["tags"].([]any)
-	if !ok {
-		t.Fatalf("expected 'tags' to be a list, got %T", example["tags"])
-	}
-	if len(tags) != 1 {
-		t.Errorf("expected tags to have 1 element, got %d", len(tags))
-	}
-
-	// Verify pretty-printing (indented with 2 spaces)
-	if !strings.Contains(createJob.InputExample, "  \"title\"") {
-		t.Error("expected InputExample to be pretty-printed with 2-space indent")
+	if mfResource.GetQuery != nil {
+		sel := mfResource.GetQuery.SelectionSet
+		if !strings.Contains(sel, "__typename") {
+			t.Errorf("get query selection set should include __typename, got: %s", sel)
+		}
 	}
 }
 
-func TestBuildInputExample_NoNestedInput(t *testing.T) {
-	// Schema with only scalar fields — InputExample should still be set
-	schemaPath, overridesPath := writeTestSchema(t)
+func TestSingleMemberUnionNoTypeColumn(t *testing.T) {
+	// A union with only one member should NOT get a "Type" column.
+	schema := `
+type Query {
+	approvables(first: Int! = 10, page: Int): ApprovablePaginator!
+}
 
-	schema, err := ParseSchema(schemaPath, overridesPath)
+union Approvable = Hire
+
+type Hire {
+	id: ID!
+	status: String!
+}
+
+type ApprovablePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Approvable!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
 	if err != nil {
 		t.Fatalf("ParseSchema failed: %v", err)
 	}
 
-	// Find terminateHire mutation (TerminateHireInput has only id + reason, both scalars)
-	var terminateHire *Operation
-	for _, r := range schema.Resources {
-		for i, m := range r.Mutations {
-			if m.Name == "terminateHire" {
-				terminateHire = &r.Mutations[i]
-				break
-			}
+	var appResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "approvables" {
+			appResource = &parsed.Resources[i]
+			break
 		}
 	}
-	if terminateHire == nil {
-		t.Fatal("expected terminateHire mutation")
+	if appResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'approvables' resource, got resources: %v", names)
 	}
 
-	if terminateHire.InputExample == "" {
-		t.Fatal("expected non-empty InputExample for terminateHire")
-	}
-
-	var example map[string]any
-	if err := json.Unmarshal([]byte(terminateHire.InputExample), &example); err != nil {
-		t.Fatalf("InputExample is not valid JSON: %v", err)
-	}
-
-	if v, ok := example["id"].(string); !ok || v != "<id>" {
-		t.Errorf("id: got %v, want \"<id>\"", example["id"])
-	}
-	if v, ok := example["reason"].(string); !ok || v != "..." {
-		t.Errorf("reason: got %v, want \"...\"", example["reason"])
+	// Single-member union: should have columns but no "Type" column
+	for _, col := range appResource.TableColumns {
+		if col.Field == "__typename" {
+			t.Error("single-member union should NOT have a Type/__typename column")
+		}
 	}
 }

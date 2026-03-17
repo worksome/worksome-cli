@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/worksome/worksome-cli/internal/client"
@@ -363,13 +362,8 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvable approvals.",
-		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all\n  worksome approval-approvables list --watch\n  worksome approval-approvables list --watch --watch-interval 10",
+		Example: "  worksome approval-approvables list -n 20\n  worksome approval-approvables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -422,16 +416,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalApprovables", vars)
 			}
@@ -441,47 +426,26 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return approvalapprovablesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.ApprovalApprovables(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, approvalapprovablesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return approvalapprovablesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.ApprovalApprovables(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalapprovablesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("requires-action", "", "Filter for approval approvables that require actioning.")
 	cmd.Flags().String("requires-action-users", "", "Filter the approval approvable based on users that need to take action.")
@@ -672,13 +636,8 @@ func newApprovalRulesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval rules.",
-		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all\n  worksome approval-rules list --watch\n  worksome approval-rules list --watch --watch-interval 10",
+		Example: "  worksome approval-rules list -n 20\n  worksome approval-rules list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -707,16 +666,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalRules", vars)
 			}
@@ -726,47 +676,26 @@ func newApprovalRulesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return approvalrulesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.ApprovalRules(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["approvalRules"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, approvalrulesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return approvalrulesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.ApprovalRules(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalRules"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalrulesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval rules based on one or more accounts.")
 
 	return cmd
@@ -901,13 +830,8 @@ func newApprovalStatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approval states.",
-		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all\n  worksome approval-states list --watch\n  worksome approval-states list --watch --watch-interval 10",
+		Example: "  worksome approval-states list -n 20\n  worksome approval-states list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -944,16 +868,7 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "ApprovalStates", vars)
 			}
@@ -963,47 +878,26 @@ func newApprovalStatesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return approvalstatesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.ApprovalStates(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["approvalStates"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, approvalstatesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return approvalstatesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.ApprovalStates(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvalStates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalstatesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states.")
 	cmd.Flags().String("users", "", "Filter the approval approvable based on one or more users.")
@@ -1120,13 +1014,8 @@ func newApprovalsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvals.",
-		Example: "  worksome approvals list -n 20\n  worksome approvals list --all\n  worksome approvals list --watch\n  worksome approvals list --watch --watch-interval 10",
+		Example: "  worksome approvals list -n 20\n  worksome approvals list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -1159,16 +1048,7 @@ func newApprovalsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvals", vars)
 			}
@@ -1178,47 +1058,26 @@ func newApprovalsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return approvalsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Approvals(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["approvals"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, approvalsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return approvalsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Approvals(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvals"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approvalsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approvals based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search approvals by name or description.")
 
@@ -1496,13 +1355,8 @@ func newApproversListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all approvers.",
-		Example: "  worksome approvers list -n 20\n  worksome approvers list --all\n  worksome approvers list --watch\n  worksome approvers list --watch --watch-interval 10",
+		Example: "  worksome approvers list -n 20\n  worksome approvers list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -1535,16 +1389,7 @@ func newApproversListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Approvers", vars)
 			}
@@ -1554,47 +1399,26 @@ func newApproversListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return approversFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Approvers(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["approvers"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, approversColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return approversFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Approvers(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["approvers"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, approversColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the approvers based on one or more accounts.")
 	cmd.Flags().String("approval-rule", "", "Filter the approvers based on one approval rule.")
 
@@ -2049,13 +1873,8 @@ func newBatchesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of batches.",
-		Example: "  worksome batches list -n 20\n  worksome batches list --all\n  worksome batches list --watch\n  worksome batches list --watch --watch-interval 10",
+		Example: "  worksome batches list -n 20\n  worksome batches list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2092,16 +1911,7 @@ func newBatchesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Batches", vars)
 			}
@@ -2111,47 +1921,26 @@ func newBatchesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return batchesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Batches(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["batches"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, batchesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return batchesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Batches(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["batches"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, batchesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
 	cmd.Flags().String("types", "", "Only show batches of the specified types.")
 	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses.")
@@ -2332,13 +2121,8 @@ func newBidsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of all bids which the viewer has access to.",
-		Example: "  worksome bids list -n 20\n  worksome bids list --all\n  worksome bids list --watch\n  worksome bids list --watch --watch-interval 10",
+		Example: "  worksome bids list -n 20\n  worksome bids list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2375,16 +2159,7 @@ func newBidsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Bids", vars)
 			}
@@ -2394,47 +2169,26 @@ func newBidsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return bidsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Bids(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["bids"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, bidsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return bidsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Bids(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["bids"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, bidsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses.")
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().String("accounts", "", "Filter the bid based on one or more accounts.")
@@ -2616,13 +2370,8 @@ func newClassificationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all classifications for a specific hire.",
-		Example: "  worksome classifications list -n 20\n  worksome classifications list --all\n  worksome classifications list --watch\n  worksome classifications list --watch --watch-interval 10",
+		Example: "  worksome classifications list -n 20\n  worksome classifications list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2651,16 +2400,7 @@ func newClassificationsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Classifications", vars)
 			}
@@ -2670,47 +2410,26 @@ func newClassificationsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return classificationsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Classifications(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["classifications"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, classificationsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return classificationsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Classifications(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["classifications"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, classificationsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("hire", "", "The ID of the hire to get classifications for")
 
 	return cmd
@@ -2892,13 +2611,8 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of company recruiters.",
-		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all\n  worksome company-recruiters list --watch\n  worksome company-recruiters list --watch --watch-interval 10",
+		Example: "  worksome company-recruiters list -n 20\n  worksome company-recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -2951,16 +2665,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "CompanyRecruiters", vars)
 			}
@@ -2970,47 +2675,26 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return companyrecruitersFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.CompanyRecruiters(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, companyrecruitersColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return companyrecruitersFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.CompanyRecruiters(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, companyrecruitersColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by.")
@@ -3523,13 +3207,8 @@ func newContractsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of contracts.",
-		Example: "  worksome contracts list -n 20\n  worksome contracts list --all\n  worksome contracts list --watch\n  worksome contracts list --watch --watch-interval 10",
+		Example: "  worksome contracts list -n 20\n  worksome contracts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3570,16 +3249,7 @@ func newContractsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Contracts", vars)
 			}
@@ -3589,47 +3259,26 @@ func newContractsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return contractsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Contracts(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["contracts"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, contractsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return contractsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Contracts(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["contracts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, contractsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
 	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies.")
 	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses.")
@@ -3745,13 +3394,8 @@ func newConversationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of conversations.",
-		Example: "  worksome conversations list -n 20\n  worksome conversations list --all\n  worksome conversations list --watch\n  worksome conversations list --watch --watch-interval 10",
+		Example: "  worksome conversations list -n 20\n  worksome conversations list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -3784,16 +3428,7 @@ func newConversationsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Conversations", vars)
 			}
@@ -3803,47 +3438,26 @@ func newConversationsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return conversationsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Conversations(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["conversations"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, conversationsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return conversationsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Conversations(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["conversations"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, conversationsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
 	cmd.Flags().String("is-open", "", "If the conversation is open or closed. If not supplied show all conversations.")
 
@@ -3960,13 +3574,8 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of custom fields.",
-		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all\n  worksome custom-fields list --watch\n  worksome custom-fields list --watch --watch-interval 10",
+		Example: "  worksome custom-fields list -n 20\n  worksome custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -4003,16 +3612,7 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "CustomFields", vars)
 			}
@@ -4022,47 +3622,26 @@ func newCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return customfieldsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.CustomFields(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["customFields"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, customfieldsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return customfieldsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.CustomFields(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["customFields"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, customfieldsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
@@ -4387,6 +3966,7 @@ func NewEmailCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newEmailChangeCmd())
+	cmd.AddCommand(newEmailSendVerificationCmd())
 
 	return cmd
 }
@@ -4454,6 +4034,51 @@ func newEmailChangeCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
+	return cmd
+}
+
+func newEmailSendVerificationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "send-verification",
+		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SendVerificationEmail(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
 }
 
@@ -4605,13 +4230,8 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of employments.",
-		Example: "  worksome employments list -n 20\n  worksome employments list --all\n  worksome employments list --watch\n  worksome employments list --watch --watch-interval 10",
+		Example: "  worksome employments list -n 20\n  worksome employments list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -4688,16 +4308,7 @@ func newEmploymentsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Employments", vars)
 			}
@@ -4707,47 +4318,26 @@ func newEmploymentsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return employmentsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Employments(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["employments"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, employmentsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return employmentsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Employments(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["employments"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, employmentsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
 	cmd.Flags().String("status", "", "Filter employments by employment status.")
 	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status.")
@@ -5034,13 +4624,8 @@ func newFilesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of files.",
-		Example: "  worksome files list -n 20\n  worksome files list --all\n  worksome files list --watch\n  worksome files list --watch --watch-interval 10",
+		Example: "  worksome files list -n 20\n  worksome files list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -5073,16 +4658,7 @@ func newFilesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Files", vars)
 			}
@@ -5092,47 +4668,26 @@ func newFilesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return filesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Files(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["files"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, filesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return filesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Files(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["files"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, filesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("mime-types", "", "Only show files with the given IANA MIME types.")
 
@@ -5429,13 +4984,8 @@ func newHiresListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
-		Example: "  worksome hires list -n 20\n  worksome hires list --all\n  worksome hires list --watch\n  worksome hires list --watch --watch-interval 10",
+		Example: "  worksome hires list -n 20\n  worksome hires list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -5560,16 +5110,7 @@ func newHiresListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Hires", vars)
 			}
@@ -5579,47 +5120,26 @@ func newHiresListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return hiresFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Hires(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["hires"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, hiresColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return hiresFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Hires(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["hires"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, hiresColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
 	cmd.Flags().String("status", "", "Filter hires by hire status.")
@@ -6302,13 +5822,8 @@ func newIndustriesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of industries.",
-		Example: "  worksome industries list -n 20\n  worksome industries list --all\n  worksome industries list --watch\n  worksome industries list --watch --watch-interval 10",
+		Example: "  worksome industries list -n 20\n  worksome industries list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6333,16 +5848,7 @@ func newIndustriesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Industries", vars)
 			}
@@ -6352,47 +5858,26 @@ func newIndustriesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return industriesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Industries(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["industries"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, industriesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return industriesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Industries(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["industries"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, industriesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 
 	return cmd
 }
@@ -6465,13 +5950,8 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of inherited custom fields.",
-		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all\n  worksome inherited-custom-fields list --watch\n  worksome inherited-custom-fields list --watch --watch-interval 10",
+		Example: "  worksome inherited-custom-fields list -n 20\n  worksome inherited-custom-fields list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6508,16 +5988,7 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "InheritedCustomFields", vars)
 			}
@@ -6527,47 +5998,26 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return inheritedcustomfieldsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.InheritedCustomFields(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, inheritedcustomfieldsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return inheritedcustomfieldsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.InheritedCustomFields(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, inheritedcustomfieldsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
 	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
@@ -6624,7 +6074,6 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
-	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -6679,67 +6128,6 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
-func newInviteLinkGeneratePersonalCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate-personal",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome invite-link generate-personal --input data.json\n  worksome invite-link generate-personal --company \"value\"",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
-			}
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -6887,13 +6275,8 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of invoices.",
-		Example: "  worksome invoices list -n 20\n  worksome invoices list --all\n  worksome invoices list --watch\n  worksome invoices list --watch --watch-interval 10",
+		Example: "  worksome invoices list -n 20\n  worksome invoices list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -6946,16 +6329,7 @@ func newInvoicesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Invoices", vars)
 			}
@@ -6965,47 +6339,26 @@ func newInvoicesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return invoicesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Invoices(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["invoices"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, invoicesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return invoicesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Invoices(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["invoices"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, invoicesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Only show invoices which have the supplied status.")
 	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types.")
@@ -7304,13 +6657,8 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job candidates.",
-		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all\n  worksome job-candidates list --watch\n  worksome job-candidates list --watch --watch-interval 10",
+		Example: "  worksome job-candidates list -n 20\n  worksome job-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -7355,16 +6703,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "JobCandidates", vars)
 			}
@@ -7374,47 +6713,26 @@ func newJobCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return jobcandidatesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.JobCandidates(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["jobCandidates"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, jobcandidatesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return jobcandidatesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.JobCandidates(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobCandidates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobcandidatesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
 	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses.")
 	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps.")
@@ -7557,13 +6875,8 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of job shares.",
-		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all\n  worksome job-shares list --watch\n  worksome job-shares list --watch --watch-interval 10",
+		Example: "  worksome job-shares list -n 20\n  worksome job-shares list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -7604,16 +6917,7 @@ func newJobSharesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "JobShares", vars)
 			}
@@ -7623,47 +6927,26 @@ func newJobSharesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return jobsharesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.JobShares(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["jobShares"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, jobsharesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return jobsharesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.JobShares(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobShares"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobsharesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
 	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts.")
 	cmd.Flags().String("is-active", "", "Whether the job share is active.")
@@ -7890,13 +7173,8 @@ func newJobsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of jobs.",
-		Example: "  worksome jobs list -n 20\n  worksome jobs list --all\n  worksome jobs list --watch\n  worksome jobs list --watch --watch-interval 10",
+		Example: "  worksome jobs list -n 20\n  worksome jobs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -8029,16 +7307,7 @@ func newJobsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Jobs", vars)
 			}
@@ -8048,47 +7317,26 @@ func newJobsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return jobsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Jobs(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["jobs"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, jobsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return jobsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Jobs(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["jobs"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, jobsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
 	cmd.Flags().String("owners", "", "Only show jobs owned by specific users.")
 	cmd.Flags().String("markets", "", "Only show jobs in the specified markets.")
@@ -8635,13 +7883,8 @@ func newMilestonesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of milestones.",
-		Example: "  worksome milestones list -n 20\n  worksome milestones list --all\n  worksome milestones list --watch\n  worksome milestones list --watch --watch-interval 10",
+		Example: "  worksome milestones list -n 20\n  worksome milestones list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -8674,16 +7917,7 @@ func newMilestonesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Milestones", vars)
 			}
@@ -8693,47 +7927,26 @@ func newMilestonesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return milestonesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Milestones(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["milestones"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, milestonesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return milestonesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Milestones(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["milestones"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, milestonesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("hires", "", "Only show milestones for the specified hires.")
 
@@ -8912,6 +8125,17 @@ func newMilestonesUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+var multifactorsColumns = []output.Column{
+	{Header: "Type", Field: "__typename"},
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Status", Field: "status"},
+	{Header: "Owner ID", Field: "owner.id"},
+	{Header: "Owner Name", Field: "owner.name"},
+	{Header: "Verified At", Field: "verifiedAt"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
 // NewMultiFactorsCmd creates the multi-factors resource command.
 func NewMultiFactorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -8965,7 +8189,7 @@ func newMultiFactorsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, nil)
+			return printResult(cmd, result, multifactorsColumns)
 		},
 	}
 
@@ -8976,13 +8200,8 @@ func newMultiFactorsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Retrieve all multi-factor authentication implementation.",
-		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all\n  worksome multi-factors list --watch\n  worksome multi-factors list --watch --watch-interval 10",
+		Example: "  worksome multi-factors list -n 20\n  worksome multi-factors list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -9015,16 +8234,7 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "MultiFactors", vars)
 			}
@@ -9034,41 +8244,26 @@ func newMultiFactorsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return multifactorsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.MultiFactors(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return multifactorsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.MultiFactors(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["multiFactors"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, multifactorsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on.")
 	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on.")
 
@@ -9109,7 +8304,7 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, nil)
+	return printResult(cmd, allData, multifactorsColumns)
 }
 
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
@@ -9431,7 +8626,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Create a note.",
+		Short: "Delete a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9657,7 +8852,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Manage Onboarding documents.",
+		Short: "Remove Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9923,13 +9118,8 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of organisation trusted contacts.",
-		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all\n  worksome organisation-trusted-contacts list --watch\n  worksome organisation-trusted-contacts list --watch --watch-interval 10",
+		Example: "  worksome organisation-trusted-contacts list -n 20\n  worksome organisation-trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -10026,16 +9216,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "OrganisationTrustedContacts", vars)
 			}
@@ -10045,47 +9226,26 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return organisationtrustedcontactsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.OrganisationTrustedContacts(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, organisationtrustedcontactsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return organisationtrustedcontactsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.OrganisationTrustedContacts(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, organisationtrustedcontactsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -10214,7 +9374,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Update a user's password.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -10432,13 +9592,8 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of payment requests.",
-		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all\n  worksome payment-requests list --watch\n  worksome payment-requests list --watch --watch-interval 10",
+		Example: "  worksome payment-requests list -n 20\n  worksome payment-requests list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -10551,16 +9706,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "PaymentRequests", vars)
 			}
@@ -10570,47 +9716,26 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return paymentrequestsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.PaymentRequests(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["paymentRequests"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, paymentrequestsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return paymentrequestsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.PaymentRequests(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["paymentRequests"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, paymentrequestsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
 	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies.")
 	cmd.Flags().String("has-purchase-order-number", "", "Only show payment requests that have a Purchase Order number.")
@@ -10947,6 +10072,83 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
+func NewPersonalInviteLinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "personal-invite-link",
+		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
+
+	return cmd
+}
+
+func newPersonalInviteLinkGenerateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
 var projectsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -11024,13 +10226,8 @@ func newProjectsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of projects.",
-		Example: "  worksome projects list -n 20\n  worksome projects list --all\n  worksome projects list --watch\n  worksome projects list --watch --watch-interval 10",
+		Example: "  worksome projects list -n 20\n  worksome projects list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -11075,16 +10272,7 @@ func newProjectsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Projects", vars)
 			}
@@ -11094,47 +10282,26 @@ func newProjectsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return projectsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Projects(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["projects"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, projectsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return projectsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Projects(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["projects"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, projectsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search between projects by budget, name, description and job name.")
 	cmd.Flags().String("status", "", "Only show projects which have the supplied status.")
@@ -11726,13 +10893,8 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiter candidates.",
-		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all\n  worksome recruiter-candidates list --watch\n  worksome recruiter-candidates list --watch --watch-interval 10",
+		Example: "  worksome recruiter-candidates list -n 20\n  worksome recruiter-candidates list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -11769,16 +10931,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "RecruiterCandidates", vars)
 			}
@@ -11788,47 +10941,26 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return recruitercandidatesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.RecruiterCandidates(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, recruitercandidatesColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return recruitercandidatesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.RecruiterCandidates(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, recruitercandidatesColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Supply to filter for status.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -12157,13 +11289,8 @@ func newRecruitersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of recruiters.",
-		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all\n  worksome recruiters list --watch\n  worksome recruiters list --watch --watch-interval 10",
+		Example: "  worksome recruiters list -n 20\n  worksome recruiters list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -12192,16 +11319,7 @@ func newRecruitersListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Recruiters", vars)
 			}
@@ -12211,47 +11329,26 @@ func newRecruitersListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return recruitersFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Recruiters(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["recruiters"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, recruitersColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return recruitersFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Recruiters(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["recruiters"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, recruitersColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "The search value used to search recruiters.")
 
 	return cmd
@@ -12381,13 +11478,8 @@ func newSkillsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of skills.",
-		Example: "  worksome skills list -n 20\n  worksome skills list --all\n  worksome skills list --watch\n  worksome skills list --watch --watch-interval 10",
+		Example: "  worksome skills list -n 20\n  worksome skills list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -12424,16 +11516,7 @@ func newSkillsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Skills", vars)
 			}
@@ -12443,47 +11526,26 @@ func newSkillsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return skillsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Skills(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["skills"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, skillsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return skillsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Skills(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["skills"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, skillsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
 	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
@@ -12532,7 +11594,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
+		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -12781,13 +11843,8 @@ func newTimesheetsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of timesheets.",
-		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all\n  worksome timesheets list --watch\n  worksome timesheets list --watch --watch-interval 10",
+		Example: "  worksome timesheets list -n 20\n  worksome timesheets list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -12816,16 +11873,7 @@ func newTimesheetsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Timesheets", vars)
 			}
@@ -12835,47 +11883,26 @@ func newTimesheetsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return timesheetsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Timesheets(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["timesheets"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, timesheetsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return timesheetsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Timesheets(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["timesheets"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, timesheetsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
 
 	return cmd
@@ -13266,13 +12293,8 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of trusted contacts.",
-		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all\n  worksome trusted-contacts list --watch\n  worksome trusted-contacts list --watch --watch-interval 10",
+		Example: "  worksome trusted-contacts list -n 20\n  worksome trusted-contacts list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -13373,16 +12395,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "TrustedContacts", vars)
 			}
@@ -13392,47 +12405,26 @@ func newTrustedContactsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return trustedcontactsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.TrustedContacts(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["trustedContacts"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, trustedcontactsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return trustedcontactsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.TrustedContacts(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["trustedContacts"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, trustedcontactsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
@@ -13880,13 +12872,8 @@ func newUserGroupsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of user groups.",
-		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all\n  worksome user-groups list --watch\n  worksome user-groups list --watch --watch-interval 10",
+		Example: "  worksome user-groups list -n 20\n  worksome user-groups list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -13927,16 +12914,7 @@ func newUserGroupsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "UserGroups", vars)
 			}
@@ -13946,47 +12924,26 @@ func newUserGroupsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return usergroupsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.UserGroups(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["userGroups"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, usergroupsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return usergroupsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.UserGroups(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["userGroups"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, usergroupsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search user groups by name, description and users name, email.")
 	cmd.Flags().String("users", "", "Filter user groups by users.")
@@ -14367,67 +13324,6 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// NewVerificationEmailCmd creates the verification-email resource command.
-func NewVerificationEmailCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "verification-email",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newVerificationEmailSendCmd())
-
-	return cmd
-}
-
-func newVerificationEmailSendCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Sends a new verification email. This operation is only allowed if the user has not verified their email.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "SendVerificationEmail", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SendVerificationEmail(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	return cmd
-}
-
 var viewerColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -14522,13 +13418,8 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook event logs. They are returned in descending order of creation.",
-		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all\n  worksome webhook-event-logs list --watch\n  worksome webhook-event-logs list --watch --watch-interval 10",
+		Example: "  worksome webhook-event-logs list -n 20\n  worksome webhook-event-logs list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -14565,16 +13456,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WebhookEventLogs", vars)
 			}
@@ -14584,47 +13466,26 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return webhookeventlogsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.WebhookEventLogs(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, webhookeventlogsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return webhookeventlogsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.WebhookEventLogs(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhookeventlogsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("webhook-event-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("accounts", "", "Filter the webhook event logss based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
@@ -14740,13 +13601,8 @@ func newWebhookEventsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhook events. They are returned in descending order of creation.",
-		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all\n  worksome webhook-events list --watch\n  worksome webhook-events list --watch --watch-interval 10",
+		Example: "  worksome webhook-events list -n 20\n  worksome webhook-events list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -14775,16 +13631,7 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WebhookEvents", vars)
 			}
@@ -14794,47 +13641,26 @@ func newWebhookEventsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return webhookeventsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.WebhookEvents(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["webhookEvents"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, webhookeventsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return webhookeventsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.WebhookEvents(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhookEvents"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhookeventsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook events based on the ID of the webhook.")
 
 	return cmd
@@ -15011,13 +13837,8 @@ func newWebhooksListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get a list of webhooks.",
-		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all\n  worksome webhooks list --watch\n  worksome webhooks list --watch --watch-interval 10",
+		Example: "  worksome webhooks list -n 20\n  worksome webhooks list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -15046,16 +13867,7 @@ func newWebhooksListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Webhooks", vars)
 			}
@@ -15065,47 +13877,26 @@ func newWebhooksListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return webhooksFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Webhooks(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["webhooks"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, webhooksColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return webhooksFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Webhooks(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["webhooks"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, webhooksColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
@@ -15630,13 +14421,8 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflow variables.",
-		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all\n  worksome workflow-variables list --watch\n  worksome workflow-variables list --watch --watch-interval 10",
+		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -15669,16 +14455,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "WorkflowVariables", vars)
 			}
@@ -15688,41 +14465,20 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return workflowvariablesFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.WorkflowVariables(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return workflowvariablesFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.WorkflowVariables(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
-			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
 
@@ -15832,13 +14588,8 @@ func newWorkflowsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "Get all workflows.",
-		Example: "  worksome workflows list -n 20\n  worksome workflows list --all\n  worksome workflows list --watch\n  worksome workflows list --watch --watch-interval 10",
+		Example: "  worksome workflows list -n 20\n  worksome workflows list --all",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
 				if outputFlag != "json" && outputFlag != "table" {
@@ -15867,16 +14618,7 @@ func newWorkflowsListCmd() *cobra.Command {
 				return fmt.Errorf("--all and --page cannot be used together")
 			}
 
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
 			if dryRun {
 				return printDryRun(cmd, "query", "Workflows", vars)
 			}
@@ -15886,47 +14628,26 @@ func newWorkflowsListCmd() *cobra.Command {
 				return err
 			}
 
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return workflowsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.Workflows(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["workflows"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, workflowsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
+			if fetchAll {
+				return workflowsFetchAll(cmd, q, vars)
 			}
 
-			if !watchFlag {
-				return fetchAndPrint()
+			result, err := q.Workflows(context.Background(), vars)
+			if err != nil {
+				return err
 			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["workflows"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, workflowsColumns)
 				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
 			}
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("accounts", "", "Filter the workflows based on one or more accounts.")
 
 	return cmd
