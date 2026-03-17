@@ -8125,6 +8125,17 @@ func newMilestonesUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+var multifactorsColumns = []output.Column{
+	{Header: "Type", Field: "__typename"},
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Status", Field: "status"},
+	{Header: "Owner ID", Field: "owner.id"},
+	{Header: "Owner Name", Field: "owner.name"},
+	{Header: "Verified At", Field: "verifiedAt"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
 // NewMultiFactorsCmd creates the multi-factors resource command.
 func NewMultiFactorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -8178,7 +8189,7 @@ func newMultiFactorsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, nil)
+			return printResult(cmd, result, multifactorsColumns)
 		},
 	}
 
@@ -8241,6 +8252,12 @@ func newMultiFactorsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["multiFactors"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, multifactorsColumns)
+				}
+			}
 			return printResult(cmd, result, nil)
 		},
 	}
@@ -8287,7 +8304,7 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, nil)
+	return printResult(cmd, allData, multifactorsColumns)
 }
 
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
@@ -9357,7 +9374,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Update a user's password.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()

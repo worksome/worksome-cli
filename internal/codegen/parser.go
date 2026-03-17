@@ -648,8 +648,18 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 		return nil
 	}
 
-	def := p.doc.Types[typeName]
-	if def == nil || def.Kind != ast.Object {
+	// Check if the original type is a multi-member union; if so we will
+	// prepend a "Type" column after resolving columns from the concrete type.
+	isMultiMemberUnion := false
+	originalDef := p.doc.Types[typeName]
+	if originalDef != nil && originalDef.Kind == ast.Union && len(originalDef.Types) > 1 {
+		isMultiMemberUnion = true
+	}
+
+	// Resolve union types: use a shared interface if all members implement one,
+	// otherwise fall back to the first union member.
+	def := p.resolveUnionForColumns(typeName)
+	if def == nil {
 		return nil
 	}
 
@@ -708,12 +718,93 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 		columns = append([]TableColumn{*idCol}, columns...)
 	}
 
+	// For multi-member unions, prepend a "Type" column so the user can see
+	// which concrete type each row is.
+	if isMultiMemberUnion {
+		columns = append([]TableColumn{{Header: "Type", Field: "__typename"}}, columns...)
+	}
+
 	// Enforce max columns
 	if len(columns) > maxColumns {
 		columns = columns[:maxColumns]
 	}
 
 	return columns
+}
+
+// resolveUnionForColumns resolves a type name to an ast.Definition suitable for
+// extracting table columns. If the type is already an object, it is returned
+// directly. If it is a union, the function looks for a shared interface that all
+// members implement; failing that it falls back to the first union member.
+func (p *parser) resolveUnionForColumns(typeName string) *ast.Definition {
+	def := p.doc.Types[typeName]
+	if def == nil {
+		return nil
+	}
+	if def.Kind == ast.Object {
+		return def
+	}
+	if def.Kind != ast.Union || len(def.Types) == 0 {
+		return nil
+	}
+
+	// Try to find a shared interface implemented by all union members.
+	if iface := p.findSharedInterface(def); iface != nil {
+		return iface
+	}
+
+	// Fallback: use the first union member.
+	firstMember := def.Types[0]
+	return p.doc.Types[firstMember]
+}
+
+// findSharedInterface returns an interface definition that all members of the
+// union implement, preferring the interface with the most fields. Returns nil
+// if no common interface exists.
+func (p *parser) findSharedInterface(unionDef *ast.Definition) *ast.Definition {
+	if len(unionDef.Types) == 0 {
+		return nil
+	}
+
+	// Collect interfaces implemented by the first member.
+	firstDef := p.doc.Types[unionDef.Types[0]]
+	if firstDef == nil {
+		return nil
+	}
+	candidates := make(map[string]bool, len(firstDef.Interfaces))
+	for _, iface := range firstDef.Interfaces {
+		candidates[iface] = true
+	}
+
+	// Intersect with interfaces of all other members.
+	for _, memberName := range unionDef.Types[1:] {
+		memberDef := p.doc.Types[memberName]
+		if memberDef == nil {
+			return nil
+		}
+		memberIfaces := make(map[string]bool, len(memberDef.Interfaces))
+		for _, iface := range memberDef.Interfaces {
+			memberIfaces[iface] = true
+		}
+		for iface := range candidates {
+			if !memberIfaces[iface] {
+				delete(candidates, iface)
+			}
+		}
+	}
+
+	// Pick the shared interface with the most fields.
+	var best *ast.Definition
+	for ifaceName := range candidates {
+		ifaceDef := p.doc.Types[ifaceName]
+		if ifaceDef == nil {
+			continue
+		}
+		if best == nil || len(ifaceDef.Fields) > len(best.Fields) {
+			best = ifaceDef
+		}
+	}
+	return best
 }
 
 // toTitleCase converts a camelCase or snake_case field name to a display title.
@@ -829,12 +920,31 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		if innerDef == nil {
 			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id } }"
 		}
+
+		// If the paginated type is a union, build inline fragment selections.
+		if innerDef.Kind == ast.Union {
+			unionFields := p.buildUnionSelectionFields(innerDef, 1)
+			if unionFields == "" {
+				return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename id } }"
+			}
+			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename " + unionFields + " } }"
+		}
+
 		dataFields := p.selectScalarFields(innerDef, 1)
 		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
 	}
 
-	// Check if it's a known object type
+	// Check if it's a union type
 	def := p.doc.Types[typeName]
+	if def != nil && def.Kind == ast.Union {
+		unionFields := p.buildUnionSelectionFields(def, depth)
+		if unionFields == "" {
+			return "{ __typename id }"
+		}
+		return "{ __typename " + unionFields + " }"
+	}
+
+	// Check if it's a known object type
 	if def == nil || def.Kind != ast.Object {
 		return ""
 	}
@@ -844,6 +954,34 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		return "{ id }"
 	}
 	return "{ " + fields + " }"
+}
+
+// buildUnionSelectionFields generates the inline fragment portion of a selection
+// set for a union type. If all members share a common interface, it uses a single
+// "... on InterfaceName { fields }" fragment. Otherwise it generates separate
+// inline fragments for each member type.
+func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) string {
+	// Try a shared interface first for a compact selection.
+	if iface := p.findSharedInterface(unionDef); iface != nil {
+		fields := p.selectScalarFields(iface, depth)
+		if fields != "" {
+			return "... on " + iface.Name + " { " + fields + " }"
+		}
+	}
+
+	// Fallback: inline fragment per member.
+	var parts []string
+	for _, memberName := range unionDef.Types {
+		memberDef := p.doc.Types[memberName]
+		if memberDef == nil {
+			continue
+		}
+		fields := p.selectScalarFields(memberDef, depth)
+		if fields != "" {
+			parts = append(parts, "... on "+memberName+" { "+fields+" }")
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // selectScalarFields returns a space-separated list of scalar field selections for a type.

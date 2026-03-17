@@ -1567,7 +1567,7 @@ func (q *Querier) UpdateMilestones(ctx context.Context, vars map[string]any) (ma
 // MultiFactor — Retrieve a specific multi-factor authentication implementation.
 func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query MultiFactor($id: ID!) {
-	multiFactor(id: $id) 
+	multiFactor(id: $id) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1585,7 +1585,7 @@ func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[str
 // MultiFactors — Retrieve all multi-factor authentication implementation.
 func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query MultiFactors($statuses: [MultiFactorStatus!], $channels: [MultiFactorChannel!], $first: Int! = 10, $page: Int) {
-	multiFactors(statuses: $statuses, channels: $channels, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data {  } }
+	multiFactors(statuses: $statuses, channels: $channels, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1634,7 +1634,7 @@ func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any
 // RemoveMultiFactor — Remove a multi-factor authentication implementation.
 func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveMultiFactor($input: RemoveMultiFactorInput!) {
-	removeMultiFactor(input: $input) 
+	removeMultiFactor(input: $input) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
