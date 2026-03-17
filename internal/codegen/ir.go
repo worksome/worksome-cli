@@ -48,6 +48,7 @@ type Operation struct {
 	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
 	InputFields      []Argument    // For mutations: flattened scalar/enum/ID fields from the input type
 	TableColumns     []TableColumn // Columns for table output (used by mutations)
+	InputExample     string        // For mutations: pretty-printed JSON example of the full input structure
 }
 
 // OperationType distinguishes queries from mutations.

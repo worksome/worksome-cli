@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -926,6 +928,111 @@ func (p *parser) resolveInputFields(op *Operation) {
 			})
 		}
 	}
+
+	// Build a JSON example showing the full input structure (including nested types)
+	op.InputExample = p.buildInputExample(arg.Type.Name)
+}
+
+// buildInputExample recursively builds a JSON example string for a GraphQL input type.
+// It produces a pretty-printed JSON object with placeholder values for each field.
+func (p *parser) buildInputExample(inputTypeName string) string {
+	example := p.buildInputExampleValue(inputTypeName, 0)
+	if example == nil {
+		return ""
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(example); err != nil {
+		return ""
+	}
+	// Encode adds a trailing newline; trim it
+	return strings.TrimSpace(buf.String())
+}
+
+// buildInputExampleValue recursively builds a map/slice/value representing an
+// example JSON payload for the given input type. depth controls recursion to
+// avoid infinite loops (max depth 2).
+func (p *parser) buildInputExampleValue(inputTypeName string, depth int) map[string]any {
+	if depth > 2 {
+		return nil
+	}
+
+	def := p.doc.Types[inputTypeName]
+	if def == nil || def.Kind != ast.InputObject {
+		return nil
+	}
+
+	result := make(map[string]any)
+	for _, f := range def.Fields {
+		result[f.Name] = p.exampleValueForType(f.Type, depth)
+	}
+	return result
+}
+
+// exampleValueForType returns an example value for a GraphQL type, suitable for
+// JSON serialization. It handles scalars, enums, lists, and nested input objects.
+func (p *parser) exampleValueForType(t *ast.Type, depth int) any {
+	// List type: wrap inner value in a slice
+	if t.Elem != nil {
+		inner := p.exampleValueForType(t.Elem, depth)
+		return []any{inner}
+	}
+
+	typeName := t.NamedType
+
+	// Scalar types
+	switch typeName {
+	case "String":
+		return "..."
+	case "Int":
+		return 0
+	case "Float", "Decimal", "DecimalTwo", "Percentage", "StrictPercentage":
+		return 0.0
+	case "Boolean":
+		return false
+	case "ID":
+		return "<id>"
+	case "DateTime":
+		return "2024-01-01T00:00:00Z"
+	case "Date":
+		return "2024-01-01"
+	case "Time":
+		return "12:00:00"
+	case "Upload":
+		return "<file>"
+	case "URL":
+		return "https://example.com"
+	case "E164PhoneNumber":
+		return "+1234567890"
+	case "Json", "JSON", "Dictionary":
+		return map[string]any{}
+	}
+
+	// Other known scalars not covered above
+	if knownScalars[typeName] {
+		return "..."
+	}
+
+	// Enum: show first enum value (or first few)
+	if enumDef, ok := p.doc.Types[typeName]; ok && enumDef.Kind == ast.Enum {
+		if len(enumDef.EnumValues) > 0 {
+			return enumDef.EnumValues[0].Name
+		}
+		return "..."
+	}
+
+	// Nested input object
+	if p.inputs[typeName] {
+		nested := p.buildInputExampleValue(typeName, depth+1)
+		if nested != nil {
+			return nested
+		}
+		return map[string]any{}
+	}
+
+	return "..."
 }
 
 // buildInnerSelectionSet generates a selection set for an inner type,
