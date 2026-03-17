@@ -241,6 +241,37 @@ func isTTY(w io.Writer) bool {
 	return false
 }
 
+// FilterColumns returns only the columns whose Field matches one of the
+// comma-separated names in selected. If selected is empty, all columns are
+// returned unchanged. The result preserves the order from selected.
+func FilterColumns(columns []Column, selected string) []Column {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return columns
+	}
+
+	names := strings.Split(selected, ",")
+
+	// Build a lookup from field name to column.
+	lookup := make(map[string]Column, len(columns))
+	for _, c := range columns {
+		lookup[c.Field] = c
+	}
+
+	var result []Column
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if c, ok := lookup[name]; ok {
+			result = append(result, c)
+		}
+	}
+
+	return result
+}
+
 // IsTTYFile is a convenience wrapper: returns true when f is a terminal.
 func IsTTYFile(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
