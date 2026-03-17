@@ -4,6 +4,7 @@ SCHEMA := schema/schema.graphql
 OVERRIDES := schema/overrides.yaml
 GENERATED_DIR := internal/generated
 PLATFORM_SCHEMA := $(HOME)/Projects/platform/_schema_dump.graphql
+INTROSPECT_ENDPOINT ?= https://api.worksome.com/graphql
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
@@ -39,7 +40,7 @@ generate:
 sync-schema:
 ifeq ($(SYNC_MODE),introspection)
 	@echo "Syncing schema via introspection..."
-	@echo "Not yet implemented — use SYNC_MODE=local or copy schema manually"
+	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) --token "$${WORKSOME_API_TOKEN}" > $(SCHEMA)
 else
 	@if [ -f "$(PLATFORM_SCHEMA)" ]; then \
 		echo "Syncing schema from platform repo..."; \
