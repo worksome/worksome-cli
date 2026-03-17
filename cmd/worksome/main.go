@@ -39,6 +39,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().StringP("token", "t", "", "API token (overrides config)")
 	rootCmd.PersistentFlags().String("endpoint", "", "API endpoint URL (overrides config)")
 	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: json, table")
+	rootCmd.PersistentFlags().String("columns", "", "Comma-separated list of columns to display (e.g., id,name,status)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Show request/response details")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")

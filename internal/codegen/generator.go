@@ -357,6 +357,9 @@ func getFormatter(cmd *cobra.Command) (*output.Formatter, error) {
 }
 
 func printResult(cmd *cobra.Command, data any, columns []output.Column) error {
+	if colFlag, _ := cmd.Flags().GetString("columns"); colFlag != "" {
+		columns = output.FilterColumns(columns, colFlag)
+	}
 	f, err := getFormatter(cmd)
 	if err != nil {
 		return err
