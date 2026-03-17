@@ -76,6 +76,7 @@ type TypeRef struct {
 	IsList     bool
 	ListItem   *TypeRef // For list types, the element type
 	IsEnum     bool
+	EnumValues []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
 	IsInput    bool
 	IsScalar   bool
 	IsPaginator bool

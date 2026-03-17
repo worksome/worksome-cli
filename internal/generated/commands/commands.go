@@ -77,17 +77,6 @@ func readInputFile(path string) (map[string]any, error) {
 	return result, nil
 }
 
-var acceptbidHoistedColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
-}
-
 // NewAcceptBidCmd creates the accept-bid resource command.
 func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -222,7 +211,7 @@ func NewAcceptBidCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, acceptbidHoistedColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -247,6 +236,12 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd.Flags().String("close-other-conversations", "", "Close other conversations if true.")
 	cmd.Flags().String("closing-message", "", "Message to send when closing other conversations.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
+	cmd.RegisterFlagCompletionFunc("payment-term-method", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"END_OF_MONTH", "NET"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("payment-term-days", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"EIGHT", "FOURTEEN", "THIRTY", "FORTY_FIVE", "FIFTY_THREE", "SIXTY", "SEVENTY_FIVE", "NINETY"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -505,17 +500,6 @@ func approvalapprovablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 	return printResult(cmd, allData, approvalapprovablesColumns)
 }
 
-var approvalapprovablesActionColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Approval ID", Field: "approval.id"},
-	{Header: "Approval Name", Field: "approval.name"},
-	{Header: "Approval Rule ID", Field: "approvalRule.id"},
-	{Header: "Approval Rule Approver Count", Field: "approvalRule.approverCount"},
-	{Header: "Approval States ID", Field: "approvalStates.id"},
-	{Header: "Approval States State", Field: "approvalStates.state"},
-	{Header: "Viewer Can Action", Field: "viewerCanAction"},
-}
-
 func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "action",
@@ -577,13 +561,16 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approvalapprovablesActionColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The field related to the approval rule.")
 	cmd.Flags().String("status", "", "The status given.")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -760,17 +747,6 @@ func approvalrulesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 	return printResult(cmd, allData, approvalrulesColumns)
 }
 
-var approvalrulesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Approval ID", Field: "approval.id"},
-	{Header: "Approval Name", Field: "approval.name"},
-	{Header: "Fields ID", Field: "fields.id"},
-	{Header: "Fields Title", Field: "fields.title"},
-	{Header: "Rules ID", Field: "rules.id"},
-	{Header: "Rules Field Id", Field: "rules.fieldId"},
-	{Header: "Approvers ID", Field: "approvers.id"},
-}
-
 func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -824,7 +800,7 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approvalrulesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1154,17 +1130,6 @@ func approvalsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 	return printResult(cmd, allData, approvalsColumns)
 }
 
-var approvalsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Version", Field: "version"},
-	{Header: "Status", Field: "status"},
-	{Header: "Trigger", Field: "trigger"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-}
-
 func newApprovalsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -1234,7 +1199,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approvalsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1243,18 +1208,13 @@ func newApprovalsCreateCmd() *cobra.Command {
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	cmd.Flags().String("company", "", "The company that the approval is for.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
-}
-
-var approvalsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Version", Field: "version"},
-	{Header: "Status", Field: "status"},
-	{Header: "Trigger", Field: "trigger"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newApprovalsUpdateCmd() *cobra.Command {
@@ -1326,7 +1286,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approvalsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1335,6 +1295,12 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "The status of the approval.")
 	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
 	cmd.Flags().String("description", "", "The description of the approval.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("trigger", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -1517,17 +1483,6 @@ func approversFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 	return printResult(cmd, allData, approversColumns)
 }
 
-var approversCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Approval Rule ID", Field: "approvalRule.id"},
-	{Header: "Approval Rule Approver Count", Field: "approvalRule.approverCount"},
-	{Header: "User Group ID", Field: "userGroup.id"},
-	{Header: "User Group Name", Field: "userGroup.name"},
-	{Header: "Position", Field: "position"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-}
-
 func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -1589,7 +1544,7 @@ func newApproversCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approversCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1597,17 +1552,6 @@ func newApproversCreateCmd() *cobra.Command {
 	cmd.Flags().String("user-group", "", "The user group for the approver.")
 	cmd.Flags().Int("position", 0, "The position of the approver in the approval sequence.")
 	return cmd
-}
-
-var approversUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Approval Rule ID", Field: "approvalRule.id"},
-	{Header: "Approval Rule Approver Count", Field: "approvalRule.approverCount"},
-	{Header: "User Group ID", Field: "userGroup.id"},
-	{Header: "User Group Name", Field: "userGroup.name"},
-	{Header: "Position", Field: "position"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
 }
 
 func newApproversUpdateCmd() *cobra.Command {
@@ -1671,7 +1615,7 @@ func newApproversUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, approversUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1695,17 +1639,6 @@ func NewBankDetailsCmd() *cobra.Command {
 	cmd.AddCommand(newBankDetailsCmd())
 
 	return cmd
-}
-
-var bankdetailsColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Bank Address", Field: "bankAddress"},
-	{Header: "Bank Country", Field: "bankCountry"},
-	{Header: "Bank Name", Field: "bankName"},
-	{Header: "Beneficiary Name", Field: "beneficiaryName"},
-	{Header: "Bban Bsb", Field: "bban.bsb"},
-	{Header: "Bban Bank Id", Field: "bban.bankId"},
 }
 
 func newBankDetailsCmd() *cobra.Command {
@@ -1789,7 +1722,7 @@ func newBankDetailsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, bankdetailsColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -1818,15 +1751,6 @@ func NewBatchActionCmd() *cobra.Command {
 	cmd.AddCommand(newBatchActionRunCmd())
 
 	return cmd
-}
-
-var batchactionRunColumns = []output.Column{
-	{Header: "Batch ID", Field: "batch.id"},
-	{Header: "Batch Name", Field: "batch.name"},
-	{Header: "Batch Id", Field: "batchId"},
-	{Header: "Action", Field: "action"},
-	{Header: "Batch Deleted", Field: "batchDeleted"},
-	{Header: "Result Url", Field: "resultUrl"},
 }
 
 func newBatchActionRunCmd() *cobra.Command {
@@ -1890,13 +1814,16 @@ func newBatchActionRunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, batchactionRunColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
 	cmd.Flags().String("action", "", "The action to perform.")
 	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
+	cmd.RegisterFlagCompletionFunc("action", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"PROCESS", "EXPORT", "UNDO"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -2082,16 +2009,6 @@ func batchesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any
 	return printResult(cmd, allData, batchesColumns)
 }
 
-var batchesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Type", Field: "type"},
-	{Header: "Items Count By Status", Field: "itemsCountByStatus"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Deleted At", Field: "deletedAt"},
-}
-
 func newBatchesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -2149,12 +2066,15 @@ func newBatchesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, batchesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that the batch is for.")
 	cmd.Flags().String("type", "", "The type of batch to create.")
+	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"PARTNER_PAYMENT_REQUESTS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -2340,17 +2260,6 @@ func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 	return printResult(cmd, allData, bidsColumns)
 }
 
-var blocktrustedcontactHoistedColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
-}
-
 // NewBlockTrustedContactCmd creates the block-trusted-contact resource command.
 func NewBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -2409,7 +2318,7 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, blocktrustedcontactHoistedColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -2861,17 +2770,6 @@ func companyrecruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 	return printResult(cmd, allData, companyrecruitersColumns)
 }
 
-var companyrecruitersCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
-	{Header: "Message", Field: "message"},
-	{Header: "Recruiter Fee", Field: "recruiterFee"},
-	{Header: "Recruiter Ownership Days", Field: "recruiterOwnershipDays"},
-	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
-}
-
 func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -2953,7 +2851,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, companyrecruitersCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -2966,17 +2864,6 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
 	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
-}
-
-var companyrecruitersDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
-	{Header: "Message", Field: "message"},
-	{Header: "Recruiter Fee", Field: "recruiterFee"},
-	{Header: "Recruiter Ownership Days", Field: "recruiterOwnershipDays"},
-	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
 }
 
 func newCompanyRecruitersDeleteCmd() *cobra.Command {
@@ -3032,23 +2919,12 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, companyrecruitersDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter relationship to delete.")
 	return cmd
-}
-
-var companyrecruitersInviteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
-	{Header: "Message", Field: "message"},
-	{Header: "Recruiter Fee", Field: "recruiterFee"},
-	{Header: "Recruiter Ownership Days", Field: "recruiterOwnershipDays"},
-	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
 }
 
 func newCompanyRecruitersInviteCmd() *cobra.Command {
@@ -3124,7 +3000,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, companyrecruitersInviteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -3135,17 +3011,6 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
 	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
-}
-
-var companyrecruitersUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
-	{Header: "Message", Field: "message"},
-	{Header: "Recruiter Fee", Field: "recruiterFee"},
-	{Header: "Recruiter Ownership Days", Field: "recruiterOwnershipDays"},
-	{Header: "Recruiter Ownership Days Left", Field: "recruiterOwnershipDaysLeft"},
 }
 
 func newCompanyRecruitersUpdateCmd() *cobra.Command {
@@ -3217,7 +3082,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, companyrecruitersUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -3848,17 +3713,6 @@ func customfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 	return printResult(cmd, allData, customfieldsColumns)
 }
 
-var customfieldsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "User ID", Field: "user.id"},
-	{Header: "User Name", Field: "user.name"},
-	{Header: "Title", Field: "title"},
-	{Header: "Slug", Field: "slug"},
-	{Header: "Description", Field: "description"},
-	{Header: "Field Type", Field: "fieldType"},
-	{Header: "Applies To", Field: "appliesTo"},
-}
-
 func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -3948,7 +3802,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, customfieldsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -3962,18 +3816,16 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
-}
-
-var customfieldsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "User ID", Field: "user.id"},
-	{Header: "User Name", Field: "user.name"},
-	{Header: "Title", Field: "title"},
-	{Header: "Slug", Field: "slug"},
-	{Header: "Description", Field: "description"},
-	{Header: "Field Type", Field: "fieldType"},
-	{Header: "Applies To", Field: "appliesTo"},
 }
 
 func newCustomFieldsDeleteCmd() *cobra.Command {
@@ -4029,23 +3881,12 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, customfieldsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("custom-field", "", "The ID of the custom field to delete.")
 	return cmd
-}
-
-var customfieldsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "User ID", Field: "user.id"},
-	{Header: "User Name", Field: "user.name"},
-	{Header: "Title", Field: "title"},
-	{Header: "Slug", Field: "slug"},
-	{Header: "Description", Field: "description"},
-	{Header: "Field Type", Field: "fieldType"},
-	{Header: "Applies To", Field: "appliesTo"},
 }
 
 func newCustomFieldsUpdateCmd() *cobra.Command {
@@ -4133,7 +3974,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, customfieldsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4146,6 +3987,12 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
 	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
 	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SINGLE_SELECT", "FREE_TEXT"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -4163,17 +4010,6 @@ func NewEmailCmd() *cobra.Command {
 	cmd.AddCommand(newEmailChangeCmd())
 
 	return cmd
-}
-
-var emailChangeColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
-	{Header: "Can Create Password", Field: "canCreatePassword"},
-	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newEmailChangeCmd() *cobra.Command {
@@ -4233,7 +4069,7 @@ func newEmailChangeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, emailChangeColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4256,17 +4092,6 @@ func NewEmploymentChangesCmd() *cobra.Command {
 	cmd.AddCommand(newEmploymentChangesApproveCmd())
 
 	return cmd
-}
-
-var employmentchangesApproveColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Hiring Managers ID", Field: "hiringManagers.id"},
-	{Header: "Hiring Managers Name", Field: "hiringManagers.name"},
-	{Header: "Status", Field: "status"},
-	{Header: "Onboarding Status", Field: "onboardingStatus"},
-	{Header: "Start Date", Field: "startDate"},
 }
 
 func newEmploymentChangesApproveCmd() *cobra.Command {
@@ -4322,7 +4147,7 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, employmentchangesApproveColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4563,17 +4388,6 @@ func employmentsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string
 	return printResult(cmd, allData, employmentsColumns)
 }
 
-var employmentsOnboardColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Hiring Managers ID", Field: "hiringManagers.id"},
-	{Header: "Hiring Managers Name", Field: "hiringManagers.name"},
-	{Header: "Status", Field: "status"},
-	{Header: "Onboarding Status", Field: "onboardingStatus"},
-	{Header: "Start Date", Field: "startDate"},
-}
-
 func newEmploymentsOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "onboard",
@@ -4627,7 +4441,7 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, employmentsOnboardColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4649,11 +4463,6 @@ func NewExportCmd() *cobra.Command {
 	cmd.AddCommand(newExportCreateCmd())
 
 	return cmd
-}
-
-var exportCreateColumns = []output.Column{
-	{Header: "Status", Field: "status"},
-	{Header: "Message", Field: "message"},
 }
 
 func newExportCreateCmd() *cobra.Command {
@@ -4729,7 +4538,7 @@ func newExportCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, exportCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4918,12 +4727,6 @@ func filesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 	return printResult(cmd, allData, filesColumns)
 }
 
-var filesUploadColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Url", Field: "url"},
-}
-
 func newFilesUploadCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upload",
@@ -4962,7 +4765,7 @@ func newFilesUploadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, filesUploadColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -4983,15 +4786,6 @@ func NewFilesAsUploadedCmd() *cobra.Command {
 	cmd.AddCommand(newFilesAsUploadedMarkCmd())
 
 	return cmd
-}
-
-var filesasuploadedMarkColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Title", Field: "title"},
-	{Header: "Size", Field: "size"},
-	{Header: "Mime Type", Field: "mimeType"},
-	{Header: "Url", Field: "url"},
 }
 
 func newFilesAsUploadedMarkCmd() *cobra.Command {
@@ -5032,7 +4826,7 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, filesasuploadedMarkColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -5105,6 +4899,10 @@ func newGateGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
+
+	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_G_ACCOUNT", "KVK_VALID_NUMBER", "KVK_COMPANY_NAME_MATCH", "KVK_WAADI", "KVK_SNA_QUALITY_MARK"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	return cmd
 }
@@ -5408,17 +5206,6 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 	return printResult(cmd, allData, hiresColumns)
 }
 
-var hiresAttributeRecruiterToColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
-}
-
 func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attribute-recruiter-to",
@@ -5488,7 +5275,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresAttributeRecruiterToColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -5498,17 +5285,6 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in.")
 	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
 	return cmd
-}
-
-var hiresCancelColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresCancelCmd() *cobra.Command {
@@ -5568,24 +5344,13 @@ func newHiresCancelCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresCancelColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("message", "", "The reason for canceling the hire.")
 	return cmd
-}
-
-var hiresCreateDraftColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresCreateDraftCmd() *cobra.Command {
@@ -5697,7 +5462,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresCreateDraftColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -5716,18 +5481,10 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd.Flags().String("company", "", "The company that the direct hire is for.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
+	cmd.RegisterFlagCompletionFunc("rate-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HOURLY", "DAILY", "WEEKLY", "MONTHLY", "FIXED", "UNKNOWN"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
-}
-
-var hiresRejectColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresRejectCmd() *cobra.Command {
@@ -5787,24 +5544,13 @@ func newHiresRejectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresRejectColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that is rejecting the hire.")
 	cmd.Flags().String("hire", "", "The ID of the hire to be rejected.")
 	return cmd
-}
-
-var hiresRemoveRecruiterFromColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresRemoveRecruiterFromCmd() *cobra.Command {
@@ -5860,23 +5606,12 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresRemoveRecruiterFromColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	return cmd
-}
-
-var hiresShareColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresShareCmd() *cobra.Command {
@@ -5936,24 +5671,13 @@ func newHiresShareCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresShareColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("message", "", "Optional message to include when sharing the hire.")
 	return cmd
-}
-
-var hiresTerminateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Job Name", Field: "latestContract.jobName"},
-	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Job Name", Field: "activeContract.jobName"},
-	{Header: "Pending Contract Changes", Field: "pendingContractChanges"},
-	{Header: "Company ID", Field: "company.id"},
 }
 
 func newHiresTerminateCmd() *cobra.Command {
@@ -6025,7 +5749,7 @@ func newHiresTerminateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, hiresTerminateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -6034,6 +5758,9 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
+	cmd.RegisterFlagCompletionFunc("reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"WORKER_UNAVAILABILITY", "PROJECT_COMPLETED_EARLY", "MUTUAL_AGREEMENT_TO_TERMINATE", "BUDGET_CONSTRAINTS", "CHANGE_IN_PROJECT_SCOPE", "PERFORMANCE_ISSUES", "COMMUNICATION_ISSUES", "PERSONAL_REASONS", "LEGAL_OR_COMPLIANCE_ISSUES", "VIOLATION_OF_CONTRACT_TERMS", "UNFORESEEN_CIRCUMSTANCES", "DISSATISFACTION_WITH_QUALITY_OF_WORK", "CONFLICT_OF_INTEREST", "OTHER"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -6353,20 +6080,8 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
-	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
-}
-
-var invitelinkGenerateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Market", Field: "market"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newInviteLinkGenerateCmd() *cobra.Command {
@@ -6419,67 +6134,6 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, invitelinkGenerateColumns)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
-	return cmd
-}
-
-func newInviteLinkGeneratePersonalCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate-personal",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome invite-link generate-personal --input data.json\n  worksome invite-link generate-personal --company \"value\"",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
-			}
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -6775,17 +6429,6 @@ func NewJobCandidatePreferredCmd() *cobra.Command {
 	return cmd
 }
 
-var jobcandidatepreferredUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Job ID", Field: "job.id"},
-	{Header: "Job Number", Field: "job.number"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Bid ID", Field: "bid.id"},
-	{Header: "Bid Status", Field: "bid.status"},
-	{Header: "Hire ID", Field: "hire.id"},
-}
-
 func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
@@ -6843,7 +6486,7 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobcandidatepreferredUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -6866,17 +6509,6 @@ func NewJobCandidateStatusCmd() *cobra.Command {
 	cmd.AddCommand(newJobCandidateStatusUpdateCmd())
 
 	return cmd
-}
-
-var jobcandidatestatusUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Job ID", Field: "job.id"},
-	{Header: "Job Number", Field: "job.number"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Bid ID", Field: "bid.id"},
-	{Header: "Bid Status", Field: "bid.status"},
-	{Header: "Hire ID", Field: "hire.id"},
 }
 
 func newJobCandidateStatusUpdateCmd() *cobra.Command {
@@ -6948,7 +6580,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobcandidatestatusUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -6957,6 +6589,12 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
 	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
 	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ELIGIBLE", "NON_ELIGIBLE", "DUPLICATE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("status-reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SKILLS_OR_EXPERIENCE", "SPECIFIC_JOB_CRITERIA", "AVAILABILITY", "MARKET_ELIGIBILITY", "BUDGET", "ACCEPTED_OTHER_JOB", "OTHER_CANDIDATE_ACCEPTED", "ADDED_BY_MISTAKE", "EXISTING_APPLICATION_THROUGH_OTHER_CHANNELS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -7153,17 +6791,6 @@ func jobcandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 	return printResult(cmd, allData, jobcandidatesColumns)
 }
 
-var jobcandidatesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Job ID", Field: "job.id"},
-	{Header: "Job Number", Field: "job.number"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Bid ID", Field: "bid.id"},
-	{Header: "Bid Status", Field: "bid.status"},
-	{Header: "Hire ID", Field: "hire.id"},
-}
-
 func newJobCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -7221,12 +6848,15 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobcandidatesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
 	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
+	cmd.RegisterFlagCompletionFunc("sourcing-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"TRUSTED_CONTACT", "CANDIDATE_SUBMISSION", "RECRUITER_ATTRIBUTION", "MARKETPLACE"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -7377,14 +7007,6 @@ func jobsharesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 	return printResult(cmd, allData, jobsharesColumns)
 }
 
-var jobsharesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Is Active", Field: "isActive"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Job ID", Field: "job.id"},
-	{Header: "Job Number", Field: "job.number"},
-}
-
 func newJobSharesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -7438,20 +7060,12 @@ func newJobSharesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsharesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job that the job share is for.")
 	return cmd
-}
-
-var jobsharesRemoveColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Is Active", Field: "isActive"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Job ID", Field: "job.id"},
-	{Header: "Job Number", Field: "job.number"},
 }
 
 func newJobSharesRemoveCmd() *cobra.Command {
@@ -7492,7 +7106,7 @@ func newJobSharesRemoveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsharesRemoveColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -7806,17 +7420,6 @@ func jobsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 	return printResult(cmd, allData, jobsColumns)
 }
 
-var jobsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Name", Field: "name"},
-	{Header: "Skills ID", Field: "skills.id"},
-	{Header: "Skills Name", Field: "skills.name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Market", Field: "market"},
-	{Header: "Status", Field: "status"},
-}
-
 func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -7874,24 +7477,13 @@ func newJobsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the job is for.")
 	cmd.Flags().String("name", "", "The name of the job.")
 	return cmd
-}
-
-var jobsDuplicateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Name", Field: "name"},
-	{Header: "Skills ID", Field: "skills.id"},
-	{Header: "Skills Name", Field: "skills.name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Market", Field: "market"},
-	{Header: "Status", Field: "status"},
 }
 
 func newJobsDuplicateCmd() *cobra.Command {
@@ -7951,24 +7543,13 @@ func newJobsDuplicateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsDuplicateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job to duplicate.")
 	cmd.Flags().String("title", "", "Optional title for the duplicated job. If not provided, the original job title will be used with \"[Copy]\" prepended.")
 	return cmd
-}
-
-var jobsEndColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Name", Field: "name"},
-	{Header: "Skills ID", Field: "skills.id"},
-	{Header: "Skills Name", Field: "skills.name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Market", Field: "market"},
-	{Header: "Status", Field: "status"},
 }
 
 func newJobsEndCmd() *cobra.Command {
@@ -8028,24 +7609,13 @@ func newJobsEndCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsEndColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job.")
 	cmd.Flags().String("account-id", "", "The ID of the account performing the action.")
 	return cmd
-}
-
-var jobsSetInternalBudgetOnColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Name", Field: "name"},
-	{Header: "Skills ID", Field: "skills.id"},
-	{Header: "Skills Name", Field: "skills.name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Market", Field: "market"},
-	{Header: "Status", Field: "status"},
 }
 
 func newJobsSetInternalBudgetOnCmd() *cobra.Command {
@@ -8105,24 +7675,13 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsSetInternalBudgetOnColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job that the budget is for.")
 	cmd.Flags().Float64("amount", 0, "The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.")
 	return cmd
-}
-
-var jobsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Number", Field: "number"},
-	{Header: "Name", Field: "name"},
-	{Header: "Skills ID", Field: "skills.id"},
-	{Header: "Skills Name", Field: "skills.name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Market", Field: "market"},
-	{Header: "Status", Field: "status"},
 }
 
 func newJobsUpdateCmd() *cobra.Command {
@@ -8242,7 +7801,7 @@ func newJobsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, jobsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -8263,6 +7822,24 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
+	cmd.RegisterFlagCompletionFunc("locale", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ENGLISH", "DANISH", "FRENCH", "GERMAN", "DUTCH"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("association", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"SMALL_TASK", "PROJECT", "BIG_PROJECT", "PART_TIME", "FULL_TIME"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("payment-scheme", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ANY", "COMPANY", "GLOBAL_PAYROLL", "UK_PAYE", "UK_PAYE_IR35", "US_PAYROLL", "US_PAYROLL_WS", "DK_PAYROLL", "DK_B_INCOME", "AU_PAYROLL", "PARTNER_EOR"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("start-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ASAP", "NEXT_MONTH", "ON_DATE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("end-date-timeframe", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ON_DATE", "OPEN"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("evaluation-period", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"MONTH", "WEEK", "QUICK"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -8446,17 +8023,6 @@ func milestonesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 	return printResult(cmd, allData, milestonesColumns)
 }
 
-var milestonesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Purchase Order Number", Field: "purchaseOrderNumber"},
-	{Header: "Status", Field: "status"},
-	{Header: "Details ID", Field: "details.id"},
-	{Header: "Details Due Date", Field: "details.dueDate"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
-}
-
 func newMilestonesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -8495,22 +8061,11 @@ func newMilestonesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, milestonesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
-}
-
-var milestonesDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Purchase Order Number", Field: "purchaseOrderNumber"},
-	{Header: "Status", Field: "status"},
-	{Header: "Details ID", Field: "details.id"},
-	{Header: "Details Due Date", Field: "details.dueDate"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
 }
 
 func newMilestonesDeleteCmd() *cobra.Command {
@@ -8551,22 +8106,11 @@ func newMilestonesDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, milestonesDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
-}
-
-var milestonesUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Purchase Order Number", Field: "purchaseOrderNumber"},
-	{Header: "Status", Field: "status"},
-	{Header: "Details ID", Field: "details.id"},
-	{Header: "Details Due Date", Field: "details.dueDate"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
 }
 
 func newMilestonesUpdateCmd() *cobra.Command {
@@ -8607,7 +8151,7 @@ func newMilestonesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, milestonesUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -8779,11 +8323,6 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 	return printResult(cmd, allData, nil)
 }
 
-var multifactorsCreateSmsColumns = []output.Column{
-	{Header: "Multi Factor ID", Field: "multiFactor.id"},
-	{Header: "Multi Factor Name", Field: "multiFactor.name"},
-}
-
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-sms",
@@ -8837,19 +8376,12 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, multifactorsCreateSmsColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "An optional name for the SMS multi-factor authentication implementation.")
 	return cmd
-}
-
-var multifactorsCreateTotpColumns = []output.Column{
-	{Header: "Multi Factor ID", Field: "multiFactor.id"},
-	{Header: "Multi Factor Name", Field: "multiFactor.name"},
-	{Header: "Secret", Field: "secret"},
-	{Header: "Qr Code", Field: "qrCode"},
 }
 
 func newMultiFactorsCreateTotpCmd() *cobra.Command {
@@ -8905,7 +8437,7 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, multifactorsCreateTotpColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -8974,17 +8506,6 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 	return cmd
 }
 
-var multifactorsVerifySmsColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Phone Number", Field: "phoneNumber"},
-	{Header: "Status", Field: "status"},
-	{Header: "Owner ID", Field: "owner.id"},
-	{Header: "Owner Name", Field: "owner.name"},
-	{Header: "Verified At", Field: "verifiedAt"},
-	{Header: "Created At", Field: "createdAt"},
-}
-
 func newMultiFactorsVerifySmsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "verify-sms",
@@ -9042,24 +8563,13 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, multifactorsVerifySmsColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the SMS multi-factor authentication implementation to verify.")
 	cmd.Flags().String("code", "", "The current SMS authentication code to verify the implementation with.")
 	return cmd
-}
-
-var multifactorsVerifyTotpColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Status", Field: "status"},
-	{Header: "Owner ID", Field: "owner.id"},
-	{Header: "Owner Name", Field: "owner.name"},
-	{Header: "Verified At", Field: "verifiedAt"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
 }
 
 func newMultiFactorsVerifyTotpCmd() *cobra.Command {
@@ -9119,7 +8629,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, multifactorsVerifyTotpColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -9132,7 +8642,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Update a note.",
+		Short: "Create a note.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9144,17 +8654,6 @@ func NewNoteCmd() *cobra.Command {
 	cmd.AddCommand(newNoteUpdateCmd())
 
 	return cmd
-}
-
-var noteCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Body", Field: "body"},
-	{Header: "Author ID", Field: "author.id"},
-	{Header: "Author Name", Field: "author.name"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Viewer Can Update", Field: "viewerCanUpdate"},
 }
 
 func newNoteCreateCmd() *cobra.Command {
@@ -9222,7 +8721,7 @@ func newNoteCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, noteCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -9231,17 +8730,6 @@ func newNoteCreateCmd() *cobra.Command {
 	cmd.Flags().String("account-id", "", "The account that the note is related to.")
 	cmd.Flags().String("notable-id", "", "The entity that the note is for.")
 	return cmd
-}
-
-var noteDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Body", Field: "body"},
-	{Header: "Author ID", Field: "author.id"},
-	{Header: "Author Name", Field: "author.name"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Viewer Can Update", Field: "viewerCanUpdate"},
 }
 
 func newNoteDeleteCmd() *cobra.Command {
@@ -9297,23 +8785,12 @@ func newNoteDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, noteDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the note to be deleted.")
 	return cmd
-}
-
-var noteUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Body", Field: "body"},
-	{Header: "Author ID", Field: "author.id"},
-	{Header: "Author Name", Field: "author.name"},
-	{Header: "Created At", Field: "createdAt"},
-	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Viewer Can Update", Field: "viewerCanUpdate"},
 }
 
 func newNoteUpdateCmd() *cobra.Command {
@@ -9377,7 +8854,7 @@ func newNoteUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, noteUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -9391,7 +8868,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage Onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9402,17 +8879,6 @@ func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd.AddCommand(newOnboardingDocumentsRemoveCmd())
 
 	return cmd
-}
-
-var onboardingdocumentsManageColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Market", Field: "market"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsManageCmd() *cobra.Command {
@@ -9468,23 +8934,12 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, onboardingdocumentsManageColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("company", "", "The company that the onboarding documents are for.")
 	return cmd
-}
-
-var onboardingdocumentsRemoveColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Market", Field: "market"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsRemoveCmd() *cobra.Command {
@@ -9540,7 +8995,7 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, onboardingdocumentsRemoveColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -9826,6 +9281,16 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -9935,7 +9400,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Update a user's password.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9946,17 +9411,6 @@ func NewPasswordCmd() *cobra.Command {
 	cmd.AddCommand(newPasswordUpdateCmd())
 
 	return cmd
-}
-
-var passwordCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
-	{Header: "Can Create Password", Field: "canCreatePassword"},
-	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newPasswordCreateCmd() *cobra.Command {
@@ -10012,23 +9466,12 @@ func newPasswordCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, passwordCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("password", "", "The password which will be set on the user.")
 	return cmd
-}
-
-var passwordUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
-	{Header: "Can Create Password", Field: "canCreatePassword"},
-	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newPasswordUpdateCmd() *cobra.Command {
@@ -10092,7 +9535,7 @@ func newPasswordUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, passwordUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -10382,17 +9825,6 @@ func paymentrequestsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 	return printResult(cmd, allData, paymentrequestsColumns)
 }
 
-var paymentrequestsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Number", Field: "number"},
-}
-
 func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -10486,7 +9918,7 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, paymentrequestsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -10502,17 +9934,6 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	return cmd
-}
-
-var paymentrequestsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Number", Field: "number"},
 }
 
 func newPaymentRequestsDeleteCmd() *cobra.Command {
@@ -10568,23 +9989,12 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, paymentrequestsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the payment request to delete.")
 	return cmd
-}
-
-var paymentrequestsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Number", Field: "number"},
 }
 
 func newPaymentRequestsUpdateCmd() *cobra.Command {
@@ -10672,7 +10082,7 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, paymentrequestsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -10685,6 +10095,83 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	cmd.Flags().String("purchase-order-number", "", "The purchase order number for the payment request.")
+	return cmd
+}
+
+// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
+func NewPersonalInviteLinkCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "personal-invite-link",
+		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
+
+	return cmd
+}
+
+func newPersonalInviteLinkGenerateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -10887,17 +10374,6 @@ func projectsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 	return printResult(cmd, allData, projectsColumns)
 }
 
-var projectsAttachJobsToColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-}
-
 func newProjectsAttachJobsToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-jobs-to",
@@ -10951,23 +10427,12 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsAttachJobsToColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
-}
-
-var projectsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsCreateCmd() *cobra.Command {
@@ -11039,7 +10504,7 @@ func newProjectsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -11049,17 +10514,6 @@ func newProjectsCreateCmd() *cobra.Command {
 	cmd.Flags().String("company", "", "The company that the project is for.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
-}
-
-var projectsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsDeleteCmd() *cobra.Command {
@@ -11115,23 +10569,12 @@ func newProjectsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
-}
-
-var projectsDetachJobFromColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsDetachJobFromCmd() *cobra.Command {
@@ -11191,24 +10634,13 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsDetachJobFromColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "Jobs to be detached from the project.")
 	cmd.Flags().String("project", "", "The project containing jobs.")
 	return cmd
-}
-
-var projectsEndColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsEndCmd() *cobra.Command {
@@ -11264,23 +10696,12 @@ func newProjectsEndCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsEndColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
-}
-
-var projectsOpenColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsOpenCmd() *cobra.Command {
@@ -11336,23 +10757,12 @@ func newProjectsOpenCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsOpenColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the project.")
 	return cmd
-}
-
-var projectsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Currency", Field: "currency"},
-	{Header: "Creator ID", Field: "creator.id"},
-	{Header: "Creator Name", Field: "creator.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
 }
 
 func newProjectsUpdateCmd() *cobra.Command {
@@ -11424,7 +10834,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, projectsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -11581,6 +10991,10 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "Supply to filter for status.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ACTIVE", "DECLINED", "APPLIED", "BLOCKED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -11619,17 +11033,6 @@ func recruitercandidatesFetchAll(cmd *cobra.Command, q *queries.Querier, vars ma
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, recruitercandidatesColumns)
-}
-
-var recruitercandidatesCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
 }
 
 func newRecruiterCandidatesCreateCmd() *cobra.Command {
@@ -11721,7 +11124,7 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, recruitercandidatesCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -11736,17 +11139,6 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd.Flags().String("daily-rate", "", "The daily rate of the candidate.")
 	cmd.Flags().String("monthly-rate", "", "The monthly rate of the candidate.")
 	return cmd
-}
-
-var recruitercandidatesDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
 }
 
 func newRecruiterCandidatesDeleteCmd() *cobra.Command {
@@ -11802,23 +11194,12 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, recruitercandidatesDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter candidate relationship to delete.")
 	return cmd
-}
-
-var recruitercandidatesUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Recruiter ID", Field: "recruiter.id"},
-	{Header: "Recruiter Name", Field: "recruiter.name"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Status", Field: "status"},
-	{Header: "Token", Field: "token"},
 }
 
 func newRecruiterCandidatesUpdateCmd() *cobra.Command {
@@ -11894,7 +11275,7 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, recruitercandidatesUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -12040,17 +11421,6 @@ func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 	return printResult(cmd, allData, recruitersColumns)
 }
 
-var reinvitetrustedcontactHoistedColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
-}
-
 // NewReinviteTrustedContactCmd creates the reinvite-trusted-contact resource command.
 func NewReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -12105,7 +11475,7 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, reinvitetrustedcontactHoistedColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -12254,7 +11624,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Delete a timesheet registration. Only workers can delete timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -12265,17 +11635,6 @@ func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd.AddCommand(newTimesheetRegistrationUpdateCmd())
 
 	return cmd
-}
-
-var timesheetregistrationDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Type", Field: "type"},
-	{Header: "Date", Field: "date"},
-	{Header: "Start Time", Field: "startTime"},
-	{Header: "End Time", Field: "endTime"},
-	{Header: "Duration", Field: "duration"},
-	{Header: "Unit", Field: "unit"},
-	{Header: "Comments", Field: "comments"},
 }
 
 func newTimesheetRegistrationDeleteCmd() *cobra.Command {
@@ -12331,23 +11690,12 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetregistrationDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet registration to delete.")
 	return cmd
-}
-
-var timesheetregistrationUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Type", Field: "type"},
-	{Header: "Date", Field: "date"},
-	{Header: "Start Time", Field: "startTime"},
-	{Header: "End Time", Field: "endTime"},
-	{Header: "Duration", Field: "duration"},
-	{Header: "Unit", Field: "unit"},
-	{Header: "Comments", Field: "comments"},
 }
 
 func newTimesheetRegistrationUpdateCmd() *cobra.Command {
@@ -12435,7 +11783,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetregistrationUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -12448,6 +11796,9 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd.Flags().String("invoice-reference-number", "", "The invoice reference number associated with the timesheet registration.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
 	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
+	cmd.RegisterFlagCompletionFunc("unit", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HOURS", "DAYS"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -12627,11 +11978,6 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 	return printResult(cmd, allData, timesheetsColumns)
 }
 
-var timesheetsCreateCustomColumns = []output.Column{
-	{Header: "Provided Registrations", Field: "providedRegistrations"},
-	{Header: "Successful Registrations", Field: "successfulRegistrations"},
-}
-
 func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-custom",
@@ -12689,24 +12035,13 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetsCreateCustomColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
 	cmd.Flags().String("data", "", "The custom data for the timesheet.")
 	return cmd
-}
-
-var timesheetsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
-	{Header: "Start Date", Field: "startDate"},
-	{Header: "End Date", Field: "endDate"},
-	{Header: "Created At", Field: "createdAt"},
 }
 
 func newTimesheetsCreateCmd() *cobra.Command {
@@ -12774,7 +12109,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -12783,17 +12118,6 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd.Flags().String("start-date", "", "The start date of the timesheet.")
 	cmd.Flags().String("end-date", "", "The end date of the timesheet.")
 	return cmd
-}
-
-var timesheetsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
-	{Header: "Start Date", Field: "startDate"},
-	{Header: "End Date", Field: "endDate"},
-	{Header: "Created At", Field: "createdAt"},
 }
 
 func newTimesheetsDeleteCmd() *cobra.Command {
@@ -12849,23 +12173,12 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the timesheet to delete.")
 	return cmd
-}
-
-var timesheetsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Hire ID", Field: "hire.id"},
-	{Header: "Hire Number", Field: "hire.number"},
-	{Header: "Start Date", Field: "startDate"},
-	{Header: "End Date", Field: "endDate"},
-	{Header: "Created At", Field: "createdAt"},
 }
 
 func newTimesheetsUpdateCmd() *cobra.Command {
@@ -12929,7 +12242,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, timesheetsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -13165,6 +12478,16 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created.")
 
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("staffing-agency-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"HAS_OWNERSHIP", "NO_OWNERSHIP"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("managed-status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"STAFFING_AGENCY", "WORKER", "UNMANAGED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
@@ -13203,17 +12526,6 @@ func trustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, trustedcontactsColumns)
-}
-
-var trustedcontactsApproveColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 func newTrustedContactsApproveCmd() *cobra.Command {
@@ -13269,23 +12581,12 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, trustedcontactsApproveColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
 	return cmd
-}
-
-var trustedcontactsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 func newTrustedContactsCreateCmd() *cobra.Command {
@@ -13389,7 +12690,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, trustedcontactsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -13406,18 +12707,13 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
 	cmd.Flags().String("origin", "", "The origin of the trusted contact")
 	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact")
+	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("origin-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"EXISTING_SETUP", "DIRECT_INVITE", "PERSONAL_INVITE", "CANDIDATE_SUBMISSION", "MARKETPLACE_HIRE", "EXTERNAL_LINK", "ORGANISATION_HIRE"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
-}
-
-var trustedcontactsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 func newTrustedContactsDeleteCmd() *cobra.Command {
@@ -13477,24 +12773,13 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, trustedcontactsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the trusted contact to be deleted.")
 	cmd.Flags().String("account", "", "The account performing the delete.")
 	return cmd
-}
-
-var trustedcontactsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Worker ID", Field: "worker.id"},
-	{Header: "Worker Name", Field: "worker.name"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Invited By User ID", Field: "invitedByUser.id"},
-	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
 }
 
 func newTrustedContactsUpdateCmd() *cobra.Command {
@@ -13554,7 +12839,7 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, trustedcontactsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -13753,15 +13038,6 @@ func usergroupsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 	return printResult(cmd, allData, usergroupsColumns)
 }
 
-var usergroupsAttachUsersToColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Status", Field: "status"},
-}
-
 func newUserGroupsAttachUsersToCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attach-users-to",
@@ -13815,21 +13091,12 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, usergroupsAttachUsersToColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
-}
-
-var usergroupsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Status", Field: "status"},
 }
 
 func newUserGroupsCreateCmd() *cobra.Command {
@@ -13897,7 +13164,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, usergroupsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -13905,16 +13172,10 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
 	cmd.Flags().String("company", "", "The company that the group is for.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
-}
-
-var usergroupsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Status", Field: "status"},
 }
 
 func newUserGroupsDeleteCmd() *cobra.Command {
@@ -13970,21 +13231,12 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, usergroupsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the group.")
 	return cmd
-}
-
-var usergroupsDetachUsersFromColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Status", Field: "status"},
 }
 
 func newUserGroupsDetachUsersFromCmd() *cobra.Command {
@@ -14040,21 +13292,12 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, usergroupsDetachUsersFromColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("user-group", "", "The user group containing users.")
 	return cmd
-}
-
-var usergroupsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Description", Field: "description"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Status", Field: "status"},
 }
 
 func newUserGroupsUpdateCmd() *cobra.Command {
@@ -14122,7 +13365,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, usergroupsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -14130,6 +13373,9 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
 	cmd.Flags().String("status", "", "The status of the user group.")
+	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"ACTIVE", "INACTIVE", "ARCHIVED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
@@ -14147,17 +13393,6 @@ func NewVerificationEmailCmd() *cobra.Command {
 	cmd.AddCommand(newVerificationEmailSendCmd())
 
 	return cmd
-}
-
-var verificationemailSendColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "Email", Field: "email"},
-	{Header: "Avatar", Field: "avatar"},
-	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
-	{Header: "Can Create Password", Field: "canCreatePassword"},
-	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newVerificationEmailSendCmd() *cobra.Command {
@@ -14198,7 +13433,7 @@ func newVerificationEmailSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, verificationemailSendColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -14584,17 +13819,6 @@ func webhookeventsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[stri
 	return printResult(cmd, allData, webhookeventsColumns)
 }
 
-var webhookeventsRetryColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Key", Field: "key"},
-	{Header: "Webhook Id", Field: "webhookId"},
-	{Header: "Event", Field: "event"},
-	{Header: "Description", Field: "description"},
-	{Header: "Status", Field: "status"},
-	{Header: "Payload", Field: "payload"},
-	{Header: "Logs ID", Field: "logs.id"},
-}
-
 func newWebhookEventsRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "retry",
@@ -14648,7 +13872,7 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, webhookeventsRetryColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -14831,17 +14055,6 @@ func webhooksFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]an
 	return printResult(cmd, allData, webhooksColumns)
 }
 
-var webhooksCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Description", Field: "description"},
-	{Header: "Owner", Field: "owner"},
-	{Header: "Url", Field: "url"},
-	{Header: "Secret", Field: "secret"},
-	{Header: "Is Active", Field: "isActive"},
-	{Header: "Client Id", Field: "clientId"},
-}
-
 func newWebhooksCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -14923,7 +14136,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, webhooksCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -14936,17 +14149,6 @@ func newWebhooksCreateCmd() *cobra.Command {
 	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
 	cmd.Flags().String("company", "", "The company that the webhook is for.")
 	return cmd
-}
-
-var webhooksDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Description", Field: "description"},
-	{Header: "Owner", Field: "owner"},
-	{Header: "Url", Field: "url"},
-	{Header: "Secret", Field: "secret"},
-	{Header: "Is Active", Field: "isActive"},
-	{Header: "Client Id", Field: "clientId"},
 }
 
 func newWebhooksDeleteCmd() *cobra.Command {
@@ -15002,23 +14204,12 @@ func newWebhooksDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, webhooksDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the webhook to be deleted.")
 	return cmd
-}
-
-var webhooksUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Title", Field: "title"},
-	{Header: "Description", Field: "description"},
-	{Header: "Owner", Field: "owner"},
-	{Header: "Url", Field: "url"},
-	{Header: "Secret", Field: "secret"},
-	{Header: "Is Active", Field: "isActive"},
-	{Header: "Client Id", Field: "clientId"},
 }
 
 func newWebhooksUpdateCmd() *cobra.Command {
@@ -15102,7 +14293,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, webhooksUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -15183,17 +14374,6 @@ func newWorkerGetCmd() *cobra.Command {
 	return cmd
 }
 
-var workerUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Name", Field: "name"},
-	{Header: "First Name", Field: "firstName"},
-	{Header: "Last Name", Field: "lastName"},
-	{Header: "Middle Name", Field: "middleName"},
-	{Header: "Email", Field: "email"},
-	{Header: "Phone", Field: "phone"},
-	{Header: "Avatar", Field: "avatar"},
-}
-
 func newWorkerUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
@@ -15251,7 +14431,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, workerUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -15274,11 +14454,6 @@ func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 	cmd.AddCommand(newWorkerCustomFieldValuesUpdateCmd())
 
 	return cmd
-}
-
-var workercustomfieldvaluesUpdateColumns = []output.Column{
-	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
-	{Header: "Custom Field Values Content", Field: "customFieldValues.content"},
 }
 
 func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
@@ -15334,7 +14509,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, workercustomfieldvaluesUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -15422,6 +14597,10 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
+
+	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"NONE", "HIRE_CREATED", "HIRE_CHANGED", "CLASSIFICATION_CREATED"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	return cmd
 }
@@ -15631,10 +14810,6 @@ func workflowsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 	return printResult(cmd, allData, workflowsColumns)
 }
 
-var workflowsCreateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-}
-
 func newWorkflowsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -15673,15 +14848,11 @@ func newWorkflowsCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, workflowsCreateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	return cmd
-}
-
-var workflowsDeleteColumns = []output.Column{
-	{Header: "ID", Field: "id"},
 }
 
 func newWorkflowsDeleteCmd() *cobra.Command {
@@ -15737,16 +14908,12 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, workflowsDeleteColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the workflow.")
 	return cmd
-}
-
-var workflowsUpdateColumns = []output.Column{
-	{Header: "ID", Field: "id"},
 }
 
 func newWorkflowsUpdateCmd() *cobra.Command {
@@ -15787,7 +14954,7 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, workflowsUpdateColumns)
+			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")

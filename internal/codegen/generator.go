@@ -516,6 +516,13 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
+	{{range $mut.InputFields -}}
+	{{if .Type.IsEnum -}}
+	cmd.RegisterFlagCompletionFunc("{{.CLIFlag}}", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return {{enumValuesLiteral .Type.EnumValues}}, cobra.ShellCompDirectiveNoFileComp
+	})
+	{{end -}}
+	{{end -}}
 	return cmd
 {{- else}}
 	cmd := &cobra.Command{
@@ -624,6 +631,13 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("{{.CLIFlag}}")
 	{{end -}}
 	{{end}}
+	{{range $res.GetQuery.Arguments -}}
+	{{if and (ne .Name "id") .Type.IsEnum -}}
+	cmd.RegisterFlagCompletionFunc("{{.CLIFlag}}", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return {{enumValuesLiteral .Type.EnumValues}}, cobra.ShellCompDirectiveNoFileComp
+	})
+	{{end -}}
+	{{end}}
 	return cmd
 }
 {{end}}
@@ -727,6 +741,13 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") .Type.IsRequired -}}
 	_ = cmd.MarkFlagRequired("{{.CLIFlag}}")
+	{{end -}}
+	{{end}}
+	{{range $res.ListQuery.Arguments -}}
+	{{if and (ne .Name "first") (ne .Name "page") .Type.IsEnum -}}
+	cmd.RegisterFlagCompletionFunc("{{.CLIFlag}}", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return {{enumValuesLiteral .Type.EnumValues}}, cobra.ShellCompDirectiveNoFileComp
+	})
 	{{end -}}
 	{{end}}
 	return cmd
@@ -878,6 +899,13 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
+	{{range $mut.InputFields -}}
+	{{if .Type.IsEnum -}}
+	cmd.RegisterFlagCompletionFunc("{{.CLIFlag}}", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return {{enumValuesLiteral .Type.EnumValues}}, cobra.ShellCompDirectiveNoFileComp
+	})
+	{{end -}}
+	{{end -}}
 	return cmd
 }
 {{end}}
@@ -919,6 +947,7 @@ func init() {
 	templateFuncs["flagBaseType"] = flagBaseType
 	templateFuncs["enumHint"] = enumHint
 	templateFuncs["shortDesc"] = shortDesc
+	templateFuncs["enumValuesLiteral"] = enumValuesLiteral
 }
 
 // inputFlagExample returns an example command line showing up to 3 flag-based
@@ -1046,6 +1075,7 @@ func hasIDArg(args []Argument) bool {
 	return false
 }
 
+<<<<<<< HEAD
 // flagBaseType returns the Cobra flag type for an argument's TypeRef.
 // Lists of scalars/enums map to "stringSlice"; other lists to "string" (JSON).
 // Scalar pointers are unwrapped.
@@ -1099,4 +1129,14 @@ func shortDesc(s string) string {
 		return s[:i] + "..."
 	}
 	return s[:97] + "..."
+}
+
+// enumValuesLiteral returns a Go string slice literal for template use,
+// e.g., `[]string{"ACTIVE", "DRAFT", "ARCHIVED"}`.
+func enumValuesLiteral(values []string) string {
+	quoted := make([]string, len(values))
+	for i, v := range values {
+		quoted[i] = fmt.Sprintf("%q", v)
+	}
+	return "[]string{" + strings.Join(quoted, ", ") + "}"
 }
