@@ -1175,6 +1175,24 @@ func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (
 	return result, nil
 }
 
+// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
+func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
+	generatePersonalInviteLink(input: $input) 
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
+	}
+	if data, ok := result["generatePersonalInviteLink"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // InvoiceRow — Get a specific invoice row.
 func (q *Querier) InvoiceRow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query InvoiceRow($id: ID!) {
@@ -1956,24 +1974,6 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 		return nil, fmt.Errorf("updatePaymentRequest: %w", err)
 	}
 	if data, ok := result["updatePaymentRequest"]; ok {
-		if m, ok := data.(map[string]any); ok {
-			return m, nil
-		}
-	}
-	return result, nil
-}
-
-// GeneratePersonalInviteLink — Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.
-func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `mutation GeneratePersonalInviteLink($input: GeneratePersonalInviteLinkInput!) {
-	generatePersonalInviteLink(input: $input) 
-}`
-	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
-	if err != nil {
-		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
-	}
-	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
 			return m, nil
 		}

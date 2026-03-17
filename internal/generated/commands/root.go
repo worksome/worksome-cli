@@ -51,7 +51,6 @@ func RegisterAll(root *cobra.Command) {
 	root.AddCommand(NewPartnerCmd())
 	root.AddCommand(NewPasswordCmd())
 	root.AddCommand(NewPaymentRequestsCmd())
-	root.AddCommand(NewPersonalInviteLinkCmd())
 	root.AddCommand(NewProjectsCmd())
 	root.AddCommand(NewRecruiterCandidatesCmd())
 	root.AddCommand(NewRecruitersCmd())
