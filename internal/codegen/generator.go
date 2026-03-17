@@ -403,7 +403,7 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	{{- $mut := index $res.Mutations 0}}
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
-		Short: {{quote $mut.Description}},
+		Short: {{quote (shortDesc $mut.Description)}},
 		{{- if $mut.InputFields}}
 		Example: "  worksome {{$res.Name}} --input data.json{{with inputFlagExampleHoisted $res.Name $mut.InputFields}}\n  {{.}}{{end}}",
 		{{- end}}
@@ -435,11 +435,17 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 			}
 			{{range $mut.InputFields -}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
-				{{- if eq .Type.GoType "int" "float64"}}
-				v, _ := cmd.Flags().Get{{if eq .Type.GoType "int"}}Int{{else}}Float64{{end}}("{{.CLIFlag}}")
+				{{- if eq (flagBaseType .Type) "int"}}
+				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
 				inputObj["{{.Name}}"] = v
-				{{- else if eq .Type.GoType "bool"}}
+				{{- else if eq (flagBaseType .Type) "float64"}}
+				v, _ := cmd.Flags().GetFloat64("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq (flagBaseType .Type) "bool"}}
 				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq (flagBaseType .Type) "stringSlice"}}
+				v, _ := cmd.Flags().GetStringSlice("{{.CLIFlag}}")
 				inputObj["{{.Name}}"] = v
 				{{- else}}
 				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
@@ -473,21 +479,23 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	{{range $mut.InputFields -}}
-	{{if eq .Type.GoType "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote .Description}})
-	{{else if eq .Type.GoType "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote .Description}})
-	{{else if eq .Type.GoType "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote .Description}})
+	{{if eq (flagBaseType .Type) "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "stringSlice" -}}
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	return cmd
 {{- else}}
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
-		Short: {{quote $res.Description}},
+		Short: {{quote (shortDesc $res.Description)}},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -536,7 +544,17 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 			{{- range $res.GetQuery.Arguments}}
 			{{- if ne .Name "id"}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
+				{{- if eq (flagBaseType .Type) "bool"}}
+				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "int"}}
+				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "float64"}}
+				v, _ := cmd.Flags().GetFloat64("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "stringSlice"}}
+				v, _ := cmd.Flags().GetStringSlice("{{.CLIFlag}}")
+				{{- else}}
 				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				{{- end}}
 				vars["{{.Name}}"] = v
 			}
 			{{- end}}
@@ -565,7 +583,15 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	}
 	{{range $res.GetQuery.Arguments -}}
 	{{if ne .Name "id" -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	{{if eq (flagBaseType .Type) "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else -}}
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	{{end -}}
 	{{end -}}
 	{{end}}
 	return cmd
@@ -599,7 +625,17 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			{{- range $res.ListQuery.Arguments}}
 			{{- if and (ne .Name "first") (ne .Name "page")}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
+				{{- if eq (flagBaseType .Type) "bool"}}
+				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "int"}}
+				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "float64"}}
+				v, _ := cmd.Flags().GetFloat64("{{.CLIFlag}}")
+				{{- else if eq (flagBaseType .Type) "stringSlice"}}
+				v, _ := cmd.Flags().GetStringSlice("{{.CLIFlag}}")
+				{{- else}}
 				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				{{- end}}
 				vars["{{.Name}}"] = v
 			}
 			{{- end}}
@@ -647,7 +683,15 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	{{if eq (flagBaseType .Type) "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else -}}
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	{{end -}}
 	{{end -}}
 	{{end}}
 	return cmd
@@ -731,11 +775,17 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			}
 			{{range $mut.InputFields -}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
-				{{- if eq .Type.GoType "int" "float64"}}
-				v, _ := cmd.Flags().Get{{if eq .Type.GoType "int"}}Int{{else}}Float64{{end}}("{{.CLIFlag}}")
+				{{- if eq (flagBaseType .Type) "int"}}
+				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
 				inputObj["{{.Name}}"] = v
-				{{- else if eq .Type.GoType "bool"}}
+				{{- else if eq (flagBaseType .Type) "float64"}}
+				v, _ := cmd.Flags().GetFloat64("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq (flagBaseType .Type) "bool"}}
 				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
+				inputObj["{{.Name}}"] = v
+				{{- else if eq (flagBaseType .Type) "stringSlice"}}
+				v, _ := cmd.Flags().GetStringSlice("{{.CLIFlag}}")
 				inputObj["{{.Name}}"] = v
 				{{- else}}
 				v, _ := cmd.Flags().GetString("{{.CLIFlag}}")
@@ -769,14 +819,16 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	{{range $mut.InputFields -}}
-	{{if eq .Type.GoType "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote .Description}})
-	{{else if eq .Type.GoType "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote .Description}})
-	{{else if eq .Type.GoType "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote .Description}})
+	{{if eq (flagBaseType .Type) "int" -}}
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "float64" -}}
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "bool" -}}
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "stringSlice" -}}
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote .Description}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	return cmd
@@ -817,6 +869,9 @@ func init() {
 	templateFuncs["not"] = func(b bool) bool { return !b }
 	templateFuncs["inputFlagExample"] = inputFlagExample
 	templateFuncs["inputFlagExampleHoisted"] = inputFlagExampleHoisted
+	templateFuncs["flagBaseType"] = flagBaseType
+	templateFuncs["enumHint"] = enumHint
+	templateFuncs["shortDesc"] = shortDesc
 }
 
 // inputFlagExample returns an example command line showing up to 3 flag-based
@@ -942,4 +997,59 @@ func hasIDArg(args []Argument) bool {
 		}
 	}
 	return false
+}
+
+// flagBaseType returns the Cobra flag type for an argument's TypeRef.
+// Lists of scalars/enums map to "stringSlice"; other lists to "string" (JSON).
+// Scalar pointers are unwrapped.
+func flagBaseType(t TypeRef) string {
+	if t.IsList {
+		if t.ListItem != nil && (t.ListItem.IsScalar || t.ListItem.IsEnum) {
+			return "stringSlice"
+		}
+		return "string"
+	}
+	goType := strings.TrimPrefix(t.GoType, "*")
+	switch goType {
+	case "bool":
+		return "bool"
+	case "int":
+		return "int"
+	case "float64":
+		return "float64"
+	default:
+		return "string"
+	}
+}
+
+// enumHint appends valid enum values to a flag description when the type is an enum.
+func enumHint(desc string, t TypeRef) string {
+	var values []string
+	if t.IsEnum {
+		values = t.EnumValues
+	} else if t.IsList && t.ListItem != nil && t.ListItem.IsEnum {
+		values = t.ListItem.EnumValues
+	}
+	if len(values) == 0 {
+		return desc
+	}
+	display := values
+	if len(display) > 5 {
+		display = append(display[:5], "...")
+	}
+	return desc + " [" + strings.Join(display, ", ") + "]"
+}
+
+// shortDesc truncates a description to the first sentence for Short fields.
+func shortDesc(s string) string {
+	if i := strings.Index(s, ". "); i >= 0 {
+		return s[:i+1]
+	}
+	if len(s) <= 100 {
+		return s
+	}
+	if i := strings.LastIndex(s[:100], " "); i > 0 {
+		return s[:i] + "..."
+	}
+	return s[:97] + "..."
 }

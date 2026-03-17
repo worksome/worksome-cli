@@ -801,6 +801,204 @@ func TestToPlural(t *testing.T) {
 	}
 }
 
+func TestFlagBaseType(t *testing.T) {
+	tests := []struct {
+		name     string
+		ref      TypeRef
+		expected string
+	}{
+		{"bool", TypeRef{GoType: "bool"}, "bool"},
+		{"*bool", TypeRef{GoType: "*bool"}, "bool"},
+		{"int", TypeRef{GoType: "int"}, "int"},
+		{"*int", TypeRef{GoType: "*int"}, "int"},
+		{"float64", TypeRef{GoType: "float64"}, "float64"},
+		{"*float64", TypeRef{GoType: "*float64"}, "float64"},
+		{"string", TypeRef{GoType: "string"}, "string"},
+		{"*string", TypeRef{GoType: "*string"}, "string"},
+		{"enum", TypeRef{GoType: "HireStatus"}, "string"},
+		{"list of scalars", TypeRef{GoType: "[]string", IsList: true, ListItem: &TypeRef{IsScalar: true, GoType: "string"}}, "stringSlice"},
+		{"list of enums", TypeRef{GoType: "[]HireStatus", IsList: true, ListItem: &TypeRef{IsEnum: true, GoType: "HireStatus"}}, "stringSlice"},
+		{"list of inputs", TypeRef{GoType: "[]SomeInput", IsList: true, ListItem: &TypeRef{IsInput: true, GoType: "SomeInput"}}, "string"},
+		{"list without ListItem", TypeRef{GoType: "[]string", IsList: true}, "string"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := flagBaseType(tt.ref)
+			if got != tt.expected {
+				t.Errorf("flagBaseType(%s) = %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEnumHint(t *testing.T) {
+	tests := []struct {
+		desc     string
+		typeRef  TypeRef
+		expected string
+	}{
+		{
+			desc:     "Filter by status",
+			typeRef:  TypeRef{IsEnum: true, EnumValues: []string{"ACTIVE", "INACTIVE"}},
+			expected: "Filter by status [ACTIVE, INACTIVE]",
+		},
+		{
+			desc:    "Filter by market",
+			typeRef: TypeRef{IsList: true, ListItem: &TypeRef{IsEnum: true, EnumValues: []string{"US", "UK", "DE"}}},
+			expected: "Filter by market [US, UK, DE]",
+		},
+		{
+			desc:     "A text field",
+			typeRef:  TypeRef{IsScalar: true, GoType: "string"},
+			expected: "A text field",
+		},
+		{
+			desc:     "Many values",
+			typeRef:  TypeRef{IsEnum: true, EnumValues: []string{"A", "B", "C", "D", "E", "F", "G"}},
+			expected: "Many values [A, B, C, D, E, ...]",
+		},
+	}
+	for _, tt := range tests {
+		got := enumHint(tt.desc, tt.typeRef)
+		if got != tt.expected {
+			t.Errorf("enumHint(%q, ...) = %q, want %q", tt.desc, got, tt.expected)
+		}
+	}
+}
+
+func TestShortDesc(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Short description.", "Short description."},
+		{"First sentence. Second sentence with more details.", "First sentence."},
+		{"A very long description that goes on and on and on and on and on and on and on and on and on and on and on", "A very long description that goes on and on and on and on and on and on and on and on and on and on..."},
+		{"", ""},
+		{"No period", "No period"},
+	}
+	for _, tt := range tests {
+		got := shortDesc(tt.input)
+		if got != tt.expected {
+			t.Errorf("shortDesc(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestMultiMutationDescription(t *testing.T) {
+	// Schema with a mutation-only resource with multiple mutations.
+	// Should get "Manage <resource>." instead of first mutation's description.
+	schema := `
+type Query {
+	viewer: User!
+}
+
+type Mutation {
+	"Delete a note."
+	deleteNote(input: DeleteNoteInput!): Note!
+	"Create a note."
+	createNote(input: CreateNoteInput!): Note!
+	"Update a note."
+	updateNote(input: UpdateNoteInput!): Note!
+}
+
+type User {
+	id: ID!
+	name: String!
+}
+
+type Note {
+	id: ID!
+	body: String!
+}
+
+input DeleteNoteInput {
+	id: ID!
+}
+
+input CreateNoteInput {
+	body: String!
+}
+
+input UpdateNoteInput {
+	id: ID!
+	body: String
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var found *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "note" {
+			found = &parsed.Resources[i]
+			break
+		}
+	}
+	if found == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'note' resource, got resources: %v", names)
+	}
+
+	if found.Description != "Manage notes." {
+		t.Errorf("expected description %q, got %q", "Manage notes.", found.Description)
+	}
+}
+
+func TestEnumValuesPopulated(t *testing.T) {
+	schemaPath, overridesPath := writeTestSchema(t)
+
+	schema, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// The hires list query has a "status" argument of type HireStatus (enum)
+	var hires *Resource
+	for i := range schema.Resources {
+		if schema.Resources[i].Name == "hires" {
+			hires = &schema.Resources[i]
+			break
+		}
+	}
+	if hires == nil {
+		t.Fatal("expected hires resource")
+	}
+	if hires.ListQuery == nil {
+		t.Fatal("expected hires list query")
+	}
+
+	// Find the status argument
+	var statusArg *Argument
+	for i := range hires.ListQuery.Arguments {
+		if hires.ListQuery.Arguments[i].Name == "status" {
+			statusArg = &hires.ListQuery.Arguments[i]
+			break
+		}
+	}
+	if statusArg == nil {
+		t.Fatal("expected 'status' argument on hires list query")
+	}
+
+	if !statusArg.Type.IsEnum {
+		t.Error("status argument should be an enum type")
+	}
+	if len(statusArg.Type.EnumValues) != 4 {
+		t.Errorf("expected 4 enum values, got %d: %v", len(statusArg.Type.EnumValues), statusArg.Type.EnumValues)
+	}
+}
+
 func TestParseSchemaMultiWordMutations(t *testing.T) {
 	// Schema with multi-word mutations that should be grouped under "hires"
 	schema := `

@@ -81,7 +81,7 @@ func readInputFile(path string) (map[string]any, error) {
 func NewAcceptBidCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "accept-bid",
-		Short:   "Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).",
+		Short:   "Hire a worker for a job.",
 		Example: "  worksome accept-bid --input data.json\n  worksome accept-bid --bid \"value\" --contact-person \"value\" --billing-contact-person \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -181,7 +181,7 @@ func NewAcceptBidCmd() *cobra.Command {
 				inputObj["companyCountry"] = v
 			}
 			if cmd.Flags().Changed("close-other-conversations") {
-				v, _ := cmd.Flags().GetString("close-other-conversations")
+				v, _ := cmd.Flags().GetBool("close-other-conversations")
 				inputObj["closeOtherConversations"] = v
 			}
 			if cmd.Flags().Changed("closing-message") {
@@ -222,8 +222,8 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
 	cmd.Flags().String("job-title", "", "The title of the job the person will be hired to do. If not filled out, the job title from the job of the bid will be used. This title is used on the draft contract.")
 	cmd.Flags().String("job-description", "", "The description of the hire job. If not filled out, the job description from the job of the bid will be used. This title is used on the draft contract.")
-	cmd.Flags().String("payment-term-method", "", "The payment term method for the contract.")
-	cmd.Flags().String("payment-term-days", "", "The amount of days to use with the payment term method for the contract.")
+	cmd.Flags().String("payment-term-method", "", "The payment term method for the contract. [END_OF_MONTH, NET]")
+	cmd.Flags().String("payment-term-days", "", "The amount of days to use with the payment term method for the contract. [EIGHT, FOURTEEN, THIRTY, FORTY_FIVE, FIFTY_THREE, ...]")
 	cmd.Flags().String("purchase-order-number", "", "The Purchaser Order Number for the contract.")
 	cmd.Flags().String("additional-terms", "", "Any additional terms to the contract. The contract is always subject to the terms and conditions for Worksome's platform.")
 	cmd.Flags().String("workplace-address", "", "The address for where the work will be taken place. This will be part of the contract also. The Address should be a full address, with city and postal code.")
@@ -233,10 +233,16 @@ func NewAcceptBidCmd() *cobra.Command {
 	cmd.Flags().String("company-zip-code", "", "The company zip code used on the contract. If not set the current company zip code will be used instead.")
 	cmd.Flags().String("company-city", "", "The company city used on the contract. If not set the current company city will be used instead.")
 	cmd.Flags().String("company-country", "", "The company country used on the contract. If not set the current company country will be used instead.")
-	cmd.Flags().String("close-other-conversations", "", "Close other conversations if true.")
+	cmd.Flags().Bool("close-other-conversations", false, "Close other conversations if true.")
 	cmd.Flags().String("closing-message", "", "Message to send when closing other conversations.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	return cmd
+}
+
+var accountsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Avatar", Field: "avatar"},
 }
 
 // NewAccountsCmd creates the accounts resource command.
@@ -284,7 +290,7 @@ func newAccountsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, nil)
+			return printResult(cmd, result, accountsColumns)
 		},
 	}
 
@@ -382,19 +388,19 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("requires-action") {
-				v, _ := cmd.Flags().GetString("requires-action")
+				v, _ := cmd.Flags().GetBool("requires-action")
 				vars["requiresAction"] = v
 			}
 			if cmd.Flags().Changed("requires-action-users") {
-				v, _ := cmd.Flags().GetString("requires-action-users")
+				v, _ := cmd.Flags().GetStringSlice("requires-action-users")
 				vars["requiresActionUsers"] = v
 			}
 			if cmd.Flags().Changed("approvals") {
-				v, _ := cmd.Flags().GetString("approvals")
+				v, _ := cmd.Flags().GetStringSlice("approvals")
 				vars["approvals"] = v
 			}
 			if cmd.Flags().Changed("approvable") {
@@ -402,7 +408,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				vars["approvable"] = v
 			}
 			if cmd.Flags().Changed("approval-rules") {
-				v, _ := cmd.Flags().GetString("approval-rules")
+				v, _ := cmd.Flags().GetStringSlice("approval-rules")
 				vars["approvalRules"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -447,7 +453,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
-	cmd.Flags().String("requires-action", "", "Filter for approval approvables that require actioning.")
+	cmd.Flags().Bool("requires-action", false, "Filter for approval approvables that require actioning.")
 	cmd.Flags().String("requires-action-users", "", "Filter the approval approvable based on users that need to take action.")
 	cmd.Flags().String("approvals", "", "Filter the approval approvables based on one or more approvals.")
 	cmd.Flags().String("approvable", "", "Filter the approval approvable based on an approvable type.")
@@ -560,7 +566,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The field related to the approval rule.")
-	cmd.Flags().String("status", "", "The status given.")
+	cmd.Flags().String("status", "", "The status given. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
 	cmd.Flags().String("reason", "", "The reason behind the status given.")
 	return cmd
 }
@@ -656,7 +662,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 
@@ -850,15 +856,15 @@ func newApprovalStatesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("users") {
-				v, _ := cmd.Flags().GetString("users")
+				v, _ := cmd.Flags().GetStringSlice("users")
 				vars["users"] = v
 			}
 
@@ -899,7 +905,7 @@ func newApprovalStatesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
-	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states.")
+	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
 	cmd.Flags().String("users", "", "Filter the approval approvable based on one or more users.")
 
 	return cmd
@@ -1034,7 +1040,7 @@ func newApprovalsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -1195,8 +1201,8 @@ func newApprovalsCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the approval.")
-	cmd.Flags().String("status", "", "The status of the approval.")
-	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
+	cmd.Flags().String("status", "", "The status of the approval. [ACTIVE, INACTIVE, ARCHIVED]")
+	cmd.Flags().String("trigger", "", "The trigger type of the approval. [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	cmd.Flags().String("company", "", "The company that the approval is for.")
 	return cmd
@@ -1277,8 +1283,8 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The approval to be updated.")
 	cmd.Flags().String("name", "", "The name of the approval.")
-	cmd.Flags().String("status", "", "The status of the approval.")
-	cmd.Flags().String("trigger", "", "The trigger type of the approval.")
+	cmd.Flags().String("status", "", "The status of the approval. [ACTIVE, INACTIVE, ARCHIVED]")
+	cmd.Flags().String("trigger", "", "The trigger type of the approval. [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 	cmd.Flags().String("description", "", "The description of the approval.")
 	return cmd
 }
@@ -1375,7 +1381,7 @@ func newApproversListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("approval-rule") {
@@ -1572,7 +1578,7 @@ func newApproversUpdateCmd() *cobra.Command {
 				inputObj["userGroup"] = v
 			}
 			if cmd.Flags().Changed("position") {
-				v, _ := cmd.Flags().GetString("position")
+				v, _ := cmd.Flags().GetInt("position")
 				inputObj["position"] = v
 			}
 			vars["input"] = inputObj
@@ -1600,7 +1606,7 @@ func newApproversUpdateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The approver to be updated.")
 	cmd.Flags().String("user-group", "", "The user group of the approver.")
-	cmd.Flags().String("position", "", "The position of the approver.")
+	cmd.Flags().Int("position", 0, "The position of the approver.")
 	return cmd
 }
 
@@ -1771,7 +1777,7 @@ func newBatchActionRunCmd() *cobra.Command {
 				inputObj["action"] = v
 			}
 			if cmd.Flags().Changed("delete-if-emptied") {
-				v, _ := cmd.Flags().GetString("delete-if-emptied")
+				v, _ := cmd.Flags().GetBool("delete-if-emptied")
 				inputObj["deleteIfEmptied"] = v
 			}
 			vars["input"] = inputObj
@@ -1798,8 +1804,8 @@ func newBatchActionRunCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("batch", "", "The ID of the batch to operate on.")
-	cmd.Flags().String("action", "", "The action to perform.")
-	cmd.Flags().String("delete-if-emptied", "", "If true and the action results in zero items remaining in the batch, delete the batch.")
+	cmd.Flags().String("action", "", "The action to perform. [PROCESS, EXPORT, UNDO]")
+	cmd.Flags().Bool("delete-if-emptied", false, "If true and the action results in zero items remaining in the batch, delete the batch.")
 	return cmd
 }
 
@@ -1807,7 +1813,8 @@ var batchesColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Type", Field: "type"},
-	{Header: "Items Count By Status", Field: "itemsCountByStatus"},
+	{Header: "Account ID", Field: "account.id"},
+	{Header: "Account Name", Field: "account.name"},
 	{Header: "Created At", Field: "createdAt"},
 	{Header: "Updated At", Field: "updatedAt"},
 	{Header: "Deleted At", Field: "deletedAt"},
@@ -1893,15 +1900,15 @@ func newBatchesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("types") {
-				v, _ := cmd.Flags().GetString("types")
+				v, _ := cmd.Flags().GetStringSlice("types")
 				vars["types"] = v
 			}
 			if cmd.Flags().Changed("contains-items-with-status") {
-				v, _ := cmd.Flags().GetString("contains-items-with-status")
+				v, _ := cmd.Flags().GetStringSlice("contains-items-with-status")
 				vars["containsItemsWithStatus"] = v
 			}
 
@@ -1942,8 +1949,8 @@ func newBatchesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
-	cmd.Flags().String("types", "", "Only show batches of the specified types.")
-	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses.")
+	cmd.Flags().String("types", "", "Only show batches of the specified types. [PARTNER_PAYMENT_REQUESTS]")
+	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses. [PROCESSING, PROCESSED]")
 
 	return cmd
 }
@@ -2047,7 +2054,7 @@ func newBatchesCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that the batch is for.")
-	cmd.Flags().String("type", "", "The type of batch to create.")
+	cmd.Flags().String("type", "", "The type of batch to create. [PARTNER_PAYMENT_REQUESTS]")
 	return cmd
 }
 
@@ -2141,7 +2148,7 @@ func newBidsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("job") {
@@ -2149,7 +2156,7 @@ func newBidsListCmd() *cobra.Command {
 				vars["job"] = v
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 
@@ -2189,7 +2196,7 @@ func newBidsListCmd() *cobra.Command {
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses.")
+	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses. [OPEN, ACCEPTED, REJECTED, CANCELLED]")
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().String("accounts", "", "Filter the bid based on one or more accounts.")
 
@@ -2237,7 +2244,7 @@ func bidsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) e
 func NewBlockTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "block-trusted-contact",
-		Short:   "Block an applied trusted contact. Only companies can block trusted contacts.",
+		Short:   "Block an applied trusted contact.",
 		Example: "  worksome block-trusted-contact --input data.json\n  worksome block-trusted-contact --id \"value\" --account \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -2631,7 +2638,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -2639,15 +2646,15 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("tags") {
-				v, _ := cmd.Flags().GetString("tags")
+				v, _ := cmd.Flags().GetStringSlice("tags")
 				vars["tags"] = v
 			}
 			if cmd.Flags().Changed("markets") {
-				v, _ := cmd.Flags().GetString("markets")
+				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -2655,7 +2662,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 
@@ -2697,7 +2704,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by.")
+	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by. [ACTIVE, INVITED]")
 	cmd.Flags().String("tags", "", "Supply a list of tags to filter recruiters by.")
 	cmd.Flags().String("markets", "", "Supply a list of markets to filter recruiters by.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
@@ -2786,11 +2793,11 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				inputObj["email"] = v
 			}
 			if cmd.Flags().Changed("recruiter-fee") {
-				v, _ := cmd.Flags().GetString("recruiter-fee")
+				v, _ := cmd.Flags().GetFloat64("recruiter-fee")
 				inputObj["recruiterFee"] = v
 			}
 			if cmd.Flags().Changed("recruiter-ownership-days") {
-				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				v, _ := cmd.Flags().GetInt("recruiter-ownership-days")
 				inputObj["recruiterOwnershipDays"] = v
 			}
 			if cmd.Flags().Changed("message") {
@@ -2802,7 +2809,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			if cmd.Flags().Changed("manages-workers") {
-				v, _ := cmd.Flags().GetString("manages-workers")
+				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
@@ -2831,11 +2838,11 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd.Flags().String("company", "", "The company that the recruiter relationship is for.")
 	cmd.Flags().String("name", "", "The invited recruiter name.")
 	cmd.Flags().String("email", "", "The recruiter email.")
-	cmd.Flags().String("recruiter-fee", "", "The recruiter fee.")
-	cmd.Flags().String("recruiter-ownership-days", "", "The ownership days of the recruiter.")
+	cmd.Flags().Float64("recruiter-fee", 0, "The recruiter fee.")
+	cmd.Flags().Int("recruiter-ownership-days", 0, "The ownership days of the recruiter.")
 	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
-	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -2939,11 +2946,11 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			if cmd.Flags().Changed("recruiter-fee") {
-				v, _ := cmd.Flags().GetString("recruiter-fee")
+				v, _ := cmd.Flags().GetFloat64("recruiter-fee")
 				inputObj["recruiterFee"] = v
 			}
 			if cmd.Flags().Changed("recruiter-ownership-days") {
-				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				v, _ := cmd.Flags().GetInt("recruiter-ownership-days")
 				inputObj["recruiterOwnershipDays"] = v
 			}
 			if cmd.Flags().Changed("message") {
@@ -2951,7 +2958,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			if cmd.Flags().Changed("manages-workers") {
-				v, _ := cmd.Flags().GetString("manages-workers")
+				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
@@ -2979,10 +2986,10 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter to invite.")
 	cmd.Flags().String("company", "", "The company inviting the recruiter.")
-	cmd.Flags().String("recruiter-fee", "", "The recruiter fee.")
-	cmd.Flags().String("recruiter-ownership-days", "", "The ownership days of the recruiter.")
+	cmd.Flags().Float64("recruiter-fee", 0, "The recruiter fee.")
+	cmd.Flags().Int("recruiter-ownership-days", 0, "The ownership days of the recruiter.")
 	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
-	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -3021,11 +3028,11 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			if cmd.Flags().Changed("recruiter-fee") {
-				v, _ := cmd.Flags().GetString("recruiter-fee")
+				v, _ := cmd.Flags().GetFloat64("recruiter-fee")
 				inputObj["recruiterFee"] = v
 			}
 			if cmd.Flags().Changed("recruiter-ownership-days") {
-				v, _ := cmd.Flags().GetString("recruiter-ownership-days")
+				v, _ := cmd.Flags().GetInt("recruiter-ownership-days")
 				inputObj["recruiterOwnershipDays"] = v
 			}
 			if cmd.Flags().Changed("external-identifier") {
@@ -3033,7 +3040,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			if cmd.Flags().Changed("manages-workers") {
-				v, _ := cmd.Flags().GetString("manages-workers")
+				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
@@ -3060,10 +3067,10 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The recruiter relationship to update.")
-	cmd.Flags().String("recruiter-fee", "", "The updated recruiter fee.")
-	cmd.Flags().String("recruiter-ownership-days", "", "The updated recruiter ownership.")
+	cmd.Flags().Float64("recruiter-fee", 0, "The updated recruiter fee.")
+	cmd.Flags().Int("recruiter-ownership-days", 0, "The updated recruiter ownership.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
-	cmd.Flags().String("manages-workers", "", "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
 	return cmd
 }
 
@@ -3082,7 +3089,7 @@ var complianceColumns = []output.Column{
 func NewComplianceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compliance",
-		Short: "Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.",
+		Short: "Get compliance requirements for a specific hire.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -3111,7 +3118,7 @@ func newComplianceGetCmd() *cobra.Command {
 			vars := make(map[string]any)
 			vars["id"] = args[0]
 			if cmd.Flags().Changed("names") {
-				v, _ := cmd.Flags().GetString("names")
+				v, _ := cmd.Flags().GetStringSlice("names")
 				vars["names"] = v
 			}
 
@@ -3132,7 +3139,7 @@ func newComplianceGetCmd() *cobra.Command {
 			return printResult(cmd, result, complianceColumns)
 		},
 	}
-	cmd.Flags().String("names", "", "Optional compliance names to filter for specific compliances")
+	cmd.Flags().String("names", "", "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
 
 	return cmd
 }
@@ -3227,19 +3234,19 @@ func newContractsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("currencies") {
-				v, _ := cmd.Flags().GetString("currencies")
+				v, _ := cmd.Flags().GetStringSlice("currencies")
 				vars["currencies"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("location-preferences") {
-				v, _ := cmd.Flags().GetString("location-preferences")
+				v, _ := cmd.Flags().GetStringSlice("location-preferences")
 				vars["locationPreferences"] = v
 			}
 
@@ -3280,9 +3287,9 @@ func newContractsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
-	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies.")
-	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses.")
-	cmd.Flags().String("location-preferences", "", "Only show contracts with the specified location preferences.")
+	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses. [DRAFT, ACTIVE, ARCHIVED]")
+	cmd.Flags().String("location-preferences", "", "Only show contracts with the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
 
 	return cmd
 }
@@ -3414,11 +3421,11 @@ func newConversationsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("is-open") {
-				v, _ := cmd.Flags().GetString("is-open")
+				v, _ := cmd.Flags().GetBool("is-open")
 				vars["isOpen"] = v
 			}
 
@@ -3459,7 +3466,7 @@ func newConversationsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
-	cmd.Flags().String("is-open", "", "If the conversation is open or closed. If not supplied show all conversations.")
+	cmd.Flags().Bool("is-open", false, "If the conversation is open or closed. If not supplied show all conversations.")
 
 	return cmd
 }
@@ -3505,11 +3512,11 @@ var customfieldsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "User ID", Field: "user.id"},
 	{Header: "User Name", Field: "user.name"},
+	{Header: "Account ID", Field: "account.id"},
+	{Header: "Account Name", Field: "account.name"},
 	{Header: "Title", Field: "title"},
 	{Header: "Slug", Field: "slug"},
 	{Header: "Description", Field: "description"},
-	{Header: "Field Type", Field: "fieldType"},
-	{Header: "Applies To", Field: "appliesTo"},
 }
 
 // NewCustomFieldsCmd creates the custom-fields resource command.
@@ -3594,15 +3601,15 @@ func newCustomFieldsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("approval") {
-				v, _ := cmd.Flags().GetString("approval")
+				v, _ := cmd.Flags().GetBool("approval")
 				vars["approval"] = v
 			}
 			if cmd.Flags().Changed("applies-to") {
-				v, _ := cmd.Flags().GetString("applies-to")
+				v, _ := cmd.Flags().GetStringSlice("applies-to")
 				vars["appliesTo"] = v
 			}
 
@@ -3643,8 +3650,8 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
-	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
+	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
+	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
 
 	return cmd
 }
@@ -3745,15 +3752,15 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 				inputObj["visibility"] = v
 			}
 			if cmd.Flags().Changed("approval") {
-				v, _ := cmd.Flags().GetString("approval")
+				v, _ := cmd.Flags().GetBool("approval")
 				inputObj["approval"] = v
 			}
 			if cmd.Flags().Changed("api-only") {
-				v, _ := cmd.Flags().GetString("api-only")
+				v, _ := cmd.Flags().GetBool("api-only")
 				inputObj["apiOnly"] = v
 			}
 			if cmd.Flags().Changed("worker-input-allowed") {
-				v, _ := cmd.Flags().GetString("worker-input-allowed")
+				v, _ := cmd.Flags().GetBool("worker-input-allowed")
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
@@ -3780,15 +3787,15 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that will own the custom field.")
-	cmd.Flags().String("field-type", "", "The custom field type.")
-	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to.")
+	cmd.Flags().String("field-type", "", "The custom field type. [SINGLE_SELECT, FREE_TEXT]")
+	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
 	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
 	cmd.Flags().String("description", "", "The description of the custom field.")
-	cmd.Flags().String("visibility", "", "The visibility of the custom field.")
-	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
-	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
-	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.Flags().String("visibility", "", "The visibility of the custom field. [INTERNAL, WORKER]")
+	cmd.Flags().Bool("approval", false, "Whether the field is enabled for approval workflows.")
+	cmd.Flags().Bool("api-only", false, "Configures the field to be enabled for api updates only.")
+	cmd.Flags().Bool("worker-input-allowed", false, "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
 	return cmd
 }
 
@@ -3908,15 +3915,15 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 				inputObj["visibility"] = v
 			}
 			if cmd.Flags().Changed("approval") {
-				v, _ := cmd.Flags().GetString("approval")
+				v, _ := cmd.Flags().GetBool("approval")
 				inputObj["approval"] = v
 			}
 			if cmd.Flags().Changed("api-only") {
-				v, _ := cmd.Flags().GetString("api-only")
+				v, _ := cmd.Flags().GetBool("api-only")
 				inputObj["apiOnly"] = v
 			}
 			if cmd.Flags().Changed("worker-input-allowed") {
-				v, _ := cmd.Flags().GetString("worker-input-allowed")
+				v, _ := cmd.Flags().GetBool("worker-input-allowed")
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
@@ -3943,14 +3950,14 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("custom-field", "", "The ID of the custom field to update.")
-	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values.")
+	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values. [SINGLE_SELECT, FREE_TEXT]")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
 	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
 	cmd.Flags().String("description", "", "The description of the custom field.")
-	cmd.Flags().String("visibility", "", "The visibility of the custom field.")
-	cmd.Flags().String("approval", "", "Whether the field is enabled for approval workflows.")
-	cmd.Flags().String("api-only", "", "Configures the field to be enabled for api updates only.")
-	cmd.Flags().String("worker-input-allowed", "", "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.Flags().String("visibility", "", "The visibility of the custom field. [INTERNAL, WORKER]")
+	cmd.Flags().Bool("approval", false, "Whether the field is enabled for approval workflows.")
+	cmd.Flags().Bool("api-only", false, "Configures the field to be enabled for api updates only.")
+	cmd.Flags().Bool("worker-input-allowed", false, "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
 	return cmd
 }
 
@@ -3958,7 +3965,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 func NewEmailCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "email",
-		Short: "Change the email of the currently authenticated user.",
+		Short: "Manage emails.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -4163,11 +4170,11 @@ var employmentsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Worker ID", Field: "worker.id"},
 	{Header: "Worker Name", Field: "worker.name"},
+	{Header: "Employer Of Record ID", Field: "employerOfRecord.id"},
+	{Header: "Employer Of Record Name", Field: "employerOfRecord.name"},
 	{Header: "Hiring Managers ID", Field: "hiringManagers.id"},
 	{Header: "Hiring Managers Name", Field: "hiringManagers.name"},
 	{Header: "Status", Field: "status"},
-	{Header: "Onboarding Status", Field: "onboardingStatus"},
-	{Header: "Start Date", Field: "startDate"},
 }
 
 // NewEmploymentsCmd creates the employments resource command.
@@ -4250,15 +4257,15 @@ func newEmploymentsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("employer-record-status") {
-				v, _ := cmd.Flags().GetString("employer-record-status")
+				v, _ := cmd.Flags().GetStringSlice("employer-record-status")
 				vars["employerRecordStatus"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -4278,27 +4285,27 @@ func newEmploymentsListCmd() *cobra.Command {
 				vars["endDateRange"] = v
 			}
 			if cmd.Flags().Changed("contract-type") {
-				v, _ := cmd.Flags().GetString("contract-type")
+				v, _ := cmd.Flags().GetStringSlice("contract-type")
 				vars["contractType"] = v
 			}
 			if cmd.Flags().Changed("locations") {
-				v, _ := cmd.Flags().GetString("locations")
+				v, _ := cmd.Flags().GetStringSlice("locations")
 				vars["locations"] = v
 			}
 			if cmd.Flags().Changed("companies") {
-				v, _ := cmd.Flags().GetString("companies")
+				v, _ := cmd.Flags().GetStringSlice("companies")
 				vars["companies"] = v
 			}
 			if cmd.Flags().Changed("hiring-managers") {
-				v, _ := cmd.Flags().GetString("hiring-managers")
+				v, _ := cmd.Flags().GetStringSlice("hiring-managers")
 				vars["hiringManagers"] = v
 			}
 			if cmd.Flags().Changed("rate-types") {
-				v, _ := cmd.Flags().GetString("rate-types")
+				v, _ := cmd.Flags().GetStringSlice("rate-types")
 				vars["rateTypes"] = v
 			}
 			if cmd.Flags().Changed("previously-hired") {
-				v, _ := cmd.Flags().GetString("previously-hired")
+				v, _ := cmd.Flags().GetBool("previously-hired")
 				vars["previouslyHired"] = v
 			}
 
@@ -4339,18 +4346,18 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
-	cmd.Flags().String("status", "", "Filter employments by employment status.")
-	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status.")
+	cmd.Flags().String("status", "", "Filter employments by employment status. [DRAFT, ACTIVE, ENDED]")
+	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status. [INCOMPLETE, CHANGES_REQUESTED, PROCESSING, COMPLETE]")
 	cmd.Flags().String("search", "", "Filter by search term against worker name, job title, etc.")
 	cmd.Flags().String("order-by", "", "Order by clause.")
 	cmd.Flags().String("start-date-range", "", "Filter by start date range.")
 	cmd.Flags().String("end-date-range", "", "Filter by end date range.")
-	cmd.Flags().String("contract-type", "", "Filter by contract types.")
+	cmd.Flags().String("contract-type", "", "Filter by contract types. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
 	cmd.Flags().String("locations", "", "Filter by locations.")
 	cmd.Flags().String("companies", "", "Filter by companies.")
 	cmd.Flags().String("hiring-managers", "", "Filter by hiring managers.")
-	cmd.Flags().String("rate-types", "", "Filter by rate type.")
-	cmd.Flags().String("previously-hired", "", "Filter by previously hired status.")
+	cmd.Flags().String("rate-types", "", "Filter by rate type. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().Bool("previously-hired", false, "Filter by previously hired status.")
 
 	return cmd
 }
@@ -4457,7 +4464,7 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 func NewExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Create an export. The export URL and the number of rows will be returned (excluding headings).",
+		Short: "Create an export.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -4504,7 +4511,7 @@ func newExportCreateCmd() *cobra.Command {
 				inputObj["userId"] = v
 			}
 			if cmd.Flags().Changed("impersonator-id") {
-				v, _ := cmd.Flags().GetString("impersonator-id")
+				v, _ := cmd.Flags().GetInt("impersonator-id")
 				inputObj["impersonatorId"] = v
 			}
 			if cmd.Flags().Changed("account-id") {
@@ -4547,7 +4554,7 @@ func newExportCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().Int("user-id", 0, "The ID of the user to create an export for.")
-	cmd.Flags().String("impersonator-id", "", "The ID of the impersonator that is creating the export.")
+	cmd.Flags().Int("impersonator-id", 0, "The ID of the impersonator that is creating the export.")
 	cmd.Flags().Int("account-id", 0, "The ID of the account to create an export for.")
 	cmd.Flags().String("account-type", "", "The type of account to create an export for.")
 	cmd.Flags().String("type", "", "The type of processor to use for the export.")
@@ -4561,6 +4568,8 @@ var filesColumns = []output.Column{
 	{Header: "Title", Field: "title"},
 	{Header: "Size", Field: "size"},
 	{Header: "Mime Type", Field: "mimeType"},
+	{Header: "Owner ID", Field: "owner.id"},
+	{Header: "Owner Name", Field: "owner.name"},
 	{Header: "Url", Field: "url"},
 }
 
@@ -4644,11 +4653,11 @@ func newFilesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("mime-types") {
-				v, _ := cmd.Flags().GetString("mime-types")
+				v, _ := cmd.Flags().GetStringSlice("mime-types")
 				vars["mimeTypes"] = v
 			}
 
@@ -4852,7 +4861,7 @@ var gateColumns = []output.Column{
 func NewGateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gate",
-		Short: "Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.",
+		Short: "Get a specific gate for a hire.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -4902,7 +4911,7 @@ func newGateGetCmd() *cobra.Command {
 			return printResult(cmd, result, gateColumns)
 		},
 	}
-	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve")
+	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
 
 	return cmd
 }
@@ -4922,7 +4931,7 @@ var hiresColumns = []output.Column{
 func NewHiresCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hires",
-		Short: "Get a list of hires. All parties of the hire can use this field for seeing their hires.",
+		Short: "Get a list of hires.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -5004,7 +5013,7 @@ func newHiresListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -5012,7 +5021,7 @@ func newHiresListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -5020,15 +5029,15 @@ func newHiresListCmd() *cobra.Command {
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("recruiter-ownership-is-expired") {
-				v, _ := cmd.Flags().GetString("recruiter-ownership-is-expired")
+				v, _ := cmd.Flags().GetBool("recruiter-ownership-is-expired")
 				vars["recruiterOwnershipIsExpired"] = v
 			}
 			if cmd.Flags().Changed("companies") {
-				v, _ := cmd.Flags().GetString("companies")
+				v, _ := cmd.Flags().GetStringSlice("companies")
 				vars["companies"] = v
 			}
 			if cmd.Flags().Changed("workers") {
-				v, _ := cmd.Flags().GetString("workers")
+				v, _ := cmd.Flags().GetStringSlice("workers")
 				vars["workers"] = v
 			}
 			if cmd.Flags().Changed("start-date-range") {
@@ -5052,55 +5061,55 @@ func newHiresListCmd() *cobra.Command {
 				vars["createdAtDateRange"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("contract-status") {
-				v, _ := cmd.Flags().GetString("contract-status")
+				v, _ := cmd.Flags().GetStringSlice("contract-status")
 				vars["contractStatus"] = v
 			}
 			if cmd.Flags().Changed("contract-type") {
-				v, _ := cmd.Flags().GetString("contract-type")
+				v, _ := cmd.Flags().GetStringSlice("contract-type")
 				vars["contractType"] = v
 			}
 			if cmd.Flags().Changed("engagement-type") {
-				v, _ := cmd.Flags().GetString("engagement-type")
+				v, _ := cmd.Flags().GetStringSlice("engagement-type")
 				vars["engagementType"] = v
 			}
 			if cmd.Flags().Changed("engagement-type-setup") {
-				v, _ := cmd.Flags().GetString("engagement-type-setup")
+				v, _ := cmd.Flags().GetStringSlice("engagement-type-setup")
 				vars["engagementTypeSetup"] = v
 			}
 			if cmd.Flags().Changed("uses-classification") {
-				v, _ := cmd.Flags().GetString("uses-classification")
+				v, _ := cmd.Flags().GetStringSlice("uses-classification")
 				vars["usesClassification"] = v
 			}
 			if cmd.Flags().Changed("active-status") {
-				v, _ := cmd.Flags().GetString("active-status")
+				v, _ := cmd.Flags().GetStringSlice("active-status")
 				vars["activeStatus"] = v
 			}
 			if cmd.Flags().Changed("include-deleted") {
-				v, _ := cmd.Flags().GetString("include-deleted")
+				v, _ := cmd.Flags().GetBool("include-deleted")
 				vars["includeDeleted"] = v
 			}
 			if cmd.Flags().Changed("job-owners") {
-				v, _ := cmd.Flags().GetString("job-owners")
+				v, _ := cmd.Flags().GetStringSlice("job-owners")
 				vars["jobOwners"] = v
 			}
 			if cmd.Flags().Changed("owners") {
-				v, _ := cmd.Flags().GetString("owners")
+				v, _ := cmd.Flags().GetStringSlice("owners")
 				vars["owners"] = v
 			}
 			if cmd.Flags().Changed("has-payment-requests") {
-				v, _ := cmd.Flags().GetString("has-payment-requests")
+				v, _ := cmd.Flags().GetBool("has-payment-requests")
 				vars["hasPaymentRequests"] = v
 			}
 			if cmd.Flags().Changed("has-recruiter-attribution") {
-				v, _ := cmd.Flags().GetString("has-recruiter-attribution")
+				v, _ := cmd.Flags().GetBool("has-recruiter-attribution")
 				vars["hasRecruiterAttribution"] = v
 			}
 			if cmd.Flags().Changed("jobs") {
-				v, _ := cmd.Flags().GetString("jobs")
+				v, _ := cmd.Flags().GetStringSlice("jobs")
 				vars["jobs"] = v
 			}
 
@@ -5142,9 +5151,9 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
-	cmd.Flags().String("status", "", "Filter hires by hire status.")
+	cmd.Flags().String("status", "", "Filter hires by hire status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
-	cmd.Flags().String("recruiter-ownership-is-expired", "", "Filter hires by if recruiter ownership is active.")
+	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
 	cmd.Flags().String("companies", "", "Filter hires by company ids.")
 	cmd.Flags().String("workers", "", "Filter hires by worker ids.")
 	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date.")
@@ -5153,17 +5162,17 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().String("ends-after", "", "Filter hires that end after the specified date.")
 	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created.")
 	cmd.Flags().String("external-identifiers", "", "Only show hires with the specified external identifier.")
-	cmd.Flags().String("contract-status", "", "Filter hires by hire contract status.")
-	cmd.Flags().String("contract-type", "", "Filter hires by hire contract type.")
-	cmd.Flags().String("engagement-type", "", "Filter hires by engagement type.")
-	cmd.Flags().String("engagement-type-setup", "", "Filter hires by engagement type setup.")
-	cmd.Flags().String("uses-classification", "", "Filter hires by classification usage status.")
-	cmd.Flags().String("active-status", "", "Filter hires by active status.")
-	cmd.Flags().String("include-deleted", "", "Include soft deleted hires.")
+	cmd.Flags().String("contract-status", "", "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
+	cmd.Flags().String("contract-type", "", "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
+	cmd.Flags().String("engagement-type", "", "Filter hires by engagement type. [PAYROLL, CONTRACTOR, EXTERNAL, PENDING]")
+	cmd.Flags().String("engagement-type-setup", "", "Filter hires by engagement type setup. [W2, PAYE, INSIDE_IR35, GLOBAL_PAYROLL, W2_CLASSIFY, ...]")
+	cmd.Flags().String("uses-classification", "", "Filter hires by classification usage status. [NOT_USING, USING, USING_WITH_OVERRIDE]")
+	cmd.Flags().String("active-status", "", "Filter hires by active status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
+	cmd.Flags().Bool("include-deleted", false, "Include soft deleted hires.")
 	cmd.Flags().String("job-owners", "", "Filter hires by job owner.")
 	cmd.Flags().String("owners", "", "Filter hires by owner.")
-	cmd.Flags().String("has-payment-requests", "", "Filter hires by if there are associated payment requests.")
-	cmd.Flags().String("has-recruiter-attribution", "", "Filter hires by if there are recruiter attribution or not.")
+	cmd.Flags().Bool("has-payment-requests", false, "Filter hires by if there are associated payment requests.")
+	cmd.Flags().Bool("has-recruiter-attribution", false, "Filter hires by if there are recruiter attribution or not.")
 	cmd.Flags().String("jobs", "", "Only show hires that belong to one or more specific jobs.")
 
 	return cmd
@@ -5245,7 +5254,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 				inputObj["recruiter"] = v
 			}
 			if cmd.Flags().Changed("fee") {
-				v, _ := cmd.Flags().GetString("fee")
+				v, _ := cmd.Flags().GetFloat64("fee")
 				inputObj["fee"] = v
 			}
 			if cmd.Flags().Changed("ownership-days") {
@@ -5281,7 +5290,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
-	cmd.Flags().String("fee", "", "The fee the recruiter is taking as a percentage.")
+	cmd.Flags().Float64("fee", 0, "The fee the recruiter is taking as a percentage.")
 	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in.")
 	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
 	return cmd
@@ -5408,7 +5417,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 				inputObj["rateType"] = v
 			}
 			if cmd.Flags().Changed("rate") {
-				v, _ := cmd.Flags().GetString("rate")
+				v, _ := cmd.Flags().GetFloat64("rate")
 				inputObj["rate"] = v
 			}
 			if cmd.Flags().Changed("start-date") {
@@ -5420,7 +5429,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			if cmd.Flags().Changed("include-standard-contract") {
-				v, _ := cmd.Flags().GetString("include-standard-contract")
+				v, _ := cmd.Flags().GetBool("include-standard-contract")
 				inputObj["includeStandardContract"] = v
 			}
 			if cmd.Flags().Changed("purchase-order-number") {
@@ -5471,11 +5480,11 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the job to bid.")
 	cmd.Flags().String("description", "", "The description of the job to bid.")
 	cmd.Flags().String("message", "", "The message to send the trusted contact.")
-	cmd.Flags().String("rate-type", "", "The rate type that is due.")
-	cmd.Flags().String("rate", "", "The rate that is due.")
+	cmd.Flags().String("rate-type", "", "The rate type that is due. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().Float64("rate", 0, "The rate that is due.")
 	cmd.Flags().String("start-date", "", "The date that the contract should start. This date is used on the draft contract.")
 	cmd.Flags().String("end-date", "", "The date that the contract should end. This date is used on the draft contract.")
-	cmd.Flags().String("include-standard-contract", "", "Whether to include the standard contract. The default is to include a standard contract.")
+	cmd.Flags().Bool("include-standard-contract", false, "Whether to include the standard contract. The default is to include a standard contract.")
 	cmd.Flags().String("purchase-order-number", "", "A Purchase Order (PO) number to attribute to the direct hire.")
 	cmd.Flags().String("conversation", "", "The conversation that the direct hire should be attributed to.")
 	cmd.Flags().String("company", "", "The company that the direct hire is for.")
@@ -5751,7 +5760,7 @@ func newHiresTerminateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
-	cmd.Flags().String("reason", "", "The reason for terminating a hire.")
+	cmd.Flags().String("reason", "", "The reason for terminating a hire. [WORKER_UNAVAILABILITY, PROJECT_COMPLETED_EARLY, MUTUAL_AGREEMENT_TO_TERMINATE, BUDGET_CONSTRAINTS, CHANGE_IN_PROJECT_SCOPE, ...]")
 	cmd.Flags().String("comments", "", "Additional comments to explain why a hire is being terminated.")
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
@@ -5923,11 +5932,11 @@ var inheritedcustomfieldsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "User ID", Field: "user.id"},
 	{Header: "User Name", Field: "user.name"},
+	{Header: "Account ID", Field: "account.id"},
+	{Header: "Account Name", Field: "account.name"},
 	{Header: "Title", Field: "title"},
 	{Header: "Slug", Field: "slug"},
 	{Header: "Description", Field: "description"},
-	{Header: "Field Type", Field: "fieldType"},
-	{Header: "Applies To", Field: "appliesTo"},
 }
 
 // NewInheritedCustomFieldsCmd creates the inherited-custom-fields resource command.
@@ -5970,15 +5979,15 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("approval") {
-				v, _ := cmd.Flags().GetString("approval")
+				v, _ := cmd.Flags().GetBool("approval")
 				vars["approval"] = v
 			}
 			if cmd.Flags().Changed("applies-to") {
-				v, _ := cmd.Flags().GetString("applies-to")
+				v, _ := cmd.Flags().GetStringSlice("applies-to")
 				vars["appliesTo"] = v
 			}
 
@@ -6019,8 +6028,8 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
-	cmd.Flags().String("approval", "", "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields.")
+	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
+	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
 
 	return cmd
 }
@@ -6066,7 +6075,7 @@ func inheritedcustomfieldsFetchAll(cmd *cobra.Command, q *queries.Querier, vars 
 func NewInviteLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invite-link",
-		Short: "Generate the company invite link token.",
+		Short: "Manage invite links.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -6074,6 +6083,7 @@ func NewInviteLinkCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newInviteLinkGenerateCmd())
+	cmd.AddCommand(newInviteLinkGeneratePersonalCmd())
 
 	return cmd
 }
@@ -6128,6 +6138,67 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			}
 
 			result, err := q.GenerateInviteLink(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("company", "", "The company that the link token is for.")
+	return cmd
+}
+
+func newInviteLinkGeneratePersonalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "generate-personal",
+		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
+		Example: "  worksome invite-link generate-personal --input data.json\n  worksome invite-link generate-personal --company \"value\"",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("company") {
+				v, _ := cmd.Flags().GetString("company")
+				inputObj["company"] = v
+			}
+			vars["input"] = inputObj
+
+			if len(inputObj) == 0 && inputFile == "" {
+				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
 			if err != nil {
 				return err
 			}
@@ -6295,15 +6366,15 @@ func newInvoicesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("transaction-types") {
-				v, _ := cmd.Flags().GetString("transaction-types")
+				v, _ := cmd.Flags().GetStringSlice("transaction-types")
 				vars["transactionTypes"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -6311,11 +6382,11 @@ func newInvoicesListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("has-purchase-order-number") {
-				v, _ := cmd.Flags().GetString("has-purchase-order-number")
+				v, _ := cmd.Flags().GetBool("has-purchase-order-number")
 				vars["hasPurchaseOrderNumber"] = v
 			}
 			if cmd.Flags().Changed("currency") {
-				v, _ := cmd.Flags().GetString("currency")
+				v, _ := cmd.Flags().GetStringSlice("currency")
 				vars["currency"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -6360,11 +6431,11 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("status", "", "Only show invoices which have the supplied status.")
-	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types.")
+	cmd.Flags().String("status", "", "Only show invoices which have the supplied status. [PAID, UNPAID, OVERDUE, CREDITED]")
+	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types. [INVOICE, CREDIT_NOTE, BATCH_INVOICE]")
 	cmd.Flags().String("search", "", "Filter invoices by PO number, invoice number, freelancer name or amount.")
-	cmd.Flags().String("has-purchase-order-number", "", "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
-	cmd.Flags().String("currency", "", "Filter invoices by currency.")
+	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
+	cmd.Flags().String("currency", "", "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, ...]")
 	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date.")
 
 	return cmd
@@ -6493,7 +6564,7 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 func NewJobCandidateStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job-candidate-status",
-		Short: "Update a job candidate status. A reason and comment can be provided.",
+		Short: "Update a job candidate status.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -6579,8 +6650,8 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
-	cmd.Flags().String("status", "", "The status to update the job candidate to.")
-	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate.")
+	cmd.Flags().String("status", "", "The status to update the job candidate to. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
+	cmd.Flags().String("status-reason", "", "The reason for changing the status of the job candidate. [SKILLS_OR_EXPERIENCE, SPECIFIC_JOB_CRITERIA, AVAILABILITY, MARKET_ELIGIBILITY, BUDGET, ...]")
 	cmd.Flags().String("status-comment", "", "Open text to leave internal additional information on the status reason")
 	cmd.Flags().String("feedback", "", "The shared feedback in case the candidate already had a hire.")
 	return cmd
@@ -6677,19 +6748,19 @@ func newJobCandidatesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("jobs") {
-				v, _ := cmd.Flags().GetString("jobs")
+				v, _ := cmd.Flags().GetStringSlice("jobs")
 				vars["jobs"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("steps") {
-				v, _ := cmd.Flags().GetString("steps")
+				v, _ := cmd.Flags().GetStringSlice("steps")
 				vars["steps"] = v
 			}
 			if cmd.Flags().Changed("preferred") {
-				v, _ := cmd.Flags().GetString("preferred")
+				v, _ := cmd.Flags().GetBool("preferred")
 				vars["preferred"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -6734,9 +6805,9 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
-	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses.")
-	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps.")
-	cmd.Flags().String("preferred", "", "Only return job candidates which are preferred or not.")
+	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
+	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING]")
+	cmd.Flags().Bool("preferred", false, "Only return job candidates which are preferred or not.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
@@ -6841,7 +6912,7 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("job", "", "The job for which the candidates are for.")
-	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from.")
+	cmd.Flags().String("sourcing-channel", "", "The sourcing channel that the candidates are from. [TRUSTED_CONTACT, CANDIDATE_SUBMISSION, RECRUITER_ATTRIBUTION, MARKETPLACE]")
 	return cmd
 }
 
@@ -6895,15 +6966,15 @@ func newJobSharesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("jobs") {
-				v, _ := cmd.Flags().GetString("jobs")
+				v, _ := cmd.Flags().GetStringSlice("jobs")
 				vars["jobs"] = v
 			}
 			if cmd.Flags().Changed("account-types") {
-				v, _ := cmd.Flags().GetString("account-types")
+				v, _ := cmd.Flags().GetStringSlice("account-types")
 				vars["accountTypes"] = v
 			}
 			if cmd.Flags().Changed("is-active") {
-				v, _ := cmd.Flags().GetString("is-active")
+				v, _ := cmd.Flags().GetBool("is-active")
 				vars["isActive"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -6948,8 +7019,8 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
-	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts.")
-	cmd.Flags().String("is-active", "", "Whether the job share is active.")
+	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts. [WORKER, COMPANY, RECRUITER, ORGANISATION, PARTNER]")
+	cmd.Flags().Bool("is-active", false, "Whether the job share is active.")
 	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction.")
 
 	return cmd
@@ -7193,15 +7264,15 @@ func newJobsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("owners") {
-				v, _ := cmd.Flags().GetString("owners")
+				v, _ := cmd.Flags().GetStringSlice("owners")
 				vars["owners"] = v
 			}
 			if cmd.Flags().Changed("markets") {
-				v, _ := cmd.Flags().GetString("markets")
+				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -7209,63 +7280,63 @@ func newJobsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("currencies") {
-				v, _ := cmd.Flags().GetString("currencies")
+				v, _ := cmd.Flags().GetStringSlice("currencies")
 				vars["currencies"] = v
 			}
 			if cmd.Flags().Changed("rate-types") {
-				v, _ := cmd.Flags().GetString("rate-types")
+				v, _ := cmd.Flags().GetStringSlice("rate-types")
 				vars["rateTypes"] = v
 			}
 			if cmd.Flags().Changed("payment-schemes") {
-				v, _ := cmd.Flags().GetString("payment-schemes")
+				v, _ := cmd.Flags().GetStringSlice("payment-schemes")
 				vars["paymentSchemes"] = v
 			}
 			if cmd.Flags().Changed("skills") {
-				v, _ := cmd.Flags().GetString("skills")
+				v, _ := cmd.Flags().GetStringSlice("skills")
 				vars["skills"] = v
 			}
 			if cmd.Flags().Changed("experience-level") {
-				v, _ := cmd.Flags().GetString("experience-level")
+				v, _ := cmd.Flags().GetStringSlice("experience-level")
 				vars["experienceLevel"] = v
 			}
 			if cmd.Flags().Changed("associations") {
-				v, _ := cmd.Flags().GetString("associations")
+				v, _ := cmd.Flags().GetStringSlice("associations")
 				vars["associations"] = v
 			}
 			if cmd.Flags().Changed("location-preferences") {
-				v, _ := cmd.Flags().GetString("location-preferences")
+				v, _ := cmd.Flags().GetStringSlice("location-preferences")
 				vars["locationPreferences"] = v
 			}
 			if cmd.Flags().Changed("available") {
-				v, _ := cmd.Flags().GetString("available")
+				v, _ := cmd.Flags().GetBool("available")
 				vars["available"] = v
 			}
 			if cmd.Flags().Changed("published") {
-				v, _ := cmd.Flags().GetString("published")
+				v, _ := cmd.Flags().GetBool("published")
 				vars["published"] = v
 			}
 			if cmd.Flags().Changed("completed") {
-				v, _ := cmd.Flags().GetString("completed")
+				v, _ := cmd.Flags().GetBool("completed")
 				vars["completed"] = v
 			}
 			if cmd.Flags().Changed("removed") {
-				v, _ := cmd.Flags().GetString("removed")
+				v, _ := cmd.Flags().GetBool("removed")
 				vars["removed"] = v
 			}
 			if cmd.Flags().Changed("has-project") {
-				v, _ := cmd.Flags().GetString("has-project")
+				v, _ := cmd.Flags().GetBool("has-project")
 				vars["hasProject"] = v
 			}
 			if cmd.Flags().Changed("has-hire") {
-				v, _ := cmd.Flags().GetString("has-hire")
+				v, _ := cmd.Flags().GetBool("has-hire")
 				vars["hasHire"] = v
 			}
 			if cmd.Flags().Changed("has-bids") {
-				v, _ := cmd.Flags().GetString("has-bids")
+				v, _ := cmd.Flags().GetBool("has-bids")
 				vars["hasBids"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -7277,7 +7348,7 @@ func newJobsListCmd() *cobra.Command {
 				vars["createdAtDateRange"] = v
 			}
 			if cmd.Flags().Changed("unfilled") {
-				v, _ := cmd.Flags().GetString("unfilled")
+				v, _ := cmd.Flags().GetBool("unfilled")
 				vars["unfilled"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
@@ -7293,11 +7364,11 @@ func newJobsListCmd() *cobra.Command {
 				vars["endDateRange"] = v
 			}
 			if cmd.Flags().Changed("is-job-post") {
-				v, _ := cmd.Flags().GetString("is-job-post")
+				v, _ := cmd.Flags().GetBool("is-job-post")
 				vars["isJobPost"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 
@@ -7339,31 +7410,31 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
 	cmd.Flags().String("owners", "", "Only show jobs owned by specific users.")
-	cmd.Flags().String("markets", "", "Only show jobs in the specified markets.")
+	cmd.Flags().String("markets", "", "Only show jobs in the specified markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().String("search", "", "Search job posts.")
-	cmd.Flags().String("currencies", "", "Only show jobs using the specified currencies.")
-	cmd.Flags().String("rate-types", "", "Only show jobs using the specified payment rate types.")
-	cmd.Flags().String("payment-schemes", "", "Only show jobs using the specified payment schemes.")
+	cmd.Flags().String("currencies", "", "Only show jobs using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().String("rate-types", "", "Only show jobs using the specified payment rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().String("payment-schemes", "", "Only show jobs using the specified payment schemes. [ANY, COMPANY, GLOBAL_PAYROLL, UK_PAYE, UK_PAYE_IR35, ...]")
 	cmd.Flags().String("skills", "", "Only show jobs requiring a set of specific skills. This filter takes a list of skill names, ie \"php\" for the skill php, or \"Graphql api\" for the graphql api skill.")
-	cmd.Flags().String("experience-level", "", "Only show jobs requiring specific experience levels.")
-	cmd.Flags().String("associations", "", "Only show jobs using the specified project types.")
-	cmd.Flags().String("location-preferences", "", "Only show jobs using the specified location preferences.")
-	cmd.Flags().String("available", "", "Only show jobs that are either available or not.")
-	cmd.Flags().String("published", "", "Only show jobs that are either published or not.")
-	cmd.Flags().String("completed", "", "Only show jobs that have either been completed or not.")
-	cmd.Flags().String("removed", "", "Only show jobs that have either been removed or not.")
-	cmd.Flags().String("has-project", "", "Filter for jobs with or without project.")
-	cmd.Flags().String("has-hire", "", "Filter for jobs with or without hires.")
-	cmd.Flags().String("has-bids", "", "Filter for jobs with or without bids.")
+	cmd.Flags().String("experience-level", "", "Only show jobs requiring specific experience levels. [STUDENT, JUNIOR, SENIOR, EXPERT]")
+	cmd.Flags().String("associations", "", "Only show jobs using the specified project types. [SMALL_TASK, PROJECT, BIG_PROJECT, PART_TIME, FULL_TIME]")
+	cmd.Flags().String("location-preferences", "", "Only show jobs using the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
+	cmd.Flags().Bool("available", false, "Only show jobs that are either available or not.")
+	cmd.Flags().Bool("published", false, "Only show jobs that are either published or not.")
+	cmd.Flags().Bool("completed", false, "Only show jobs that have either been completed or not.")
+	cmd.Flags().Bool("removed", false, "Only show jobs that have either been removed or not.")
+	cmd.Flags().Bool("has-project", false, "Filter for jobs with or without project.")
+	cmd.Flags().Bool("has-hire", false, "Filter for jobs with or without hires.")
+	cmd.Flags().Bool("has-bids", false, "Filter for jobs with or without bids.")
 	cmd.Flags().String("external-identifiers", "", "Only show jobs with the specified external identifier.")
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
 	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created.")
-	cmd.Flags().String("unfilled", "", "Filter by unfilled jobs.")
+	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
 	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values.")
 	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range.")
 	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range.")
-	cmd.Flags().String("is-job-post", "", "Only show jobs that are job posts.")
-	cmd.Flags().String("statuses", "", "Filter the jobs by their status")
+	cmd.Flags().Bool("is-job-post", false, "Only show jobs that are job posts.")
+	cmd.Flags().String("statuses", "", "Filter the jobs by their status [DRAFT, ACTIVE, COMPLETED, REMOVED]")
 
 	return cmd
 }
@@ -7740,7 +7811,7 @@ func newJobsUpdateCmd() *cobra.Command {
 				inputObj["endDateTimeframe"] = v
 			}
 			if cmd.Flags().Changed("is-extension-available") {
-				v, _ := cmd.Flags().GetString("is-extension-available")
+				v, _ := cmd.Flags().GetBool("is-extension-available")
 				inputObj["isExtensionAvailable"] = v
 			}
 			if cmd.Flags().Changed("evaluation-period") {
@@ -7748,15 +7819,15 @@ func newJobsUpdateCmd() *cobra.Command {
 				inputObj["evaluationPeriod"] = v
 			}
 			if cmd.Flags().Changed("required-workers") {
-				v, _ := cmd.Flags().GetString("required-workers")
+				v, _ := cmd.Flags().GetInt("required-workers")
 				inputObj["requiredWorkers"] = v
 			}
 			if cmd.Flags().Changed("published") {
-				v, _ := cmd.Flags().GetString("published")
+				v, _ := cmd.Flags().GetBool("published")
 				inputObj["published"] = v
 			}
 			if cmd.Flags().Changed("removed") {
-				v, _ := cmd.Flags().GetString("removed")
+				v, _ := cmd.Flags().GetBool("removed")
 				inputObj["removed"] = v
 			}
 			if cmd.Flags().Changed("removed-cause") {
@@ -7791,20 +7862,20 @@ func newJobsUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job.")
-	cmd.Flags().String("locale", "", "An optional locale for the job. If set, skills and industries will use the locale's spelling.")
+	cmd.Flags().String("locale", "", "An optional locale for the job. If set, skills and industries will use the locale's spelling. [ENGLISH, DANISH, FRENCH, GERMAN, DUTCH]")
 	cmd.Flags().String("name", "", "The name of the job.")
 	cmd.Flags().String("description", "", "The description required for the job.")
-	cmd.Flags().String("association", "", "The project type of the job.")
-	cmd.Flags().String("payment-scheme", "", "The payment scheme that the job will use.")
+	cmd.Flags().String("association", "", "The project type of the job. [SMALL_TASK, PROJECT, BIG_PROJECT, PART_TIME, FULL_TIME]")
+	cmd.Flags().String("payment-scheme", "", "The payment scheme that the job will use. [ANY, COMPANY, GLOBAL_PAYROLL, UK_PAYE, UK_PAYE_IR35, ...]")
 	cmd.Flags().String("start-date", "", "The start date of the job. If this is set to `null`, we will assume that the job should start as soon as possible.")
 	cmd.Flags().String("end-date", "", "The end date of the job. If this is set to `null`, we will assume that the job's end date is undetermined.")
-	cmd.Flags().String("start-date-timeframe", "", "The timeframe of the job start.")
-	cmd.Flags().String("end-date-timeframe", "", "The timeframe of the job end.")
-	cmd.Flags().String("is-extension-available", "", "If the job will extend.")
-	cmd.Flags().String("evaluation-period", "", "The period of time required to reply to candidates.")
-	cmd.Flags().String("required-workers", "", "The number of required workers.")
-	cmd.Flags().String("published", "", "Whether the job should be published. Note: Job publication cannot be undone.")
-	cmd.Flags().String("removed", "", "Whether the job has been removed/discarded while being published and before having any hires.")
+	cmd.Flags().String("start-date-timeframe", "", "The timeframe of the job start. [ASAP, NEXT_MONTH, ON_DATE]")
+	cmd.Flags().String("end-date-timeframe", "", "The timeframe of the job end. [ONE_MONTH, THREE_MONTHS, SIX_MONTHS, ON_DATE, OPEN]")
+	cmd.Flags().Bool("is-extension-available", false, "If the job will extend.")
+	cmd.Flags().String("evaluation-period", "", "The period of time required to reply to candidates. [MONTH, WEEK, QUICK]")
+	cmd.Flags().Int("required-workers", 0, "The number of required workers.")
+	cmd.Flags().Bool("published", false, "Whether the job should be published. Note: Job publication cannot be undone.")
+	cmd.Flags().Bool("removed", false, "Whether the job has been removed/discarded while being published and before having any hires.")
 	cmd.Flags().String("removed-cause", "", "Optionally specify a reason for removing a Job. Note: This field is only relevant when the removed field is set to true, meaning it will not be used if provided on its own.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the job from an external system.")
 	return cmd
@@ -7903,11 +7974,11 @@ func newMilestonesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("hires") {
-				v, _ := cmd.Flags().GetString("hires")
+				v, _ := cmd.Flags().GetStringSlice("hires")
 				vars["hires"] = v
 			}
 
@@ -8125,6 +8196,17 @@ func newMilestonesUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+var multifactorsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Name", Field: "name"},
+	{Header: "Status", Field: "status"},
+	{Header: "Owner ID", Field: "owner.id"},
+	{Header: "Owner Name", Field: "owner.name"},
+	{Header: "Verified At", Field: "verifiedAt"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Updated At", Field: "updatedAt"},
+}
+
 // NewMultiFactorsCmd creates the multi-factors resource command.
 func NewMultiFactorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -8178,7 +8260,7 @@ func newMultiFactorsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, nil)
+			return printResult(cmd, result, multifactorsColumns)
 		},
 	}
 
@@ -8209,11 +8291,11 @@ func newMultiFactorsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("channels") {
-				v, _ := cmd.Flags().GetString("channels")
+				v, _ := cmd.Flags().GetStringSlice("channels")
 				vars["channels"] = v
 			}
 
@@ -8241,14 +8323,20 @@ func newMultiFactorsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["multiFactors"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, multifactorsColumns)
+				}
+			}
 			return printResult(cmd, result, nil)
 		},
 	}
 	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on.")
-	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on.")
+	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on. [APPROVED, PENDING, CANCELLED, FAILED]")
+	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on. [EMAIL, SMS, TOTP]")
 
 	return cmd
 }
@@ -8287,7 +8375,7 @@ func multifactorsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[strin
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, nil)
+	return printResult(cmd, allData, multifactorsColumns)
 }
 
 func newMultiFactorsCreateSmsCmd() *cobra.Command {
@@ -8609,7 +8697,7 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 func NewNoteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "note",
-		Short: "Delete a note.",
+		Short: "Manage notes.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -8835,7 +8923,7 @@ func newNoteUpdateCmd() *cobra.Command {
 func NewOnboardingDocumentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboarding-documents",
-		Short: "Remove Onboarding documents.",
+		Short: "Manage onboarding documents.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9039,7 +9127,7 @@ var organisationtrustedcontactsColumns = []output.Column{
 	{Header: "Company Name", Field: "company.name"},
 	{Header: "Invited By User ID", Field: "invitedByUser.id"},
 	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
+	{Header: "Links", Field: "links"},
 }
 
 // NewOrganisationTrustedContactsCmd creates the organisation-trusted-contacts resource command.
@@ -9121,11 +9209,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("workers") {
-				v, _ := cmd.Flags().GetString("workers")
+				v, _ := cmd.Flags().GetStringSlice("workers")
 				vars["workers"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -9133,19 +9221,19 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("skills") {
-				v, _ := cmd.Flags().GetString("skills")
+				v, _ := cmd.Flags().GetStringSlice("skills")
 				vars["skills"] = v
 			}
 			if cmd.Flags().Changed("markets") {
-				v, _ := cmd.Flags().GetString("markets")
+				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
 			}
 			if cmd.Flags().Changed("countries") {
-				v, _ := cmd.Flags().GetString("countries")
+				v, _ := cmd.Flags().GetStringSlice("countries")
 				vars["countries"] = v
 			}
 			if cmd.Flags().Changed("states") {
-				v, _ := cmd.Flags().GetString("states")
+				v, _ := cmd.Flags().GetStringSlice("states")
 				vars["states"] = v
 			}
 			if cmd.Flags().Changed("invited-by-users") {
@@ -9153,7 +9241,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["invitedByUsers"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("origin") {
@@ -9177,11 +9265,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["hireStatus"] = v
 			}
 			if cmd.Flags().Changed("business-setup") {
-				v, _ := cmd.Flags().GetString("business-setup")
+				v, _ := cmd.Flags().GetStringSlice("business-setup")
 				vars["businessSetup"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
@@ -9233,17 +9321,17 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().String("skills", "", "Supply a list of skills IDs to filter trusted contact or associated worker having those.")
-	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets.")
+	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().String("countries", "", "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().String("states", "", "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by.")
-	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited")
-	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not.")
-	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged).")
+	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
+	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited [INVITED, ADDED]")
+	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
+	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
 	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
-	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by.")
+	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
 	cmd.Flags().String("external-identifiers", "", "Only show trusted contacts with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
@@ -9357,7 +9445,7 @@ func newPartnerGetCmd() *cobra.Command {
 func NewPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short: "Manage passwords.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -9595,31 +9683,31 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("currencies") {
-				v, _ := cmd.Flags().GetString("currencies")
+				v, _ := cmd.Flags().GetStringSlice("currencies")
 				vars["currencies"] = v
 			}
 			if cmd.Flags().Changed("has-purchase-order-number") {
-				v, _ := cmd.Flags().GetString("has-purchase-order-number")
+				v, _ := cmd.Flags().GetBool("has-purchase-order-number")
 				vars["hasPurchaseOrderNumber"] = v
 			}
 			if cmd.Flags().Changed("has-timesheet") {
-				v, _ := cmd.Flags().GetString("has-timesheet")
+				v, _ := cmd.Flags().GetBool("has-timesheet")
 				vars["hasTimesheet"] = v
 			}
 			if cmd.Flags().Changed("jobs") {
-				v, _ := cmd.Flags().GetString("jobs")
+				v, _ := cmd.Flags().GetStringSlice("jobs")
 				vars["jobs"] = v
 			}
 			if cmd.Flags().Changed("hires") {
-				v, _ := cmd.Flags().GetString("hires")
+				v, _ := cmd.Flags().GetStringSlice("hires")
 				vars["hires"] = v
 			}
 			if cmd.Flags().Changed("hire-owners") {
-				v, _ := cmd.Flags().GetString("hire-owners")
+				v, _ := cmd.Flags().GetStringSlice("hire-owners")
 				vars["hireOwners"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -9627,23 +9715,23 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("request-types") {
-				v, _ := cmd.Flags().GetString("request-types")
+				v, _ := cmd.Flags().GetStringSlice("request-types")
 				vars["requestTypes"] = v
 			}
 			if cmd.Flags().Changed("worker-statuses") {
-				v, _ := cmd.Flags().GetString("worker-statuses")
+				v, _ := cmd.Flags().GetStringSlice("worker-statuses")
 				vars["workerStatuses"] = v
 			}
 			if cmd.Flags().Changed("worker-payout-statuses") {
-				v, _ := cmd.Flags().GetString("worker-payout-statuses")
+				v, _ := cmd.Flags().GetStringSlice("worker-payout-statuses")
 				vars["workerPayoutStatuses"] = v
 			}
 			if cmd.Flags().Changed("is-payrolled") {
-				v, _ := cmd.Flags().GetString("is-payrolled")
+				v, _ := cmd.Flags().GetBool("is-payrolled")
 				vars["isPayrolled"] = v
 			}
 			if cmd.Flags().Changed("timesheet-period") {
@@ -9651,7 +9739,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["timesheetPeriod"] = v
 			}
 			if cmd.Flags().Changed("rate-types") {
-				v, _ := cmd.Flags().GetString("rate-types")
+				v, _ := cmd.Flags().GetStringSlice("rate-types")
 				vars["rateTypes"] = v
 			}
 			if cmd.Flags().Changed("requested-date-range") {
@@ -9667,15 +9755,15 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["billingEndDateRange"] = v
 			}
 			if cmd.Flags().Changed("has-expenses") {
-				v, _ := cmd.Flags().GetString("has-expenses")
+				v, _ := cmd.Flags().GetBool("has-expenses")
 				vars["hasExpenses"] = v
 			}
 			if cmd.Flags().Changed("has-batch") {
-				v, _ := cmd.Flags().GetString("has-batch")
+				v, _ := cmd.Flags().GetBool("has-batch")
 				vars["hasBatch"] = v
 			}
 			if cmd.Flags().Changed("batch-ids") {
-				v, _ := cmd.Flags().GetString("batch-ids")
+				v, _ := cmd.Flags().GetStringSlice("batch-ids")
 				vars["batchIds"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -9720,25 +9808,25 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
-	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies.")
-	cmd.Flags().String("has-purchase-order-number", "", "Only show payment requests that have a Purchase Order number.")
-	cmd.Flags().String("has-timesheet", "", "Only show payment requests that have a timesheet.")
+	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().Bool("has-purchase-order-number", false, "Only show payment requests that have a Purchase Order number.")
+	cmd.Flags().Bool("has-timesheet", false, "Only show payment requests that have a timesheet.")
 	cmd.Flags().String("jobs", "", "Only show payment requests for the specified jobs.")
 	cmd.Flags().String("hires", "", "Only show payment requests for the specified hires.")
 	cmd.Flags().String("hire-owners", "", "Only show payment requests belonging to hires owned by the specified users.")
 	cmd.Flags().String("search", "", "Only show payment requests that match the search query.")
-	cmd.Flags().String("statuses", "", "Only show payment requests that have the specified statuses.")
-	cmd.Flags().String("request-types", "", "Only show payment requests grouped by request type (time or amount).")
-	cmd.Flags().String("worker-statuses", "", "Only show payment requests that have the specified worker statuses.")
-	cmd.Flags().String("worker-payout-statuses", "", "Only show payment requests that have the specified worker payout statuses.")
-	cmd.Flags().String("is-payrolled", "", "Only show payment requests by that were processed through payroll (true) or not through payroll (false). This may include payment requests that were paid outside of payroll.")
+	cmd.Flags().String("statuses", "", "Only show payment requests that have the specified statuses. [APPROVED, CANCELLED, UNAPPROVED, REJECTED]")
+	cmd.Flags().String("request-types", "", "Only show payment requests grouped by request type (time or amount). [TIME, AMOUNT, EXPENSES]")
+	cmd.Flags().String("worker-statuses", "", "Only show payment requests that have the specified worker statuses. [DRAFT, REJECTED, CANCELLED, PROCESSING, COMPLETED, ...]")
+	cmd.Flags().String("worker-payout-statuses", "", "Only show payment requests that have the specified worker payout statuses. [PAID, PREPAID, DUE, OVERDUE, UNPAID]")
+	cmd.Flags().Bool("is-payrolled", false, "Only show payment requests by that were processed through payroll (true) or not through payroll (false). This may include payment requests that were paid outside of payroll.")
 	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range.")
-	cmd.Flags().String("rate-types", "", "Only show payment requests that have the specified rate types.")
+	cmd.Flags().String("rate-types", "", "Only show payment requests that have the specified rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
 	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range.")
 	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range.")
 	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range.")
-	cmd.Flags().String("has-expenses", "", "Only show payment requests that have expenses (true) or do not have expenses (false).")
-	cmd.Flags().String("has-batch", "", "Only show payment requests that have a batch (true) or don't have a batch (false).")
+	cmd.Flags().Bool("has-expenses", false, "Only show payment requests that have expenses (true) or do not have expenses (false).")
+	cmd.Flags().Bool("has-batch", false, "Only show payment requests that have a batch (true) or don't have a batch (false).")
 	cmd.Flags().String("batch-ids", "", "Only show payment requests that belong to the specified batches.")
 	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields.")
 
@@ -9837,15 +9925,15 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			if cmd.Flags().Changed("rate") {
-				v, _ := cmd.Flags().GetString("rate")
+				v, _ := cmd.Flags().GetFloat64("rate")
 				inputObj["rate"] = v
 			}
 			if cmd.Flags().Changed("billable-time") {
-				v, _ := cmd.Flags().GetString("billable-time")
+				v, _ := cmd.Flags().GetFloat64("billable-time")
 				inputObj["billableTime"] = v
 			}
 			if cmd.Flags().Changed("billable-total") {
-				v, _ := cmd.Flags().GetString("billable-total")
+				v, _ := cmd.Flags().GetFloat64("billable-total")
 				inputObj["billableTotal"] = v
 			}
 			if cmd.Flags().Changed("comments") {
@@ -9885,9 +9973,9 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 	cmd.Flags().String("hire", "", "The hire that the payment request is for.")
 	cmd.Flags().String("start-date", "", "The date that the payment request started.")
 	cmd.Flags().String("end-date", "", "The date that the payment request ended (if applicable).")
-	cmd.Flags().String("rate", "", "The rate for the payment request.")
-	cmd.Flags().String("billable-time", "", "The billable time for the payment request.")
-	cmd.Flags().String("billable-total", "", "The billable total for the payment request.")
+	cmd.Flags().Float64("rate", 0, "The rate for the payment request.")
+	cmd.Flags().Float64("billable-time", 0, "The billable time for the payment request.")
+	cmd.Flags().Float64("billable-total", 0, "The billable total for the payment request.")
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	return cmd
@@ -9997,15 +10085,15 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			if cmd.Flags().Changed("rate") {
-				v, _ := cmd.Flags().GetString("rate")
+				v, _ := cmd.Flags().GetFloat64("rate")
 				inputObj["rate"] = v
 			}
 			if cmd.Flags().Changed("billable-time") {
-				v, _ := cmd.Flags().GetString("billable-time")
+				v, _ := cmd.Flags().GetFloat64("billable-time")
 				inputObj["billableTime"] = v
 			}
 			if cmd.Flags().Changed("billable-total") {
-				v, _ := cmd.Flags().GetString("billable-total")
+				v, _ := cmd.Flags().GetFloat64("billable-total")
 				inputObj["billableTotal"] = v
 			}
 			if cmd.Flags().Changed("comments") {
@@ -10046,89 +10134,12 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The ID of the payment request to update.")
 	cmd.Flags().String("start-date", "", "The date that the payment request started.")
 	cmd.Flags().String("end-date", "", "The date that the payment request ended (if applicable).")
-	cmd.Flags().String("rate", "", "The rate for the payment request.")
-	cmd.Flags().String("billable-time", "", "The billable time for the payment request.")
-	cmd.Flags().String("billable-total", "", "The billable total for the payment request.")
+	cmd.Flags().Float64("rate", 0, "The rate for the payment request.")
+	cmd.Flags().Float64("billable-time", 0, "The billable time for the payment request.")
+	cmd.Flags().Float64("billable-total", 0, "The billable total for the payment request.")
 	cmd.Flags().String("comments", "", "Comments related to the payment request.")
 	cmd.Flags().String("timesheet", "", "The timesheet to link to the payment request.")
 	cmd.Flags().String("purchase-order-number", "", "The purchase order number for the payment request.")
-	return cmd
-}
-
-// NewPersonalInviteLinkCmd creates the personal-invite-link resource command.
-func NewPersonalInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "personal-invite-link",
-		Short: "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newPersonalInviteLinkGenerateCmd())
-
-	return cmd
-}
-
-func newPersonalInviteLinkGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "generate",
-		Short:   "Generate or regenerate a personal invite link for the authenticated user. This URL allows workers to join as trusted contacts with auto-approval. Only company members can generate personal invite links.",
-		Example: "  worksome personal-invite-link generate --input data.json\n  worksome personal-invite-link generate --company \"value\"",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-
-			// Load from input file if provided
-			inputFile, _ := cmd.Flags().GetString("input")
-			if inputFile != "" {
-				fileVars, err := readInputFile(inputFile)
-				if err != nil {
-					return err
-				}
-				vars["input"] = fileVars
-			}
-
-			// Build input object from flags (flags override file values)
-			inputObj, _ := vars["input"].(map[string]any)
-			if inputObj == nil {
-				inputObj = make(map[string]any)
-			}
-			if cmd.Flags().Changed("company") {
-				v, _ := cmd.Flags().GetString("company")
-				inputObj["company"] = v
-			}
-			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
-			}
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "mutation", "GeneratePersonalInviteLink", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.GeneratePersonalInviteLink(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, nil)
-		},
-	}
-	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("company", "", "The company that the link token is for.")
 	return cmd
 }
 
@@ -10229,7 +10240,7 @@ func newProjectsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -10237,15 +10248,15 @@ func newProjectsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("owners") {
-				v, _ := cmd.Flags().GetString("owners")
+				v, _ := cmd.Flags().GetStringSlice("owners")
 				vars["owners"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 
@@ -10287,7 +10298,7 @@ func newProjectsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search between projects by budget, name, description and job name.")
-	cmd.Flags().String("status", "", "Only show projects which have the supplied status.")
+	cmd.Flags().String("status", "", "Only show projects which have the supplied status. [OPEN, ENDED]")
 	cmd.Flags().String("owners", "", "Filter projects by owners ids.")
 	cmd.Flags().String("external-identifiers", "", "Only show projects with the specified external identifier.")
 
@@ -10431,7 +10442,7 @@ func newProjectsCreateCmd() *cobra.Command {
 				inputObj["description"] = v
 			}
 			if cmd.Flags().Changed("internal-budget") {
-				v, _ := cmd.Flags().GetString("internal-budget")
+				v, _ := cmd.Flags().GetFloat64("internal-budget")
 				inputObj["internalBudget"] = v
 			}
 			if cmd.Flags().Changed("company") {
@@ -10467,7 +10478,7 @@ func newProjectsCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the project.")
 	cmd.Flags().String("description", "", "The description of the project.")
-	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
+	cmd.Flags().Float64("internal-budget", 0, "The internal budget of the project.")
 	cmd.Flags().String("company", "", "The company that the project is for.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
@@ -10765,7 +10776,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 				inputObj["description"] = v
 			}
 			if cmd.Flags().Changed("internal-budget") {
-				v, _ := cmd.Flags().GetString("internal-budget")
+				v, _ := cmd.Flags().GetFloat64("internal-budget")
 				inputObj["internalBudget"] = v
 			}
 			if cmd.Flags().Changed("external-identifier") {
@@ -10798,7 +10809,7 @@ func newProjectsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The ID of the project.")
 	cmd.Flags().String("name", "", "The name of the project.")
 	cmd.Flags().String("description", "", "The description of the project.")
-	cmd.Flags().String("internal-budget", "", "The internal budget of the project.")
+	cmd.Flags().Float64("internal-budget", 0, "The internal budget of the project.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the project from an external system.")
 	return cmd
 }
@@ -10896,7 +10907,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("status") {
@@ -10945,7 +10956,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("status", "", "Supply to filter for status.")
+	cmd.Flags().String("status", "", "Supply to filter for status. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 
 	return cmd
@@ -11047,15 +11058,15 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 				inputObj["currency"] = v
 			}
 			if cmd.Flags().Changed("hourly-rate") {
-				v, _ := cmd.Flags().GetString("hourly-rate")
+				v, _ := cmd.Flags().GetFloat64("hourly-rate")
 				inputObj["hourlyRate"] = v
 			}
 			if cmd.Flags().Changed("daily-rate") {
-				v, _ := cmd.Flags().GetString("daily-rate")
+				v, _ := cmd.Flags().GetFloat64("daily-rate")
 				inputObj["dailyRate"] = v
 			}
 			if cmd.Flags().Changed("monthly-rate") {
-				v, _ := cmd.Flags().GetString("monthly-rate")
+				v, _ := cmd.Flags().GetFloat64("monthly-rate")
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
@@ -11088,9 +11099,9 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 	cmd.Flags().String("email", "", "The candidate email.")
 	cmd.Flags().String("job-title", "", "The candidate job title.")
 	cmd.Flags().String("currency", "", "The candidates currency.")
-	cmd.Flags().String("hourly-rate", "", "The hourly rate of the candidate.")
-	cmd.Flags().String("daily-rate", "", "The daily rate of the candidate.")
-	cmd.Flags().String("monthly-rate", "", "The monthly rate of the candidate.")
+	cmd.Flags().Float64("hourly-rate", 0, "The hourly rate of the candidate.")
+	cmd.Flags().Float64("daily-rate", 0, "The daily rate of the candidate.")
+	cmd.Flags().Float64("monthly-rate", 0, "The monthly rate of the candidate.")
 	return cmd
 }
 
@@ -11198,15 +11209,15 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 				inputObj["currency"] = v
 			}
 			if cmd.Flags().Changed("hourly-rate") {
-				v, _ := cmd.Flags().GetString("hourly-rate")
+				v, _ := cmd.Flags().GetFloat64("hourly-rate")
 				inputObj["hourlyRate"] = v
 			}
 			if cmd.Flags().Changed("daily-rate") {
-				v, _ := cmd.Flags().GetString("daily-rate")
+				v, _ := cmd.Flags().GetFloat64("daily-rate")
 				inputObj["dailyRate"] = v
 			}
 			if cmd.Flags().Changed("monthly-rate") {
-				v, _ := cmd.Flags().GetString("monthly-rate")
+				v, _ := cmd.Flags().GetFloat64("monthly-rate")
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
@@ -11235,9 +11246,9 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The recruiter relationship to update.")
 	cmd.Flags().String("job-title", "", "The job title to update.")
 	cmd.Flags().String("currency", "", "The currency to update.")
-	cmd.Flags().String("hourly-rate", "", "The hourly rate to update.")
-	cmd.Flags().String("daily-rate", "", "The daily rate to update.")
-	cmd.Flags().String("monthly-rate", "", "The monthly rate to update.")
+	cmd.Flags().Float64("hourly-rate", 0, "The hourly rate to update.")
+	cmd.Flags().Float64("daily-rate", 0, "The daily rate to update.")
+	cmd.Flags().Float64("monthly-rate", 0, "The monthly rate to update.")
 	return cmd
 }
 
@@ -11378,7 +11389,7 @@ func recruitersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 func NewReinviteTrustedContactCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reinvite-trusted-contact",
-		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.",
+		Short:   "Resend an invitation to a Trusted Contact that already exists in the Talent Pool.",
 		Example: "  worksome reinvite-trusted-contact --input data.json\n  worksome reinvite-trusted-contact --id \"value\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -11485,7 +11496,7 @@ func newSkillsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("skillable-type") {
-				v, _ := cmd.Flags().GetString("skillable-type")
+				v, _ := cmd.Flags().GetStringSlice("skillable-type")
 				vars["skillableType"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
@@ -11530,7 +11541,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
-	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to.")
+	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
@@ -11577,7 +11588,7 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 func NewTimesheetRegistrationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timesheet-registration",
-		Short: "Update a timesheet registration. Only workers can update timesheet registrations.",
+		Short: "Manage timesheet registrations.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -11694,7 +11705,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 				inputObj["endTime"] = v
 			}
 			if cmd.Flags().Changed("duration") {
-				v, _ := cmd.Flags().GetString("duration")
+				v, _ := cmd.Flags().GetFloat64("duration")
 				inputObj["duration"] = v
 			}
 			if cmd.Flags().Changed("unit") {
@@ -11714,7 +11725,7 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			if cmd.Flags().Changed("is-billable") {
-				v, _ := cmd.Flags().GetString("is-billable")
+				v, _ := cmd.Flags().GetBool("is-billable")
 				inputObj["isBillable"] = v
 			}
 			vars["input"] = inputObj
@@ -11743,12 +11754,12 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The ID of the timesheet registration to update.")
 	cmd.Flags().String("start-time", "", "The start time of the timesheet registration.")
 	cmd.Flags().String("end-time", "", "The end time of the timesheet registration.")
-	cmd.Flags().String("duration", "", "The duration of the timesheet registration.")
-	cmd.Flags().String("unit", "", "The unit of measurement for the timesheet registration.")
+	cmd.Flags().Float64("duration", 0, "The duration of the timesheet registration.")
+	cmd.Flags().String("unit", "", "The unit of measurement for the timesheet registration. [HOURS, DAYS]")
 	cmd.Flags().String("comments", "", "The comments for the timesheet registration.")
 	cmd.Flags().String("invoice-reference-number", "", "The invoice reference number associated with the timesheet registration.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the timesheet registration from an external system.")
-	cmd.Flags().String("is-billable", "", "Whether the timesheet registration is billable.")
+	cmd.Flags().Bool("is-billable", false, "Whether the timesheet registration is billable.")
 	return cmd
 }
 
@@ -11846,7 +11857,7 @@ func newTimesheetsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 
@@ -12210,7 +12221,7 @@ var trustedcontactsColumns = []output.Column{
 	{Header: "Company Name", Field: "company.name"},
 	{Header: "Invited By User ID", Field: "invitedByUser.id"},
 	{Header: "Invited By User Name", Field: "invitedByUser.name"},
-	{Header: "Viewer Can Approve", Field: "viewerCanApprove"},
+	{Header: "Links", Field: "links"},
 }
 
 // NewTrustedContactsCmd creates the trusted-contacts resource command.
@@ -12296,11 +12307,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("workers") {
-				v, _ := cmd.Flags().GetString("workers")
+				v, _ := cmd.Flags().GetStringSlice("workers")
 				vars["workers"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -12308,19 +12319,19 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("skills") {
-				v, _ := cmd.Flags().GetString("skills")
+				v, _ := cmd.Flags().GetStringSlice("skills")
 				vars["skills"] = v
 			}
 			if cmd.Flags().Changed("markets") {
-				v, _ := cmd.Flags().GetString("markets")
+				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
 			}
 			if cmd.Flags().Changed("countries") {
-				v, _ := cmd.Flags().GetString("countries")
+				v, _ := cmd.Flags().GetStringSlice("countries")
 				vars["countries"] = v
 			}
 			if cmd.Flags().Changed("states") {
-				v, _ := cmd.Flags().GetString("states")
+				v, _ := cmd.Flags().GetStringSlice("states")
 				vars["states"] = v
 			}
 			if cmd.Flags().Changed("invited-by-users") {
@@ -12328,7 +12339,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["invitedByUsers"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
-				v, _ := cmd.Flags().GetString("statuses")
+				v, _ := cmd.Flags().GetStringSlice("statuses")
 				vars["statuses"] = v
 			}
 			if cmd.Flags().Changed("origin") {
@@ -12352,11 +12363,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["hireStatus"] = v
 			}
 			if cmd.Flags().Changed("business-setup") {
-				v, _ := cmd.Flags().GetString("business-setup")
+				v, _ := cmd.Flags().GetStringSlice("business-setup")
 				vars["businessSetup"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
-				v, _ := cmd.Flags().GetString("external-identifiers")
+				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
@@ -12412,17 +12423,17 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().String("skills", "", "Supply a list of skills IDs to filter workers having those.")
-	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets.")
+	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().String("countries", "", "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().String("states", "", "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by.")
-	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited.")
-	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not.")
-	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged).")
+	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
+	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited. [INVITED, ADDED]")
+	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
+	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
 	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
-	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by.")
+	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
 	cmd.Flags().String("external-identifiers", "", "Only show trusted contacts with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
@@ -12645,8 +12656,8 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd.Flags().String("message", "", "The message that will be sent to the trusted contact.")
 	cmd.Flags().Bool("notify-worker", false, "Whether the worker should be notified that they have been added to the platform.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the trusted contact from an external system.")
-	cmd.Flags().String("origin", "", "The origin of the trusted contact")
-	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact")
+	cmd.Flags().String("origin", "", "The origin of the trusted contact [INVITED, ADDED]")
+	cmd.Flags().String("origin-channel", "", "The channel of origin of the trusted contact [EXISTING_SETUP, DIRECT_INVITE, PERSONAL_INVITE, CANDIDATE_SUBMISSION, MARKETPLACE_HIRE, ...]")
 	return cmd
 }
 
@@ -12875,7 +12886,7 @@ func newUserGroupsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("search") {
@@ -12883,11 +12894,11 @@ func newUserGroupsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("users") {
-				v, _ := cmd.Flags().GetString("users")
+				v, _ := cmd.Flags().GetStringSlice("users")
 				vars["users"] = v
 			}
 			if cmd.Flags().Changed("status") {
-				v, _ := cmd.Flags().GetString("status")
+				v, _ := cmd.Flags().GetStringSlice("status")
 				vars["status"] = v
 			}
 
@@ -12930,7 +12941,7 @@ func newUserGroupsListCmd() *cobra.Command {
 	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search user groups by name, description and users name, email.")
 	cmd.Flags().String("users", "", "Filter user groups by users.")
-	cmd.Flags().String("status", "", "Filter user group by status.")
+	cmd.Flags().String("status", "", "Filter user group by status. [ACTIVE, INACTIVE, ARCHIVED]")
 
 	return cmd
 }
@@ -13104,7 +13115,7 @@ func newUserGroupsCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
-	cmd.Flags().String("status", "", "The status of the user group.")
+	cmd.Flags().String("status", "", "The status of the user group. [ACTIVE, INACTIVE, ARCHIVED]")
 	cmd.Flags().String("company", "", "The company that the group is for.")
 	return cmd
 }
@@ -13303,7 +13314,7 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "The ID of the group.")
 	cmd.Flags().String("name", "", "The name of the group.")
 	cmd.Flags().String("description", "", "The description of the group.")
-	cmd.Flags().String("status", "", "The status of the user group.")
+	cmd.Flags().String("status", "", "The status of the user group. [ACTIVE, INACTIVE, ARCHIVED]")
 	return cmd
 }
 
@@ -13385,7 +13396,7 @@ var webhookeventlogsColumns = []output.Column{
 func NewWebhookEventLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-event-logs",
-		Short: "Get a list of webhook event logs. They are returned in descending order of creation.",
+		Short: "Get a list of webhook event logs.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -13429,7 +13440,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				vars["webhookEventId"] = v
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 
@@ -13528,7 +13539,7 @@ var webhookeventsColumns = []output.Column{
 func NewWebhookEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "webhook-events",
-		Short: "Get a list of webhook events. They are returned in descending order of creation.",
+		Short: "Get a list of webhook events.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -13840,7 +13851,7 @@ func newWebhooksListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 
@@ -13969,7 +13980,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 				inputObj["secret"] = v
 			}
 			if cmd.Flags().Changed("is-active") {
-				v, _ := cmd.Flags().GetString("is-active")
+				v, _ := cmd.Flags().GetBool("is-active")
 				inputObj["isActive"] = v
 			}
 			if cmd.Flags().Changed("client-id") {
@@ -14011,7 +14022,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "The description of the webhook.")
 	cmd.Flags().String("url", "", "The URL of the webhook.")
 	cmd.Flags().String("secret", "", "The secret of the webhook. If using OAuth this is the client secret")
-	cmd.Flags().String("is-active", "", "Whether the webhook is active or not.")
+	cmd.Flags().Bool("is-active", false, "Whether the webhook is active or not.")
 	cmd.Flags().String("client-id", "", "The client ID of the webhook, when using OAuth.")
 	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
 	cmd.Flags().String("company", "", "The company that the webhook is for.")
@@ -14130,7 +14141,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				inputObj["secret"] = v
 			}
 			if cmd.Flags().Changed("is-active") {
-				v, _ := cmd.Flags().GetString("is-active")
+				v, _ := cmd.Flags().GetBool("is-active")
 				inputObj["isActive"] = v
 			}
 			if cmd.Flags().Changed("client-id") {
@@ -14169,7 +14180,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "The description of the webhook.")
 	cmd.Flags().String("url", "", "The URL of the webhook.")
 	cmd.Flags().String("secret", "", "The secret of the webhook. If using OAuth this is the client secret. If you are not updating the secret, set it to null.")
-	cmd.Flags().String("is-active", "", "Whether the webhook is active or not.")
+	cmd.Flags().Bool("is-active", false, "Whether the webhook is active or not.")
 	cmd.Flags().String("client-id", "", "The client ID of the webhook, when using OAuth.")
 	cmd.Flags().String("client-url", "", "The client URL of the webhook, when using OAuth.")
 	return cmd
@@ -14311,7 +14322,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker-custom-field-values",
-		Short: "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
+		Short: "Update custom field values for a fieldable entity as a worker.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -14384,6 +14395,13 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+var workflowvariablesColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Title", Field: "title"},
+	{Header: "Description", Field: "description"},
+	{Header: "Operators", Field: "operators"},
+}
+
 // NewWorkflowVariablesCmd creates the workflow-variables resource command.
 func NewWorkflowVariablesCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -14424,7 +14442,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("applies-to") {
@@ -14456,6 +14474,12 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Extract data array from paginator response for table output
+			if paginator, ok := result["workflowVariables"].(map[string]any); ok {
+				if data, ok := paginator["data"].([]any); ok {
+					return printResult(cmd, data, workflowvariablesColumns)
+				}
+			}
 			return printResult(cmd, result, nil)
 		},
 	}
@@ -14463,7 +14487,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd.Flags().Int("page", 1, "Page number")
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
-	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to.")
+	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to. [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 
 	return cmd
 }
@@ -14502,7 +14526,7 @@ func workflowvariablesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, nil)
+	return printResult(cmd, allData, workflowvariablesColumns)
 }
 
 var workflowsColumns = []output.Column{
@@ -14591,7 +14615,7 @@ func newWorkflowsListCmd() *cobra.Command {
 				vars["page"] = page
 			}
 			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetString("accounts")
+				v, _ := cmd.Flags().GetStringSlice("accounts")
 				vars["accounts"] = v
 			}
 

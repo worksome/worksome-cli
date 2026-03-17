@@ -79,6 +79,7 @@ type TypeRef struct {
 	IsScalar   bool
 	IsPaginator bool
 	PaginatedType string // For paginator types, the inner data type, e.g., "Hire"
+	EnumValues    []string // For enum types, the list of valid values, e.g., ["ACTIVE", "INACTIVE"]
 }
 
 // Enum represents a GraphQL enum type.

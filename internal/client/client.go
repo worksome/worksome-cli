@@ -245,7 +245,16 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &httpError{StatusCode: resp.StatusCode, Body: string(body)}
+		contentType := resp.Header.Get("Content-Type")
+		bodyStr := string(body)
+		// Detect non-JSON responses (HTML error pages, etc.) and show a clean message
+		if !strings.Contains(contentType, "json") || strings.HasPrefix(strings.TrimSpace(bodyStr), "<") {
+			return nil, &httpError{
+				StatusCode: resp.StatusCode,
+				Body:       fmt.Sprintf("endpoint returned %s (expected JSON). Check that the endpoint URL is correct.", contentType),
+			}
+		}
+		return nil, &httpError{StatusCode: resp.StatusCode, Body: bodyStr}
 	}
 
 	return body, nil

@@ -320,3 +320,30 @@ func TestExtractFields_nilMapValue(t *testing.T) {
 		t.Errorf("expected empty string for nil value, got %q", rows[0][0])
 	}
 }
+
+func TestExtractFields_unwrapSingleKeySlice(t *testing.T) {
+	// Simulates a response like {"accounts": [{"id": "1", "name": "Alice"}]}
+	data := map[string]any{
+		"accounts": []any{
+			map[string]any{"id": "1", "name": "Alice"},
+			map[string]any{"id": "2", "name": "Bob"},
+		},
+	}
+
+	cols := []Column{
+		{Header: "ID", Field: "id"},
+		{Header: "Name", Field: "name"},
+	}
+
+	rows := ExtractFields(data, cols)
+
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	if rows[0][0] != "1" || rows[0][1] != "Alice" {
+		t.Errorf("row 0 = %v, want [1 Alice]", rows[0])
+	}
+	if rows[1][0] != "2" || rows[1][1] != "Bob" {
+		t.Errorf("row 1 = %v, want [2 Bob]", rows[1])
+	}
+}

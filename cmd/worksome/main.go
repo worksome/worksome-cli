@@ -104,7 +104,7 @@ func newRootCmd() *cobra.Command {
 	coreResources := map[string]bool{
 		"hires": true, "jobs": true, "bids": true, "contracts": true,
 		"timesheets": true, "projects": true, "milestones": true,
-		"workers": true, "worker": true, "company": true,
+		"worker": true, "company": true,
 		"conversations": true, "files": true, "viewer": true,
 		"employments": true, "classifications": true, "compliance": true,
 		"gate": true, "skills": true, "industries": true, "note": true,
@@ -120,12 +120,12 @@ func newRootCmd() *cobra.Command {
 		"approvals": true, "approval-rules": true, "approval-states": true,
 		"approval-approvables": true, "approvers": true, "custom-fields": true,
 		"inherited-custom-fields": true,
-		"email": true, "password": true, "verification-email": true,
+		"email": true, "password": true,
 	}
 	recruitmentResources := map[string]bool{
 		"company-recruiters": true, "recruiter-candidates": true, "recruiters": true,
 		"trusted-contacts": true, "organisation-trusted-contacts": true,
-		"invite-link": true, "personal-invite-link": true,
+		"invite-link": true,
 		"reinvite-trusted-contact": true, "block-trusted-contact": true,
 		"job-candidates": true, "job-candidate-preferred": true,
 		"job-candidate-status": true, "job-shares": true, "partner": true,

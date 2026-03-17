@@ -120,6 +120,19 @@ func ExtractFields(data any, columns []Column) [][]string {
 		return nil
 	}
 
+	// Unwrap single-key maps whose value is a slice.
+	// This handles responses like {"accounts": [{...}, {...}]}.
+	if m, ok := data.(map[string]any); ok && len(m) == 1 {
+		for _, val := range m {
+			if reflect.TypeOf(val) != nil {
+				rv := reflect.ValueOf(val)
+				if rv.Kind() == reflect.Slice {
+					data = val
+				}
+			}
+		}
+	}
+
 	v := reflect.ValueOf(data)
 
 	// Dereference pointer.

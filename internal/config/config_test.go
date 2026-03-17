@@ -317,6 +317,94 @@ func TestResolveProfilePrecedence(t *testing.T) {
 	}
 }
 
+func TestConfigPath(t *testing.T) {
+	// configPath uses os.UserHomeDir which reads HOME on Unix.
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	path, err := configPath()
+	if err != nil {
+		t.Fatalf("configPath failed: %v", err)
+	}
+
+	expected := filepath.Join(dir, ".worksome", "config.yaml")
+	if path != expected {
+		t.Errorf("configPath() = %q, want %q", path, expected)
+	}
+}
+
+func TestLoadCreatesDirectoryAndReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Profiles == nil {
+		t.Fatal("Profiles should be initialized")
+	}
+	if len(cfg.Profiles) != 0 {
+		t.Errorf("expected empty Profiles, got %d", len(cfg.Profiles))
+	}
+
+	// The config directory should have been created
+	configDir := filepath.Join(dir, ".worksome")
+	info, err := os.Stat(configDir)
+	if err != nil {
+		t.Fatalf("config directory not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected .worksome to be a directory")
+	}
+}
+
+func TestLoadSaveViaHomedir(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	cfg := &Config{
+		CurrentProfile: "test",
+		Profiles: map[string]Profile{
+			"test": {Token: "secret-token", Endpoint: "https://example.com/graphql"},
+		},
+	}
+
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Verify file permissions
+	path := filepath.Join(dir, ".worksome", "config.yaml")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("config file not created: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+
+	// Load back and verify
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if loaded.CurrentProfile != "test" {
+		t.Errorf("CurrentProfile = %q, want %q", loaded.CurrentProfile, "test")
+	}
+	if p, ok := loaded.Profiles["test"]; !ok {
+		t.Error("test profile not found")
+	} else {
+		if p.Token != "secret-token" {
+			t.Errorf("Token = %q, want %q", p.Token, "secret-token")
+		}
+		if p.Endpoint != "https://example.com/graphql" {
+			t.Errorf("Endpoint = %q, want %q", p.Endpoint, "https://example.com/graphql")
+		}
+	}
+}
+
 func TestFilePermissions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

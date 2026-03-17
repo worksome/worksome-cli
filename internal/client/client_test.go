@@ -432,3 +432,28 @@ func TestExecute_HTTPError(t *testing.T) {
 		t.Errorf("error should mention status code 500: %v", err)
 	}
 }
+
+func TestExecute_NonJSONResponse(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `<!DOCTYPE html><html><body><h1>Not Found</h1></body></html>`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "token")
+	err := c.Execute(context.Background(), "{ health }", nil, nil)
+	if err == nil {
+		t.Fatal("expected error for HTML response, got nil")
+	}
+	if !strings.Contains(err.Error(), "expected JSON") {
+		t.Errorf("error should mention expected JSON: %v", err)
+	}
+	if !strings.Contains(err.Error(), "text/html") {
+		t.Errorf("error should mention content type: %v", err)
+	}
+	// Must NOT contain the actual HTML body.
+	if strings.Contains(err.Error(), "<!DOCTYPE") {
+		t.Error("error should not contain raw HTML body")
+	}
+}
