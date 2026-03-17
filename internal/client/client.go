@@ -21,6 +21,7 @@ type Client struct {
 	verbose    bool
 	timeout    time.Duration
 	userAgent  string
+	cache      *Cache
 }
 
 // Option configures the Client.
@@ -54,6 +55,15 @@ func WithUserAgent(ua string) Option {
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		c.httpClient = hc
+	}
+}
+
+// WithCache enables response caching for read queries. Mutations are never
+// cached. Pass a *Cache created with NewCache to share the cache across
+// multiple clients, or create one per client.
+func WithCache(cache *Cache) Option {
+	return func(c *Client) {
+		c.cache = cache
 	}
 }
 
@@ -145,9 +155,36 @@ const (
 	backoffScale = 2
 )
 
+// isQuery returns true when the GraphQL operation is a read query (not a
+// mutation or subscription). It checks for a leading "query" keyword or an
+// anonymous query (starts with "{").
+func isQuery(query string) bool {
+	q := strings.TrimSpace(query)
+	return strings.HasPrefix(q, "query") || strings.HasPrefix(q, "{")
+}
+
 // Execute sends a GraphQL query and unmarshals the response data into result.
 // It retries on transient network errors with exponential backoff (1s, 2s, 4s).
+// When a Cache is configured via WithCache, read queries are served from the
+// cache on hit and stored on miss. Mutations are never cached.
 func (c *Client) Execute(ctx context.Context, query string, variables map[string]any, result any) error {
+	cacheable := c.cache != nil && isQuery(query)
+
+	// Check cache before making a network request.
+	if cacheable {
+		if data, ok := c.cache.Get(query, variables); ok {
+			if c.verbose {
+				log.Printf("[graphql] cache hit for query")
+			}
+			if result != nil {
+				if err := json.Unmarshal(data, result); err != nil {
+					return fmt.Errorf("decoding cached data: %w", err)
+				}
+			}
+			return nil
+		}
+	}
+
 	reqBody := graphqlRequest{
 		Query:     query,
 		Variables: variables,
@@ -198,6 +235,11 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 
 		if len(gqlResp.Errors) > 0 {
 			return gqlResp.Errors
+		}
+
+		// Store successful query responses in the cache.
+		if cacheable && gqlResp.Data != nil {
+			c.cache.Set(query, variables, gqlResp.Data)
 		}
 
 		if result != nil && gqlResp.Data != nil {
