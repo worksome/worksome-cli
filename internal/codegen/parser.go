@@ -632,10 +632,10 @@ func (p *parser) buildResources() []Resource {
 			} else if len(res.Mutations) > 1 {
 				// Multiple mutations: use generic "Manage <resource>." instead of first mutation's description
 				displayName := res.Name
-			if !strings.HasSuffix(displayName, "s") || strings.HasSuffix(displayName, "ss") || strings.HasSuffix(displayName, "us") {
-				displayName = toPlural(displayName)
-			}
-			res.Description = fmt.Sprintf("Manage %s.", strings.ReplaceAll(displayName, "-", " "))
+				if !strings.HasSuffix(displayName, "s") || strings.HasSuffix(displayName, "ss") || strings.HasSuffix(displayName, "us") {
+					displayName = toPlural(displayName)
+				}
+				res.Description = fmt.Sprintf("Manage %s.", strings.ReplaceAll(displayName, "-", " "))
 			}
 		}
 

@@ -624,6 +624,8 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
 	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "stringSlice" -}}
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
 	{{else -}}
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}
@@ -771,6 +773,8 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
 	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	{{else if eq (flagBaseType .Type) "stringSlice" -}}
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
 	{{else -}}
 	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
 	{{end -}}

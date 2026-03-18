@@ -515,12 +515,12 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the approval approvable based on one or more accounts.")
 	cmd.Flags().Bool("requires-action", false, "Filter for approval approvables that require actioning.")
-	cmd.Flags().String("requires-action-users", "", "Filter the approval approvable based on users that need to take action.")
-	cmd.Flags().String("approvals", "", "Filter the approval approvables based on one or more approvals.")
+	cmd.Flags().StringSlice("requires-action-users", nil, "Filter the approval approvable based on users that need to take action.")
+	cmd.Flags().StringSlice("approvals", nil, "Filter the approval approvables based on one or more approvals.")
 	cmd.Flags().String("approvable", "", "Filter the approval approvable based on an approvable type.")
-	cmd.Flags().String("approval-rules", "", "Filter the approval approvable based on one or more approval rules.")
+	cmd.Flags().StringSlice("approval-rules", nil, "Filter the approval approvable based on one or more approval rules.")
 	cmd.Flags().String("order-by", "", "Order the results by the given field and order.")
 
 	return cmd
@@ -814,7 +814,7 @@ func newApprovalRulesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the approval rules based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the approval rules based on one or more accounts.")
 
 	return cmd
 }
@@ -1062,9 +1062,9 @@ func newApprovalStatesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the approval approvable based on one or more accounts.")
-	cmd.Flags().String("status", "", "Filter the approval approvable based on one or more approval states. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
-	cmd.Flags().String("users", "", "Filter the approval approvable based on one or more users.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the approval approvable based on one or more accounts.")
+	cmd.Flags().StringSlice("status", nil, "Filter the approval approvable based on one or more approval states. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
+	cmd.Flags().StringSlice("users", nil, "Filter the approval approvable based on one or more users.")
 
 	return cmd
 }
@@ -1277,7 +1277,7 @@ func newApprovalsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the approvals based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the approvals based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search approvals by name or description.")
 
 	return cmd
@@ -1687,7 +1687,7 @@ func newApproversListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the approvers based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the approvers based on one or more accounts.")
 	cmd.Flags().String("approval-rule", "", "Filter the approvers based on one approval rule.")
 
 	return cmd
@@ -2290,9 +2290,9 @@ func newBatchesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show batches for the specified accounts.")
-	cmd.Flags().String("types", "", "Only show batches of the specified types. [PARTNER_PAYMENT_REQUESTS]")
-	cmd.Flags().String("contains-items-with-status", "", "Only show batches that contain at least one item of the specified statuses. [PROCESSING, PROCESSED]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show batches for the specified accounts.")
+	cmd.Flags().StringSlice("types", nil, "Only show batches of the specified types. [PARTNER_PAYMENT_REQUESTS]")
+	cmd.Flags().StringSlice("contains-items-with-status", nil, "Only show batches that contain at least one item of the specified statuses. [PROCESSING, PROCESSED]")
 
 	return cmd
 }
@@ -2587,9 +2587,9 @@ func newBidsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("statuses", "", "Filter the bids based on one or more statuses. [OPEN, ACCEPTED, REJECTED, CANCELLED]")
+	cmd.Flags().StringSlice("statuses", nil, "Filter the bids based on one or more statuses. [OPEN, ACCEPTED, REJECTED, CANCELLED]")
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
-	cmd.Flags().String("accounts", "", "Filter the bid based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the bid based on one or more accounts.")
 
 	return cmd
 }
@@ -3175,13 +3175,13 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see recruiters for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter recruiters by. [ACTIVE, INVITED]")
-	cmd.Flags().String("tags", "", "Supply a list of tags to filter recruiters by.")
-	cmd.Flags().String("markets", "", "Supply a list of markets to filter recruiters by.")
+	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter recruiters by. [ACTIVE, INVITED]")
+	cmd.Flags().StringSlice("tags", nil, "Supply a list of tags to filter recruiters by.")
+	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets to filter recruiters by.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
-	cmd.Flags().String("external-identifiers", "", "Only show company recruiters with the specified external identifier.")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show company recruiters with the specified external identifier.")
 
 	return cmd
 }
@@ -3656,7 +3656,7 @@ func newComplianceGetCmd() *cobra.Command {
 			return printResult(cmd, result, complianceColumns)
 		},
 	}
-	cmd.Flags().String("names", "", "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
+	cmd.Flags().StringSlice("names", nil, "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
 
 	return cmd
 }
@@ -3838,10 +3838,10 @@ func newContractsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show contracts created by a specific account.")
-	cmd.Flags().String("currencies", "", "Only show contracts using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
-	cmd.Flags().String("statuses", "", "Only show contracts with the specified statuses. [DRAFT, ACTIVE, ARCHIVED]")
-	cmd.Flags().String("location-preferences", "", "Only show contracts with the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show contracts created by a specific account.")
+	cmd.Flags().StringSlice("currencies", nil, "Only show contracts using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().StringSlice("statuses", nil, "Only show contracts with the specified statuses. [DRAFT, ACTIVE, ARCHIVED]")
+	cmd.Flags().StringSlice("location-preferences", nil, "Only show contracts with the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
 
 	return cmd
 }
@@ -4052,7 +4052,7 @@ func newConversationsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see conversations for. If no accounts are supplied then all authenticated accounts will be used. If multiple accounts are used only conversations for those accounts will be shown.")
 	cmd.Flags().Bool("is-open", false, "If the conversation is open or closed. If not supplied show all conversations.")
 
 	return cmd
@@ -4271,9 +4271,9 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
 
 	return cmd
 }
@@ -5083,18 +5083,18 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show employments related to a specific account.")
-	cmd.Flags().String("status", "", "Filter employments by employment status. [DRAFT, ACTIVE, ENDED]")
-	cmd.Flags().String("employer-record-status", "", "Filter employments by employer record status. [INCOMPLETE, CHANGES_REQUESTED, PROCESSING, COMPLETE]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show employments related to a specific account.")
+	cmd.Flags().StringSlice("status", nil, "Filter employments by employment status. [DRAFT, ACTIVE, ENDED]")
+	cmd.Flags().StringSlice("employer-record-status", nil, "Filter employments by employer record status. [INCOMPLETE, CHANGES_REQUESTED, PROCESSING, COMPLETE]")
 	cmd.Flags().String("search", "", "Filter by search term against worker name, job title, etc.")
 	cmd.Flags().String("order-by", "", "Order by clause.")
 	cmd.Flags().String("start-date-range", "", "Filter by start date range.")
 	cmd.Flags().String("end-date-range", "", "Filter by end date range.")
-	cmd.Flags().String("contract-type", "", "Filter by contract types. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
-	cmd.Flags().String("locations", "", "Filter by locations.")
-	cmd.Flags().String("companies", "", "Filter by companies.")
-	cmd.Flags().String("hiring-managers", "", "Filter by hiring managers.")
-	cmd.Flags().String("rate-types", "", "Filter by rate type. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().StringSlice("contract-type", nil, "Filter by contract types. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
+	cmd.Flags().StringSlice("locations", nil, "Filter by locations.")
+	cmd.Flags().StringSlice("companies", nil, "Filter by companies.")
+	cmd.Flags().StringSlice("hiring-managers", nil, "Filter by hiring managers.")
+	cmd.Flags().StringSlice("rate-types", nil, "Filter by rate type. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
 	cmd.Flags().Bool("previously-hired", false, "Filter by previously hired status.")
 
 	return cmd
@@ -5486,8 +5486,8 @@ func newFilesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("mime-types", "", "Only show files with the given IANA MIME types.")
+	cmd.Flags().StringSlice("accounts", nil, "Only show files for the specified accounts. If no accounts supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("mime-types", nil, "Only show files with the given IANA MIME types.")
 
 	return cmd
 }
@@ -5996,31 +5996,31 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the hires based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
-	cmd.Flags().String("status", "", "Filter hires by hire status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
+	cmd.Flags().StringSlice("status", nil, "Filter hires by hire status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
 	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
-	cmd.Flags().String("companies", "", "Filter hires by company ids.")
-	cmd.Flags().String("workers", "", "Filter hires by worker ids.")
+	cmd.Flags().StringSlice("companies", nil, "Filter hires by company ids.")
+	cmd.Flags().StringSlice("workers", nil, "Filter hires by worker ids.")
 	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date.")
 	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date.")
 	cmd.Flags().String("starts-after", "", "Filter hires that start after the specified date.")
 	cmd.Flags().String("ends-after", "", "Filter hires that end after the specified date.")
 	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created.")
-	cmd.Flags().String("external-identifiers", "", "Only show hires with the specified external identifier.")
-	cmd.Flags().String("contract-status", "", "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
-	cmd.Flags().String("contract-type", "", "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
-	cmd.Flags().String("engagement-type", "", "Filter hires by engagement type. [PAYROLL, CONTRACTOR, EXTERNAL, PENDING]")
-	cmd.Flags().String("engagement-type-setup", "", "Filter hires by engagement type setup. [W2, PAYE, INSIDE_IR35, GLOBAL_PAYROLL, W2_CLASSIFY, ...]")
-	cmd.Flags().String("uses-classification", "", "Filter hires by classification usage status. [NOT_USING, USING, USING_WITH_OVERRIDE]")
-	cmd.Flags().String("active-status", "", "Filter hires by active status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show hires with the specified external identifier.")
+	cmd.Flags().StringSlice("contract-status", nil, "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
+	cmd.Flags().StringSlice("contract-type", nil, "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
+	cmd.Flags().StringSlice("engagement-type", nil, "Filter hires by engagement type. [PAYROLL, CONTRACTOR, EXTERNAL, PENDING]")
+	cmd.Flags().StringSlice("engagement-type-setup", nil, "Filter hires by engagement type setup. [W2, PAYE, INSIDE_IR35, GLOBAL_PAYROLL, W2_CLASSIFY, ...]")
+	cmd.Flags().StringSlice("uses-classification", nil, "Filter hires by classification usage status. [NOT_USING, USING, USING_WITH_OVERRIDE]")
+	cmd.Flags().StringSlice("active-status", nil, "Filter hires by active status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
 	cmd.Flags().Bool("include-deleted", false, "Include soft deleted hires.")
-	cmd.Flags().String("job-owners", "", "Filter hires by job owner.")
-	cmd.Flags().String("owners", "", "Filter hires by owner.")
+	cmd.Flags().StringSlice("job-owners", nil, "Filter hires by job owner.")
+	cmd.Flags().StringSlice("owners", nil, "Filter hires by owner.")
 	cmd.Flags().Bool("has-payment-requests", false, "Filter hires by if there are associated payment requests.")
 	cmd.Flags().Bool("has-recruiter-attribution", false, "Filter hires by if there are recruiter attribution or not.")
-	cmd.Flags().String("jobs", "", "Only show hires that belong to one or more specific jobs.")
+	cmd.Flags().StringSlice("jobs", nil, "Only show hires that belong to one or more specific jobs.")
 
 	return cmd
 }
@@ -7027,9 +7027,9 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().String("applies-to", "", "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST]")
 
 	return cmd
 }
@@ -7477,12 +7477,12 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("status", "", "Only show invoices which have the supplied status. [PAID, UNPAID, OVERDUE, CREDITED]")
-	cmd.Flags().String("transaction-types", "", "Only show invoices with the given transaction types. [INVOICE, CREDIT_NOTE, BATCH_INVOICE]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show invoices for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("status", nil, "Only show invoices which have the supplied status. [PAID, UNPAID, OVERDUE, CREDITED]")
+	cmd.Flags().StringSlice("transaction-types", nil, "Only show invoices with the given transaction types. [INVOICE, CREDIT_NOTE, BATCH_INVOICE]")
 	cmd.Flags().String("search", "", "Filter invoices by PO number, invoice number, freelancer name or amount.")
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
-	cmd.Flags().String("currency", "", "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, ...]")
 	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date.")
 
 	return cmd
@@ -7914,9 +7914,9 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("jobs", "", "Only return job candidates for the specified jobs.")
-	cmd.Flags().String("statuses", "", "Only return job candidates for the specified statuses. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
-	cmd.Flags().String("steps", "", "Only return job candidates for the specified hiring steps. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING]")
+	cmd.Flags().StringSlice("jobs", nil, "Only return job candidates for the specified jobs.")
+	cmd.Flags().StringSlice("statuses", nil, "Only return job candidates for the specified statuses. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
+	cmd.Flags().StringSlice("steps", nil, "Only return job candidates for the specified hiring steps. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING]")
 	cmd.Flags().Bool("preferred", false, "Only return job candidates which are preferred or not.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
@@ -8177,8 +8177,8 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("jobs", "", "Only show job shares for specific jobs.")
-	cmd.Flags().String("account-types", "", "Only show job shares for specific accounts. [WORKER, COMPANY, RECRUITER, ORGANISATION, PARTNER]")
+	cmd.Flags().StringSlice("jobs", nil, "Only show job shares for specific jobs.")
+	cmd.Flags().StringSlice("account-types", nil, "Only show job shares for specific accounts. [WORKER, COMPANY, RECRUITER, ORGANISATION, PARTNER]")
 	cmd.Flags().Bool("is-active", false, "Whether the job share is active.")
 	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction.")
 
@@ -8619,17 +8619,17 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show jobs created by a specific account.")
-	cmd.Flags().String("owners", "", "Only show jobs owned by specific users.")
-	cmd.Flags().String("markets", "", "Only show jobs in the specified markets. [US, UK, IE, EU, CA, ...]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show jobs created by a specific account.")
+	cmd.Flags().StringSlice("owners", nil, "Only show jobs owned by specific users.")
+	cmd.Flags().StringSlice("markets", nil, "Only show jobs in the specified markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().String("search", "", "Search job posts.")
-	cmd.Flags().String("currencies", "", "Only show jobs using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
-	cmd.Flags().String("rate-types", "", "Only show jobs using the specified payment rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
-	cmd.Flags().String("payment-schemes", "", "Only show jobs using the specified payment schemes. [ANY, COMPANY, GLOBAL_PAYROLL, UK_PAYE, UK_PAYE_IR35, ...]")
-	cmd.Flags().String("skills", "", "Only show jobs requiring a set of specific skills. This filter takes a list of skill names, ie \"php\" for the skill php, or \"Graphql api\" for the graphql api skill.")
-	cmd.Flags().String("experience-level", "", "Only show jobs requiring specific experience levels. [STUDENT, JUNIOR, SENIOR, EXPERT]")
-	cmd.Flags().String("associations", "", "Only show jobs using the specified project types. [SMALL_TASK, PROJECT, BIG_PROJECT, PART_TIME, FULL_TIME]")
-	cmd.Flags().String("location-preferences", "", "Only show jobs using the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
+	cmd.Flags().StringSlice("currencies", nil, "Only show jobs using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().StringSlice("rate-types", nil, "Only show jobs using the specified payment rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().StringSlice("payment-schemes", nil, "Only show jobs using the specified payment schemes. [ANY, COMPANY, GLOBAL_PAYROLL, UK_PAYE, UK_PAYE_IR35, ...]")
+	cmd.Flags().StringSlice("skills", nil, "Only show jobs requiring a set of specific skills. This filter takes a list of skill names, ie \"php\" for the skill php, or \"Graphql api\" for the graphql api skill.")
+	cmd.Flags().StringSlice("experience-level", nil, "Only show jobs requiring specific experience levels. [STUDENT, JUNIOR, SENIOR, EXPERT]")
+	cmd.Flags().StringSlice("associations", nil, "Only show jobs using the specified project types. [SMALL_TASK, PROJECT, BIG_PROJECT, PART_TIME, FULL_TIME]")
+	cmd.Flags().StringSlice("location-preferences", nil, "Only show jobs using the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
 	cmd.Flags().Bool("available", false, "Only show jobs that are either available or not.")
 	cmd.Flags().Bool("published", false, "Only show jobs that are either published or not.")
 	cmd.Flags().Bool("completed", false, "Only show jobs that have either been completed or not.")
@@ -8637,7 +8637,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-project", false, "Filter for jobs with or without project.")
 	cmd.Flags().Bool("has-hire", false, "Filter for jobs with or without hires.")
 	cmd.Flags().Bool("has-bids", false, "Filter for jobs with or without bids.")
-	cmd.Flags().String("external-identifiers", "", "Only show jobs with the specified external identifier.")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show jobs with the specified external identifier.")
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
 	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created.")
 	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
@@ -8645,7 +8645,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range.")
 	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range.")
 	cmd.Flags().Bool("is-job-post", false, "Only show jobs that are job posts.")
-	cmd.Flags().String("statuses", "", "Filter the jobs by their status [DRAFT, ACTIVE, COMPLETED, REMOVED]")
+	cmd.Flags().StringSlice("statuses", nil, "Filter the jobs by their status [DRAFT, ACTIVE, COMPLETED, REMOVED]")
 
 	return cmd
 }
@@ -9337,8 +9337,8 @@ func newMilestonesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("hires", "", "Only show milestones for the specified hires.")
+	cmd.Flags().StringSlice("accounts", nil, "Only show milestones for the specified accounts. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("hires", nil, "Only show milestones for the specified hires.")
 
 	return cmd
 }
@@ -9725,8 +9725,8 @@ func newMultiFactorsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("statuses", "", "A list of statuses to filter the multi factors on. [APPROVED, PENDING, CANCELLED, FAILED]")
-	cmd.Flags().String("channels", "", "A list of channels to filter the multi factors on. [EMAIL, SMS, TOTP]")
+	cmd.Flags().StringSlice("statuses", nil, "A list of statuses to filter the multi factors on. [APPROVED, PENDING, CANCELLED, FAILED]")
+	cmd.Flags().StringSlice("channels", nil, "A list of channels to filter the multi factors on. [EMAIL, SMS, TOTP]")
 
 	return cmd
 }
@@ -10842,22 +10842,22 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("workers", nil, "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
-	cmd.Flags().String("skills", "", "Supply a list of skills IDs to filter trusted contact or associated worker having those.")
-	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
-	cmd.Flags().String("countries", "", "Supply a list of country codes to filter workers part of related countries.")
-	cmd.Flags().String("states", "", "Supply a list of states to filter workers in specific states.")
+	cmd.Flags().StringSlice("skills", nil, "Supply a list of skills IDs to filter trusted contact or associated worker having those.")
+	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
+	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
+	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
+	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
 	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
-	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
-	cmd.Flags().String("external-identifiers", "", "Only show trusted contacts with the specified external identifier.")
+	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
@@ -11399,27 +11399,27 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Only show payment requests for the specified accounts.")
-	cmd.Flags().String("currencies", "", "Only show payment requests using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
+	cmd.Flags().StringSlice("accounts", nil, "Only show payment requests for the specified accounts.")
+	cmd.Flags().StringSlice("currencies", nil, "Only show payment requests using the specified currencies. [CAD, DKK, EUR, GBP, NOK, ...]")
 	cmd.Flags().Bool("has-purchase-order-number", false, "Only show payment requests that have a Purchase Order number.")
 	cmd.Flags().Bool("has-timesheet", false, "Only show payment requests that have a timesheet.")
-	cmd.Flags().String("jobs", "", "Only show payment requests for the specified jobs.")
-	cmd.Flags().String("hires", "", "Only show payment requests for the specified hires.")
-	cmd.Flags().String("hire-owners", "", "Only show payment requests belonging to hires owned by the specified users.")
+	cmd.Flags().StringSlice("jobs", nil, "Only show payment requests for the specified jobs.")
+	cmd.Flags().StringSlice("hires", nil, "Only show payment requests for the specified hires.")
+	cmd.Flags().StringSlice("hire-owners", nil, "Only show payment requests belonging to hires owned by the specified users.")
 	cmd.Flags().String("search", "", "Only show payment requests that match the search query.")
-	cmd.Flags().String("statuses", "", "Only show payment requests that have the specified statuses. [APPROVED, CANCELLED, UNAPPROVED, REJECTED]")
-	cmd.Flags().String("request-types", "", "Only show payment requests grouped by request type (time or amount). [TIME, AMOUNT, EXPENSES]")
-	cmd.Flags().String("worker-statuses", "", "Only show payment requests that have the specified worker statuses. [DRAFT, REJECTED, CANCELLED, PROCESSING, COMPLETED, ...]")
-	cmd.Flags().String("worker-payout-statuses", "", "Only show payment requests that have the specified worker payout statuses. [PAID, PREPAID, DUE, OVERDUE, UNPAID]")
+	cmd.Flags().StringSlice("statuses", nil, "Only show payment requests that have the specified statuses. [APPROVED, CANCELLED, UNAPPROVED, REJECTED]")
+	cmd.Flags().StringSlice("request-types", nil, "Only show payment requests grouped by request type (time or amount). [TIME, AMOUNT, EXPENSES]")
+	cmd.Flags().StringSlice("worker-statuses", nil, "Only show payment requests that have the specified worker statuses. [DRAFT, REJECTED, CANCELLED, PROCESSING, COMPLETED, ...]")
+	cmd.Flags().StringSlice("worker-payout-statuses", nil, "Only show payment requests that have the specified worker payout statuses. [PAID, PREPAID, DUE, OVERDUE, UNPAID]")
 	cmd.Flags().Bool("is-payrolled", false, "Only show payment requests by that were processed through payroll (true) or not through payroll (false). This may include payment requests that were paid outside of payroll.")
 	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range.")
-	cmd.Flags().String("rate-types", "", "Only show payment requests that have the specified rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
+	cmd.Flags().StringSlice("rate-types", nil, "Only show payment requests that have the specified rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
 	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range.")
 	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range.")
 	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range.")
 	cmd.Flags().Bool("has-expenses", false, "Only show payment requests that have expenses (true) or do not have expenses (false).")
 	cmd.Flags().Bool("has-batch", false, "Only show payment requests that have a batch (true) or don't have a batch (false).")
-	cmd.Flags().String("batch-ids", "", "Only show payment requests that belong to the specified batches.")
+	cmd.Flags().StringSlice("batch-ids", nil, "Only show payment requests that belong to the specified batches.")
 	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields.")
 
 	return cmd
@@ -11956,11 +11956,11 @@ func newProjectsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see projects for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search between projects by budget, name, description and job name.")
-	cmd.Flags().String("status", "", "Only show projects which have the supplied status. [OPEN, ENDED]")
-	cmd.Flags().String("owners", "", "Filter projects by owners ids.")
-	cmd.Flags().String("external-identifiers", "", "Only show projects with the specified external identifier.")
+	cmd.Flags().StringSlice("status", nil, "Only show projects which have the supplied status. [OPEN, ENDED]")
+	cmd.Flags().StringSlice("owners", nil, "Filter projects by owners ids.")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show projects with the specified external identifier.")
 
 	return cmd
 }
@@ -12727,7 +12727,7 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see candidates for. If no accounts are supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("status", "", "Supply to filter for status. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 
@@ -13431,7 +13431,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
-	cmd.Flags().String("skillable-type", "", "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
+	cmd.Flags().StringSlice("skillable-type", nil, "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 
 	return cmd
@@ -13847,7 +13847,7 @@ func newTimesheetsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the timesheets based on one or more accounts. If no accounts supplied then all authenticated accounts will be used.")
 
 	return cmd
 }
@@ -14442,22 +14442,22 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
-	cmd.Flags().String("workers", "", "Supply which workers to see trusted contacts for.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see trusted contacts for. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("workers", nil, "Supply which workers to see trusted contacts for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
-	cmd.Flags().String("skills", "", "Supply a list of skills IDs to filter workers having those.")
-	cmd.Flags().String("markets", "", "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
-	cmd.Flags().String("countries", "", "Supply a list of country codes to filter workers part of related countries.")
-	cmd.Flags().String("states", "", "Supply a list of states to filter workers in specific states.")
+	cmd.Flags().StringSlice("skills", nil, "Supply a list of skills IDs to filter workers having those.")
+	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
+	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
+	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
-	cmd.Flags().String("statuses", "", "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
+	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited. [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
 	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
-	cmd.Flags().String("business-setup", "", "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
-	cmd.Flags().String("external-identifiers", "", "Only show trusted contacts with the specified external identifier.")
+	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
+	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
 	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created.")
@@ -15056,10 +15056,10 @@ func newUserGroupsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see groups for. If no accounts supplied then all authenticated accounts will be used.")
 	cmd.Flags().String("search", "", "Search user groups by name, description and users name, email.")
-	cmd.Flags().String("users", "", "Filter user groups by users.")
-	cmd.Flags().String("status", "", "Filter user group by status. [ACTIVE, INACTIVE, ARCHIVED]")
+	cmd.Flags().StringSlice("users", nil, "Filter user groups by users.")
+	cmd.Flags().StringSlice("status", nil, "Filter user group by status. [ACTIVE, INACTIVE, ARCHIVED]")
 
 	return cmd
 }
@@ -15686,7 +15686,7 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("webhook-id", "", "Filter the webhook event logs based on the ID of the webhook.")
 	cmd.Flags().String("webhook-event-id", "", "Filter the webhook event logs based on the ID of the webhook.")
-	cmd.Flags().String("accounts", "", "Filter the webhook event logss based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the webhook event logss based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
 }
@@ -16176,7 +16176,7 @@ func newWebhooksListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the webhooks based on one or more accounts. If no accounts are supplied then all authenticated accounts will be used.")
 
 	return cmd
 }
@@ -16855,7 +16855,7 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the workflow variables based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the workflow variables based on one or more accounts.")
 	cmd.Flags().String("applies-to", "", "Filter the workflow variables based on the trigger it applies to. [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 	_ = cmd.MarkFlagRequired("applies-to")
 
@@ -17064,7 +17064,7 @@ func newWorkflowsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("accounts", "", "Filter the workflows based on one or more accounts.")
+	cmd.Flags().StringSlice("accounts", nil, "Filter the workflows based on one or more accounts.")
 
 	return cmd
 }

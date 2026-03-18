@@ -19,6 +19,10 @@ shift || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --profile)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                echo "Error: --profile requires a value" >&2
+                exit 1
+            fi
             PROFILE_ARGS=(--profile "$2")
             shift 2
             ;;
@@ -52,6 +56,7 @@ run_cmd() {
     local output
     total=$((total + 1))
 
+    local rc=0
     output=$("$@" 2>&1) && rc=0 || rc=$?
 
     if [ $rc -eq 0 ]; then
@@ -87,7 +92,7 @@ fi
 echo ""
 
 # Get all resource commands (skip auth, version, completion, help)
-resources=$(${WORKSOME} --help 2>&1 | grep -E '^\s{2}\w' | awk '{print $1}' | grep -v -E '^(worksome|auth|version|completion|help)$')
+resources=$("${WORKSOME}" --help 2>&1 | grep -E '^\s{2}\w' | awk '{print $1}' | grep -v -E '^(worksome|auth|version|completion|help)$')
 
 for res in $resources; do
     # Check what subcommands exist
