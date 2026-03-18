@@ -21,7 +21,7 @@ func NewQuerier(c *client.Client) *Querier {
 // AcceptBid — Hire a worker for a job. Only companies can make hires. Once a hire is created a draft contract will automatically be created also, `Hire.latestContract`, which will be pending acceptance from the other party (usually a worker).
 func (q *Querier) AcceptBid(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AcceptBid($input: AcceptBidInput!) {
-	acceptBid(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	acceptBid(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -57,7 +57,7 @@ func (q *Querier) Accounts(ctx context.Context, vars map[string]any) (map[string
 // ApprovalApprovable — Get approvable approval.
 func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovable($id: ID!) {
-	approvalApprovable(id: $id) { id approval { id name version status trigger description createdAt updatedAt } approvalRule { id approverCount createdAt updatedAt } approvalStates { id state message cancellationReason createdAt } viewerCanAction }
+	approvalApprovable(id: $id) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id createdAt } viewerCanAction }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -75,7 +75,7 @@ func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (
 // ApprovalApprovables — Get all approvable approvals.
 func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovables($accounts: [ID!], $requiresAction: Boolean, $requiresActionUsers: [ID!], $approvals: [ID!], $approvable: ID, $approvalRules: [ID!], $orderBy: [ApprovalApprovablesOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name version status trigger description createdAt updatedAt } approvalRule { id approverCount createdAt updatedAt } approvalStates { id state message cancellationReason createdAt } viewerCanAction } }
+	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id createdAt } viewerCanAction } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -88,7 +88,7 @@ func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) 
 // ActionApprovalApprovable — Create action for an approval approvable.
 func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ActionApprovalApprovable($input: ActionApprovalApprovableInput!) {
-	actionApprovalApprovable(input: $input) { id approval { id name version status trigger description createdAt updatedAt } approvalRule { id approverCount createdAt updatedAt } approvalStates { id state message cancellationReason createdAt } viewerCanAction }
+	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id createdAt } viewerCanAction }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -106,7 +106,7 @@ func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]
 // ApprovalRule — Get a specific approval rule.
 func (q *Querier) ApprovalRule(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalRule($id: ID!) {
-	approvalRule(id: $id) { id approval { id name version status trigger description createdAt updatedAt } fields { id title slug description fieldType appliesTo visibility isUsedInFieldValues } rules { id fieldId operator value createdAt updatedAt } approvers { id position createdAt updatedAt } approverCount createdAt updatedAt }
+	approvalRule(id: $id) { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -124,7 +124,7 @@ func (q *Querier) ApprovalRule(ctx context.Context, vars map[string]any) (map[st
 // ApprovalRules — Get all approval rules.
 func (q *Querier) ApprovalRules(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalRules($accounts: [ID!], $first: Int! = 10, $page: Int) {
-	approvalRules(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name version status trigger description createdAt updatedAt } fields { id title slug description fieldType appliesTo visibility isUsedInFieldValues } rules { id fieldId operator value createdAt updatedAt } approvers { id position createdAt updatedAt } approverCount createdAt updatedAt } }
+	approvalRules(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -137,7 +137,7 @@ func (q *Querier) ApprovalRules(ctx context.Context, vars map[string]any) (map[s
 // CreateApprovalRule — Create an approval rule for one or more fields.
 func (q *Querier) CreateApprovalRule(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateApprovalRule($input: CreateApprovalRuleInput!) {
-	createApprovalRule(input: $input) { id approval { id name version status trigger description createdAt updatedAt } fields { id title slug description fieldType appliesTo visibility isUsedInFieldValues } rules { id fieldId operator value createdAt updatedAt } approvers { id position createdAt updatedAt } approverCount createdAt updatedAt }
+	createApprovalRule(input: $input) { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -155,7 +155,7 @@ func (q *Querier) CreateApprovalRule(ctx context.Context, vars map[string]any) (
 // ApprovalStates — Get all approval states.
 func (q *Querier) ApprovalStates(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalStates($accounts: [ID!], $status: [ApprovalApprovableState!], $users: [ID!], $first: Int! = 10, $page: Int) {
-	approvalStates(accounts: $accounts, status: $status, users: $users, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id state actionedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } message cancellationReason approver { id position createdAt updatedAt } approvalApprovable { id viewerCanAction } createdAt } }
+	approvalStates(accounts: $accounts, status: $status, users: $users, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id state actionedBy { id name email avatar createdAt updatedAt } message cancellationReason approver { id createdAt updatedAt } approvalApprovable { id } createdAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -168,7 +168,7 @@ func (q *Querier) ApprovalStates(ctx context.Context, vars map[string]any) (map[
 // Approval — Get a specific approval.
 func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approval($id: ID!) {
-	approval(id: $id) { id name version status trigger description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } approvalRules { id approverCount createdAt updatedAt } createdAt updatedAt latestVersionId }
+	approval(id: $id) { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -186,7 +186,7 @@ func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string
 // Approvals — Get all approvals.
 func (q *Querier) Approvals(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approvals($accounts: [ID!], $search: String, $first: Int! = 10, $page: Int) {
-	approvals(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name version status trigger description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } approvalRules { id approverCount createdAt updatedAt } createdAt updatedAt latestVersionId } }
+	approvals(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -199,7 +199,7 @@ func (q *Querier) Approvals(ctx context.Context, vars map[string]any) (map[strin
 // CreateApproval — Create an approval. Only companies can create approvals.
 func (q *Querier) CreateApproval(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateApproval($input: CreateApprovalInput!) {
-	createApproval(input: $input) { id name version status trigger description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } approvalRules { id approverCount createdAt updatedAt } createdAt updatedAt latestVersionId }
+	createApproval(input: $input) { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -217,7 +217,7 @@ func (q *Querier) CreateApproval(ctx context.Context, vars map[string]any) (map[
 // UpdateApproval — Update an approval.
 func (q *Querier) UpdateApproval(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateApproval($input: UpdateApprovalInput!) {
-	updateApproval(input: $input) { id name version status trigger description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } approvalRules { id approverCount createdAt updatedAt } createdAt updatedAt latestVersionId }
+	updateApproval(input: $input) { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -235,7 +235,7 @@ func (q *Querier) UpdateApproval(ctx context.Context, vars map[string]any) (map[
 // Approver — Get a specific approver.
 func (q *Querier) Approver(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approver($id: ID!) {
-	approver(id: $id) { id approvalRule { id approverCount createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
+	approver(id: $id) { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -253,7 +253,7 @@ func (q *Querier) Approver(ctx context.Context, vars map[string]any) (map[string
 // Approvers — Get all approvers.
 func (q *Querier) Approvers(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approvers($accounts: [ID!], $approvalRule: ID, $first: Int! = 10, $page: Int) {
-	approvers(accounts: $accounts, approvalRule: $approvalRule, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approvalRule { id approverCount createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt } }
+	approvers(accounts: $accounts, approvalRule: $approvalRule, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -266,7 +266,7 @@ func (q *Querier) Approvers(ctx context.Context, vars map[string]any) (map[strin
 // CreateApprover — Create an approver for an approver rule.
 func (q *Querier) CreateApprover(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateApprover($input: CreateApproverInput!) {
-	createApprover(input: $input) { id approvalRule { id approverCount createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
+	createApprover(input: $input) { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -284,7 +284,7 @@ func (q *Querier) CreateApprover(ctx context.Context, vars map[string]any) (map[
 // UpdateApprover — Update an approver.
 func (q *Querier) UpdateApprover(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateApprover($input: UpdateApproverInput!) {
-	updateApprover(input: $input) { id approvalRule { id approverCount createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
+	updateApprover(input: $input) { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -302,7 +302,7 @@ func (q *Querier) UpdateApprover(ctx context.Context, vars map[string]any) (map[
 // StoreBankDetails — Update the bank account details.
 func (q *Querier) StoreBankDetails(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation StoreBankDetails($input: StoreBankDetailsInput!) {
-	storeBankDetails(input: $input) { id name bankAddress bankCountry bankName beneficiaryName bban { bsb bankId bankCode branchId branchCode accountNumber accountSuffix institutionNumber } iban swift }
+	storeBankDetails(input: $input) { id name bankAddress bankCountry bankName beneficiaryName iban swift }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -320,7 +320,7 @@ func (q *Querier) StoreBankDetails(ctx context.Context, vars map[string]any) (ma
 // RunBatchAction — Run an action on a batch.
 func (q *Querier) RunBatchAction(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RunBatchAction($input: RunBatchActionInput!) {
-	runBatchAction(input: $input) { batch { id name type createdAt updatedAt deletedAt } batchId action batchDeleted resultUrl }
+	runBatchAction(input: $input) { batch { id name type createdAt updatedAt } batchId action batchDeleted resultUrl }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -387,7 +387,7 @@ func (q *Querier) CreateBatch(ctx context.Context, vars map[string]any) (map[str
 // Bid — Get a specific bid which the user has access to.
 func (q *Querier) Bid(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Bid($id: ID!) {
-	bid(id: $id) { id status job { id number name description market status address currency } conversation { id subject url createdAt isClosed isUnread closedAt } message { id body url } worker { id name firstName lastName middleName email phone avatar } }
+	bid(id: $id) { id status job { id number name description market status currency startDate endDate url createdAt updatedAt } conversation { id subject url createdAt } message { id url } worker { id name firstName lastName middleName email phone avatar initials currency } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -405,7 +405,7 @@ func (q *Querier) Bid(ctx context.Context, vars map[string]any) (map[string]any,
 // Bids — Get a list of all bids which the viewer has access to.
 func (q *Querier) Bids(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Bids($statuses: [BidStatus!], $job: ID, $accounts: [ID!], $first: Int! = 10, $page: Int) {
-	bids(statuses: $statuses, job: $job, accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id status job { id number name description market status address currency } conversation { id subject url createdAt isClosed isUnread closedAt } message { id body url } worker { id name firstName lastName middleName email phone avatar } } }
+	bids(statuses: $statuses, job: $job, accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id status job { id number name description market status currency startDate endDate url createdAt updatedAt } conversation { id subject url createdAt } message { id url } worker { id name firstName lastName middleName email phone avatar initials currency } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -418,7 +418,7 @@ func (q *Querier) Bids(ctx context.Context, vars map[string]any) (map[string]any
 // BlockTrustedContact — Block an applied trusted contact. Only companies can block trusted contacts.
 func (q *Querier) BlockTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation BlockTrustedContact($input: BlockTrustedContactInput!) {
-	blockTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	blockTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -436,7 +436,7 @@ func (q *Querier) BlockTrustedContact(ctx context.Context, vars map[string]any) 
 // Classification — Get a specific classification by ID.
 func (q *Querier) Classification(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Classification($id: ID!) {
-	classification(id: $id) { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } freelancer { id name firstName lastName middleName email phone avatar } type description complianceName status acceptedStatus result { outcome label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id state message cancellationReason createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired }
+	classification(id: $id) { id user { id name email avatar createdAt updatedAt } hire { id number createdAt startDate endDate currency status } company { id name currency market avatar } freelancer { id name firstName lastName middleName email phone avatar initials currency } type description complianceName status acceptedStatus result { label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar createdAt updatedAt } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -454,7 +454,7 @@ func (q *Querier) Classification(ctx context.Context, vars map[string]any) (map[
 // Classifications — Get all classifications for a specific hire.
 func (q *Querier) Classifications(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Classifications($hire: ID!, $first: Int! = 10, $page: Int) {
-	classifications(hire: $hire, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } freelancer { id name firstName lastName middleName email phone avatar } type description complianceName status acceptedStatus result { outcome label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id state message cancellationReason createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired } }
+	classifications(hire: $hire, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } hire { id number createdAt startDate endDate currency status } company { id name currency market avatar } freelancer { id name firstName lastName middleName email phone avatar initials currency } type description complianceName status acceptedStatus result { label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar createdAt updatedAt } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -467,7 +467,7 @@ func (q *Querier) Classifications(ctx context.Context, vars map[string]any) (map
 // Company — Get a specific company.
 func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Company($id: ID!) {
-	company(id: $id) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl settings { projectTracking requiredJobBudget multiCurrencyContractsDisabled staffingAgencyManagesWorker defaultMessageRemindWorkerToBill } address { address postCode city state formattedAddress } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
+	company(id: $id) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -485,7 +485,7 @@ func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]
 // CompanyRecruiter — Get a specific company recruiter.
 func (q *Querier) CompanyRecruiter(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanyRecruiter($id: ID!) {
-	companyRecruiter(id: $id) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier }
+	companyRecruiter(id: $id) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -503,7 +503,7 @@ func (q *Querier) CompanyRecruiter(ctx context.Context, vars map[string]any) (ma
 // CompanyRecruiters — Get a list of company recruiters.
 func (q *Querier) CompanyRecruiters(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanyRecruiters($accounts: [ID!], $search: String, $statuses: [RecruiterStatus!], $tags: [String!], $markets: [String!], $orderBy: [RecruiterOrderByClauseInput!], $externalIdentifiers: [String!], $first: Int! = 10, $page: Int) {
-	companyRecruiters(accounts: $accounts, search: $search, statuses: $statuses, tags: $tags, markets: $markets, orderBy: $orderBy, externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier } }
+	companyRecruiters(accounts: $accounts, search: $search, statuses: $statuses, tags: $tags, markets: $markets, orderBy: $orderBy, externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -516,7 +516,7 @@ func (q *Querier) CompanyRecruiters(ctx context.Context, vars map[string]any) (m
 // CreateCompanyRecruiter — Add and invite a new recruiter. Only companies can add and invite recruiters.
 func (q *Querier) CreateCompanyRecruiter(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateCompanyRecruiter($input: CreateCompanyRecruiterInput!) {
-	createCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier }
+	createCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -534,7 +534,7 @@ func (q *Querier) CreateCompanyRecruiter(ctx context.Context, vars map[string]an
 // DeleteCompanyRecruiter — Delete a recruiter relationship. Both the company and the recruiter can delete the relationship.
 func (q *Querier) DeleteCompanyRecruiter(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteCompanyRecruiter($input: DeleteCompanyRecruiterInput!) {
-	deleteCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier }
+	deleteCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -552,7 +552,7 @@ func (q *Querier) DeleteCompanyRecruiter(ctx context.Context, vars map[string]an
 // InviteCompanyRecruiter — Invite an existing recruiter. Only companies can invite the recruiter.
 func (q *Querier) InviteCompanyRecruiter(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation InviteCompanyRecruiter($input: InviteCompanyRecruiterInput!) {
-	inviteCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier }
+	inviteCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -570,7 +570,7 @@ func (q *Querier) InviteCompanyRecruiter(ctx context.Context, vars map[string]an
 // UpdateCompanyRecruiter — Update a recruiter relationship. Only companies can edit recruiter relationships.
 func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateCompanyRecruiter($input: UpdateCompanyRecruiterInput!) {
-	updateCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } tags { id name } externalIdentifier }
+	updateCompanyRecruiter(input: $input) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -588,7 +588,7 @@ func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]an
 // Compliance — Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.
 func (q *Querier) Compliance(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Compliance($id: ID!, $names: [ComplianceName!]) {
-	compliance(id: $id, names: $names) { actor name applicable completed type title description action { action title description buttonText tooltip } validationDetails { isValid issues } }
+	compliance(id: $id, names: $names) { actor name applicable completed type title description action { title description } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -606,7 +606,7 @@ func (q *Querier) Compliance(ctx context.Context, vars map[string]any) (map[stri
 // Contract — Get a specific contract.
 func (q *Querier) Contract(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Contract($id: ID!) {
-	contract(id: $id) { id jobName jobDescription locationPreference status startDate endDate location { address postCode city state formattedAddress } address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt workerSignature job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } businessEntity { id type name localisedName companyName companyNumber taxNumber } companyName companyLocation { address postCode city state formattedAddress } }
+	contract(id: $id) { id jobName jobDescription locationPreference status startDate endDate address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt workerSignature job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } businessEntity { id type name } companyName }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -624,7 +624,7 @@ func (q *Querier) Contract(ctx context.Context, vars map[string]any) (map[string
 // Contracts — Get a list of contracts.
 func (q *Querier) Contracts(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Contracts($accounts: [ID!], $currencies: [Currency!], $statuses: [ContractStatus!], $locationPreferences: [LocationPreference!], $first: Int! = 10, $page: Int) {
-	contracts(accounts: $accounts, currencies: $currencies, statuses: $statuses, locationPreferences: $locationPreferences, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id jobName jobDescription locationPreference status startDate endDate location { address postCode city state formattedAddress } address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt workerSignature job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } businessEntity { id type name localisedName companyName companyNumber taxNumber } companyName companyLocation { address postCode city state formattedAddress } } }
+	contracts(accounts: $accounts, currencies: $currencies, statuses: $statuses, locationPreferences: $locationPreferences, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id jobName jobDescription locationPreference status startDate endDate address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt workerSignature job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } businessEntity { id type name } companyName } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -637,7 +637,7 @@ func (q *Querier) Contracts(ctx context.Context, vars map[string]any) (map[strin
 // Conversation — Get a specific conversation.
 func (q *Querier) Conversation(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Conversation($id: ID!) {
-	conversation(id: $id) { id subject job { id number name description market status address currency } latestMessage { id body url } url createdAt isClosed isUnread closedAt }
+	conversation(id: $id) { id subject job { id number name description market status currency startDate endDate url createdAt updatedAt } latestMessage { id url } url createdAt isClosed isUnread closedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -655,7 +655,7 @@ func (q *Querier) Conversation(ctx context.Context, vars map[string]any) (map[st
 // Conversations — Get a list of conversations.
 func (q *Querier) Conversations(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Conversations($accounts: [ID!], $isOpen: Boolean, $first: Int! = 10, $page: Int) {
-	conversations(accounts: $accounts, isOpen: $isOpen, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id subject job { id number name description market status address currency } latestMessage { id body url } url createdAt isClosed isUnread closedAt } }
+	conversations(accounts: $accounts, isOpen: $isOpen, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id subject job { id number name description market status currency startDate endDate url createdAt updatedAt } latestMessage { id url } url createdAt isClosed isUnread closedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -668,7 +668,7 @@ func (q *Querier) Conversations(ctx context.Context, vars map[string]any) (map[s
 // CustomField — Get a specific custom field.
 func (q *Querier) CustomField(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CustomField($id: ID!) {
-	customField(id: $id) { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
+	customField(id: $id) { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -686,7 +686,7 @@ func (q *Querier) CustomField(ctx context.Context, vars map[string]any) (map[str
 // CustomFields — Get a list of custom fields.
 func (q *Querier) CustomFields(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CustomFields($accounts: [ID!], $approval: Boolean, $appliesTo: [TypeSupportingCustomFieldValues!], $first: Int! = 10, $page: Int) {
-	customFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt } }
+	customFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -699,7 +699,7 @@ func (q *Querier) CustomFields(ctx context.Context, vars map[string]any) (map[st
 // CreateCustomField — Create a custom field.
 func (q *Querier) CreateCustomField(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateCustomField($input: CreateCustomFieldInput!) {
-	createCustomField(input: $input) { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
+	createCustomField(input: $input) { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -717,7 +717,7 @@ func (q *Querier) CreateCustomField(ctx context.Context, vars map[string]any) (m
 // DeleteCustomField — Delete a custom field. All fields details must be provided.
 func (q *Querier) DeleteCustomField(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteCustomField($input: DeleteCustomFieldInput!) {
-	deleteCustomField(input: $input) { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
+	deleteCustomField(input: $input) { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -735,7 +735,7 @@ func (q *Querier) DeleteCustomField(ctx context.Context, vars map[string]any) (m
 // UpdateCustomField — Update a custom field. All fields must be provided.
 func (q *Querier) UpdateCustomField(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateCustomField($input: UpdateCustomFieldInput!) {
-	updateCustomField(input: $input) { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
+	updateCustomField(input: $input) { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -789,7 +789,7 @@ func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any
 // ApproveEmploymentChanges — Mark an employment as updated.
 func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ApproveEmploymentChanges($input: ApproveEmploymentChangesInput!) {
-	approveEmploymentChanges(input: $input) { id worker { id name firstName lastName middleName email phone avatar } hiringManagers { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
+	approveEmploymentChanges(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -807,7 +807,7 @@ func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]
 // Employment — Get a specific employment.
 func (q *Querier) Employment(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Employment($id: ID!) {
-	employment(id: $id) { id worker { id name firstName lastName middleName email phone avatar } hiringManagers { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
+	employment(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -825,7 +825,7 @@ func (q *Querier) Employment(ctx context.Context, vars map[string]any) (map[stri
 // Employments — Get a list of employments.
 func (q *Querier) Employments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Employments($accounts: [ID!], $status: [EmploymentStatus!], $employerRecordStatus: [EmployerRecordStatus!], $search: String, $orderBy: [EmploymentsOrderByClauseInput!], $startDateRange: DateRangeInput, $endDateRange: DateRangeInput, $contractType: [ContractType!], $locations: [String!], $companies: [ID!], $hiringManagers: [ID!], $rateTypes: [RateType!], $previouslyHired: Boolean, $first: Int! = 10, $page: Int) {
-	employments(accounts: $accounts, status: $status, employerRecordStatus: $employerRecordStatus, search: $search, orderBy: $orderBy, startDateRange: $startDateRange, endDateRange: $endDateRange, contractType: $contractType, locations: $locations, companies: $companies, hiringManagers: $hiringManagers, rateTypes: $rateTypes, previouslyHired: $previouslyHired, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar } hiringManagers { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt } }
+	employments(accounts: $accounts, status: $status, employerRecordStatus: $employerRecordStatus, search: $search, orderBy: $orderBy, startDateRange: $startDateRange, endDateRange: $endDateRange, contractType: $contractType, locations: $locations, companies: $companies, hiringManagers: $hiringManagers, rateTypes: $rateTypes, previouslyHired: $previouslyHired, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -838,7 +838,7 @@ func (q *Querier) Employments(ctx context.Context, vars map[string]any) (map[str
 // OnboardEmployment — Onboard an employment with optional employment costs.
 func (q *Querier) OnboardEmployment(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation OnboardEmployment($input: OnboardEmploymentInput!) {
-	onboardEmployment(input: $input) { id worker { id name firstName lastName middleName email phone avatar } hiringManagers { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
+	onboardEmployment(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -941,7 +941,7 @@ func (q *Querier) MarkFilesAsUploaded(ctx context.Context, vars map[string]any) 
 // Gate — Get a specific gate for a hire. Returns the gate containing compliance requirements grouped by a specific compliance name.
 func (q *Querier) Gate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Gate($id: ID!, $gate: ComplianceName!) {
-	gate(id: $id, gate: $gate) { actor name compliances { actor name applicable completed type title description } completed applicable title description }
+	gate(id: $id, gate: $gate) { actor name compliances { name type title description } completed applicable title description }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -959,7 +959,7 @@ func (q *Querier) Gate(ctx context.Context, vars map[string]any) (map[string]any
 // Hire — Get a specific hire. All parties of the hire can use this field for seeing their hire.
 func (q *Querier) Hire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Hire($id: ID!) {
-	hire(id: $id) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	hire(id: $id) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -977,7 +977,7 @@ func (q *Querier) Hire(ctx context.Context, vars map[string]any) (map[string]any
 // Hires — Get a list of hires. All parties of the hire can use this field for seeing their hires.
 func (q *Querier) Hires(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Hires($accounts: [ID!], $search: String, $status: [HireActiveStatus!], $orderBy: [HiresOrderByClauseInput!], $recruiterOwnershipIsExpired: Boolean, $companies: [ID!], $workers: [ID!], $startDateRange: DateRangeInput, $endDateRange: DateRangeInput, $startsAfter: Date, $endsAfter: Date, $createdAtDateRange: DateRangeInput, $externalIdentifiers: [String!], $contractStatus: [ContractStatus!], $contractType: [ContractType!], $engagementType: [EngagementType!], $engagementTypeSetup: [EngagementTypeSetup!], $usesClassification: [ClassificationUsage!], $activeStatus: [HireActiveStatus!], $includeDeleted: Boolean, $jobOwners: [ID!], $owners: [ID!], $hasPaymentRequests: Boolean, $hasRecruiterAttribution: Boolean, $jobs: [ID!], $first: Int! = 10, $page: Int) {
-	hires(accounts: $accounts, search: $search, status: $status, orderBy: $orderBy, recruiterOwnershipIsExpired: $recruiterOwnershipIsExpired, companies: $companies, workers: $workers, startDateRange: $startDateRange, endDateRange: $endDateRange, startsAfter: $startsAfter, endsAfter: $endsAfter, createdAtDateRange: $createdAtDateRange, externalIdentifiers: $externalIdentifiers, contractStatus: $contractStatus, contractType: $contractType, engagementType: $engagementType, engagementTypeSetup: $engagementTypeSetup, usesClassification: $usesClassification, activeStatus: $activeStatus, includeDeleted: $includeDeleted, jobOwners: $jobOwners, owners: $owners, hasPaymentRequests: $hasPaymentRequests, hasRecruiterAttribution: $hasRecruiterAttribution, jobs: $jobs, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } } }
+	hires(accounts: $accounts, search: $search, status: $status, orderBy: $orderBy, recruiterOwnershipIsExpired: $recruiterOwnershipIsExpired, companies: $companies, workers: $workers, startDateRange: $startDateRange, endDateRange: $endDateRange, startsAfter: $startsAfter, endsAfter: $endsAfter, createdAtDateRange: $createdAtDateRange, externalIdentifiers: $externalIdentifiers, contractStatus: $contractStatus, contractType: $contractType, engagementType: $engagementType, engagementTypeSetup: $engagementTypeSetup, usesClassification: $usesClassification, activeStatus: $activeStatus, includeDeleted: $includeDeleted, jobOwners: $jobOwners, owners: $owners, hasPaymentRequests: $hasPaymentRequests, hasRecruiterAttribution: $hasRecruiterAttribution, jobs: $jobs, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -990,7 +990,7 @@ func (q *Querier) Hires(ctx context.Context, vars map[string]any) (map[string]an
 // AttributeRecruiterToHire — Attribute a recruiter to a hire. Only companies can attribute recruiters to their hires.
 func (q *Querier) AttributeRecruiterToHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AttributeRecruiterToHire($input: AttributeRecruiterToHireInput!) {
-	attributeRecruiterToHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	attributeRecruiterToHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1008,7 +1008,7 @@ func (q *Querier) AttributeRecruiterToHire(ctx context.Context, vars map[string]
 // CancelHire — Cancel a hire. Only companies can cancel their hires.
 func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CancelHire($input: CancelHireInput!) {
-	cancelHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	cancelHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1026,7 +1026,7 @@ func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[stri
 // CreateDraftHire — Create a draft hire for a trusted contact. Only companies can make hires. Draft hires must be completed in the Worksome UI before they become active.
 func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateDraftHire($input: HireInput!) {
-	createDraftHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	createDraftHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1044,7 +1044,7 @@ func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map
 // RejectHire — Reject a hire.
 func (q *Querier) RejectHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RejectHire($input: RejectHireInput!) {
-	rejectHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	rejectHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1062,7 +1062,7 @@ func (q *Querier) RejectHire(ctx context.Context, vars map[string]any) (map[stri
 // RemoveRecruiterFromHire — Remove a recruiter from a hire. Only companies can remove recruiters from their hires.
 func (q *Querier) RemoveRecruiterFromHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveRecruiterFromHire($input: RemoveRecruiterFromHireInput!) {
-	removeRecruiterFromHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	removeRecruiterFromHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1080,7 +1080,7 @@ func (q *Querier) RemoveRecruiterFromHire(ctx context.Context, vars map[string]a
 // ShareHire — Share/offer a hire with a worker. Only companies can remove recruiters from their hires.
 func (q *Querier) ShareHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ShareHire($input: ShareHireInput!) {
-	shareHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	shareHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1098,7 +1098,7 @@ func (q *Querier) ShareHire(ctx context.Context, vars map[string]any) (map[strin
 // TerminateHire — Terminate a hire.
 func (q *Querier) TerminateHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation TerminateHire($input: TerminateHireInput!) {
-	terminateHire(input: $input) { id number latestContract { id jobName jobDescription locationPreference status startDate endDate address } activeContract { id jobName jobDescription locationPreference status startDate endDate address } pendingContractChanges company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } job { id number name description market status address currency } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id overridesAnother } classification { id type description complianceName status acceptedStatus pdfUrl overridesAnother } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar } conversation { id subject url createdAt isClosed isUnread closedAt } employment { id status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state message cancellationReason createdAt } owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } endsWithinDays tenure sourceHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } supplierHire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	terminateHire(input: $input) { id number latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } pendingContractChanges company { id name currency market avatar } job { id number name description market status currency startDate endDate url createdAt updatedAt } recruiter { id name initials avatar } contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber recruiterManagesWorkers canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id createdAt } owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1147,7 +1147,7 @@ func (q *Querier) Industries(ctx context.Context, vars map[string]any) (map[stri
 // InheritedCustomFields — Get a list of inherited custom fields.
 func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query InheritedCustomFields($accounts: [ID!], $approval: Boolean, $appliesTo: [TypeSupportingCustomFieldValues!], $first: Int! = 10, $page: Int) {
-	inheritedCustomFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } title slug description fieldType appliesTo customFieldOptions { id displayOrder value } settings { validation } visibility customFieldValues { id content displayValue } isUsedInFieldValues rule { id fieldId operator value createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt } }
+	inheritedCustomFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate apiOnly workerInputAllowed createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1160,7 +1160,7 @@ func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any
 // GenerateInviteLink — Generate the company invite link token.
 func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation GenerateInviteLink($input: GenerateInviteLinkInput!) {
-	generateInviteLink(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl settings { projectTracking requiredJobBudget multiCurrencyContractsDisabled staffingAgencyManagesWorker defaultMessageRemindWorkerToBill } address { address postCode city state formattedAddress } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
+	generateInviteLink(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1196,7 +1196,7 @@ func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[strin
 // InvoiceRow — Get a specific invoice row.
 func (q *Querier) InvoiceRow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query InvoiceRow($id: ID!) {
-	invoiceRow(id: $id) { id paymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } worker { id name firstName lastName middleName email phone avatar } customText }
+	invoiceRow(id: $id) { id paymentRequest { id number startDate endDate currency status } worker { id name firstName lastName middleName email phone avatar initials currency } customText }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1214,7 +1214,7 @@ func (q *Querier) InvoiceRow(ctx context.Context, vars map[string]any) (map[stri
 // Invoice — Get a specific invoice.
 func (q *Querier) Invoice(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Invoice($number: String!) {
-	invoice(number: $number) { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } date isBatched transactionType isFullyCredited isOverDue creditNotes { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } originalInvoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } }
+	invoice(number: $number) { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar } date isBatched transactionType isFullyCredited isOverDue creditNotes { id number currency } originalInvoice { id number currency } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1232,7 +1232,7 @@ func (q *Querier) Invoice(ctx context.Context, vars map[string]any) (map[string]
 // Invoices — Get a list of invoices.
 func (q *Querier) Invoices(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Invoices($accounts: [ID!], $status: [InvoiceStatus!], $transactionTypes: [InvoiceTransactionType!], $search: String, $hasPurchaseOrderNumber: Boolean, $currency: [Currency!], $orderBy: [QueryInvoicesOrderByOrderByClause!], $first: Int! = 10, $page: Int) {
-	invoices(accounts: $accounts, status: $status, transactionTypes: $transactionTypes, search: $search, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, currency: $currency, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } date isBatched transactionType isFullyCredited isOverDue creditNotes { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } originalInvoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } } }
+	invoices(accounts: $accounts, status: $status, transactionTypes: $transactionTypes, search: $search, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, currency: $currency, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar } date isBatched transactionType isFullyCredited isOverDue creditNotes { id number currency } originalInvoice { id number currency } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1245,7 +1245,7 @@ func (q *Querier) Invoices(ctx context.Context, vars map[string]any) (map[string
 // UpdateJobCandidatePreferred — Update job candidates "preferred" status.
 func (q *Querier) UpdateJobCandidatePreferred(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateJobCandidatePreferred($input: UpdateJobCandidatePreferredInput!) {
-	updateJobCandidatePreferred(input: $input) { id job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } bid { id status } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } jobShare { id isActive createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } stepSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt createdByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } updatedAt updatedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } viewerCanUpdateStatus viewerCanUpdatePreferred }
+	updateJobCandidatePreferred(input: $input) { id job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1263,7 +1263,7 @@ func (q *Querier) UpdateJobCandidatePreferred(ctx context.Context, vars map[stri
 // UpdateJobCandidateStatus — Update a job candidate status. A reason and comment can be provided.
 func (q *Querier) UpdateJobCandidateStatus(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateJobCandidateStatus($input: UpdateJobCandidateStatusInput!) {
-	updateJobCandidateStatus(input: $input) { id job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } bid { id status } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } jobShare { id isActive createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } stepSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt createdByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } updatedAt updatedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } viewerCanUpdateStatus viewerCanUpdatePreferred }
+	updateJobCandidateStatus(input: $input) { id job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1281,7 +1281,7 @@ func (q *Querier) UpdateJobCandidateStatus(ctx context.Context, vars map[string]
 // JobCandidate — Get a specific job candidate.
 func (q *Querier) JobCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query JobCandidate($id: ID!) {
-	jobCandidate(id: $id) { id job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } bid { id status } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } jobShare { id isActive createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } stepSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt createdByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } updatedAt updatedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } viewerCanUpdateStatus viewerCanUpdatePreferred }
+	jobCandidate(id: $id) { id job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1299,7 +1299,7 @@ func (q *Querier) JobCandidate(ctx context.Context, vars map[string]any) (map[st
 // JobCandidates — Get a list of job candidates.
 func (q *Querier) JobCandidates(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query JobCandidates($jobs: [ID!], $statuses: [JobCandidateStatus!], $steps: [JobCandidateHiringStep!], $preferred: Boolean, $orderBy: [JobCandidateOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	jobCandidates(jobs: $jobs, statuses: $statuses, steps: $steps, preferred: $preferred, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } bid { id status } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } jobShare { id isActive createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } stepSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt createdByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } updatedAt updatedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } viewerCanUpdateStatus viewerCanUpdatePreferred } }
+	jobCandidates(jobs: $jobs, statuses: $statuses, steps: $steps, preferred: $preferred, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1312,7 +1312,7 @@ func (q *Querier) JobCandidates(ctx context.Context, vars map[string]any) (map[s
 // CreateJobCandidate — Create a job candidate. This will make the workers eligible and proposed for a job.
 func (q *Querier) CreateJobCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateJobCandidate($input: CreateJobCandidateInput!) {
-	createJobCandidate(input: $input) { id job { id number name description market status address currency } worker { id name firstName lastName middleName email phone avatar } bid { id status } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } jobShare { id isActive createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } stepSetByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt createdByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } updatedAt updatedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } viewerCanUpdateStatus viewerCanUpdatePreferred }
+	createJobCandidate(input: $input) { id job { id number name description market status currency startDate endDate url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1330,7 +1330,7 @@ func (q *Querier) CreateJobCandidate(ctx context.Context, vars map[string]any) (
 // JobShares — Get a list of job shares.
 func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query JobShares($jobs: [ID!], $accountTypes: [AccountType!], $isActive: Boolean, $orderBy: [JobShareOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	jobShares(jobs: $jobs, accountTypes: $accountTypes, isActive: $isActive, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id isActive createdAt job { id number name description market status address currency } } }
+	jobShares(jobs: $jobs, accountTypes: $accountTypes, isActive: $isActive, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id isActive createdAt job { id number name description market status currency startDate endDate url createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1343,7 +1343,7 @@ func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[strin
 // CreateJobShare — Create a job share.
 func (q *Querier) CreateJobShare(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateJobShare($input: CreateJobShareInput!) {
-	createJobShare(input: $input) { id isActive createdAt job { id number name description market status address currency } }
+	createJobShare(input: $input) { id isActive createdAt job { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1361,7 +1361,7 @@ func (q *Querier) CreateJobShare(ctx context.Context, vars map[string]any) (map[
 // RemoveJobShare — Remove a job share.
 func (q *Querier) RemoveJobShare(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveJobShare($input: RemoveJobShareInput!) {
-	removeJobShare(input: $input) { id isActive createdAt job { id number name description market status address currency } }
+	removeJobShare(input: $input) { id isActive createdAt job { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1379,7 +1379,7 @@ func (q *Querier) RemoveJobShare(ctx context.Context, vars map[string]any) (map[
 // Job — Get a specific job.
 func (q *Querier) Job(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Job($id: ID!) {
-	job(id: $id) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	job(id: $id) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1397,7 +1397,7 @@ func (q *Querier) Job(ctx context.Context, vars map[string]any) (map[string]any,
 // Jobs — Get a list of jobs.
 func (q *Querier) Jobs(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Jobs($accounts: [ID!], $owners: [ID!], $markets: [MarketCode!], $search: String, $currencies: [Currency!], $rateTypes: [RateType!], $paymentSchemes: [PaymentScheme!], $skills: [String!], $experienceLevel: [ExpectedExperienceLevel!], $associations: [Association!], $locationPreferences: [LocationPreference!], $available: Boolean, $published: Boolean, $completed: Boolean, $removed: Boolean, $hasProject: Boolean, $hasHire: Boolean, $hasBids: Boolean, $externalIdentifiers: [String!], $orderBy: [JobsOrderByClauseInput!], $createdAtDateRange: DateRangeInput, $unfilled: Boolean, $customFields: [CustomFieldTypeValueInput!], $startDateRange: DateRangeInput, $endDateRange: DateRangeInput, $isJobPost: Boolean, $statuses: [JobStatus!], $first: Int! = 10, $page: Int) {
-	jobs(accounts: $accounts, owners: $owners, markets: $markets, search: $search, currencies: $currencies, rateTypes: $rateTypes, paymentSchemes: $paymentSchemes, skills: $skills, experienceLevel: $experienceLevel, associations: $associations, locationPreferences: $locationPreferences, available: $available, published: $published, completed: $completed, removed: $removed, hasProject: $hasProject, hasHire: $hasHire, hasBids: $hasBids, externalIdentifiers: $externalIdentifiers, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, unfilled: $unfilled, customFields: $customFields, startDateRange: $startDateRange, endDateRange: $endDateRange, isJobPost: $isJobPost, statuses: $statuses, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } } }
+	jobs(accounts: $accounts, owners: $owners, markets: $markets, search: $search, currencies: $currencies, rateTypes: $rateTypes, paymentSchemes: $paymentSchemes, skills: $skills, experienceLevel: $experienceLevel, associations: $associations, locationPreferences: $locationPreferences, available: $available, published: $published, completed: $completed, removed: $removed, hasProject: $hasProject, hasHire: $hasHire, hasBids: $hasBids, externalIdentifiers: $externalIdentifiers, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, unfilled: $unfilled, customFields: $customFields, startDateRange: $startDateRange, endDateRange: $endDateRange, isJobPost: $isJobPost, statuses: $statuses, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1410,7 +1410,7 @@ func (q *Querier) Jobs(ctx context.Context, vars map[string]any) (map[string]any
 // CreateJob — Create a job. Only companies can create jobs.
 func (q *Querier) CreateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateJob($input: CreateJobInput!) {
-	createJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	createJob(input: $input) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1428,7 +1428,7 @@ func (q *Querier) CreateJob(ctx context.Context, vars map[string]any) (map[strin
 // DuplicateJob — Duplicate a job. Creates a copy of the job with all its details (description, skills, location, budget, etc.) Only companies can duplicate jobs.
 func (q *Querier) DuplicateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DuplicateJob($input: DuplicateJobInput!) {
-	duplicateJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	duplicateJob(input: $input) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1446,7 +1446,7 @@ func (q *Querier) DuplicateJob(ctx context.Context, vars map[string]any) (map[st
 // EndJob — End a job. Only companies can end jobs.
 func (q *Querier) EndJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation EndJob($input: EndJobInput!) {
-	endJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	endJob(input: $input) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1464,7 +1464,7 @@ func (q *Querier) EndJob(ctx context.Context, vars map[string]any) (map[string]a
 // SetInternalBudgetOnJob — Set the internal budget of a job. Only companies can set the internal budget on the job.
 func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation SetInternalBudgetOnJob($input: SetInternalBudgetOnJobInput!) {
-	setInternalBudgetOnJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	setInternalBudgetOnJob(input: $input) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1482,7 +1482,7 @@ func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]an
 // UpdateJob — Update a job. Only companies can update jobs.
 func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateJob($input: UpdateJobInput!) {
-	updateJob(input: $input) { id number name skills { id name } description market status address location { address postCode city state formattedAddress } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency internalBudget allocatedBudget spent endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title size mimeType url } isExtensionAvailable evaluationPeriod languages { name experience } industries { id name } requiredWorkers owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } customFieldValues { id content displayValue } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status address currency } supplierJob { id number name description market status address currency } }
+	updateJob(input: $input) { id number name skills { id name } description market status address currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url } isExtensionAvailable evaluationPeriod languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isAvailable sourceJob { id number name description market status currency startDate endDate url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1500,7 +1500,7 @@ func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[strin
 // Milestone — Get a single milestone.
 func (q *Querier) Milestone(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Milestone($id: ID!) {
-	milestone(id: $id) { id name purchaseOrderNumber status details { id dueDate amount } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	milestone(id: $id) { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1518,7 +1518,7 @@ func (q *Querier) Milestone(ctx context.Context, vars map[string]any) (map[strin
 // Milestones — Get a list of milestones.
 func (q *Querier) Milestones(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Milestones($accounts: [ID!], $hires: [ID!], $first: Int! = 10, $page: Int) {
-	milestones(accounts: $accounts, hires: $hires, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name purchaseOrderNumber status details { id dueDate amount } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } } }
+	milestones(accounts: $accounts, hires: $hires, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1531,7 +1531,7 @@ func (q *Querier) Milestones(ctx context.Context, vars map[string]any) (map[stri
 // CreateMilestones — Create one or more milestones.
 func (q *Querier) CreateMilestones(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateMilestones($input: CreateMilestonesInput!) {
-	createMilestones(input: $input) { id name purchaseOrderNumber status details { id dueDate amount } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	createMilestones(input: $input) { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1549,7 +1549,7 @@ func (q *Querier) CreateMilestones(ctx context.Context, vars map[string]any) (ma
 // DeleteMilestones — Delete one or more milestones.
 func (q *Querier) DeleteMilestones(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteMilestones($input: DeleteMilestonesInput!) {
-	deleteMilestones(input: $input) { id name purchaseOrderNumber status details { id dueDate amount } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	deleteMilestones(input: $input) { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1567,7 +1567,7 @@ func (q *Querier) DeleteMilestones(ctx context.Context, vars map[string]any) (ma
 // UpdateMilestones — Update one or more milestones.
 func (q *Querier) UpdateMilestones(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateMilestones($input: UpdateMilestonesInput!) {
-	updateMilestones(input: $input) { id name purchaseOrderNumber status details { id dueDate amount } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } }
+	updateMilestones(input: $input) { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1585,7 +1585,7 @@ func (q *Querier) UpdateMilestones(ctx context.Context, vars map[string]any) (ma
 // MultiFactor — Retrieve a specific multi-factor authentication implementation.
 func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query MultiFactor($id: ID!) {
-	multiFactor(id: $id) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } }
+	multiFactor(id: $id) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1603,7 +1603,7 @@ func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[str
 // MultiFactors — Retrieve all multi-factor authentication implementation.
 func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query MultiFactors($statuses: [MultiFactorStatus!], $channels: [MultiFactorChannel!], $first: Int! = 10, $page: Int) {
-	multiFactors(statuses: $statuses, channels: $channels, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } } }
+	multiFactors(statuses: $statuses, channels: $channels, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1616,7 +1616,7 @@ func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[st
 // CreateSmsMultiFactor — Create a new multi-factor authentication implementation.
 func (q *Querier) CreateSmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateSmsMultiFactor($input: CreateSmsMultiFactorInput!) {
-	createSmsMultiFactor(input: $input) { multiFactor { id name phoneNumber status verifiedAt createdAt updatedAt } }
+	createSmsMultiFactor(input: $input) { multiFactor { id name status createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1634,7 +1634,7 @@ func (q *Querier) CreateSmsMultiFactor(ctx context.Context, vars map[string]any)
 // CreateTotpMultiFactor — Create a new multi-factor authentication implementation.
 func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateTotpMultiFactor($input: CreateTotpMultiFactorInput!) {
-	createTotpMultiFactor(input: $input) { multiFactor { id name status verifiedAt createdAt updatedAt } secret qrCode }
+	createTotpMultiFactor(input: $input) { multiFactor { id name status createdAt updatedAt } secret qrCode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1652,7 +1652,7 @@ func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any
 // RemoveMultiFactor — Remove a multi-factor authentication implementation.
 func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveMultiFactor($input: RemoveMultiFactorInput!) {
-	removeMultiFactor(input: $input) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt } }
+	removeMultiFactor(input: $input) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1670,7 +1670,7 @@ func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (m
 // VerifySmsMultiFactor — Verify a multi-factor authentication implementation.
 func (q *Querier) VerifySmsMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation VerifySmsMultiFactor($input: VerifySmsMultiFactorInput!) {
-	verifySmsMultiFactor(input: $input) { id name phoneNumber status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
+	verifySmsMultiFactor(input: $input) { id name phoneNumber status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1688,7 +1688,7 @@ func (q *Querier) VerifySmsMultiFactor(ctx context.Context, vars map[string]any)
 // VerifyTotpMultiFactor — Verify a TOTP multi-factor authentication implementation.
 func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation VerifyTotpMultiFactor($input: VerifyTotpMultiFactorInput!) {
-	verifyTotpMultiFactor(input: $input) { id name status owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } verifiedAt createdAt updatedAt }
+	verifyTotpMultiFactor(input: $input) { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1706,7 +1706,7 @@ func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any
 // CreateNote — Create a note.
 func (q *Querier) CreateNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateNote($input: CreateNoteInput!) {
-	createNote(input: $input) { id title body author { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	createNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1724,7 +1724,7 @@ func (q *Querier) CreateNote(ctx context.Context, vars map[string]any) (map[stri
 // DeleteNote — Delete a note.
 func (q *Querier) DeleteNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteNote($input: DeleteNoteInput!) {
-	deleteNote(input: $input) { id title body author { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	deleteNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1742,7 +1742,7 @@ func (q *Querier) DeleteNote(ctx context.Context, vars map[string]any) (map[stri
 // UpdateNote — Update a note.
 func (q *Querier) UpdateNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateNote($input: UpdateNoteInput!) {
-	updateNote(input: $input) { id title body author { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	updateNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1760,7 +1760,7 @@ func (q *Querier) UpdateNote(ctx context.Context, vars map[string]any) (map[stri
 // ManageOnboardingDocuments — Manage Onboarding documents.
 func (q *Querier) ManageOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ManageOnboardingDocuments($input: ManageOnboardingDocumentsInput!) {
-	manageOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl settings { projectTracking requiredJobBudget multiCurrencyContractsDisabled staffingAgencyManagesWorker defaultMessageRemindWorkerToBill } address { address postCode city state formattedAddress } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
+	manageOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1778,7 +1778,7 @@ func (q *Querier) ManageOnboardingDocuments(ctx context.Context, vars map[string
 // RemoveOnboardingDocuments — Remove Onboarding documents.
 func (q *Querier) RemoveOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveOnboardingDocuments($input: RemoveOnboardingDocumentsInput!) {
-	removeOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl settings { projectTracking requiredJobBudget multiCurrencyContractsDisabled staffingAgencyManagesWorker defaultMessageRemindWorkerToBill } address { address postCode city state formattedAddress } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
+	removeOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1814,7 +1814,7 @@ func (q *Querier) Organisation(ctx context.Context, vars map[string]any) (map[st
 // OrganisationTrustedContact — Get a specific organisation trusted contact.
 func (q *Querier) OrganisationTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query OrganisationTrustedContact($id: ID!) {
-	organisationTrustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	organisationTrustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1832,7 +1832,7 @@ func (q *Querier) OrganisationTrustedContact(ctx context.Context, vars map[strin
 // OrganisationTrustedContacts — Get a list of organisation trusted contacts.
 func (q *Querier) OrganisationTrustedContacts(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query OrganisationTrustedContacts($accounts: [ID!], $workers: [ID!], $search: String, $skills: [ID!], $markets: [MarketCode!], $countries: [String!], $states: [String!], $invitedByUsers: InvitedByInput, $statuses: [ContactStatus!], $origin: TrustedContactOrigin, $staffingAgencyStatus: TrustedContactStaffingAgencyStatus, $managedStatus: TrustedContactManagedStatus, $hireHistory: HireHistoryFilterInput, $hireStatus: HireStatusFilterInput, $businessSetup: [BusinessEntityType!], $externalIdentifiers: [String!], $customFields: [CustomFieldTypeValueInput!], $orderBy: [TrustedContactOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	organisationTrustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt } }
+	organisationTrustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1845,7 +1845,7 @@ func (q *Querier) OrganisationTrustedContacts(ctx context.Context, vars map[stri
 // Partner — Get a specific partner.
 func (q *Querier) Partner(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Partner($id: ID!) {
-	partner(id: $id) { id name slug currency market avatar address { address postCode city state formattedAddress } primaryBusinessEntity { id type name localisedName companyName companyNumber taxNumber } primaryProfile { id url } }
+	partner(id: $id) { id name slug currency market avatar primaryBusinessEntity { id type name } primaryProfile { id url } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1899,7 +1899,7 @@ func (q *Querier) UpdatePassword(ctx context.Context, vars map[string]any) (map[
 // PaymentRequest — Get a specific payment request.
 func (q *Querier) PaymentRequest(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query PaymentRequest($id: ID!) {
-	paymentRequest(id: $id) { id worker { id name firstName lastName middleName email phone avatar } recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } job { id number name description market status address currency } message { id body url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } legacyTimesheet { format html } sourcePaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } clientPaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } }
+	paymentRequest(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } sourcePaymentRequest { id number startDate endDate currency status } clientPaymentRequest { id number startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1917,7 +1917,7 @@ func (q *Querier) PaymentRequest(ctx context.Context, vars map[string]any) (map[
 // PaymentRequests — Get a list of payment requests.
 func (q *Querier) PaymentRequests(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query PaymentRequests($accounts: [ID!], $currencies: [Currency!], $hasPurchaseOrderNumber: Boolean, $hasTimesheet: Boolean, $jobs: [ID!], $hires: [ID!], $hireOwners: [ID!], $search: String, $statuses: [PaymentRequestStatus!], $requestTypes: [PaymentRequestType!], $workerStatuses: [PaymentRequestWorkerStatus!], $workerPayoutStatuses: [PaymentRequestWorkerPayoutStatus!], $isPayrolled: Boolean, $timesheetPeriod: DateRangeInput, $rateTypes: [RateType!], $requestedDateRange: DateRangeInput, $billingStartDateRange: DateRangeInput, $billingEndDateRange: DateRangeInput, $hasExpenses: Boolean, $hasBatch: Boolean, $batchIds: [ID!], $orderBy: [PaymentRequestOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	paymentRequests(accounts: $accounts, currencies: $currencies, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, hasTimesheet: $hasTimesheet, jobs: $jobs, hires: $hires, hireOwners: $hireOwners, search: $search, statuses: $statuses, requestTypes: $requestTypes, workerStatuses: $workerStatuses, workerPayoutStatuses: $workerPayoutStatuses, isPayrolled: $isPayrolled, timesheetPeriod: $timesheetPeriod, rateTypes: $rateTypes, requestedDateRange: $requestedDateRange, billingStartDateRange: $billingStartDateRange, billingEndDateRange: $billingEndDateRange, hasExpenses: $hasExpenses, hasBatch: $hasBatch, batchIds: $batchIds, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar } recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } job { id number name description market status address currency } message { id body url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } legacyTimesheet { format html } sourcePaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } clientPaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } } }
+	paymentRequests(accounts: $accounts, currencies: $currencies, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, hasTimesheet: $hasTimesheet, jobs: $jobs, hires: $hires, hireOwners: $hireOwners, search: $search, statuses: $statuses, requestTypes: $requestTypes, workerStatuses: $workerStatuses, workerPayoutStatuses: $workerPayoutStatuses, isPayrolled: $isPayrolled, timesheetPeriod: $timesheetPeriod, rateTypes: $rateTypes, requestedDateRange: $requestedDateRange, billingStartDateRange: $billingStartDateRange, billingEndDateRange: $billingEndDateRange, hasExpenses: $hasExpenses, hasBatch: $hasBatch, batchIds: $batchIds, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } sourcePaymentRequest { id number startDate endDate currency status } clientPaymentRequest { id number startDate endDate currency status } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1930,7 +1930,7 @@ func (q *Querier) PaymentRequests(ctx context.Context, vars map[string]any) (map
 // CreatePaymentRequest — Create a payment request.
 func (q *Querier) CreatePaymentRequest(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreatePaymentRequest($input: CreatePaymentRequestInput!) {
-	createPaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar } recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } job { id number name description market status address currency } message { id body url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } legacyTimesheet { format html } sourcePaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } clientPaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } }
+	createPaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } sourcePaymentRequest { id number startDate endDate currency status } clientPaymentRequest { id number startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1948,7 +1948,7 @@ func (q *Querier) CreatePaymentRequest(ctx context.Context, vars map[string]any)
 // DeletePaymentRequest — Delete a payment request.
 func (q *Querier) DeletePaymentRequest(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeletePaymentRequest($input: DeletePaymentRequestInput!) {
-	deletePaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar } recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } job { id number name description market status address currency } message { id body url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } legacyTimesheet { format html } sourcePaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } clientPaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } }
+	deletePaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } sourcePaymentRequest { id number startDate endDate currency status } clientPaymentRequest { id number startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1966,7 +1966,7 @@ func (q *Querier) DeletePaymentRequest(ctx context.Context, vars map[string]any)
 // UpdatePaymentRequest — Update a payment request.
 func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdatePaymentRequest($input: UpdatePaymentRequestInput!) {
-	updatePaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar } recruiter { id name initials avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } job { id number name description market status address currency } message { id body url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } legacyTimesheet { format html } sourcePaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } clientPaymentRequest { id number purchaseOrderNumber startDate endDate currency rate rateType } }
+	updatePaymentRequest(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } sourcePaymentRequest { id number startDate endDate currency status } clientPaymentRequest { id number startDate endDate currency status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1984,7 +1984,7 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 // Project — Get a specific project.
 func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Project($id: ID!) {
-	project(id: $id) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	project(id: $id) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2002,7 +2002,7 @@ func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]
 // Projects — Get a list of projects.
 func (q *Querier) Projects(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Projects($accounts: [ID!], $search: String, $status: [ProjectStatusFilter!], $owners: [ID!], $externalIdentifiers: [String!], $first: Int! = 10, $page: Int) {
-	projects(accounts: $accounts, search: $search, status: $status, owners: $owners, externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier } }
+	projects(accounts: $accounts, search: $search, status: $status, owners: $owners, externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2015,7 +2015,7 @@ func (q *Querier) Projects(ctx context.Context, vars map[string]any) (map[string
 // AttachJobsToProject — Attach one or more jobs to a project. Only companies can attach jobs to projects.
 func (q *Querier) AttachJobsToProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AttachJobsToProject($input: AttachJobsToProjectInput!) {
-	attachJobsToProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	attachJobsToProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2033,7 +2033,7 @@ func (q *Querier) AttachJobsToProject(ctx context.Context, vars map[string]any) 
 // CreateProject — Create a project. Only companies can create projects.
 func (q *Querier) CreateProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateProject($input: CreateProjectInput!) {
-	createProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	createProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2051,7 +2051,7 @@ func (q *Querier) CreateProject(ctx context.Context, vars map[string]any) (map[s
 // DeleteProject — Soft delete a project. Only companies can delete projects.
 func (q *Querier) DeleteProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteProject($input: DeleteProjectInput!) {
-	deleteProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	deleteProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2069,7 +2069,7 @@ func (q *Querier) DeleteProject(ctx context.Context, vars map[string]any) (map[s
 // DetachJobFromProject — Detach a job from a project Only companies can detach a job from a project.
 func (q *Querier) DetachJobFromProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DetachJobFromProject($input: DetachJobFromProjectInput!) {
-	detachJobFromProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	detachJobFromProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2087,7 +2087,7 @@ func (q *Querier) DetachJobFromProject(ctx context.Context, vars map[string]any)
 // EndProject — End a project. This is used to set an end date on the project to consider it no longer active.
 func (q *Querier) EndProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation EndProject($input: EndProjectInput!) {
-	endProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	endProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2105,7 +2105,7 @@ func (q *Querier) EndProject(ctx context.Context, vars map[string]any) (map[stri
 // OpenProject — Open a project. This is used to set the end date on the project to `null` to make it open again.
 func (q *Querier) OpenProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation OpenProject($input: OpenProjectInput!) {
-	openProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	openProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2123,7 +2123,7 @@ func (q *Querier) OpenProject(ctx context.Context, vars map[string]any) (map[str
 // UpdateProject — Update a project. Only companies can update projects.
 func (q *Querier) UpdateProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateProject($input: UpdateProjectInput!) {
-	updateProject(input: $input) { id name description currency creator { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } internalBudget allocatedBudget spent endDate owners { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier }
+	updateProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2141,7 +2141,7 @@ func (q *Querier) UpdateProject(ctx context.Context, vars map[string]any) (map[s
 // RecruiterCandidate — Get a specific recruiter candidate.
 func (q *Querier) RecruiterCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query RecruiterCandidate($id: ID!) {
-	recruiterCandidate(id: $id) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar } email status token rate jobTitle links tags { id name } }
+	recruiterCandidate(id: $id) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2159,7 +2159,7 @@ func (q *Querier) RecruiterCandidate(ctx context.Context, vars map[string]any) (
 // RecruiterCandidates — Get a list of recruiter candidates.
 func (q *Querier) RecruiterCandidates(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query RecruiterCandidates($accounts: [ID!], $status: ContactStatus, $search: String, $first: Int! = 10, $page: Int) {
-	recruiterCandidates(accounts: $accounts, status: $status, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar } email status token rate jobTitle links tags { id name } } }
+	recruiterCandidates(accounts: $accounts, status: $status, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2172,7 +2172,7 @@ func (q *Querier) RecruiterCandidates(ctx context.Context, vars map[string]any) 
 // CreateRecruiterCandidate — Add and invite a new candidate. Only recruiters can add and invite candidates.
 func (q *Querier) CreateRecruiterCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateRecruiterCandidate($input: CreateRecruiterCandidateInput!) {
-	createRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar } email status token rate jobTitle links tags { id name } }
+	createRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2190,7 +2190,7 @@ func (q *Querier) CreateRecruiterCandidate(ctx context.Context, vars map[string]
 // DeleteRecruiterCandidate — Delete a recruiter candidate relationship. Both the recruiter and the candidate can delete the relationship.
 func (q *Querier) DeleteRecruiterCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteRecruiterCandidate($input: DeleteRecruiterCandidateInput!) {
-	deleteRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar } email status token rate jobTitle links tags { id name } }
+	deleteRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2208,7 +2208,7 @@ func (q *Querier) DeleteRecruiterCandidate(ctx context.Context, vars map[string]
 // UpdateRecruiterCandidate — Update a recruiter candidate information. Only recruiters can edit the relationship.
 func (q *Querier) UpdateRecruiterCandidate(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateRecruiterCandidate($input: UpdateRecruiterCandidateInput!) {
-	updateRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar } email status token rate jobTitle links tags { id name } }
+	updateRecruiterCandidate(input: $input) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2226,7 +2226,7 @@ func (q *Querier) UpdateRecruiterCandidate(ctx context.Context, vars map[string]
 // Recruiters — Get a list of recruiters.
 func (q *Querier) Recruiters(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Recruiters($search: String, $first: Int! = 10, $page: Int) {
-	recruiters(search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name market { code name } initials avatar owner { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } } }
+	recruiters(search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name market { code name } initials avatar owner { id name email avatar createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2239,7 +2239,7 @@ func (q *Querier) Recruiters(ctx context.Context, vars map[string]any) (map[stri
 // ReinviteTrustedContact — Resend an invitation to a Trusted Contact that already exists in the Talent Pool. This can be used for workers that has not responded to the initial invitation or for workers that was previously managed by a Staffing Agency.
 func (q *Querier) ReinviteTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ReinviteTrustedContact($input: ReinviteTrustedContactInput!) {
-	reinviteTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	reinviteTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2270,7 +2270,7 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 // DeleteTimesheetRegistration — Delete a timesheet registration. Only workers can delete timesheet registrations.
 func (q *Querier) DeleteTimesheetRegistration(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteTimesheetRegistration($input: DeleteTimesheetRegistrationInput!) {
-	deleteTimesheetRegistration(input: $input) { id type date startTime endTime duration unit comments invoiceReferenceNumber externalIdentifier isBillable customFieldValues { id content displayValue } }
+	deleteTimesheetRegistration(input: $input) { id type date startTime endTime duration unit comments invoiceReferenceNumber externalIdentifier isBillable customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2288,7 +2288,7 @@ func (q *Querier) DeleteTimesheetRegistration(ctx context.Context, vars map[stri
 // UpdateTimesheetRegistration — Update a timesheet registration. Only workers can update timesheet registrations.
 func (q *Querier) UpdateTimesheetRegistration(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateTimesheetRegistration($input: UpdateTimesheetRegistrationInput!) {
-	updateTimesheetRegistration(input: $input) { id type date startTime endTime duration unit comments invoiceReferenceNumber externalIdentifier isBillable customFieldValues { id content displayValue } }
+	updateTimesheetRegistration(input: $input) { id type date startTime endTime duration unit comments invoiceReferenceNumber externalIdentifier isBillable customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2306,7 +2306,7 @@ func (q *Querier) UpdateTimesheetRegistration(ctx context.Context, vars map[stri
 // Timesheet — Get a specific timesheet.
 func (q *Querier) Timesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Timesheet($id: ID!) {
-	timesheet(id: $id) { id worker { id name firstName lastName middleName email phone avatar } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } startDate endDate createdAt }
+	timesheet(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2324,7 +2324,7 @@ func (q *Querier) Timesheet(ctx context.Context, vars map[string]any) (map[strin
 // Timesheets — Get a list of timesheets.
 func (q *Querier) Timesheets(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Timesheets($accounts: [ID!], $first: Int! = 10, $page: Int) {
-	timesheets(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } startDate endDate createdAt } }
+	timesheets(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2355,7 +2355,7 @@ func (q *Querier) CreateCustomTimesheet(ctx context.Context, vars map[string]any
 // CreateTimesheet — Create a timesheet. Only workers can create timesheets.
 func (q *Querier) CreateTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateTimesheet($input: CreateTimesheetInput!) {
-	createTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } startDate endDate createdAt }
+	createTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2373,7 +2373,7 @@ func (q *Querier) CreateTimesheet(ctx context.Context, vars map[string]any) (map
 // DeleteTimesheet — Delete a timesheet. Only workers can delete timesheets.
 func (q *Querier) DeleteTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteTimesheet($input: DeleteTimesheetInput!) {
-	deleteTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } startDate endDate createdAt }
+	deleteTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2391,7 +2391,7 @@ func (q *Querier) DeleteTimesheet(ctx context.Context, vars map[string]any) (map
 // UpdateTimesheet — Update a timesheet. Only workers can update timesheets.
 func (q *Querier) UpdateTimesheet(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateTimesheet($input: UpdateTimesheetInput!) {
-	updateTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar } hire { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } startDate endDate createdAt }
+	updateTimesheet(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2409,7 +2409,7 @@ func (q *Querier) UpdateTimesheet(ctx context.Context, vars map[string]any) (map
 // TrustedContact — Get a specific trusted contact.
 func (q *Querier) TrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query TrustedContact($id: ID!) {
-	trustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	trustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2427,7 +2427,7 @@ func (q *Querier) TrustedContact(ctx context.Context, vars map[string]any) (map[
 // TrustedContacts — Get a list of trusted contacts.
 func (q *Querier) TrustedContacts(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query TrustedContacts($accounts: [ID!], $workers: [ID!], $search: String, $skills: [ID!], $markets: [MarketCode!], $countries: [String!], $states: [String!], $invitedByUsers: InvitedByInput, $statuses: [ContactStatus!], $origin: TrustedContactOrigin, $staffingAgencyStatus: TrustedContactStaffingAgencyStatus, $managedStatus: TrustedContactManagedStatus, $hireHistory: HireHistoryFilterInput, $hireStatus: HireStatusFilterInput, $businessSetup: [BusinessEntityType!], $externalIdentifiers: [String!], $customFields: [CustomFieldTypeValueInput!], $orderBy: [TrustedContactOrderByClauseInput!], $createdAtDateRange: DateRangeInput, $first: Int! = 10, $page: Int) {
-	trustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt } }
+	trustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2440,7 +2440,7 @@ func (q *Querier) TrustedContacts(ctx context.Context, vars map[string]any) (map
 // ApproveTrustedContact — Approve a trusted contact. Only companies can approve trusted contacts.
 func (q *Querier) ApproveTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ApproveTrustedContact($input: ApproveTrustedContactInput!) {
-	approveTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	approveTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2458,7 +2458,7 @@ func (q *Querier) ApproveTrustedContact(ctx context.Context, vars map[string]any
 // CreateTrustedContact — Add and invite a new trusted contact. Only companies can add & invite trusted contacts.
 func (q *Querier) CreateTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateTrustedContact($input: CreateTrustedContactInput!) {
-	createTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	createTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2476,7 +2476,7 @@ func (q *Querier) CreateTrustedContact(ctx context.Context, vars map[string]any)
 // DeleteTrustedContact — Delete a trusted contact. Only companies can delete trusted contacts.
 func (q *Querier) DeleteTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteTrustedContact($input: DeleteTrustedContactInput!) {
-	deleteTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	deleteTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2494,7 +2494,7 @@ func (q *Querier) DeleteTrustedContact(ctx context.Context, vars map[string]any)
 // UpdateTrustedContact — Update a trusted contact. Only companies can edit trusted contacts.
 func (q *Querier) UpdateTrustedContact(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateTrustedContact($input: UpdateTrustedContactInput!) {
-	updateTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar } company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } invitedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } links attachments { id name title size mimeType url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail } externalIdentifier origin originChannel customFieldValues { id content displayValue } onboardingStatus onboardingDocuments { id freelancerAcceptedAt isAccepted } createdAt }
+	updateTrustedContact(input: $input) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } onboardingStatus onboardingDocuments { id } createdAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2512,7 +2512,7 @@ func (q *Querier) UpdateTrustedContact(ctx context.Context, vars map[string]any)
 // UserGroup — Get a specific user group.
 func (q *Querier) UserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query UserGroup($id: ID!) {
-	userGroup(id: $id) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	userGroup(id: $id) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2530,7 +2530,7 @@ func (q *Querier) UserGroup(ctx context.Context, vars map[string]any) (map[strin
 // UserGroups — Get a list of user groups.
 func (q *Querier) UserGroups(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query UserGroups($accounts: [ID!], $search: String, $users: [ID!], $status: [UserGroupStatus!], $first: Int! = 10, $page: Int) {
-	userGroups(accounts: $accounts, search: $search, users: $users, status: $status, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status } }
+	userGroups(accounts: $accounts, search: $search, users: $users, status: $status, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description company { id name currency market avatar } status } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2543,7 +2543,7 @@ func (q *Querier) UserGroups(ctx context.Context, vars map[string]any) (map[stri
 // AttachUsersToUserGroup — Attach one or more users to a group. Only companies can attach users to groups.
 func (q *Querier) AttachUsersToUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AttachUsersToUserGroup($input: AttachUsersToUserGroupInput!) {
-	attachUsersToUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	attachUsersToUserGroup(input: $input) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2561,7 +2561,7 @@ func (q *Querier) AttachUsersToUserGroup(ctx context.Context, vars map[string]an
 // CreateUserGroup — Create a user group. Only companies can create user groups.
 func (q *Querier) CreateUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateUserGroup($input: CreateUserGroupInput!) {
-	createUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	createUserGroup(input: $input) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2579,7 +2579,7 @@ func (q *Querier) CreateUserGroup(ctx context.Context, vars map[string]any) (map
 // DeleteUserGroup — Soft delete a user group. Only companies can delete user groups.
 func (q *Querier) DeleteUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteUserGroup($input: DeleteUserGroupInput!) {
-	deleteUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	deleteUserGroup(input: $input) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2597,7 +2597,7 @@ func (q *Querier) DeleteUserGroup(ctx context.Context, vars map[string]any) (map
 // DetachUsersFromUserGroup — Detach one or more user from a group. Only companies can detach users from a group.
 func (q *Querier) DetachUsersFromUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DetachUsersFromUserGroup($input: DetachUsersFromUserGroupInput!) {
-	detachUsersFromUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	detachUsersFromUserGroup(input: $input) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2615,7 +2615,7 @@ func (q *Querier) DetachUsersFromUserGroup(ctx context.Context, vars map[string]
 // UpdateUserGroup — Update a user group. Only companies can update user groups.
 func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateUserGroup($input: UpdateUserGroupInput!) {
-	updateUserGroup(input: $input) { id name description company { id name currency market avatar contactInviteUrl personalInviteUrl hasActiveWebhooks } status }
+	updateUserGroup(input: $input) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2651,7 +2651,7 @@ func (q *Querier) Profile(ctx context.Context, vars map[string]any) (map[string]
 // WebhookEventLogs — Get a list of webhook event logs. They are returned in descending order of creation.
 func (q *Querier) WebhookEventLogs(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query WebhookEventLogs($webhookId: ID, $webhookEventId: ID, $accounts: [ID!], $first: Int! = 10, $page: Int) {
-	webhookEventLogs(webhookId: $webhookId, webhookEventId: $webhookEventId, accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key result statusCode webhook { id title description owner url secret isActive clientId } webhookEvent { id key webhookId event description status payload createdAt } request response createdAt } }
+	webhookEventLogs(webhookId: $webhookId, webhookEventId: $webhookEventId, accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key result statusCode webhook { id title description url createdAt updatedAt } webhookEvent { id description status createdAt updatedAt } request response createdAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2664,7 +2664,7 @@ func (q *Querier) WebhookEventLogs(ctx context.Context, vars map[string]any) (ma
 // WebhookEvent — Get a specific webhook event.
 func (q *Querier) WebhookEvent(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query WebhookEvent($id: ID!) {
-	webhookEvent(id: $id) { id key webhookId event description status payload logs { id key result statusCode request response createdAt } createdAt updatedAt }
+	webhookEvent(id: $id) { id key webhookId event description status payload logs { id createdAt } createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2682,7 +2682,7 @@ func (q *Querier) WebhookEvent(ctx context.Context, vars map[string]any) (map[st
 // WebhookEvents — Get a list of webhook events. They are returned in descending order of creation.
 func (q *Querier) WebhookEvents(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query WebhookEvents($webhookId: ID, $first: Int! = 10, $page: Int) {
-	webhookEvents(webhookId: $webhookId, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key webhookId event description status payload logs { id key result statusCode request response createdAt } createdAt updatedAt } }
+	webhookEvents(webhookId: $webhookId, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key webhookId event description status payload logs { id createdAt } createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2695,7 +2695,7 @@ func (q *Querier) WebhookEvents(ctx context.Context, vars map[string]any) (map[s
 // RetryWebhookEvent — Retry a webhook event. Only companies can retry webhook events.
 func (q *Querier) RetryWebhookEvent(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RetryWebhookEvent($input: RetryWebhookEventInput!) {
-	retryWebhookEvent(input: $input) { id key webhookId event description status payload logs { id key result statusCode request response createdAt } createdAt updatedAt }
+	retryWebhookEvent(input: $input) { id key webhookId event description status payload logs { id createdAt } createdAt updatedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2798,7 +2798,7 @@ func (q *Querier) UpdateWebhook(ctx context.Context, vars map[string]any) (map[s
 // Worker — Get a specific worker.
 func (q *Querier) Worker(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Worker($id: ID!) {
-	worker(id: $id) { id name firstName lastName middleName email phone avatar address { address postCode city state formattedAddress } market { code name } skills { id name } profile { id url } jobTitle initials currency dayRate rtwVerifiedAt rtwExpiresAt hiresWithAttribution { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } primaryBusinessEntity { id type name localisedName companyName companyNumber taxNumber } clients { id status statusUpdatedAt invitedAt token origin originChannel requiresOnboarding } insurances { type title hasInsurance policyLimit updatedAt } }
+	worker(id: $id) { id name firstName lastName middleName email phone avatar market { code name } skills { id name } profile { id url } jobTitle initials currency dayRate rtwVerifiedAt rtwExpiresAt hiresWithAttribution { id number createdAt startDate endDate currency status } primaryBusinessEntity { id type name } clients { id status } insurances { type title updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2816,7 +2816,7 @@ func (q *Querier) Worker(ctx context.Context, vars map[string]any) (map[string]a
 // UpdateWorker — Update a worker.
 func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorker($input: UpdateWorkerInput!) {
-	updateWorker(input: $input) { id name firstName lastName middleName email phone avatar address { address postCode city state formattedAddress } market { code name } skills { id name } profile { id url } jobTitle initials currency dayRate rtwVerifiedAt rtwExpiresAt hiresWithAttribution { id number pendingContractChanges contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel } primaryBusinessEntity { id type name localisedName companyName companyNumber taxNumber } clients { id status statusUpdatedAt invitedAt token origin originChannel requiresOnboarding } insurances { type title hasInsurance policyLimit updatedAt } }
+	updateWorker(input: $input) { id name firstName lastName middleName email phone avatar market { code name } skills { id name } profile { id url } jobTitle initials currency dayRate rtwVerifiedAt rtwExpiresAt hiresWithAttribution { id number createdAt startDate endDate currency status } primaryBusinessEntity { id type name } clients { id status } insurances { type title updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2834,7 +2834,7 @@ func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[st
 // UpdateWorkerCustomFieldValues — Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.
 func (q *Querier) UpdateWorkerCustomFieldValues(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorkerCustomFieldValues($input: UpdateWorkerCustomFieldValuesInput!) {
-	updateWorkerCustomFieldValues(input: $input) { customFieldValues { id content displayValue } }
+	updateWorkerCustomFieldValues(input: $input) { customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)

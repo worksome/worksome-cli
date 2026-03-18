@@ -1141,8 +1141,24 @@ func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) 
 	return strings.Join(parts, " ")
 }
 
+// safeNestedFields defines the set of field names that are safe to request on
+// nested objects. Many GraphQL APIs restrict access to sensitive fields (e.g.
+// canCreatePassword, missingAuthentication) when the viewer isn't the resource
+// owner. By limiting nested selections to common identifying/display fields, we
+// avoid triggering access-control errors.
+var safeNestedFields = map[string]bool{
+	"id": true, "name": true, "email": true, "avatar": true,
+	"status": true, "type": true, "currency": true, "market": true,
+	"number": true, "description": true, "firstName": true, "lastName": true,
+	"middleName": true, "phone": true, "initials": true, "subject": true,
+	"url": true, "title": true, "label": true, "slug": true, "code": true,
+	"createdAt": true, "updatedAt": true, "startDate": true, "endDate": true,
+}
+
 // selectScalarFields returns a space-separated list of scalar field selections for a type.
-// At depth > 0, it also includes one level of nested object scalar fields.
+// At depth > 0 (top level), it includes all scalar/enum fields and recurses into nested
+// objects with safe-only field selection. At depth 0, all scalar/enum fields are still
+// included — this is used only for the primary return type in union/paginator contexts.
 func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 	var fields []string
 	for _, f := range def.Fields {
@@ -1161,19 +1177,33 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			continue
 		}
 
-		// Nested object — include scalar fields if depth allows (max 15 nested fields to keep queries reasonable)
+		// Nested object — include only safe identifying fields to avoid access-control errors
 		if depth > 0 {
 			if nestedDef, ok := p.doc.Types[innerType]; ok && nestedDef.Kind == ast.Object {
-				nestedFields := p.selectScalarFields(nestedDef, 0)
+				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
-					// Limit nested selections to keep query size reasonable
-					parts := strings.Fields(nestedFields)
-					if len(parts) > 8 {
-						parts = parts[:8]
-					}
-					fields = append(fields, f.Name+" { "+strings.Join(parts, " ")+" }")
+					fields = append(fields, f.Name+" { "+nestedFields+" }")
 				}
 			}
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+// selectSafeFields returns only safe identifying/display fields for a nested object.
+// This avoids requesting access-restricted fields on types like User, Worker, etc.
+func (p *parser) selectSafeFields(def *ast.Definition) string {
+	var fields []string
+	for _, f := range def.Fields {
+		if f.Name == "__typename" {
+			continue
+		}
+		if hasRequiredArgs(f) {
+			continue
+		}
+		innerType := unwrapType(f.Type)
+		if (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name] {
+			fields = append(fields, f.Name)
 		}
 	}
 	return strings.Join(fields, " ")
