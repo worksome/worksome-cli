@@ -492,10 +492,7 @@ func parseDefaultValue(raw string) *ast.Value {
 		return &ast.Value{Raw: raw, Kind: ast.IntValue}
 	case strings.HasPrefix(raw, `"`):
 		// Unquote the string value.
-		unquoted := raw[1:]
-		if strings.HasSuffix(unquoted, `"`) {
-			unquoted = unquoted[:len(unquoted)-1]
-		}
+		unquoted := strings.TrimSuffix(raw[1:], `"`)
 		return &ast.Value{Raw: unquoted, Kind: ast.StringValue}
 	case strings.HasPrefix(raw, "["):
 		// List values — store as raw enum-like value so it serializes correctly.

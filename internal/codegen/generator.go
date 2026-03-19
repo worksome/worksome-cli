@@ -1034,7 +1034,7 @@ func inputFlagExampleHoisted(resName string, fields []Argument) string {
 // that includes both usage and a JSON payload example when InputExample is set.
 func inputExampleBlock(resName, cliName string, fields []Argument, inputExample string) string {
 	var lines []string
-	lines = append(lines, fmt.Sprintf("  # Using a JSON input file:"))
+	lines = append(lines, "  # Using a JSON input file:")
 	lines = append(lines, fmt.Sprintf("  worksome %s %s --input payload.json", resName, cliName))
 	if flagEx := inputFlagExample(resName, cliName, fields); flagEx != "" {
 		lines = append(lines, "")
@@ -1054,7 +1054,7 @@ func inputExampleBlock(resName, cliName string, fields []Argument, inputExample 
 // inputExampleBlockHoisted is like inputExampleBlock but for hoisted commands.
 func inputExampleBlockHoisted(resName string, fields []Argument, inputExample string) string {
 	var lines []string
-	lines = append(lines, fmt.Sprintf("  # Using a JSON input file:"))
+	lines = append(lines, "  # Using a JSON input file:")
 	lines = append(lines, fmt.Sprintf("  worksome %s --input payload.json", resName))
 	if flagEx := inputFlagExampleHoisted(resName, fields); flagEx != "" {
 		lines = append(lines, "")

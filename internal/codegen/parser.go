@@ -261,9 +261,7 @@ func (p *parser) parseObject(def *ast.Definition) Object {
 		GoName:      def.Name,
 		Description: cleanDescription(def.Description),
 	}
-	for _, iface := range def.Interfaces {
-		obj.Implements = append(obj.Implements, iface)
-	}
+	obj.Implements = append(obj.Implements, def.Interfaces...)
 	for _, f := range def.Fields {
 		if f.Name == "__typename" {
 			continue
@@ -315,9 +313,7 @@ func (p *parser) parseUnion(def *ast.Definition) Union {
 		Name:   def.Name,
 		GoName: def.Name,
 	}
-	for _, m := range def.Types {
-		u.Members = append(u.Members, m)
-	}
+	u.Members = append(u.Members, def.Types...)
 	sort.Strings(u.Members)
 	return u
 }
