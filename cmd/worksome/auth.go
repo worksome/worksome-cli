@@ -35,6 +35,8 @@ func newAuthCmd() *cobra.Command {
 
 func newAuthLoginCmd() *cobra.Command {
 	var profileName string
+	var tokenFlag string
+	var endpointFlag string
 
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -44,6 +46,17 @@ func newAuthLoginCmd() *cobra.Command {
 Create a token at: https://use.worksome.com/integrations/api-tokens
 
 The token is stored in ~/.worksome/config.yaml with restricted file permissions.`,
+		Example: `  # Interactive login (prompts for token)
+  worksome auth login
+
+  # Non-interactive login (useful when paste doesn't work or for CI)
+  worksome auth login --token <your-token>
+
+  # Login with a custom endpoint and profile
+  worksome auth login --token <your-token> --endpoint https://staging.worksome.com/graphql --profile staging
+
+  # Pipe token from stdin
+  echo "<your-token>" | worksome auth login`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -54,40 +67,50 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 				profileName = "default"
 			}
 
-			reader := bufio.NewReader(os.Stdin)
+			token := tokenFlag
+			endpoint := endpointFlag
 
-			// Prompt for token
-			fmt.Fprint(os.Stderr, "Enter your Personal Access Token: ")
-			var token string
-
-			// Try to read securely (no echo)
-			if term.IsTerminal(int(os.Stdin.Fd())) {
-				tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-				if err != nil {
-					return fmt.Errorf("reading token: %w", err)
-				}
-				token = string(tokenBytes)
-				fmt.Fprintln(os.Stderr) // newline after hidden input
-			} else {
-				// Non-interactive: read from stdin
-				line, err := reader.ReadString('\n')
-				if err == nil {
-					token = strings.TrimSpace(line)
-				}
-			}
-
+			// If token not provided via flag, prompt interactively
 			if token == "" {
-				return fmt.Errorf("token cannot be empty")
+				reader := bufio.NewReader(os.Stdin)
+
+				fmt.Fprint(os.Stderr, "Enter your Personal Access Token (input is hidden): ")
+
+				// Try to read securely (no echo)
+				if term.IsTerminal(int(os.Stdin.Fd())) {
+					tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+					if err != nil {
+						return fmt.Errorf("reading token: %w", err)
+					}
+					token = string(tokenBytes)
+					fmt.Fprintln(os.Stderr) // newline after hidden input
+				} else {
+					// Non-interactive: read from stdin
+					line, err := reader.ReadString('\n')
+					if err == nil {
+						token = strings.TrimSpace(line)
+					}
+				}
+
+				if token == "" {
+					return fmt.Errorf("token cannot be empty")
+				}
+
+				// Prompt for endpoint if not provided via flag
+				if endpoint == "" {
+					endpoint = "https://api.worksome.com/graphql"
+					fmt.Fprintf(os.Stderr, "API endpoint [%s]: ", endpoint)
+					line, err := reader.ReadString('\n')
+					if err == nil {
+						if ep := strings.TrimSpace(line); ep != "" {
+							endpoint = ep
+						}
+					}
+				}
 			}
 
-			// Prompt for endpoint (optional)
-			endpoint := "https://api.worksome.com/graphql"
-			fmt.Fprintf(os.Stderr, "API endpoint [%s]: ", endpoint)
-			line, err := reader.ReadString('\n')
-			if err == nil {
-				if ep := strings.TrimSpace(line); ep != "" {
-					endpoint = ep
-				}
+			if endpoint == "" {
+				endpoint = "https://api.worksome.com/graphql"
 			}
 
 			// Validate token by querying viewer
@@ -103,7 +126,11 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 			viewer, _ := result["viewer"].(map[string]any)
 			name, _ := viewer["name"].(string)
 			email, _ := viewer["email"].(string)
-			fmt.Fprintf(os.Stderr, "OK! Authenticated as %s (%s)\n", name, email)
+			if name != "" || email != "" {
+				fmt.Fprintf(os.Stderr, "OK! Authenticated as %s (%s)\n", name, email)
+			} else {
+				fmt.Fprintln(os.Stderr, "OK!")
+			}
 
 			// Save to config
 			if cfg.Profiles == nil {
@@ -125,6 +152,8 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 	}
 
 	cmd.Flags().StringVar(&profileName, "profile", "default", "Profile name to save token under")
+	cmd.Flags().StringVar(&tokenFlag, "token", "", "Personal Access Token (skips interactive prompt)")
+	cmd.Flags().StringVar(&endpointFlag, "endpoint", "", "API endpoint URL (default: https://api.worksome.com/graphql)")
 	return cmd
 }
 
@@ -142,22 +171,10 @@ func newAuthStatusCmd() *cobra.Command {
 				if endpoint == "" {
 					endpoint = "https://api.worksome.com/graphql"
 				}
+				fmt.Printf("Source:   --token flag\n")
 				fmt.Printf("Token:    %s\n", config.MaskToken(tokenFlag))
 				fmt.Printf("Endpoint: %s\n", endpoint)
-
-				c := client.New(endpoint, tokenFlag)
-				var result map[string]any
-				err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
-				if err != nil {
-					fmt.Printf("Status:   Invalid or expired token (%v)\n", err)
-					return nil
-				}
-				viewer, _ := result["viewer"].(map[string]any)
-				name, _ := viewer["name"].(string)
-				email, _ := viewer["email"].(string)
-				fmt.Printf("User:     %s (%s)\n", name, email)
-				fmt.Printf("Status:   Authenticated\n")
-				return nil
+				return printViewerStatus(endpoint, tokenFlag)
 			}
 
 			cfg, err := config.Load()
@@ -165,31 +182,40 @@ func newAuthStatusCmd() *cobra.Command {
 				return err
 			}
 
+			// Check if env vars are overriding profile settings
+			envToken := os.Getenv("WORKSOME_API_TOKEN")
+			envEndpoint := os.Getenv("WORKSOME_ENDPOINT")
+
 			profile, ok := cfg.ActiveProfile()
-			if !ok {
-				fmt.Println("Not authenticated. Run 'worksome auth login' to set up.")
-				return nil
+			if !ok && envToken == "" {
+				fmt.Fprintln(os.Stderr, "Not authenticated. Run 'worksome auth login' to set up.")
+				return fmt.Errorf("not authenticated")
+			}
+
+			token := ""
+			endpoint := ""
+			if ok {
+				token = profile.Token
+				endpoint = profile.Endpoint
 			}
 
 			fmt.Printf("Profile:  %s\n", cfg.CurrentProfile)
-			fmt.Printf("Token:    %s\n", config.MaskToken(profile.Token))
-			fmt.Printf("Endpoint: %s\n", profile.Endpoint)
 
-			// Try to fetch viewer info
-			c := client.New(profile.Endpoint, profile.Token)
-			var result map[string]any
-			err = c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
-			if err != nil {
-				fmt.Printf("Status:   Invalid or expired token (%v)\n", err)
-				return nil
+			if envToken != "" {
+				fmt.Printf("Token:    %s (from WORKSOME_API_TOKEN)\n", config.MaskToken(envToken))
+				token = envToken
+			} else {
+				fmt.Printf("Token:    %s\n", config.MaskToken(token))
 			}
 
-			viewer, _ := result["viewer"].(map[string]any)
-			name, _ := viewer["name"].(string)
-			email, _ := viewer["email"].(string)
-			fmt.Printf("User:     %s (%s)\n", name, email)
-			fmt.Printf("Status:   Authenticated\n")
-			return nil
+			if envEndpoint != "" {
+				fmt.Printf("Endpoint: %s (from WORKSOME_ENDPOINT)\n", envEndpoint)
+				endpoint = envEndpoint
+			} else {
+				fmt.Printf("Endpoint: %s\n", endpoint)
+			}
+
+			return printViewerStatus(endpoint, token)
 		},
 	}
 }
@@ -310,4 +336,23 @@ func newAuthListCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func printViewerStatus(endpoint, token string) error {
+	c := client.New(endpoint, token)
+	var result map[string]any
+	err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
+	if err != nil {
+		fmt.Printf("Status:   Invalid or expired token (%v)\n", err)
+		return nil
+	}
+
+	viewer, _ := result["viewer"].(map[string]any)
+	name, _ := viewer["name"].(string)
+	email, _ := viewer["email"].(string)
+	if name != "" || email != "" {
+		fmt.Printf("User:     %s (%s)\n", name, email)
+	}
+	fmt.Printf("Status:   Authenticated\n")
+	return nil
 }

@@ -39,7 +39,7 @@ func TestExecute_Success(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"greeting":"world"}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"greeting":"world"}}`)
 	})
 	defer srv.Close()
 
@@ -60,7 +60,7 @@ func TestExecute_Success(t *testing.T) {
 func TestExecute_GraphQLErrors(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
+		_, _ = fmt.Fprint(w, `{
 			"data": null,
 			"errors": [
 				{"message": "Field not found", "path": ["user", "email"]},
@@ -155,11 +155,11 @@ func TestExecute_RetryOnNetworkError(t *testing.T) {
 			if err != nil {
 				t.Fatalf("hijack failed: %v", err)
 			}
-			conn.Close()
+			_ = conn.Close()
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ok":true}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ok":true}}`)
 	})
 	defer srv.Close()
 
@@ -188,7 +188,7 @@ func TestExecute_RetryOnNetworkError(t *testing.T) {
 func TestExecute_Verbose(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ping":"pong"}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ping":"pong"}}`)
 	})
 	defer srv.Close()
 
@@ -277,7 +277,7 @@ func TestExecuteAll_Pagination(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, pages[pageNum-1])
+		_, _ = fmt.Fprint(w, pages[pageNum-1])
 	})
 	defer srv.Close()
 
@@ -317,7 +317,7 @@ func TestExecuteAll_Pagination(t *testing.T) {
 func TestExecuteAll_SinglePage(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
+		_, _ = fmt.Fprint(w, `{
 			"data": {
 				"result": {
 					"data": [{"value": "only"}],
@@ -363,7 +363,7 @@ func TestGraphQLErrors_ErrorString(t *testing.T) {
 func TestExecute_NilResult(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"mutation":"ok"}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"mutation":"ok"}}`)
 	})
 	defer srv.Close()
 
@@ -380,7 +380,7 @@ func TestWithTimeout(t *testing.T) {
 		// Simulate a slow server that takes longer than the client timeout.
 		time.Sleep(2 * time.Second)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ok":true}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ok":true}}`)
 	})
 	defer srv.Close()
 
@@ -398,7 +398,7 @@ func TestWithTimeout(t *testing.T) {
 func TestWithTimeout_Default(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ok":true}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ok":true}}`)
 	})
 	defer srv.Close()
 
@@ -430,5 +430,30 @@ func TestExecute_HTTPError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "500") {
 		t.Errorf("error should mention status code 500: %v", err)
+	}
+}
+
+func TestExecute_NonJSONResponse(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = fmt.Fprint(w, `<!DOCTYPE html><html><body><h1>Not Found</h1></body></html>`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "token")
+	err := c.Execute(context.Background(), "{ health }", nil, nil)
+	if err == nil {
+		t.Fatal("expected error for HTML response, got nil")
+	}
+	if !strings.Contains(err.Error(), "expected JSON") {
+		t.Errorf("error should mention expected JSON: %v", err)
+	}
+	if !strings.Contains(err.Error(), "text/html") {
+		t.Errorf("error should mention content type: %v", err)
+	}
+	// Must NOT contain the actual HTML body.
+	if strings.Contains(err.Error(), "<!DOCTYPE") {
+		t.Error("error should not contain raw HTML body")
 	}
 }

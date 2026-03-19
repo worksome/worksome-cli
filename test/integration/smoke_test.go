@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("creating temp dir: " + err.Error())
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaryPath = filepath.Join(tmpDir, "worksome")
 	build := exec.Command("go", "build", "-o", binaryPath, "./cmd/worksome/")

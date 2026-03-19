@@ -15,3 +15,7 @@
 
 # Test
 coverage.out
+
+# GoReleaser
+dist/
+.claude/worktrees/

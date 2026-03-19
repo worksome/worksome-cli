@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -259,9 +261,7 @@ func (p *parser) parseObject(def *ast.Definition) Object {
 		GoName:      def.Name,
 		Description: cleanDescription(def.Description),
 	}
-	for _, iface := range def.Interfaces {
-		obj.Implements = append(obj.Implements, iface)
-	}
+	obj.Implements = append(obj.Implements, def.Interfaces...)
 	for _, f := range def.Fields {
 		if f.Name == "__typename" {
 			continue
@@ -313,9 +313,7 @@ func (p *parser) parseUnion(def *ast.Definition) Union {
 		Name:   def.Name,
 		GoName: def.Name,
 	}
-	for _, m := range def.Types {
-		u.Members = append(u.Members, m)
-	}
+	u.Members = append(u.Members, def.Types...)
 	sort.Strings(u.Members)
 	return u
 }
@@ -336,10 +334,7 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 		} else {
 			ref.GoType = fmt.Sprintf("[]*%s", inner.GoType)
 		}
-		if !ref.IsRequired {
-			// pointer to slice — in practice we just use the slice (nil slice is fine)
-			// keep GoType as-is
-		}
+		// For optional lists, nil slice is fine — no pointer wrapper needed.
 		return ref
 	}
 
@@ -367,6 +362,11 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 	// Check enum
 	if p.enums[t.NamedType] {
 		ref.IsEnum = true
+		if def := p.doc.Types[t.NamedType]; def != nil {
+			for _, v := range def.EnumValues {
+				ref.EnumValues = append(ref.EnumValues, v.Name)
+			}
+		}
 		if ref.IsRequired {
 			ref.GoType = t.NamedType
 		} else {
@@ -472,8 +472,14 @@ func (p *parser) buildResources() []Resource {
 		}
 	}
 
-	// Match plural queries to resource names
-	for pluralName, pluralField := range pluralQueries {
+	// Match plural queries to resource names (sorted for deterministic output)
+	pluralNames := make([]string, 0, len(pluralQueries))
+	for name := range pluralQueries {
+		pluralNames = append(pluralNames, name)
+	}
+	sort.Strings(pluralNames)
+	for _, pluralName := range pluralNames {
+		pluralField := pluralQueries[pluralName]
 		resourceName := toKebabCase(pluralName)
 		singularName := toSingular(pluralName)
 
@@ -501,11 +507,16 @@ func (p *parser) buildResources() []Resource {
 		}
 	}
 
-	// Handle remaining singular queries that don't have a plural counterpart
-	for name, f := range singularQueries {
-		if claimed[name] {
-			continue
+	// Handle remaining singular queries that don't have a plural counterpart (sorted)
+	singularNames := make([]string, 0, len(singularQueries))
+	for name := range singularQueries {
+		if !claimed[name] {
+			singularNames = append(singularNames, name)
 		}
+	}
+	sort.Strings(singularNames)
+	for _, name := range singularNames {
+		f := singularQueries[name]
 		resourceName := toKebabCase(name)
 		res, exists := resourceMap[resourceName]
 		if !exists {
@@ -522,11 +533,16 @@ func (p *parser) buildResources() []Resource {
 		claimed[name] = true
 	}
 
-	// Handle remaining unclaimed queries (like 'accounts', 'viewer')
-	for name, f := range queries {
-		if claimed[name] {
-			continue
+	// Handle remaining unclaimed queries (sorted)
+	remainingQueryNames := make([]string, 0)
+	for name := range queries {
+		if !claimed[name] {
+			remainingQueryNames = append(remainingQueryNames, name)
 		}
+	}
+	sort.Strings(remainingQueryNames)
+	for _, name := range remainingQueryNames {
+		f := queries[name]
 		resourceName := toKebabCase(name)
 		res, exists := resourceMap[resourceName]
 		if !exists {
@@ -549,11 +565,16 @@ func (p *parser) buildResources() []Resource {
 		claimed[name] = true
 	}
 
-	// Match mutations to resources
-	for name, f := range mutations {
-		if claimed[name] {
-			continue
+	// Match mutations to resources (sorted for deterministic output)
+	mutationNames := make([]string, 0, len(mutations))
+	for name := range mutations {
+		if !claimed[name] {
+			mutationNames = append(mutationNames, name)
 		}
+	}
+	sort.Strings(mutationNames)
+	for _, name := range mutationNames {
+		f := mutations[name]
 		resourceName := p.matchMutationToResource(name, resourceMap)
 		res, exists := resourceMap[resourceName]
 		if !exists {
@@ -569,8 +590,14 @@ func (p *parser) buildResources() []Resource {
 		claimed[name] = true
 	}
 
-	// Post-processing: merge singular/plural resource pairs (Issue #4)
-	for name, res := range resourceMap {
+	// Post-processing: merge singular/plural resource pairs (sorted for deterministic output)
+	mergeNames := make([]string, 0, len(resourceMap))
+	for name := range resourceMap {
+		mergeNames = append(mergeNames, name)
+	}
+	sort.Strings(mergeNames)
+	for _, name := range mergeNames {
+		res := resourceMap[name]
 		if res.GetQuery != nil && res.ListQuery == nil {
 			plural := toPlural(name)
 			if pluralRes, ok := resourceMap[plural]; ok && pluralRes.ListQuery != nil && pluralRes.GetQuery == nil {
@@ -587,14 +614,21 @@ func (p *parser) buildResources() []Resource {
 
 	// Post-processing: fill empty descriptions and detect hoisted resources
 	for _, res := range resourceMap {
-		// Issue #2: fill empty descriptions
+		// Fill empty descriptions
 		if res.Description == "" {
 			if res.GetQuery != nil && res.GetQuery.Description != "" {
 				res.Description = res.GetQuery.Description
 			} else if res.ListQuery != nil && res.ListQuery.Description != "" {
 				res.Description = res.ListQuery.Description
-			} else if len(res.Mutations) > 0 && res.Mutations[0].Description != "" {
+			} else if len(res.Mutations) == 1 && res.Mutations[0].Description != "" {
 				res.Description = res.Mutations[0].Description
+			} else if len(res.Mutations) > 1 {
+				// Multiple mutations: use generic "Manage <resource>." instead of first mutation's description
+				displayName := res.Name
+				if !strings.HasSuffix(displayName, "s") || strings.HasSuffix(displayName, "ss") || strings.HasSuffix(displayName, "us") {
+					displayName = toPlural(displayName)
+				}
+				res.Description = fmt.Sprintf("Manage %s.", strings.ReplaceAll(displayName, "-", " "))
 			}
 		}
 
@@ -644,12 +678,29 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 			typeName = ret.Name
 		}
 	}
+	return p.buildTableColumnsForType(typeName)
+}
+
+// buildTableColumnsForType generates table column definitions for a given GraphQL type name.
+// It produces columns for scalar fields and up to 2 fields from nested objects.
+// Max 8 columns total, with "id" first if present.
+func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 	if typeName == "" {
 		return nil
 	}
 
-	def := p.doc.Types[typeName]
-	if def == nil || def.Kind != ast.Object {
+	// Check if the original type is a multi-member union; if so we will
+	// prepend a "Type" column after resolving columns from the concrete type.
+	isMultiMemberUnion := false
+	originalDef := p.doc.Types[typeName]
+	if originalDef != nil && originalDef.Kind == ast.Union && len(originalDef.Types) > 1 {
+		isMultiMemberUnion = true
+	}
+
+	// Resolve union types: use a shared interface if all members implement one,
+	// otherwise fall back to the first union member.
+	def := p.resolveUnionForColumns(typeName)
+	if def == nil {
 		return nil
 	}
 
@@ -663,6 +714,9 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 			break
 		}
 		if f.Name == "__typename" {
+			continue
+		}
+		if hasRequiredArgs(f) {
 			continue
 		}
 
@@ -682,9 +736,9 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 			continue
 		}
 
-		// Nested object: include up to 2 scalar fields as "parent.child"
+		// Nested object/interface: include up to 2 scalar fields as "parent.child"
 		nestedDef := p.doc.Types[innerType]
-		if nestedDef == nil || nestedDef.Kind != ast.Object {
+		if nestedDef == nil || (nestedDef.Kind != ast.Object && nestedDef.Kind != ast.Interface) {
 			continue
 		}
 		nestedCount := 0
@@ -708,12 +762,93 @@ func (p *parser) buildTableColumns(res *Resource) []TableColumn {
 		columns = append([]TableColumn{*idCol}, columns...)
 	}
 
+	// For multi-member unions, prepend a "Type" column so the user can see
+	// which concrete type each row is.
+	if isMultiMemberUnion {
+		columns = append([]TableColumn{{Header: "Type", Field: "__typename"}}, columns...)
+	}
+
 	// Enforce max columns
 	if len(columns) > maxColumns {
 		columns = columns[:maxColumns]
 	}
 
 	return columns
+}
+
+// resolveUnionForColumns resolves a type name to an ast.Definition suitable for
+// extracting table columns. If the type is already an object or interface, it is returned
+// directly. If it is a union, the function looks for a shared interface that all
+// members implement; failing that it falls back to the first union member.
+func (p *parser) resolveUnionForColumns(typeName string) *ast.Definition {
+	def := p.doc.Types[typeName]
+	if def == nil {
+		return nil
+	}
+	if def.Kind == ast.Object || def.Kind == ast.Interface {
+		return def
+	}
+	if def.Kind != ast.Union || len(def.Types) == 0 {
+		return nil
+	}
+
+	// Try to find a shared interface implemented by all union members.
+	if iface := p.findSharedInterface(def); iface != nil {
+		return iface
+	}
+
+	// Fallback: use the first union member.
+	firstMember := def.Types[0]
+	return p.doc.Types[firstMember]
+}
+
+// findSharedInterface returns an interface definition that all members of the
+// union implement, preferring the interface with the most fields. Returns nil
+// if no common interface exists.
+func (p *parser) findSharedInterface(unionDef *ast.Definition) *ast.Definition {
+	if len(unionDef.Types) == 0 {
+		return nil
+	}
+
+	// Collect interfaces implemented by the first member.
+	firstDef := p.doc.Types[unionDef.Types[0]]
+	if firstDef == nil {
+		return nil
+	}
+	candidates := make(map[string]bool, len(firstDef.Interfaces))
+	for _, iface := range firstDef.Interfaces {
+		candidates[iface] = true
+	}
+
+	// Intersect with interfaces of all other members.
+	for _, memberName := range unionDef.Types[1:] {
+		memberDef := p.doc.Types[memberName]
+		if memberDef == nil {
+			return nil
+		}
+		memberIfaces := make(map[string]bool, len(memberDef.Interfaces))
+		for _, iface := range memberDef.Interfaces {
+			memberIfaces[iface] = true
+		}
+		for iface := range candidates {
+			if !memberIfaces[iface] {
+				delete(candidates, iface)
+			}
+		}
+	}
+
+	// Pick the shared interface with the most fields.
+	var best *ast.Definition
+	for ifaceName := range candidates {
+		ifaceDef := p.doc.Types[ifaceName]
+		if ifaceDef == nil {
+			continue
+		}
+		if best == nil || len(ifaceDef.Fields) > len(best.Fields) {
+			best = ifaceDef
+		}
+	}
+	return best
 }
 
 // toTitleCase converts a camelCase or snake_case field name to a display title.
@@ -778,6 +913,8 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 	// For mutations with a single input argument, resolve the input type's fields as CLI flags
 	if opType == OperationMutation {
 		p.resolveInputFields(&op)
+		// Build table columns from the mutation's return type
+		op.TableColumns = p.buildTableColumnsForType(op.ReturnType.Name)
 	}
 
 	return op
@@ -816,6 +953,111 @@ func (p *parser) resolveInputFields(op *Operation) {
 			})
 		}
 	}
+
+	// Build a JSON example showing the full input structure (including nested types)
+	op.InputExample = p.buildInputExample(arg.Type.Name)
+}
+
+// buildInputExample recursively builds a JSON example string for a GraphQL input type.
+// It produces a pretty-printed JSON object with placeholder values for each field.
+func (p *parser) buildInputExample(inputTypeName string) string {
+	example := p.buildInputExampleValue(inputTypeName, 0)
+	if example == nil {
+		return ""
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(example); err != nil {
+		return ""
+	}
+	// Encode adds a trailing newline; trim it
+	return strings.TrimSpace(buf.String())
+}
+
+// buildInputExampleValue recursively builds a map/slice/value representing an
+// example JSON payload for the given input type. depth controls recursion to
+// avoid infinite loops (max depth 2).
+func (p *parser) buildInputExampleValue(inputTypeName string, depth int) map[string]any {
+	if depth > 2 {
+		return nil
+	}
+
+	def := p.doc.Types[inputTypeName]
+	if def == nil || def.Kind != ast.InputObject {
+		return nil
+	}
+
+	result := make(map[string]any)
+	for _, f := range def.Fields {
+		result[f.Name] = p.exampleValueForType(f.Type, depth)
+	}
+	return result
+}
+
+// exampleValueForType returns an example value for a GraphQL type, suitable for
+// JSON serialization. It handles scalars, enums, lists, and nested input objects.
+func (p *parser) exampleValueForType(t *ast.Type, depth int) any {
+	// List type: wrap inner value in a slice
+	if t.Elem != nil {
+		inner := p.exampleValueForType(t.Elem, depth)
+		return []any{inner}
+	}
+
+	typeName := t.NamedType
+
+	// Scalar types
+	switch typeName {
+	case "String":
+		return "..."
+	case "Int":
+		return 0
+	case "Float", "Decimal", "DecimalTwo", "Percentage", "StrictPercentage":
+		return 0.0
+	case "Boolean":
+		return false
+	case "ID":
+		return "<id>"
+	case "DateTime":
+		return "2024-01-01T00:00:00Z"
+	case "Date":
+		return "2024-01-01"
+	case "Time":
+		return "12:00:00"
+	case "Upload":
+		return "<file>"
+	case "URL":
+		return "https://example.com"
+	case "E164PhoneNumber":
+		return "+1234567890"
+	case "Json", "JSON", "Dictionary":
+		return map[string]any{}
+	}
+
+	// Other known scalars not covered above
+	if knownScalars[typeName] {
+		return "..."
+	}
+
+	// Enum: show first enum value (or first few)
+	if enumDef, ok := p.doc.Types[typeName]; ok && enumDef.Kind == ast.Enum {
+		if len(enumDef.EnumValues) > 0 {
+			return enumDef.EnumValues[0].Name
+		}
+		return "..."
+	}
+
+	// Nested input object
+	if p.inputs[typeName] {
+		nested := p.buildInputExampleValue(typeName, depth+1)
+		if nested != nil {
+			return nested
+		}
+		return map[string]any{}
+	}
+
+	return "..."
 }
 
 // buildSelectionSet generates a GraphQL selection set for a type, selecting all scalar
@@ -829,16 +1071,34 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		if innerDef == nil {
 			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id } }"
 		}
+
+		// If the paginated type is a union, build inline fragment selections.
+		if innerDef.Kind == ast.Union {
+			unionFields := p.buildUnionSelectionFields(innerDef, 1)
+			if unionFields == "" {
+				return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename id } }"
+			}
+			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename " + unionFields + " } }"
+		}
+
 		dataFields := p.selectScalarFields(innerDef, 1)
 		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
 	}
 
-	// Check if it's a known object type
+	// Check if it's a union type
 	def := p.doc.Types[typeName]
+	if def != nil && def.Kind == ast.Union {
+		unionFields := p.buildUnionSelectionFields(def, depth)
+		if unionFields == "" {
+			return "{ __typename id }"
+		}
+		return "{ __typename " + unionFields + " }"
+	}
+
+	// For known object types, select scalar fields.
 	if def == nil || def.Kind != ast.Object {
 		return ""
 	}
-
 	fields := p.selectScalarFields(def, depth)
 	if fields == "" {
 		return "{ id }"
@@ -846,12 +1106,60 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 	return "{ " + fields + " }"
 }
 
+// buildUnionSelectionFields generates the inline fragment portion of a selection
+// set for a union type. If all members share a common interface, it uses a single
+// "... on InterfaceName { fields }" fragment. Otherwise it generates separate
+// inline fragments for each member type.
+func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) string {
+	// Try a shared interface first for a compact selection.
+	if iface := p.findSharedInterface(unionDef); iface != nil {
+		fields := p.selectScalarFields(iface, depth)
+		if fields != "" {
+			return "... on " + iface.Name + " { " + fields + " }"
+		}
+	}
+
+	// Fallback: inline fragment per member.
+	var parts []string
+	for _, memberName := range unionDef.Types {
+		memberDef := p.doc.Types[memberName]
+		if memberDef == nil {
+			continue
+		}
+		fields := p.selectScalarFields(memberDef, depth)
+		if fields != "" {
+			parts = append(parts, "... on "+memberName+" { "+fields+" }")
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// safeNestedFields defines the set of field names that are safe to request on
+// nested objects. Many GraphQL APIs restrict access to sensitive fields (e.g.
+// canCreatePassword, missingAuthentication) when the viewer isn't the resource
+// owner. By limiting nested selections to common identifying/display fields, we
+// avoid triggering access-control errors.
+var safeNestedFields = map[string]bool{
+	"id": true, "name": true, "email": true, "avatar": true,
+	"status": true, "type": true, "currency": true, "market": true,
+	"number": true, "description": true, "firstName": true, "lastName": true,
+	"middleName": true, "phone": true, "initials": true, "subject": true,
+	"url": true, "title": true, "label": true, "slug": true, "code": true,
+	"createdAt": true, "updatedAt": true, "startDate": true, "endDate": true,
+}
+
 // selectScalarFields returns a space-separated list of scalar field selections for a type.
-// At depth > 0, it also includes one level of nested object scalar fields.
+// At depth > 0 (top level), it includes all scalar/enum fields and recurses into nested
+// objects with safe-only field selection. At depth 0, all scalar/enum fields are still
+// included — this is used only for the primary return type in union/paginator contexts.
 func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 	var fields []string
 	for _, f := range def.Fields {
 		if f.Name == "__typename" {
+			continue
+		}
+		// Skip fields that have required arguments — we can't provide them in auto-generated selection sets
+		if hasRequiredArgs(f) {
 			continue
 		}
 		innerType := unwrapType(f.Type)
@@ -862,19 +1170,33 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			continue
 		}
 
-		// Nested object — include scalar fields if depth allows (max 15 nested fields to keep queries reasonable)
+		// Nested object — include only safe identifying fields to avoid access-control errors
 		if depth > 0 {
 			if nestedDef, ok := p.doc.Types[innerType]; ok && nestedDef.Kind == ast.Object {
-				nestedFields := p.selectScalarFields(nestedDef, 0)
+				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
-					// Limit nested selections to keep query size reasonable
-					parts := strings.Fields(nestedFields)
-					if len(parts) > 8 {
-						parts = parts[:8]
-					}
-					fields = append(fields, f.Name+" { "+strings.Join(parts, " ")+" }")
+					fields = append(fields, f.Name+" { "+nestedFields+" }")
 				}
 			}
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+// selectSafeFields returns only safe identifying/display fields for a nested object.
+// This avoids requesting access-restricted fields on types like User, Worker, etc.
+func (p *parser) selectSafeFields(def *ast.Definition) string {
+	var fields []string
+	for _, f := range def.Fields {
+		if f.Name == "__typename" {
+			continue
+		}
+		if hasRequiredArgs(f) {
+			continue
+		}
+		innerType := unwrapType(f.Type)
+		if (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name] {
+			fields = append(fields, f.Name)
 		}
 	}
 	return strings.Join(fields, " ")
@@ -1030,7 +1352,7 @@ func stripResourceSuffix(words, resWords, resSingWords []string) string {
 			match := true
 			for i := range rw {
 				wi := len(words) - len(rw) + i
-				if strings.ToLower(words[wi]) != strings.ToLower(rw[i]) {
+				if !strings.EqualFold(words[wi], rw[i]) {
 					match = false
 					break
 				}
@@ -1045,6 +1367,16 @@ func stripResourceSuffix(words, resWords, resSingWords []string) string {
 }
 
 // Helper functions
+
+// hasRequiredArgs returns true if a field has any required (non-null) arguments.
+func hasRequiredArgs(f *ast.FieldDefinition) bool {
+	for _, arg := range f.Arguments {
+		if arg.Type.NonNull && arg.DefaultValue == nil {
+			return true
+		}
+	}
+	return false
+}
 
 func unwrapType(t *ast.Type) string {
 	if t.Elem != nil {

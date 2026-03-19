@@ -120,6 +120,19 @@ func ExtractFields(data any, columns []Column) [][]string {
 		return nil
 	}
 
+	// Unwrap single-key maps whose value is a slice.
+	// This handles responses like {"accounts": [{...}, {...}]}.
+	if m, ok := data.(map[string]any); ok && len(m) == 1 {
+		for _, val := range m {
+			if reflect.TypeOf(val) != nil {
+				rv := reflect.ValueOf(val)
+				if rv.Kind() == reflect.Slice {
+					data = val
+				}
+			}
+		}
+	}
+
 	v := reflect.ValueOf(data)
 
 	// Dereference pointer.
@@ -241,7 +254,113 @@ func isTTY(w io.Writer) bool {
 	return false
 }
 
+// FilterColumns returns only the columns whose Field matches one of the
+// comma-separated names in selected. If selected is empty, all columns are
+// returned unchanged. The result preserves the order from selected.
+func FilterColumns(columns []Column, selected string) []Column {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return columns
+	}
+
+	names := strings.Split(selected, ",")
+
+	// Build a lookup from field name to column.
+	lookup := make(map[string]Column, len(columns))
+	for _, c := range columns {
+		lookup[c.Field] = c
+	}
+
+	var result []Column
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if c, ok := lookup[name]; ok {
+			result = append(result, c)
+		}
+	}
+
+	return result
+}
+
 // IsTTYFile is a convenience wrapper: returns true when f is a terminal.
 func IsTTYFile(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
+}
+
+// FilterFields filters data to include only the specified field paths.
+// It accepts map[string]any, []any, or []map[string]any data structures.
+// Field paths use dot notation for nested fields (e.g., "worker.name").
+// If fields is empty, data is returned unchanged.
+func FilterFields(data any, fields []string) any {
+	if len(fields) == 0 {
+		return data
+	}
+
+	// Normalise field paths — trim whitespace.
+	trimmed := make([]string, len(fields))
+	for i, f := range fields {
+		trimmed[i] = strings.TrimSpace(f)
+	}
+
+	switch v := data.(type) {
+	case map[string]any:
+		return filterMap(v, trimmed)
+	case []any:
+		result := make([]any, len(v))
+		for i, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				result[i] = filterMap(m, trimmed)
+			} else {
+				result[i] = item
+			}
+		}
+		return result
+	case []map[string]any:
+		result := make([]any, len(v))
+		for i, m := range v {
+			result[i] = filterMap(m, trimmed)
+		}
+		return result
+	default:
+		return data
+	}
+}
+
+// filterMap returns a new map containing only the keys/paths listed in fields.
+func filterMap(m map[string]any, fields []string) map[string]any {
+	out := make(map[string]any)
+	for _, path := range fields {
+		parts := strings.SplitN(path, ".", 2)
+		key := parts[0]
+
+		val, ok := m[key]
+		if !ok {
+			continue
+		}
+
+		if len(parts) == 1 {
+			// Leaf field — copy the value directly.
+			out[key] = val
+		} else {
+			// Nested path — recurse into child map.
+			child, ok := val.(map[string]any)
+			if !ok {
+				continue
+			}
+			// Merge with any previously filtered content for this key.
+			existing, _ := out[key].(map[string]any)
+			if existing == nil {
+				existing = make(map[string]any)
+			}
+			filtered := filterMap(child, []string{parts[1]})
+			for k, v := range filtered {
+				existing[k] = v
+			}
+			out[key] = existing
+		}
+	}
+	return out
 }

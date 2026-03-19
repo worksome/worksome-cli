@@ -4,61 +4,32 @@ on:
   push:
     branches: [main]
   pull_request:
-
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-
   test:
-    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
-          go-version-file: "go.mod"
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./...
+      - name: Test
+        run: go test ./... -race -coverprofile=coverage.out
+      - name: Verify generated code
+        run: |
+          go run ./cmd/generate/
+          git diff --exit-code internal/generated/
 
-      - name: Run tests
-        run: go test ./... -count=1 -race
-
-  build:
-    name: Build
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
-          go-version-file: "go.mod"
-
-      - name: Build binary
-        run: go build ./cmd/worksome/
-
-  verify-generated:
-    name: Verify generated code
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v8
         with:
-          go-version-file: "go.mod"
-
-      - name: Verify generated code is up to date
-        run: make verify-generated
+          version: v2.11

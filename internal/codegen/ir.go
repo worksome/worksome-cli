@@ -45,8 +45,10 @@ type Operation struct {
 	SelectionSet     string // Pre-computed GraphQL selection set for the return type
 	Deprecated       bool
 	DeprecatedReason string
-	InputTypeName    string     // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
-	InputFields      []Argument // For mutations: flattened scalar/enum/ID fields from the input type
+	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
+	InputFields      []Argument    // For mutations: flattened scalar/enum/ID fields from the input type
+	TableColumns     []TableColumn // Columns for table output (used by mutations)
+	InputExample     string        // For mutations: pretty-printed JSON example of the full input structure
 }
 
 // OperationType distinguishes queries from mutations.
@@ -75,6 +77,7 @@ type TypeRef struct {
 	IsList     bool
 	ListItem   *TypeRef // For list types, the element type
 	IsEnum     bool
+	EnumValues []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
 	IsInput    bool
 	IsScalar   bool
 	IsPaginator bool

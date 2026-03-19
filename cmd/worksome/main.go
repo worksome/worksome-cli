@@ -39,10 +39,31 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().StringP("token", "t", "", "API token (overrides config)")
 	rootCmd.PersistentFlags().String("endpoint", "", "API endpoint URL (overrides config)")
 	rootCmd.PersistentFlags().StringP("output", "o", "", "Output format: json, table")
+	rootCmd.PersistentFlags().String("columns", "", "Comma-separated list of columns to display (e.g., id,name,status)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Show request/response details")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
+	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., id,name,worker.name)")
+	rootCmd.PersistentFlags().String("filter", "", `Key=value filter pairs (e.g., "status=ACTIVE,currency=DKK")`)
+
+	// Register shell completion for --profile flag
+	_ = rootCmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		cfg, err := config.Load()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		var names []string
+		for name := range cfg.Profiles {
+			names = append(names, name)
+		}
+		return names, cobra.ShellCompDirectiveNoFileComp
+	})
+
+	// Register shell completion for --output flag
+	_ = rootCmd.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"json", "table"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	// Set up client factory for generated commands
 	commands.SetClientFactory(func() (*client.Client, error) {
@@ -104,7 +125,7 @@ func newRootCmd() *cobra.Command {
 	coreResources := map[string]bool{
 		"hires": true, "jobs": true, "bids": true, "contracts": true,
 		"timesheets": true, "projects": true, "milestones": true,
-		"workers": true, "worker": true, "company": true,
+		"worker": true, "company": true,
 		"conversations": true, "files": true, "viewer": true,
 		"employments": true, "classifications": true, "compliance": true,
 		"gate": true, "skills": true, "industries": true, "note": true,
@@ -120,12 +141,12 @@ func newRootCmd() *cobra.Command {
 		"approvals": true, "approval-rules": true, "approval-states": true,
 		"approval-approvables": true, "approvers": true, "custom-fields": true,
 		"inherited-custom-fields": true,
-		"email": true, "password": true, "verification-email": true,
+		"email": true, "password": true,
 	}
 	recruitmentResources := map[string]bool{
 		"company-recruiters": true, "recruiter-candidates": true, "recruiters": true,
 		"trusted-contacts": true, "organisation-trusted-contacts": true,
-		"invite-link": true, "personal-invite-link": true,
+		"invite-link": true,
 		"reinvite-trusted-contact": true, "block-trusted-contact": true,
 		"job-candidates": true, "job-candidate-preferred": true,
 		"job-candidate-status": true, "job-shares": true, "partner": true,

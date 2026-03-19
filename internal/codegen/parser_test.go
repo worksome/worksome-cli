@@ -3,6 +3,7 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -892,6 +893,180 @@ input TerminateHireInput {
 	for _, r := range parsed.Resources {
 		if r.Name == "recruiter-to-hire" || r.Name == "recruiter-from-hire" {
 			t.Errorf("unexpected resource %q — multi-word mutation should be grouped under 'hires'", r.Name)
+		}
+	}
+}
+
+func TestUnionTypeTableColumns(t *testing.T) {
+	// Schema with a multi-member union behind a paginator — table columns should
+	// include a "Type" column for __typename and fields from the shared interface.
+	schema := `
+type Query {
+	multiFactor(id: ID!): MultiFactor
+	multiFactors(first: Int! = 10, page: Int): MultiFactorPaginator!
+}
+
+union MultiFactor = SmsMultiFactor | TotpMultiFactor
+
+interface HasMultiFactorMetadata {
+	id: ID!
+	name: String!
+	status: MultiFactorStatus!
+}
+
+type SmsMultiFactor implements HasMultiFactorMetadata {
+	id: ID!
+	name: String!
+	phoneNumber: String!
+	status: MultiFactorStatus!
+}
+
+type TotpMultiFactor implements HasMultiFactorMetadata {
+	id: ID!
+	name: String!
+	status: MultiFactorStatus!
+}
+
+type MultiFactorPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [MultiFactor!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+enum MultiFactorStatus {
+	APPROVED
+	PENDING
+	CANCELLED
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Find the multi-factors resource
+	var mfResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "multi-factors" {
+			mfResource = &parsed.Resources[i]
+			break
+		}
+	}
+	if mfResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'multi-factors' resource, got resources: %v", names)
+	}
+
+	// Table columns should exist and start with "Type"
+	if len(mfResource.TableColumns) == 0 {
+		t.Fatal("expected table columns for multi-factors, got none")
+	}
+	if mfResource.TableColumns[0].Header != "Type" || mfResource.TableColumns[0].Field != "__typename" {
+		t.Errorf("expected first column to be Type/__typename, got %q/%q",
+			mfResource.TableColumns[0].Header, mfResource.TableColumns[0].Field)
+	}
+
+	// Should have ID column from the shared interface
+	hasID := false
+	for _, col := range mfResource.TableColumns {
+		if col.Field == "id" {
+			hasID = true
+		}
+	}
+	if !hasID {
+		t.Error("expected table columns to include 'id' from shared interface")
+	}
+
+	// Check the selection set includes __typename
+	if mfResource.ListQuery != nil {
+		sel := mfResource.ListQuery.SelectionSet
+		if !strings.Contains(sel, "__typename") {
+			t.Errorf("list query selection set should include __typename, got: %s", sel)
+		}
+	}
+	if mfResource.GetQuery != nil {
+		sel := mfResource.GetQuery.SelectionSet
+		if !strings.Contains(sel, "__typename") {
+			t.Errorf("get query selection set should include __typename, got: %s", sel)
+		}
+	}
+}
+
+func TestSingleMemberUnionNoTypeColumn(t *testing.T) {
+	// A union with only one member should NOT get a "Type" column.
+	schema := `
+type Query {
+	approvables(first: Int! = 10, page: Int): ApprovablePaginator!
+}
+
+union Approvable = Hire
+
+type Hire {
+	id: ID!
+	status: String!
+}
+
+type ApprovablePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Approvable!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var appResource *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "approvables" {
+			appResource = &parsed.Resources[i]
+			break
+		}
+	}
+	if appResource == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'approvables' resource, got resources: %v", names)
+	}
+
+	// Single-member union: should have columns but no "Type" column
+	for _, col := range appResource.TableColumns {
+		if col.Field == "__typename" {
+			t.Error("single-member union should NOT have a Type/__typename column")
 		}
 	}
 }
