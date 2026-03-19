@@ -279,7 +279,7 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	if err != nil {
 		return nil, fmt.Errorf("sending request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

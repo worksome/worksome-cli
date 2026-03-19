@@ -48,7 +48,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().String("filter", "", `Key=value filter pairs (e.g., "status=ACTIVE,currency=DKK")`)
 
 	// Register shell completion for --profile flag
-	rootCmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = rootCmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		cfg, err := config.Load()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -61,7 +61,7 @@ func newRootCmd() *cobra.Command {
 	})
 
 	// Register shell completion for --output flag
-	rootCmd.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = rootCmd.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"json", "table"}, cobra.ShellCompDirectiveNoFileComp
 	})
 

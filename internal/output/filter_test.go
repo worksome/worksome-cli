@@ -40,7 +40,7 @@ func TestApplyFilterFlag_empty(t *testing.T) {
 
 func TestApplyFilterFlag_singlePair(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"status": ""})
-	root.PersistentFlags().Set("filter", "status=ACTIVE")
+	_ = root.PersistentFlags().Set("filter", "status=ACTIVE")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -57,7 +57,7 @@ func TestApplyFilterFlag_multiplePairs(t *testing.T) {
 		"status":   "",
 		"currency": "",
 	})
-	root.PersistentFlags().Set("filter", "status=ACTIVE,currency=DKK")
+	_ = root.PersistentFlags().Set("filter", "status=ACTIVE,currency=DKK")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -76,7 +76,7 @@ func TestApplyFilterFlag_multiplePairs(t *testing.T) {
 
 func TestApplyFilterFlag_pluralFallback(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"statuses": ""})
-	root.PersistentFlags().Set("filter", "status=ACTIVE")
+	_ = root.PersistentFlags().Set("filter", "status=ACTIVE")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -90,7 +90,7 @@ func TestApplyFilterFlag_pluralFallback(t *testing.T) {
 
 func TestApplyFilterFlag_camelCaseKey(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"payment-status": ""})
-	root.PersistentFlags().Set("filter", "paymentStatus=PAID")
+	_ = root.PersistentFlags().Set("filter", "paymentStatus=PAID")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -104,7 +104,7 @@ func TestApplyFilterFlag_camelCaseKey(t *testing.T) {
 
 func TestApplyFilterFlag_trimSpaces(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"status": ""})
-	root.PersistentFlags().Set("filter", " status = ACTIVE ")
+	_ = root.PersistentFlags().Set("filter", " status = ACTIVE ")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -118,7 +118,7 @@ func TestApplyFilterFlag_trimSpaces(t *testing.T) {
 
 func TestApplyFilterFlag_unknownKey(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"status": ""})
-	root.PersistentFlags().Set("filter", "nonexistent=VALUE")
+	_ = root.PersistentFlags().Set("filter", "nonexistent=VALUE")
 
 	err := ApplyFilterFlag(child)
 	if err == nil {
@@ -133,7 +133,7 @@ func TestApplyFilterFlag_unknownKey(t *testing.T) {
 
 func TestApplyFilterFlag_invalidFormat_noEquals(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"status": ""})
-	root.PersistentFlags().Set("filter", "statusACTIVE")
+	_ = root.PersistentFlags().Set("filter", "statusACTIVE")
 
 	err := ApplyFilterFlag(child)
 	if err == nil {
@@ -148,7 +148,7 @@ func TestApplyFilterFlag_invalidFormat_noEquals(t *testing.T) {
 
 func TestApplyFilterFlag_emptyKey(t *testing.T) {
 	root, child := newTestCommand(map[string]string{"status": ""})
-	root.PersistentFlags().Set("filter", "=VALUE")
+	_ = root.PersistentFlags().Set("filter", "=VALUE")
 
 	err := ApplyFilterFlag(child)
 	if err == nil {
@@ -164,7 +164,7 @@ func TestApplyFilterFlag_emptyKey(t *testing.T) {
 func TestApplyFilterFlag_valueWithEquals(t *testing.T) {
 	// Values can contain "=" characters (e.g., base64-encoded data).
 	root, child := newTestCommand(map[string]string{"token": ""})
-	root.PersistentFlags().Set("filter", "token=abc=def")
+	_ = root.PersistentFlags().Set("filter", "token=abc=def")
 
 	if err := ApplyFilterFlag(child); err != nil {
 		t.Fatalf("unexpected error: %v", err)

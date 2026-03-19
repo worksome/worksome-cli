@@ -116,7 +116,7 @@ func (g *Generator) writeTemplate(tmpl *template.Template, path string, data any
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
 		// Write unformatted for debugging
-		os.WriteFile(path+".unformatted", buf.Bytes(), 0o644)
+		_ = os.WriteFile(path+".unformatted", buf.Bytes(), 0o644)
 		return fmt.Errorf("formatting %s: %w (unformatted written to %s.unformatted)", path, err, path)
 	}
 

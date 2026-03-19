@@ -92,7 +92,7 @@ func TestExecute_CacheHit(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"greeting":"world"}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"greeting":"world"}}`)
 	})
 	defer srv.Close()
 
@@ -135,7 +135,7 @@ func TestExecute_MutationBypassesCache(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"createUser":{"id":"1"}}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"createUser":{"id":"1"}}}`)
 	})
 	defer srv.Close()
 
@@ -160,7 +160,7 @@ func TestExecute_AnonymousQueryIsCached(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ok":true}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ok":true}}`)
 	})
 	defer srv.Close()
 
@@ -184,7 +184,7 @@ func TestExecute_NoCacheOption(t *testing.T) {
 	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":{"ok":true}}`)
+		_, _ = fmt.Fprint(w, `{"data":{"ok":true}}`)
 	})
 	defer srv.Close()
 
