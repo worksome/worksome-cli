@@ -334,10 +334,7 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 		} else {
 			ref.GoType = fmt.Sprintf("[]*%s", inner.GoType)
 		}
-		if !ref.IsRequired {
-			// pointer to slice — in practice we just use the slice (nil slice is fine)
-			// keep GoType as-is
-		}
+		// For optional lists, nil slice is fine — no pointer wrapper needed.
 		return ref
 	}
 
@@ -1355,7 +1352,7 @@ func stripResourceSuffix(words, resWords, resSingWords []string) string {
 			match := true
 			for i := range rw {
 				wi := len(words) - len(rw) + i
-				if strings.ToLower(words[wi]) != strings.ToLower(rw[i]) {
+				if !strings.EqualFold(words[wi], rw[i]) {
 					match = false
 					break
 				}
