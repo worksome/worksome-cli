@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
 
@@ -9,7 +11,6 @@ linters:
     - unused
     - ineffassign
     - gosimple
-
-issues:
-  exclude-dirs:
-    - internal/generated
+  exclusions:
+    paths:
+      - internal/generated
