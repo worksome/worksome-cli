@@ -132,7 +132,7 @@ func newRootCmd() *cobra.Command {
 	}
 	financeResources := map[string]bool{
 		"invoices": true, "invoice-row": true, "payment-requests": true,
-		"batches": true, "batch": true, "bank-details": true,
+		"batches": true, "batch-action": true, "bank-details": true,
 	}
 	adminResources := map[string]bool{
 		"accounts": true, "organisation": true, "user-groups": true,
