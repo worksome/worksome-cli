@@ -88,6 +88,15 @@ func readInputFile(path string) (map[string]any, error) {
 	return result, nil
 }
 
+// requireInput errors when a mutation whose input type declares fields is
+// about to be sent an empty input object.
+func requireInput(vars map[string]any) error {
+	if input, ok := vars["input"].(map[string]any); ok && len(input) > 0 {
+		return nil
+	}
+	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
+}
+
 var acceptbidHoistedColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Number", Field: "number"},
@@ -215,9 +224,9 @@ func NewAcceptBidCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -617,9 +626,9 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 				inputObj["reason"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -902,9 +911,9 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 				inputObj["approval"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1382,9 +1391,9 @@ func newApprovalsCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1480,9 +1489,9 @@ func newApprovalsUpdateCmd() *cobra.Command {
 				inputObj["description"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1784,9 +1793,9 @@ func newApproversCreateCmd() *cobra.Command {
 				inputObj["position"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1866,9 +1875,9 @@ func newApproversUpdateCmd() *cobra.Command {
 				inputObj["position"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1905,12 +1914,12 @@ func NewBankDetailsCmd() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(newBankDetailsCmd())
+	cmd.AddCommand(newBankDetailsStoreCmd())
 
 	return cmd
 }
 
-var bankdetailsColumns = []output.Column{
+var bankdetailsStoreColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Bank Address", Field: "bankAddress"},
@@ -1921,11 +1930,11 @@ var bankdetailsColumns = []output.Column{
 	{Header: "Bban Bank Id", Field: "bban.bankId"},
 }
 
-func newBankDetailsCmd() *cobra.Command {
+func newBankDetailsStoreCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "",
+		Use:     "store",
 		Short:   "Update the bank account details.",
-		Example: "  # Using a JSON input file:\n  worksome bank-details  --input payload.json\n\n  # Using flags:\n  worksome bank-details  --account-id \\\"value\\\" --name \\\"value\\\" --bank-address \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"bankAddress\": \"...\",\n    \"bankCountry\": \"...\",\n    \"bankName\": \"...\",\n    \"bban\": {\n      \"accountNumber\": \"...\",\n      \"accountSuffix\": \"...\",\n      \"bankCode\": \"...\",\n      \"bankId\": \"...\",\n      \"branchCode\": \"...\",\n      \"branchId\": \"...\",\n      \"bsb\": \"...\",\n      \"institutionNumber\": \"...\",\n      \"purposeOfPayment\": \"...\",\n      \"registrationNumber\": \"...\",\n      \"routingCode\": \"...\",\n      \"sortCode\": \"...\",\n      \"transitNumber\": \"...\"\n    },\n    \"beneficiaryName\": \"...\",\n    \"iban\": \"...\",\n    \"name\": \"...\",\n    \"swift\": \"...\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome bank-details store --input payload.json\n\n  # Using flags:\n  worksome bank-details store --account-id \\\"value\\\" --name \\\"value\\\" --bank-address \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"bankAddress\": \"...\",\n    \"bankCountry\": \"...\",\n    \"bankName\": \"...\",\n    \"bban\": {\n      \"accountNumber\": \"...\",\n      \"accountSuffix\": \"...\",\n      \"bankCode\": \"...\",\n      \"bankId\": \"...\",\n      \"branchCode\": \"...\",\n      \"branchId\": \"...\",\n      \"bsb\": \"...\",\n      \"institutionNumber\": \"...\",\n      \"purposeOfPayment\": \"...\",\n      \"registrationNumber\": \"...\",\n      \"routingCode\": \"...\",\n      \"sortCode\": \"...\",\n      \"transitNumber\": \"...\"\n    },\n    \"beneficiaryName\": \"...\",\n    \"iban\": \"...\",\n    \"name\": \"...\",\n    \"swift\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -1984,9 +1993,9 @@ func newBankDetailsCmd() *cobra.Command {
 				inputObj["swift"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -2002,7 +2011,7 @@ func newBankDetailsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printResult(cmd, result, bankdetailsColumns)
+			return printResult(cmd, result, bankdetailsStoreColumns)
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
@@ -2085,9 +2094,9 @@ func newBatchActionRunCmd() *cobra.Command {
 				inputObj["deleteIfEmptied"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -2384,9 +2393,9 @@ func newBatchesCreateCmd() *cobra.Command {
 				inputObj["type"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -2682,9 +2691,9 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 				inputObj["account"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -3297,9 +3306,9 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -3376,9 +3385,9 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -3468,9 +3477,9 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -3561,9 +3570,9 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				inputObj["managesWorkers"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -4397,9 +4406,9 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -4487,9 +4496,9 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 				inputObj["customField"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -4591,9 +4600,9 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 				inputObj["workerInputAllowed"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -4698,9 +4707,9 @@ func newEmailChangeCmd() *cobra.Command {
 				inputObj["email"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -4843,9 +4852,9 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 				inputObj["employment"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -5183,9 +5192,9 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 				inputObj["employment"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -5285,9 +5294,9 @@ func newExportCreateCmd() *cobra.Command {
 				inputObj["generatorType"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -5632,6 +5641,10 @@ func newFilesAsUploadedMarkCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "MarkFilesAsUploaded", vars)
@@ -6124,9 +6137,9 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 				inputObj["ownershipStartDate"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6204,9 +6217,9 @@ func newHiresCancelCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6333,9 +6346,9 @@ func newHiresCreateDraftCmd() *cobra.Command {
 				inputObj["hireDescription"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6426,9 +6439,9 @@ func newHiresRejectCmd() *cobra.Command {
 				inputObj["hire"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6499,9 +6512,9 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 				inputObj["hire"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6575,9 +6588,9 @@ func newHiresShareCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -6664,9 +6677,9 @@ func newHiresTerminateCmd() *cobra.Command {
 				inputObj["message"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -7134,9 +7147,9 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -7195,9 +7208,9 @@ func newInviteLinkGeneratePersonalCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -7591,9 +7604,9 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 				inputObj["isPreferred"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -7696,9 +7709,9 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 				inputObj["feedback"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8010,9 +8023,9 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 				inputObj["sourcingChannel"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8265,9 +8278,9 @@ func newJobSharesCreateCmd() *cobra.Command {
 				inputObj["job"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8324,6 +8337,10 @@ func newJobSharesRemoveCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveJobShare", vars)
@@ -8737,9 +8754,9 @@ func newJobsCreateCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8814,9 +8831,9 @@ func newJobsDuplicateCmd() *cobra.Command {
 				inputObj["title"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8891,9 +8908,9 @@ func newJobsEndCmd() *cobra.Command {
 				inputObj["accountId"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -8968,9 +8985,9 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 				inputObj["amount"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -9105,9 +9122,9 @@ func newJobsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -9416,6 +9433,10 @@ func newMilestonesCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateMilestones", vars)
@@ -9473,6 +9494,10 @@ func newMilestonesDeleteCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteMilestones", vars)
@@ -9530,6 +9555,10 @@ func newMilestonesUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateMilestones", vars)
@@ -9808,9 +9837,9 @@ func newMultiFactorsCreateSmsCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -9876,9 +9905,9 @@ func newMultiFactorsCreateTotpCmd() *cobra.Command {
 				inputObj["name"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -9948,9 +9977,9 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10024,9 +10053,9 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 				inputObj["code"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10101,9 +10130,9 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 				inputObj["code"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10204,9 +10233,9 @@ func newNoteCreateCmd() *cobra.Command {
 				inputObj["notableId"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10279,9 +10308,9 @@ func newNoteDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10359,9 +10388,9 @@ func newNoteUpdateCmd() *cobra.Command {
 				inputObj["title"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10450,9 +10479,9 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -10522,9 +10551,9 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -11039,9 +11068,9 @@ func newPasswordCreateCmd() *cobra.Command {
 				inputObj["password"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -11119,9 +11148,9 @@ func newPasswordUpdateCmd() *cobra.Command {
 				inputObj["passwordConfirmation"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -11548,9 +11577,9 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 				inputObj["timesheet"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -11630,9 +11659,9 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -11734,9 +11763,9 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 				inputObj["purchaseOrderNumber"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12048,9 +12077,9 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 				inputObj["project"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12136,9 +12165,9 @@ func newProjectsCreateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12212,9 +12241,9 @@ func newProjectsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12288,9 +12317,9 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 				inputObj["project"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12361,9 +12390,9 @@ func newProjectsEndCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12433,9 +12462,9 @@ func newProjectsOpenCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12521,9 +12550,9 @@ func newProjectsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12857,9 +12886,9 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -12938,9 +12967,9 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -13030,9 +13059,9 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 				inputObj["monthlyRate"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -13276,9 +13305,9 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -13537,9 +13566,9 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -13641,9 +13670,9 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 				inputObj["isBillable"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -13933,9 +13962,9 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 				inputObj["data"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14018,9 +14047,9 @@ func newTimesheetsCreateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14093,9 +14122,9 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14173,9 +14202,9 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 				inputObj["endDate"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14558,9 +14587,9 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14678,9 +14707,9 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 				inputObj["originChannel"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14772,9 +14801,9 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 				inputObj["account"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -14849,9 +14878,9 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 				inputObj["externalIdentifier"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15145,9 +15174,9 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 				inputObj["userGroup"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15227,9 +15256,9 @@ func newUserGroupsCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15303,9 +15332,9 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15373,9 +15402,9 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 				inputObj["userGroup"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15455,9 +15484,9 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 				inputObj["status"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -15982,9 +16011,9 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -16292,9 +16321,9 @@ func newWebhooksCreateCmd() *cobra.Command {
 				inputObj["company"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -16371,9 +16400,9 @@ func newWebhooksDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -16471,9 +16500,9 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				inputObj["clientUrl"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -16620,9 +16649,9 @@ func newWorkerUpdateCmd() *cobra.Command {
 				inputObj["jobTitle"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -16703,9 +16732,9 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 				inputObj["appliesTo"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -17135,6 +17164,10 @@ func newWorkflowsCreateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateWorkflow", vars)
@@ -17195,9 +17228,9 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 				inputObj["id"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -17250,6 +17283,10 @@ func newWorkflowsUpdateCmd() *cobra.Command {
 				vars["input"] = fileVars
 			}
 
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWorkflow", vars)
@@ -17322,9 +17359,9 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 				inputObj["consent"] = v
 			}
 			vars["input"] = inputObj
-
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
