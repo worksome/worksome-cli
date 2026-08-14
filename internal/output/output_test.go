@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 )
@@ -91,6 +92,119 @@ func TestPrintTable_basic(t *testing.T) {
 	}
 	if !strings.Contains(out, "Bob") {
 		t.Error("expected table to contain 'Bob'")
+	}
+}
+
+// stubTTY forces terminal detection for the duration of the test.
+func stubTTY(t *testing.T, tty bool) {
+	t.Helper()
+	orig := isTerminal
+	isTerminal = func(io.Writer) bool { return tty }
+	t.Cleanup(func() { isTerminal = orig })
+}
+
+func TestNew_colorEnabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		tty        bool
+		noColor    bool
+		noColorEnv string
+		want       bool
+	}{
+		{name: "TTY with color", tty: true, want: true},
+		{name: "TTY suppressed by --no-color", tty: true, noColor: true, want: false},
+		{name: "TTY suppressed by NO_COLOR env", tty: true, noColorEnv: "1", want: false},
+		{name: "non-TTY writer never colors", tty: false, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", tt.noColorEnv)
+			stubTTY(t, tt.tty)
+
+			var buf bytes.Buffer
+			f := New(&buf, FormatTable, tt.noColor)
+			if f.color != tt.want {
+				t.Errorf("New(...).color = %v, want %v", f.color, tt.want)
+			}
+		})
+	}
+}
+
+func TestAuto_colorSuppressedByNoColorEnv(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	stubTTY(t, true)
+
+	var buf bytes.Buffer
+	f := Auto(&buf, false)
+	if f.format != FormatTable {
+		t.Errorf("Auto on a TTY should pick table format, got %s", f.format)
+	}
+	if f.color {
+		t.Error("NO_COLOR env should disable color at construction")
+	}
+}
+
+func TestPrintTable_headerColor(t *testing.T) {
+	tests := []struct {
+		name       string
+		tty        bool
+		noColor    bool
+		noColorEnv string
+		wantBold   bool
+	}{
+		{name: "bold headers on TTY with color", tty: true, wantBold: true},
+		{name: "suppressed by --no-color", tty: true, noColor: true, wantBold: false},
+		{name: "suppressed by NO_COLOR env", tty: true, noColorEnv: "1", wantBold: false},
+		{name: "suppressed on non-TTY writer", tty: false, wantBold: false},
+	}
+
+	data := []map[string]any{{"name": "Alice"}}
+	cols := []Column{{Header: "Name", Field: "name"}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", tt.noColorEnv)
+			stubTTY(t, tt.tty)
+
+			var buf bytes.Buffer
+			f := New(&buf, FormatTable, tt.noColor)
+
+			if err := f.PrintTable(data, cols); err != nil {
+				t.Fatalf("PrintTable returned error: %v", err)
+			}
+
+			out := buf.String()
+			if gotBold := strings.Contains(out, "\x1b[1m"); gotBold != tt.wantBold {
+				t.Errorf("bold header = %v, want %v\n%s", gotBold, tt.wantBold, out)
+			}
+
+			if tt.wantBold {
+				if !strings.Contains(out, "\x1b[0m") {
+					t.Error("expected ANSI reset after bold header")
+				}
+				// Data rows must never be colored.
+				for _, line := range strings.Split(out, "\n") {
+					if strings.Contains(line, "Alice") && strings.Contains(line, "\x1b[") {
+						t.Errorf("data row should not contain ANSI codes: %q", line)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestPrintJSON_neverColored(t *testing.T) {
+	var buf bytes.Buffer
+	f := New(&buf, FormatJSON, false)
+	f.color = true // even with color on, JSON stays plain
+
+	if err := f.PrintJSON(map[string]any{"name": "Alice"}); err != nil {
+		t.Fatalf("PrintJSON returned error: %v", err)
+	}
+
+	if strings.Contains(buf.String(), "\x1b[") {
+		t.Errorf("JSON output should never contain ANSI codes: %q", buf.String())
 	}
 }
 
