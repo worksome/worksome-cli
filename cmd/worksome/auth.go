@@ -151,8 +151,9 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 		},
 	}
 
-	cmd.Flags().StringVar(&profileName, "profile", "default", "Profile name to save token under")
-	cmd.Flags().StringVar(&tokenFlag, "token", "", "Personal Access Token (skips interactive prompt)")
+	// Same shorthands as the root persistent flags these shadow, so -p/-t keep working
+	cmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile name to save token under")
+	cmd.Flags().StringVarP(&tokenFlag, "token", "t", "", "Personal Access Token (skips interactive prompt)")
 	cmd.Flags().StringVar(&endpointFlag, "endpoint", "", "API endpoint URL (default: https://api.worksome.com/graphql)")
 	return cmd
 }
@@ -181,6 +182,10 @@ func newAuthStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Resolve profile like the client factory: flag > WORKSOME_PROFILE > config
+			profileFlag, _ := cmd.Root().PersistentFlags().GetString("profile")
+			cfg.CurrentProfile = cfg.ResolveProfile(profileFlag)
 
 			// Check if env vars are overriding profile settings
 			envToken := os.Getenv("WORKSOME_API_TOKEN")
@@ -263,7 +268,9 @@ func newAuthLogoutCmd() *cobra.Command {
 				return err
 			}
 
-			profileName := cfg.CurrentProfile
+			// Resolve profile like the client factory: flag > WORKSOME_PROFILE > config
+			profileFlag, _ := cmd.Root().PersistentFlags().GetString("profile")
+			profileName := cfg.ResolveProfile(profileFlag)
 			if len(args) > 0 {
 				profileName = args[0]
 			}
