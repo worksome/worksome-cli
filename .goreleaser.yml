@@ -22,21 +22,32 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "worksome_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: checksums.txt
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: worksome
+    repository:
       owner: worksome
       name: homebrew-tap
-    name: worksome
+      # GITHUB_TOKEN cannot push to another repo; needs a PAT with write access to worksome/homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/worksome/worksome-cli
     description: CLI for the Worksome API
-    install: |
-      bin.install "worksome"
+    # Cask URLs point at this repo's release assets, which are private until the
+    # repo goes public — publishing the cask now would break `brew install` for
+    # anyone without repo access. Flip to false when worksome-cli becomes public.
+    skip_upload: true
+    # Unsigned binary: strip the quarantine attribute so Gatekeeper doesn't block it.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/worksome"]
+          end
