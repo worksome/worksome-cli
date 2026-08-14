@@ -448,6 +448,7 @@ func (p *parser) buildResources() []Resource {
 		for _, mName := range override.Mutations {
 			if f, ok := mutations[mName]; ok {
 				op := p.fieldToOperation(f, OperationMutation, name)
+				op.CLIName = p.deriveMutationCLIName(mName, name)
 				res.Mutations = append(res.Mutations, op)
 				claimed[mName] = true
 			}
@@ -937,6 +938,7 @@ func (p *parser) resolveInputFields(op *Operation) {
 	}
 
 	op.InputTypeName = arg.Type.Name
+	op.InputFieldCount = len(inputDef.Fields)
 
 	for _, f := range inputDef.Fields {
 		ref := p.resolveType(f.Type)
