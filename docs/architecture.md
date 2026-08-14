@@ -16,7 +16,7 @@
 │           │                             │                    │
 │  ┌────────▼─────────┐          ┌────────▼─────────┐          │
 │  │ Generated Commands│◄─────────│  Codegen Engine   │          │
-│  │ (80 resources)    │  output  │  Parser + Gen     │          │
+│  │ (64 resources)    │  output  │  Parser + Gen     │          │
 │  └────────┬─────────┘          └────────┬─────────┘          │
 │           │                             │                    │
 │  ┌────────▼─────────┐          ┌────────▼─────────┐          │
@@ -116,7 +116,7 @@ The parser automatically groups GraphQL operations into CLI resource groups:
 | `create<Resource>(input: ...)` | `createJob(input: CreateJobInput!)` | `worksome jobs create` |
 | `update<Resource>(input: ...)` | `updateJob(input: UpdateJobInput!)` | `worksome jobs update` |
 | `delete<Resource>(input: ...)` | `deleteProject(input: ...)` | `worksome projects delete` |
-| `<verb><Resource>(input: ...)` | `terminateHire(input: ...)` | `worksome hires terminate-hire` |
+| `<verb><Resource>(input: ...)` | `terminateHire(input: ...)` | `worksome hires terminate` |
 
 Operations that don't follow conventions are mapped via `schema/overrides.yaml`.
 

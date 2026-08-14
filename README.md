@@ -1,16 +1,21 @@
 # worksome-cli
 
-A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — 80 resource groups, 197+ operations. Designed for both human users and AI agents.
+A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — 64 resource groups, 174 operations. Designed for both human users and AI agents.
 
 ## Install
 
 ```bash
-# From source
-go install github.com/worksome/worksome-cli/cmd/worksome@latest
+# From source (includes version and commit metadata)
+make install
 
-# Or build locally
+# Or build a local binary
 make build
+
+# Plain go install (no version metadata)
+go install ./cmd/worksome/
 ```
+
+Pushing a `v*` tag builds and attaches binaries for macOS, Linux, and Windows to the [GitHub release](https://github.com/worksome/worksome-cli/releases). A Homebrew cask (`brew install worksome/tap/worksome`) is prepared and will be published automatically once the repository is public.
 
 ## Quick Start
 
@@ -48,7 +53,9 @@ The CLI uses Personal Access Tokens. Token resolution order:
 ```bash
 worksome auth login           # Interactive setup
 worksome auth status          # Show current auth state
+worksome auth list            # List configured profiles
 worksome auth switch <name>   # Switch profile
+worksome auth logout [name]   # Remove a profile and its credentials
 ```
 
 ### Profiles
@@ -78,6 +85,7 @@ worksome hires list --first 50    # Custom page size
 worksome hires list --page 3      # Specific page
 worksome hires list --all         # Fetch all pages
 worksome hires list --status ACTIVE --search "john"
+worksome hires list --watch          # Poll and refresh periodically
 ```
 
 ### Mutations
@@ -88,11 +96,11 @@ Mutations accept input via CLI flags (for scalar fields) or a JSON file:
 # Using flags
 worksome jobs create --company <id> --name "My Job"
 
-# Using a JSON file
-worksome hires terminate-hire --input terminate.json
+# Using a JSON file (use `-` for stdin)
+worksome hires terminate --input terminate.json
 
 # Mix both (flags override file values)
-worksome hires terminate-hire --input base.json --reason "COMPLETED"
+worksome hires terminate --input base.json --reason "PROJECT_COMPLETED_EARLY"
 
 # Dry run (shows the query without executing)
 worksome jobs create --company <id> --name "Test" --dry-run
@@ -109,6 +117,9 @@ Override with `--output`:
 ```bash
 worksome hires list --output json     # Force JSON
 worksome hires list --output table    # Force table
+worksome hires list --columns id,status,currency  # Select table columns
+worksome hires list --fields id,worker.name       # Select output fields
+worksome hires list --filter "status=ACTIVE"      # Shorthand for filter flags
 ```
 
 ## Global Flags
@@ -120,8 +131,12 @@ worksome hires list --output table    # Force table
 | `--profile` | Config profile name |
 | `--output` | Output format: `json`, `table` |
 | `--verbose` | Show request/response details |
+| `--columns` | Comma-separated list of columns for table output |
+| `--fields` | Comma-separated list of fields to include in output |
+| `--filter` | Key=value filter pairs (e.g., `status=ACTIVE,currency=DKK`) |
 | `--no-color` | Disable colored output |
 | `--dry-run` | Show query without executing |
+| `--timeout` | Request timeout in seconds (default 30) |
 
 ## Shell Completion
 
@@ -134,6 +149,9 @@ source <(worksome completion zsh)
 
 # Fish
 worksome completion fish | source
+
+# PowerShell
+worksome completion powershell | Out-String | Invoke-Expression
 ```
 
 ## Schema Sync & Code Generation
@@ -155,10 +173,13 @@ make verify-generated
 ## Development
 
 ```bash
-make build          # Build binary
+make build          # Build binary with version metadata
+make install        # Install to $GOPATH/bin with version metadata
 make test           # Run unit tests
 make lint           # Run linter
 make generate       # Regenerate from schema
+make sync-schema    # Sync schema (from platform repo or via introspection)
+make sync           # Sync schema + regenerate in one step
 make clean          # Remove build artifacts
 ```
 
@@ -167,12 +188,13 @@ make clean          # Remove build artifacts
 ```
 cmd/worksome/       CLI entrypoint, auth, completion commands
 cmd/generate/       Standalone codegen tool
+cmd/introspect/     Schema introspection sync tool
 internal/
   client/           GraphQL HTTP client with retry and pagination
   codegen/          Schema parser + code generator
   config/           Profile and token management
   generated/        Generated code (committed, reviewed)
-    commands/       Cobra commands (80 resource groups)
+    commands/       Cobra commands (64 resource groups)
     queries/        GraphQL query/mutation functions
     types/          Go types, enums, input objects
   output/           JSON/table formatter with TTY detection
