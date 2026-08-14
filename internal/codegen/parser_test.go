@@ -556,6 +556,8 @@ func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
 		{"duplicateJob", "jobs", "duplicate"},
 		// Multi-word mutations — singular suffix still stripped
 		{"attributeRecruiterToHire", "hires", "attribute-recruiter-to"},
+		// Stripping the whole resource name leaves the leading verb
+		{"storeBankDetails", "bank-details", "store"},
 		// CRUD prefix still works as before
 		{"createJob", "jobs", "create"},
 		{"deleteJob", "jobs", "delete"},
@@ -566,6 +568,83 @@ func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
 		if got != tt.expectedCLI {
 			t.Errorf("deriveMutationCLIName(%q, %q) = %q, want %q", tt.mutation, tt.resource, got, tt.expectedCLI)
 		}
+	}
+}
+
+func TestOverrideMutationCLIName(t *testing.T) {
+	// Mutations claimed by an overrides resource must still get a CLI verb.
+	// Stripping the resource name from "storeBankDetails" under "bank-details"
+	// leaves the leading verb "store" — never an empty command name.
+	schema := `
+type Query {
+	viewer: User!
+}
+
+type Mutation {
+	"Update the bank account details."
+	storeBankDetails(input: StoreBankDetailsInput!): BankDetails!
+}
+
+type User {
+	id: ID!
+	name: String!
+}
+
+type BankDetails {
+	id: ID!
+	name: String!
+}
+
+input StoreBankDetailsInput {
+	accountId: ID!
+	name: String
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+	overridesContent := `
+resources:
+  bank-details:
+    queries: []
+    mutations: ["storeBankDetails"]
+`
+	if err := os.WriteFile(overridesPath, []byte(overridesContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var found *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "bank-details" {
+			found = &parsed.Resources[i]
+			break
+		}
+	}
+	if found == nil {
+		var names []string
+		for _, r := range parsed.Resources {
+			names = append(names, r.Name)
+		}
+		t.Fatalf("expected 'bank-details' resource, got resources: %v", names)
+	}
+
+	if len(found.Mutations) != 1 {
+		t.Fatalf("expected 1 mutation, got %d", len(found.Mutations))
+	}
+	if got := found.Mutations[0].CLIName; got != "store" {
+		t.Errorf("storeBankDetails CLI name = %q, want %q", got, "store")
+	}
+	if found.Hoisted {
+		t.Error("bank-details should not be hoisted (verb 'store' differs from resource name)")
 	}
 }
 

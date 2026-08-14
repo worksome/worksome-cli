@@ -138,6 +138,97 @@ type PaginatorInfo {
 	}
 }
 
+func TestGenerateEmptyInputGuard(t *testing.T) {
+	// Mutations whose input type declares fields must refuse to run with an
+	// empty input object instead of sending {} to the API. Mutations without
+	// an input type must not get the guard.
+	schema := `
+type Query {
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	"Create a job."
+	createJob(input: CreateJobInput!): Job!
+	"Accept a bid."
+	acceptBid(input: AcceptBidInput!): Job!
+	"Regenerate the report."
+	generateReport: Job!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Job!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+
+input CreateJobInput {
+	title: String!
+	description: String
+}
+
+input AcceptBidInput {
+	id: ID!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	outputDir := t.TempDir()
+	gen := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli")
+
+	if err := gen.Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	cmdsBytes, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatalf("reading generated commands: %v", err)
+	}
+	cmds := string(cmdsBytes)
+
+	// The shared helper and its error message must be present
+	if !strings.Contains(cmds, "func requireInput(vars map[string]any) error") {
+		t.Error("expected generated commands to define the requireInput helper")
+	}
+	if !strings.Contains(cmds, `no input provided: pass --input or set flags (see --help)`) {
+		t.Error("expected generated commands to contain the empty-input error message")
+	}
+
+	// Both mutations with input types get the guard: createJob (subcommand)
+	// and acceptBid (hoisted). generateReport has no input type — no guard.
+	guardCalls := strings.Count(cmds, "if err := requireInput(vars); err != nil")
+	if guardCalls != 2 {
+		t.Errorf("expected 2 requireInput guard calls (createJob, acceptBid), got %d", guardCalls)
+	}
+
+	// The old non-fatal warning must be gone
+	if strings.Contains(cmds, "Warning: no input provided") {
+		t.Error("generated commands should error on empty input, not just warn")
+	}
+}
+
 func TestGenerateFromFullSchema(t *testing.T) {
 	schemaPath := "../../schema/schema.graphql"
 	overridesPath := "../../schema/overrides.yaml"

@@ -399,6 +399,15 @@ func readInputFile(path string) (map[string]any, error) {
 	return result, nil
 }
 
+// requireInput errors when a mutation whose input type declares fields is
+// about to be sent an empty input object.
+func requireInput(vars map[string]any) error {
+	if input, ok := vars["input"].(map[string]any); ok && len(input) > 0 {
+		return nil
+	}
+	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
+}
+
 {{range $res := .Resources}}
 {{- if $res.TableColumns}}
 var {{$res.GoName | lower}}Columns = []output.Column{
@@ -478,9 +487,12 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 			}
 			{{end -}}
 			vars["input"] = inputObj
+			{{end -}}
 
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			{{if $mut.InputFieldCount -}}
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			{{end -}}
 
@@ -902,9 +914,12 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 			}
 			{{end -}}
 			vars["input"] = inputObj
+			{{end -}}
 
-			if len(inputObj) == 0 && inputFile == "" {
-				fmt.Fprintln(os.Stderr, "Warning: no input provided; use --input <file> or set individual flags")
+			{{if $mut.InputFieldCount -}}
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
 			}
 			{{end -}}
 

@@ -46,6 +46,7 @@ type Operation struct {
 	Deprecated       bool
 	DeprecatedReason string
 	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
+	InputFieldCount  int           // For mutations: total field count on the input type (including complex fields not exposed as flags)
 	InputFields      []Argument    // For mutations: flattened scalar/enum/ID fields from the input type
 	TableColumns     []TableColumn // Columns for table output (used by mutations)
 	InputExample     string        // For mutations: pretty-printed JSON example of the full input structure

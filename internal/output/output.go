@@ -30,17 +30,17 @@ type Column struct {
 
 // Formatter writes structured data as either JSON or an ASCII table.
 type Formatter struct {
-	format  Format
-	noColor bool
-	writer  io.Writer
+	format Format
+	color  bool
+	writer io.Writer
 }
 
 // New creates a Formatter with an explicit format choice.
 func New(w io.Writer, format Format, noColor bool) *Formatter {
 	return &Formatter{
-		format:  format,
-		noColor: noColor,
-		writer:  w,
+		format: format,
+		color:  colorEnabled(w, noColor),
+		writer: w,
 	}
 }
 
@@ -48,15 +48,24 @@ func New(w io.Writer, format Format, noColor bool) *Formatter {
 // table when the writer is a terminal, JSON otherwise.
 func Auto(w io.Writer, noColor bool) *Formatter {
 	f := FormatJSON
-	if isTTY(w) {
+	if isTerminal(w) {
 		f = FormatTable
 	}
 
 	return &Formatter{
-		format:  f,
-		noColor: noColor,
-		writer:  w,
+		format: f,
+		color:  colorEnabled(w, noColor),
+		writer: w,
 	}
+}
+
+// isTerminal detects whether a writer is a TTY; a variable so tests can stub it.
+var isTerminal = isTTY
+
+// colorEnabled reports whether ANSI color should be used: only when writing
+// to a terminal, and neither --no-color nor the NO_COLOR env var disables it.
+func colorEnabled(w io.Writer, noColor bool) bool {
+	return !noColor && os.Getenv("NO_COLOR") == "" && isTerminal(w)
 }
 
 // Format returns the configured output format.
@@ -98,6 +107,9 @@ func (f *Formatter) PrintTable(data any, columns []Column) error {
 
 	tbl := table.New(headers...)
 	tbl.WithWriter(f.writer)
+	if f.color {
+		tbl.WithHeaderFormatter(boldHeaderFormatter)
+	}
 
 	for _, row := range rows {
 		vals := make([]interface{}, len(row))
@@ -110,6 +122,17 @@ func (f *Formatter) PrintTable(data any, columns []Column) error {
 	tbl.Print()
 
 	return nil
+}
+
+// boldHeaderFormatter renders table headers in bold using ANSI escape codes.
+// The reset goes before the trailing newline so it stays on the header line.
+func boldHeaderFormatter(format string, vals ...interface{}) string {
+	s := fmt.Sprintf(format, vals...)
+	nl := ""
+	if strings.HasSuffix(s, "\n") {
+		s, nl = strings.TrimSuffix(s, "\n"), "\n"
+	}
+	return "\x1b[1m" + s + "\x1b[0m" + nl
 }
 
 // ExtractFields pulls column values out of data for each row.

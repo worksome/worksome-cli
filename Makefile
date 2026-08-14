@@ -16,6 +16,10 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)"
 build:
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/worksome/
 
+## install: Install the CLI binary to $GOPATH/bin
+install:
+	go install $(LDFLAGS) ./cmd/worksome/
+
 ## test: Run all unit tests
 test:
 	go test ./internal/... -v -count=1

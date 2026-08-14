@@ -18,9 +18,18 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+      - name: Verify generated code
+        run: |
+          go run ./cmd/generate/
+          git diff --exit-code internal/generated/
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only used when brews skip_upload is flipped off (public repo);
+          # empty until the HOMEBREW_TAP_GITHUB_TOKEN secret is configured.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
