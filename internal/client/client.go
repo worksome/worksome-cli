@@ -413,3 +413,25 @@ func pow(base, exp int) int {
 	}
 	return result
 }
+
+// WrapOperation prefixes an error with the GraphQL operation name for context.
+//
+// A GraphQL error already renders its own response path, whose first segment
+// is usually the operation name, so a naive prefix produced "profile: profile:
+// Unauthenticated." The prefix is skipped when it would just be repeated, and
+// still applied to transport and decode errors, which carry no location.
+func WrapOperation(operation string, err error) error {
+	if err == nil {
+		return nil
+	}
+	// Skip the prefix when the message already opens with this operation as a
+	// whole path segment: "profile: ..." or "hires.data[0].field: ...". The
+	// delimiter check stops "hire" matching an error located at "hires".
+	if msg := err.Error(); strings.HasPrefix(msg, operation) {
+		switch rest := msg[len(operation):]; {
+		case rest == "", rest[0] == ':', rest[0] == '.', rest[0] == '[':
+			return err
+		}
+	}
+	return fmt.Errorf("%s: %w", operation, err)
+}

@@ -236,7 +236,6 @@ package queries
 
 import (
 	"context"
-	"fmt"
 
 	"{{.ModulePath}}/internal/client"
 )
@@ -261,7 +260,7 @@ func (q *Querier) {{.GetQuery.GoName}}(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("{{.GetQuery.Name}}: %w", err)
+		return nil, client.WrapOperation("{{.GetQuery.Name}}", err)
 	}
 	if data, ok := result["{{.GetQuery.Name}}"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -281,7 +280,7 @@ func (q *Querier) {{.ListQuery.GoName}}(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("{{.ListQuery.Name}}: %w", err)
+		return nil, client.WrapOperation("{{.ListQuery.Name}}", err)
 	}
 	return result, nil
 }
@@ -296,7 +295,7 @@ func (q *Querier) {{.GoName}}(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("{{.Name}}: %w", err)
+		return nil, client.WrapOperation("{{.Name}}", err)
 	}
 	if data, ok := result["{{.Name}}"]; ok {
 		if m, ok := data.(map[string]any); ok {

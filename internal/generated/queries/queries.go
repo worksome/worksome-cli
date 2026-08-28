@@ -3,7 +3,6 @@ package queries
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/worksome/worksome-cli/internal/client"
 )
@@ -26,7 +25,7 @@ func (q *Querier) AcceptBid(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("acceptBid: %w", err)
+		return nil, client.WrapOperation("acceptBid", err)
 	}
 	if data, ok := result["acceptBid"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -44,7 +43,7 @@ func (q *Querier) Accounts(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("accounts: %w", err)
+		return nil, client.WrapOperation("accounts", err)
 	}
 	if data, ok := result["accounts"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -62,7 +61,7 @@ func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvalApprovable: %w", err)
+		return nil, client.WrapOperation("approvalApprovable", err)
 	}
 	if data, ok := result["approvalApprovable"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -80,7 +79,7 @@ func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) 
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvalApprovables: %w", err)
+		return nil, client.WrapOperation("approvalApprovables", err)
 	}
 	return result, nil
 }
@@ -93,7 +92,7 @@ func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("actionApprovalApprovable: %w", err)
+		return nil, client.WrapOperation("actionApprovalApprovable", err)
 	}
 	if data, ok := result["actionApprovalApprovable"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -111,7 +110,7 @@ func (q *Querier) ApprovalRule(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvalRule: %w", err)
+		return nil, client.WrapOperation("approvalRule", err)
 	}
 	if data, ok := result["approvalRule"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -129,7 +128,7 @@ func (q *Querier) ApprovalRules(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvalRules: %w", err)
+		return nil, client.WrapOperation("approvalRules", err)
 	}
 	return result, nil
 }
@@ -142,7 +141,7 @@ func (q *Querier) CreateApprovalRule(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createApprovalRule: %w", err)
+		return nil, client.WrapOperation("createApprovalRule", err)
 	}
 	if data, ok := result["createApprovalRule"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -160,7 +159,7 @@ func (q *Querier) ApprovalStates(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvalStates: %w", err)
+		return nil, client.WrapOperation("approvalStates", err)
 	}
 	return result, nil
 }
@@ -173,7 +172,7 @@ func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approval: %w", err)
+		return nil, client.WrapOperation("approval", err)
 	}
 	if data, ok := result["approval"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -191,7 +190,7 @@ func (q *Querier) Approvals(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvals: %w", err)
+		return nil, client.WrapOperation("approvals", err)
 	}
 	return result, nil
 }
@@ -204,7 +203,7 @@ func (q *Querier) CreateApproval(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createApproval: %w", err)
+		return nil, client.WrapOperation("createApproval", err)
 	}
 	if data, ok := result["createApproval"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -222,7 +221,7 @@ func (q *Querier) UpdateApproval(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateApproval: %w", err)
+		return nil, client.WrapOperation("updateApproval", err)
 	}
 	if data, ok := result["updateApproval"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -240,7 +239,7 @@ func (q *Querier) Approver(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approver: %w", err)
+		return nil, client.WrapOperation("approver", err)
 	}
 	if data, ok := result["approver"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -258,7 +257,7 @@ func (q *Querier) Approvers(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approvers: %w", err)
+		return nil, client.WrapOperation("approvers", err)
 	}
 	return result, nil
 }
@@ -271,7 +270,7 @@ func (q *Querier) CreateApprover(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createApprover: %w", err)
+		return nil, client.WrapOperation("createApprover", err)
 	}
 	if data, ok := result["createApprover"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -289,7 +288,7 @@ func (q *Querier) UpdateApprover(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateApprover: %w", err)
+		return nil, client.WrapOperation("updateApprover", err)
 	}
 	if data, ok := result["updateApprover"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -307,7 +306,7 @@ func (q *Querier) StoreBankDetails(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("storeBankDetails: %w", err)
+		return nil, client.WrapOperation("storeBankDetails", err)
 	}
 	if data, ok := result["storeBankDetails"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -325,7 +324,7 @@ func (q *Querier) RunBatchAction(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("runBatchAction: %w", err)
+		return nil, client.WrapOperation("runBatchAction", err)
 	}
 	if data, ok := result["runBatchAction"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -343,7 +342,7 @@ func (q *Querier) Batch(ctx context.Context, vars map[string]any) (map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("batch: %w", err)
+		return nil, client.WrapOperation("batch", err)
 	}
 	if data, ok := result["batch"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -361,7 +360,7 @@ func (q *Querier) Batches(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("batches: %w", err)
+		return nil, client.WrapOperation("batches", err)
 	}
 	return result, nil
 }
@@ -374,7 +373,7 @@ func (q *Querier) CreateBatch(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createBatch: %w", err)
+		return nil, client.WrapOperation("createBatch", err)
 	}
 	if data, ok := result["createBatch"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -392,7 +391,7 @@ func (q *Querier) Bid(ctx context.Context, vars map[string]any) (map[string]any,
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("bid: %w", err)
+		return nil, client.WrapOperation("bid", err)
 	}
 	if data, ok := result["bid"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -410,7 +409,7 @@ func (q *Querier) Bids(ctx context.Context, vars map[string]any) (map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("bids: %w", err)
+		return nil, client.WrapOperation("bids", err)
 	}
 	return result, nil
 }
@@ -423,7 +422,7 @@ func (q *Querier) BlockTrustedContact(ctx context.Context, vars map[string]any) 
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("blockTrustedContact: %w", err)
+		return nil, client.WrapOperation("blockTrustedContact", err)
 	}
 	if data, ok := result["blockTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -441,7 +440,7 @@ func (q *Querier) InviteCandidateToOnboard(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("inviteCandidateToOnboard: %w", err)
+		return nil, client.WrapOperation("inviteCandidateToOnboard", err)
 	}
 	if data, ok := result["inviteCandidateToOnboard"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -459,7 +458,7 @@ func (q *Querier) Classification(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("classification: %w", err)
+		return nil, client.WrapOperation("classification", err)
 	}
 	if data, ok := result["classification"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -477,7 +476,7 @@ func (q *Querier) Classifications(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("classifications: %w", err)
+		return nil, client.WrapOperation("classifications", err)
 	}
 	return result, nil
 }
@@ -490,7 +489,7 @@ func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("company: %w", err)
+		return nil, client.WrapOperation("company", err)
 	}
 	if data, ok := result["company"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -508,7 +507,7 @@ func (q *Querier) Companies(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companies: %w", err)
+		return nil, client.WrapOperation("companies", err)
 	}
 	return result, nil
 }
@@ -521,7 +520,7 @@ func (q *Querier) CompanyRecruiterRegions(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companyRecruiterRegions: %w", err)
+		return nil, client.WrapOperation("companyRecruiterRegions", err)
 	}
 	if data, ok := result["companyRecruiterRegions"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -539,7 +538,7 @@ func (q *Querier) CompanyRecruiter(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companyRecruiter: %w", err)
+		return nil, client.WrapOperation("companyRecruiter", err)
 	}
 	if data, ok := result["companyRecruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -557,7 +556,7 @@ func (q *Querier) CompanyRecruiters(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companyRecruiters: %w", err)
+		return nil, client.WrapOperation("companyRecruiters", err)
 	}
 	return result, nil
 }
@@ -570,7 +569,7 @@ func (q *Querier) CreateCompanyRecruiter(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createCompanyRecruiter: %w", err)
+		return nil, client.WrapOperation("createCompanyRecruiter", err)
 	}
 	if data, ok := result["createCompanyRecruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -588,7 +587,7 @@ func (q *Querier) DeleteCompanyRecruiter(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteCompanyRecruiter: %w", err)
+		return nil, client.WrapOperation("deleteCompanyRecruiter", err)
 	}
 	if data, ok := result["deleteCompanyRecruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -606,7 +605,7 @@ func (q *Querier) InviteCompanyRecruiter(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("inviteCompanyRecruiter: %w", err)
+		return nil, client.WrapOperation("inviteCompanyRecruiter", err)
 	}
 	if data, ok := result["inviteCompanyRecruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -624,7 +623,7 @@ func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateCompanyRecruiter: %w", err)
+		return nil, client.WrapOperation("updateCompanyRecruiter", err)
 	}
 	if data, ok := result["updateCompanyRecruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -642,7 +641,7 @@ func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companySupplier: %w", err)
+		return nil, client.WrapOperation("companySupplier", err)
 	}
 	if data, ok := result["companySupplier"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -660,7 +659,7 @@ func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("companySuppliers: %w", err)
+		return nil, client.WrapOperation("companySuppliers", err)
 	}
 	return result, nil
 }
@@ -673,7 +672,7 @@ func (q *Querier) Compliance(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("compliance: %w", err)
+		return nil, client.WrapOperation("compliance", err)
 	}
 	if data, ok := result["compliance"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -691,7 +690,7 @@ func (q *Querier) Contract(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("contract: %w", err)
+		return nil, client.WrapOperation("contract", err)
 	}
 	if data, ok := result["contract"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -709,7 +708,7 @@ func (q *Querier) Contracts(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("contracts: %w", err)
+		return nil, client.WrapOperation("contracts", err)
 	}
 	return result, nil
 }
@@ -722,7 +721,7 @@ func (q *Querier) Conversation(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("conversation: %w", err)
+		return nil, client.WrapOperation("conversation", err)
 	}
 	if data, ok := result["conversation"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -740,7 +739,7 @@ func (q *Querier) Conversations(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("conversations: %w", err)
+		return nil, client.WrapOperation("conversations", err)
 	}
 	return result, nil
 }
@@ -753,7 +752,7 @@ func (q *Querier) Countries(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("countries: %w", err)
+		return nil, client.WrapOperation("countries", err)
 	}
 	if data, ok := result["countries"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -771,7 +770,7 @@ func (q *Querier) CustomField(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("customField: %w", err)
+		return nil, client.WrapOperation("customField", err)
 	}
 	if data, ok := result["customField"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -789,7 +788,7 @@ func (q *Querier) CustomFields(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("customFields: %w", err)
+		return nil, client.WrapOperation("customFields", err)
 	}
 	return result, nil
 }
@@ -802,7 +801,7 @@ func (q *Querier) CreateCustomField(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createCustomField: %w", err)
+		return nil, client.WrapOperation("createCustomField", err)
 	}
 	if data, ok := result["createCustomField"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -820,7 +819,7 @@ func (q *Querier) DeleteCustomField(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteCustomField: %w", err)
+		return nil, client.WrapOperation("deleteCustomField", err)
 	}
 	if data, ok := result["deleteCustomField"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -838,7 +837,7 @@ func (q *Querier) UpdateCustomField(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateCustomField: %w", err)
+		return nil, client.WrapOperation("updateCustomField", err)
 	}
 	if data, ok := result["updateCustomField"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -856,7 +855,7 @@ func (q *Querier) ChangeEmail(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("changeEmail: %w", err)
+		return nil, client.WrapOperation("changeEmail", err)
 	}
 	if data, ok := result["changeEmail"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -874,7 +873,7 @@ func (q *Querier) SendVerificationEmail(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("sendVerificationEmail: %w", err)
+		return nil, client.WrapOperation("sendVerificationEmail", err)
 	}
 	if data, ok := result["sendVerificationEmail"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -892,7 +891,7 @@ func (q *Querier) ApproveEmploymentChanges(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approveEmploymentChanges: %w", err)
+		return nil, client.WrapOperation("approveEmploymentChanges", err)
 	}
 	if data, ok := result["approveEmploymentChanges"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -910,7 +909,7 @@ func (q *Querier) Employment(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("employment: %w", err)
+		return nil, client.WrapOperation("employment", err)
 	}
 	if data, ok := result["employment"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -928,7 +927,7 @@ func (q *Querier) Employments(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("employments: %w", err)
+		return nil, client.WrapOperation("employments", err)
 	}
 	return result, nil
 }
@@ -941,7 +940,7 @@ func (q *Querier) OnboardEmployment(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("onboardEmployment: %w", err)
+		return nil, client.WrapOperation("onboardEmployment", err)
 	}
 	if data, ok := result["onboardEmployment"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -959,7 +958,7 @@ func (q *Querier) CreateExport(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createExport: %w", err)
+		return nil, client.WrapOperation("createExport", err)
 	}
 	if data, ok := result["createExport"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -977,7 +976,7 @@ func (q *Querier) File(ctx context.Context, vars map[string]any) (map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("file: %w", err)
+		return nil, client.WrapOperation("file", err)
 	}
 	if data, ok := result["file"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -995,7 +994,7 @@ func (q *Querier) Files(ctx context.Context, vars map[string]any) (map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("files: %w", err)
+		return nil, client.WrapOperation("files", err)
 	}
 	return result, nil
 }
@@ -1008,7 +1007,7 @@ func (q *Querier) UploadFiles(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("uploadFiles: %w", err)
+		return nil, client.WrapOperation("uploadFiles", err)
 	}
 	if data, ok := result["uploadFiles"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1026,7 +1025,7 @@ func (q *Querier) MarkFilesAsUploaded(ctx context.Context, vars map[string]any) 
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("markFilesAsUploaded: %w", err)
+		return nil, client.WrapOperation("markFilesAsUploaded", err)
 	}
 	if data, ok := result["markFilesAsUploaded"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1044,7 +1043,7 @@ func (q *Querier) ForwardCandidate(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("forwardCandidate: %w", err)
+		return nil, client.WrapOperation("forwardCandidate", err)
 	}
 	if data, ok := result["forwardCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1062,7 +1061,7 @@ func (q *Querier) Gate(ctx context.Context, vars map[string]any) (map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("gate: %w", err)
+		return nil, client.WrapOperation("gate", err)
 	}
 	if data, ok := result["gate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1080,7 +1079,7 @@ func (q *Querier) Hire(ctx context.Context, vars map[string]any) (map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("hire: %w", err)
+		return nil, client.WrapOperation("hire", err)
 	}
 	if data, ok := result["hire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1098,7 +1097,7 @@ func (q *Querier) Hires(ctx context.Context, vars map[string]any) (map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("hires: %w", err)
+		return nil, client.WrapOperation("hires", err)
 	}
 	return result, nil
 }
@@ -1111,7 +1110,7 @@ func (q *Querier) AttributeRecruiterToHire(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("attributeRecruiterToHire: %w", err)
+		return nil, client.WrapOperation("attributeRecruiterToHire", err)
 	}
 	if data, ok := result["attributeRecruiterToHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1129,7 +1128,7 @@ func (q *Querier) AttributeSupplierToHire(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("attributeSupplierToHire: %w", err)
+		return nil, client.WrapOperation("attributeSupplierToHire", err)
 	}
 	if data, ok := result["attributeSupplierToHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1147,7 +1146,7 @@ func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("cancelHire: %w", err)
+		return nil, client.WrapOperation("cancelHire", err)
 	}
 	if data, ok := result["cancelHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1165,7 +1164,7 @@ func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createDraftHire: %w", err)
+		return nil, client.WrapOperation("createDraftHire", err)
 	}
 	if data, ok := result["createDraftHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1183,7 +1182,7 @@ func (q *Querier) RejectHire(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("rejectHire: %w", err)
+		return nil, client.WrapOperation("rejectHire", err)
 	}
 	if data, ok := result["rejectHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1201,7 +1200,7 @@ func (q *Querier) RemoveRecruiterFromHire(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("removeRecruiterFromHire: %w", err)
+		return nil, client.WrapOperation("removeRecruiterFromHire", err)
 	}
 	if data, ok := result["removeRecruiterFromHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1219,7 +1218,7 @@ func (q *Querier) ShareHire(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("shareHire: %w", err)
+		return nil, client.WrapOperation("shareHire", err)
 	}
 	if data, ok := result["shareHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1237,7 +1236,7 @@ func (q *Querier) TerminateHire(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("terminateHire: %w", err)
+		return nil, client.WrapOperation("terminateHire", err)
 	}
 	if data, ok := result["terminateHire"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1255,7 +1254,7 @@ func (q *Querier) IncomingJobs(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("incomingJobs: %w", err)
+		return nil, client.WrapOperation("incomingJobs", err)
 	}
 	return result, nil
 }
@@ -1268,7 +1267,7 @@ func (q *Querier) Industry(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("industry: %w", err)
+		return nil, client.WrapOperation("industry", err)
 	}
 	if data, ok := result["industry"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1286,7 +1285,7 @@ func (q *Querier) Industries(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("industries: %w", err)
+		return nil, client.WrapOperation("industries", err)
 	}
 	return result, nil
 }
@@ -1299,7 +1298,7 @@ func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("inheritedCustomFields: %w", err)
+		return nil, client.WrapOperation("inheritedCustomFields", err)
 	}
 	return result, nil
 }
@@ -1312,7 +1311,7 @@ func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("generateInviteLink: %w", err)
+		return nil, client.WrapOperation("generateInviteLink", err)
 	}
 	if data, ok := result["generateInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1330,7 +1329,7 @@ func (q *Querier) GeneratePersonalInviteLink(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("generatePersonalInviteLink: %w", err)
+		return nil, client.WrapOperation("generatePersonalInviteLink", err)
 	}
 	if data, ok := result["generatePersonalInviteLink"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1348,7 +1347,7 @@ func (q *Querier) InvoiceRow(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("invoiceRow: %w", err)
+		return nil, client.WrapOperation("invoiceRow", err)
 	}
 	if data, ok := result["invoiceRow"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1366,7 +1365,7 @@ func (q *Querier) Invoice(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("invoice: %w", err)
+		return nil, client.WrapOperation("invoice", err)
 	}
 	if data, ok := result["invoice"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1384,7 +1383,7 @@ func (q *Querier) Invoices(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("invoices: %w", err)
+		return nil, client.WrapOperation("invoices", err)
 	}
 	return result, nil
 }
@@ -1397,7 +1396,7 @@ func (q *Querier) UpdateJobCandidatePreferred(ctx context.Context, vars map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateJobCandidatePreferred: %w", err)
+		return nil, client.WrapOperation("updateJobCandidatePreferred", err)
 	}
 	if data, ok := result["updateJobCandidatePreferred"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1415,7 +1414,7 @@ func (q *Querier) UpdateJobCandidateStatus(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateJobCandidateStatus: %w", err)
+		return nil, client.WrapOperation("updateJobCandidateStatus", err)
 	}
 	if data, ok := result["updateJobCandidateStatus"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1433,7 +1432,7 @@ func (q *Querier) UpdateJobCandidateStep(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateJobCandidateStep: %w", err)
+		return nil, client.WrapOperation("updateJobCandidateStep", err)
 	}
 	if data, ok := result["updateJobCandidateStep"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1451,7 +1450,7 @@ func (q *Querier) JobCandidate(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("jobCandidate: %w", err)
+		return nil, client.WrapOperation("jobCandidate", err)
 	}
 	if data, ok := result["jobCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1469,7 +1468,7 @@ func (q *Querier) JobCandidates(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("jobCandidates: %w", err)
+		return nil, client.WrapOperation("jobCandidates", err)
 	}
 	return result, nil
 }
@@ -1482,7 +1481,7 @@ func (q *Querier) CreateJobCandidate(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createJobCandidate: %w", err)
+		return nil, client.WrapOperation("createJobCandidate", err)
 	}
 	if data, ok := result["createJobCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1500,7 +1499,7 @@ func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("jobShares: %w", err)
+		return nil, client.WrapOperation("jobShares", err)
 	}
 	return result, nil
 }
@@ -1513,7 +1512,7 @@ func (q *Querier) CreateJobShare(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createJobShare: %w", err)
+		return nil, client.WrapOperation("createJobShare", err)
 	}
 	if data, ok := result["createJobShare"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1531,7 +1530,7 @@ func (q *Querier) RemoveJobShare(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("removeJobShare: %w", err)
+		return nil, client.WrapOperation("removeJobShare", err)
 	}
 	if data, ok := result["removeJobShare"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1549,7 +1548,7 @@ func (q *Querier) Job(ctx context.Context, vars map[string]any) (map[string]any,
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("job: %w", err)
+		return nil, client.WrapOperation("job", err)
 	}
 	if data, ok := result["job"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1567,7 +1566,7 @@ func (q *Querier) Jobs(ctx context.Context, vars map[string]any) (map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("jobs: %w", err)
+		return nil, client.WrapOperation("jobs", err)
 	}
 	return result, nil
 }
@@ -1580,7 +1579,7 @@ func (q *Querier) CreateJob(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createJob: %w", err)
+		return nil, client.WrapOperation("createJob", err)
 	}
 	if data, ok := result["createJob"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1598,7 +1597,7 @@ func (q *Querier) DuplicateJob(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("duplicateJob: %w", err)
+		return nil, client.WrapOperation("duplicateJob", err)
 	}
 	if data, ok := result["duplicateJob"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1616,7 +1615,7 @@ func (q *Querier) EndJob(ctx context.Context, vars map[string]any) (map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("endJob: %w", err)
+		return nil, client.WrapOperation("endJob", err)
 	}
 	if data, ok := result["endJob"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1634,7 +1633,7 @@ func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("setInternalBudgetOnJob: %w", err)
+		return nil, client.WrapOperation("setInternalBudgetOnJob", err)
 	}
 	if data, ok := result["setInternalBudgetOnJob"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1652,7 +1651,7 @@ func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateJob: %w", err)
+		return nil, client.WrapOperation("updateJob", err)
 	}
 	if data, ok := result["updateJob"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1670,7 +1669,7 @@ func (q *Querier) Milestone(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("milestone: %w", err)
+		return nil, client.WrapOperation("milestone", err)
 	}
 	if data, ok := result["milestone"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1688,7 +1687,7 @@ func (q *Querier) Milestones(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("milestones: %w", err)
+		return nil, client.WrapOperation("milestones", err)
 	}
 	return result, nil
 }
@@ -1701,7 +1700,7 @@ func (q *Querier) CreateMilestones(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createMilestones: %w", err)
+		return nil, client.WrapOperation("createMilestones", err)
 	}
 	if data, ok := result["createMilestones"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1719,7 +1718,7 @@ func (q *Querier) DeleteMilestones(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteMilestones: %w", err)
+		return nil, client.WrapOperation("deleteMilestones", err)
 	}
 	if data, ok := result["deleteMilestones"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1737,7 +1736,7 @@ func (q *Querier) UpdateMilestones(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateMilestones: %w", err)
+		return nil, client.WrapOperation("updateMilestones", err)
 	}
 	if data, ok := result["updateMilestones"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1755,7 +1754,7 @@ func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("multiFactor: %w", err)
+		return nil, client.WrapOperation("multiFactor", err)
 	}
 	if data, ok := result["multiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1773,7 +1772,7 @@ func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("multiFactors: %w", err)
+		return nil, client.WrapOperation("multiFactors", err)
 	}
 	return result, nil
 }
@@ -1786,7 +1785,7 @@ func (q *Querier) CreateSmsMultiFactor(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createSmsMultiFactor: %w", err)
+		return nil, client.WrapOperation("createSmsMultiFactor", err)
 	}
 	if data, ok := result["createSmsMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1804,7 +1803,7 @@ func (q *Querier) CreateTotpMultiFactor(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createTotpMultiFactor: %w", err)
+		return nil, client.WrapOperation("createTotpMultiFactor", err)
 	}
 	if data, ok := result["createTotpMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1822,7 +1821,7 @@ func (q *Querier) RemoveMultiFactor(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("removeMultiFactor: %w", err)
+		return nil, client.WrapOperation("removeMultiFactor", err)
 	}
 	if data, ok := result["removeMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1840,7 +1839,7 @@ func (q *Querier) VerifySmsMultiFactor(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("verifySmsMultiFactor: %w", err)
+		return nil, client.WrapOperation("verifySmsMultiFactor", err)
 	}
 	if data, ok := result["verifySmsMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1858,7 +1857,7 @@ func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("verifyTotpMultiFactor: %w", err)
+		return nil, client.WrapOperation("verifyTotpMultiFactor", err)
 	}
 	if data, ok := result["verifyTotpMultiFactor"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1876,7 +1875,7 @@ func (q *Querier) CreateNote(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createNote: %w", err)
+		return nil, client.WrapOperation("createNote", err)
 	}
 	if data, ok := result["createNote"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1894,7 +1893,7 @@ func (q *Querier) DeleteNote(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteNote: %w", err)
+		return nil, client.WrapOperation("deleteNote", err)
 	}
 	if data, ok := result["deleteNote"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1912,7 +1911,7 @@ func (q *Querier) UpdateNote(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateNote: %w", err)
+		return nil, client.WrapOperation("updateNote", err)
 	}
 	if data, ok := result["updateNote"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1930,7 +1929,7 @@ func (q *Querier) ManageOnboardingDocuments(ctx context.Context, vars map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("manageOnboardingDocuments: %w", err)
+		return nil, client.WrapOperation("manageOnboardingDocuments", err)
 	}
 	if data, ok := result["manageOnboardingDocuments"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1948,7 +1947,7 @@ func (q *Querier) ManageRecruiterOnboardingDocuments(ctx context.Context, vars m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("manageRecruiterOnboardingDocuments: %w", err)
+		return nil, client.WrapOperation("manageRecruiterOnboardingDocuments", err)
 	}
 	if data, ok := result["manageRecruiterOnboardingDocuments"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1966,7 +1965,7 @@ func (q *Querier) RemoveOnboardingDocuments(ctx context.Context, vars map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("removeOnboardingDocuments: %w", err)
+		return nil, client.WrapOperation("removeOnboardingDocuments", err)
 	}
 	if data, ok := result["removeOnboardingDocuments"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -1984,7 +1983,7 @@ func (q *Querier) RemoveRecruiterOnboardingDocuments(ctx context.Context, vars m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("removeRecruiterOnboardingDocuments: %w", err)
+		return nil, client.WrapOperation("removeRecruiterOnboardingDocuments", err)
 	}
 	if data, ok := result["removeRecruiterOnboardingDocuments"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2002,7 +2001,7 @@ func (q *Querier) Organisation(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("organisation: %w", err)
+		return nil, client.WrapOperation("organisation", err)
 	}
 	if data, ok := result["organisation"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2020,7 +2019,7 @@ func (q *Querier) OrganisationTrustedContact(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("organisationTrustedContact: %w", err)
+		return nil, client.WrapOperation("organisationTrustedContact", err)
 	}
 	if data, ok := result["organisationTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2038,7 +2037,7 @@ func (q *Querier) OrganisationTrustedContacts(ctx context.Context, vars map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("organisationTrustedContacts: %w", err)
+		return nil, client.WrapOperation("organisationTrustedContacts", err)
 	}
 	return result, nil
 }
@@ -2051,7 +2050,7 @@ func (q *Querier) Partner(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("partner: %w", err)
+		return nil, client.WrapOperation("partner", err)
 	}
 	if data, ok := result["partner"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2069,7 +2068,7 @@ func (q *Querier) ShareCandidatesWithPartner(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("shareCandidatesWithPartner: %w", err)
+		return nil, client.WrapOperation("shareCandidatesWithPartner", err)
 	}
 	if data, ok := result["shareCandidatesWithPartner"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2087,7 +2086,7 @@ func (q *Querier) CreatePassword(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createPassword: %w", err)
+		return nil, client.WrapOperation("createPassword", err)
 	}
 	if data, ok := result["createPassword"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2105,7 +2104,7 @@ func (q *Querier) UpdatePassword(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updatePassword: %w", err)
+		return nil, client.WrapOperation("updatePassword", err)
 	}
 	if data, ok := result["updatePassword"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2123,7 +2122,7 @@ func (q *Querier) PaymentRequest(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("paymentRequest: %w", err)
+		return nil, client.WrapOperation("paymentRequest", err)
 	}
 	if data, ok := result["paymentRequest"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2141,7 +2140,7 @@ func (q *Querier) PaymentRequests(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("paymentRequests: %w", err)
+		return nil, client.WrapOperation("paymentRequests", err)
 	}
 	return result, nil
 }
@@ -2154,7 +2153,7 @@ func (q *Querier) CreatePaymentRequest(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createPaymentRequest: %w", err)
+		return nil, client.WrapOperation("createPaymentRequest", err)
 	}
 	if data, ok := result["createPaymentRequest"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2172,7 +2171,7 @@ func (q *Querier) DeletePaymentRequest(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deletePaymentRequest: %w", err)
+		return nil, client.WrapOperation("deletePaymentRequest", err)
 	}
 	if data, ok := result["deletePaymentRequest"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2190,7 +2189,7 @@ func (q *Querier) UpdatePaymentRequest(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updatePaymentRequest: %w", err)
+		return nil, client.WrapOperation("updatePaymentRequest", err)
 	}
 	if data, ok := result["updatePaymentRequest"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2208,7 +2207,7 @@ func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("project: %w", err)
+		return nil, client.WrapOperation("project", err)
 	}
 	if data, ok := result["project"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2226,7 +2225,7 @@ func (q *Querier) Projects(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("projects: %w", err)
+		return nil, client.WrapOperation("projects", err)
 	}
 	return result, nil
 }
@@ -2239,7 +2238,7 @@ func (q *Querier) AttachJobsToProject(ctx context.Context, vars map[string]any) 
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("attachJobsToProject: %w", err)
+		return nil, client.WrapOperation("attachJobsToProject", err)
 	}
 	if data, ok := result["attachJobsToProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2257,7 +2256,7 @@ func (q *Querier) CreateProject(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createProject: %w", err)
+		return nil, client.WrapOperation("createProject", err)
 	}
 	if data, ok := result["createProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2275,7 +2274,7 @@ func (q *Querier) DeleteProject(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteProject: %w", err)
+		return nil, client.WrapOperation("deleteProject", err)
 	}
 	if data, ok := result["deleteProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2293,7 +2292,7 @@ func (q *Querier) DetachJobFromProject(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("detachJobFromProject: %w", err)
+		return nil, client.WrapOperation("detachJobFromProject", err)
 	}
 	if data, ok := result["detachJobFromProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2311,7 +2310,7 @@ func (q *Querier) EndProject(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("endProject: %w", err)
+		return nil, client.WrapOperation("endProject", err)
 	}
 	if data, ok := result["endProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2329,7 +2328,7 @@ func (q *Querier) OpenProject(ctx context.Context, vars map[string]any) (map[str
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("openProject: %w", err)
+		return nil, client.WrapOperation("openProject", err)
 	}
 	if data, ok := result["openProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2347,7 +2346,7 @@ func (q *Querier) UpdateProject(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateProject: %w", err)
+		return nil, client.WrapOperation("updateProject", err)
 	}
 	if data, ok := result["updateProject"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2365,7 +2364,7 @@ func (q *Querier) RecruiterCandidate(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("recruiterCandidate: %w", err)
+		return nil, client.WrapOperation("recruiterCandidate", err)
 	}
 	if data, ok := result["recruiterCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2383,7 +2382,7 @@ func (q *Querier) RecruiterCandidates(ctx context.Context, vars map[string]any) 
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("recruiterCandidates: %w", err)
+		return nil, client.WrapOperation("recruiterCandidates", err)
 	}
 	return result, nil
 }
@@ -2396,7 +2395,7 @@ func (q *Querier) CreateRecruiterCandidate(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createRecruiterCandidate: %w", err)
+		return nil, client.WrapOperation("createRecruiterCandidate", err)
 	}
 	if data, ok := result["createRecruiterCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2414,7 +2413,7 @@ func (q *Querier) DeleteRecruiterCandidate(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteRecruiterCandidate: %w", err)
+		return nil, client.WrapOperation("deleteRecruiterCandidate", err)
 	}
 	if data, ok := result["deleteRecruiterCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2432,7 +2431,7 @@ func (q *Querier) UpdateRecruiterCandidate(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateRecruiterCandidate: %w", err)
+		return nil, client.WrapOperation("updateRecruiterCandidate", err)
 	}
 	if data, ok := result["updateRecruiterCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2450,7 +2449,7 @@ func (q *Querier) Recruiter(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("recruiter: %w", err)
+		return nil, client.WrapOperation("recruiter", err)
 	}
 	if data, ok := result["recruiter"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2468,7 +2467,7 @@ func (q *Querier) Recruiters(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("recruiters: %w", err)
+		return nil, client.WrapOperation("recruiters", err)
 	}
 	return result, nil
 }
@@ -2481,7 +2480,7 @@ func (q *Querier) ReinviteTrustedContact(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("reinviteTrustedContact: %w", err)
+		return nil, client.WrapOperation("reinviteTrustedContact", err)
 	}
 	if data, ok := result["reinviteTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2499,7 +2498,7 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("skills: %w", err)
+		return nil, client.WrapOperation("skills", err)
 	}
 	return result, nil
 }
@@ -2512,7 +2511,7 @@ func (q *Querier) SubmitCompliance(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("submitCompliance: %w", err)
+		return nil, client.WrapOperation("submitCompliance", err)
 	}
 	if data, ok := result["submitCompliance"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2530,7 +2529,7 @@ func (q *Querier) SupplierCandidate(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("supplierCandidate: %w", err)
+		return nil, client.WrapOperation("supplierCandidate", err)
 	}
 	if data, ok := result["supplierCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2548,7 +2547,7 @@ func (q *Querier) SupplierCandidates(ctx context.Context, vars map[string]any) (
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("supplierCandidates: %w", err)
+		return nil, client.WrapOperation("supplierCandidates", err)
 	}
 	return result, nil
 }
@@ -2561,7 +2560,7 @@ func (q *Querier) CreateSupplierCandidate(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createSupplierCandidate: %w", err)
+		return nil, client.WrapOperation("createSupplierCandidate", err)
 	}
 	if data, ok := result["createSupplierCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2579,7 +2578,7 @@ func (q *Querier) DeleteSupplierCandidate(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteSupplierCandidate: %w", err)
+		return nil, client.WrapOperation("deleteSupplierCandidate", err)
 	}
 	if data, ok := result["deleteSupplierCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2597,7 +2596,7 @@ func (q *Querier) UpdateSupplierCandidate(ctx context.Context, vars map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateSupplierCandidate: %w", err)
+		return nil, client.WrapOperation("updateSupplierCandidate", err)
 	}
 	if data, ok := result["updateSupplierCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2615,7 +2614,7 @@ func (q *Querier) SupplierSharedCustomFields(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("supplierSharedCustomFields: %w", err)
+		return nil, client.WrapOperation("supplierSharedCustomFields", err)
 	}
 	return result, nil
 }
@@ -2628,7 +2627,7 @@ func (q *Querier) DeleteTimesheetRegistration(ctx context.Context, vars map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteTimesheetRegistration: %w", err)
+		return nil, client.WrapOperation("deleteTimesheetRegistration", err)
 	}
 	if data, ok := result["deleteTimesheetRegistration"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2646,7 +2645,7 @@ func (q *Querier) UpdateTimesheetRegistration(ctx context.Context, vars map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateTimesheetRegistration: %w", err)
+		return nil, client.WrapOperation("updateTimesheetRegistration", err)
 	}
 	if data, ok := result["updateTimesheetRegistration"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2664,7 +2663,7 @@ func (q *Querier) Timesheet(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("timesheet: %w", err)
+		return nil, client.WrapOperation("timesheet", err)
 	}
 	if data, ok := result["timesheet"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2682,7 +2681,7 @@ func (q *Querier) Timesheets(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("timesheets: %w", err)
+		return nil, client.WrapOperation("timesheets", err)
 	}
 	return result, nil
 }
@@ -2695,7 +2694,7 @@ func (q *Querier) CreateCustomTimesheet(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createCustomTimesheet: %w", err)
+		return nil, client.WrapOperation("createCustomTimesheet", err)
 	}
 	if data, ok := result["createCustomTimesheet"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2713,7 +2712,7 @@ func (q *Querier) CreateTimesheet(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createTimesheet: %w", err)
+		return nil, client.WrapOperation("createTimesheet", err)
 	}
 	if data, ok := result["createTimesheet"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2731,7 +2730,7 @@ func (q *Querier) DeleteTimesheet(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteTimesheet: %w", err)
+		return nil, client.WrapOperation("deleteTimesheet", err)
 	}
 	if data, ok := result["deleteTimesheet"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2749,7 +2748,7 @@ func (q *Querier) UpdateTimesheet(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateTimesheet: %w", err)
+		return nil, client.WrapOperation("updateTimesheet", err)
 	}
 	if data, ok := result["updateTimesheet"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2767,7 +2766,7 @@ func (q *Querier) TrustedContact(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("trustedContact: %w", err)
+		return nil, client.WrapOperation("trustedContact", err)
 	}
 	if data, ok := result["trustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2785,7 +2784,7 @@ func (q *Querier) TrustedContacts(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("trustedContacts: %w", err)
+		return nil, client.WrapOperation("trustedContacts", err)
 	}
 	return result, nil
 }
@@ -2798,7 +2797,7 @@ func (q *Querier) ApproveTrustedContact(ctx context.Context, vars map[string]any
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("approveTrustedContact: %w", err)
+		return nil, client.WrapOperation("approveTrustedContact", err)
 	}
 	if data, ok := result["approveTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2816,7 +2815,7 @@ func (q *Querier) CreateTrustedContact(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createTrustedContact: %w", err)
+		return nil, client.WrapOperation("createTrustedContact", err)
 	}
 	if data, ok := result["createTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2834,7 +2833,7 @@ func (q *Querier) DeleteTrustedContact(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteTrustedContact: %w", err)
+		return nil, client.WrapOperation("deleteTrustedContact", err)
 	}
 	if data, ok := result["deleteTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2852,7 +2851,7 @@ func (q *Querier) UpdateTrustedContact(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateTrustedContact: %w", err)
+		return nil, client.WrapOperation("updateTrustedContact", err)
 	}
 	if data, ok := result["updateTrustedContact"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2870,7 +2869,7 @@ func (q *Querier) UserGroup(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("userGroup: %w", err)
+		return nil, client.WrapOperation("userGroup", err)
 	}
 	if data, ok := result["userGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2888,7 +2887,7 @@ func (q *Querier) UserGroups(ctx context.Context, vars map[string]any) (map[stri
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("userGroups: %w", err)
+		return nil, client.WrapOperation("userGroups", err)
 	}
 	return result, nil
 }
@@ -2901,7 +2900,7 @@ func (q *Querier) AttachUsersToUserGroup(ctx context.Context, vars map[string]an
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("attachUsersToUserGroup: %w", err)
+		return nil, client.WrapOperation("attachUsersToUserGroup", err)
 	}
 	if data, ok := result["attachUsersToUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2919,7 +2918,7 @@ func (q *Querier) CreateUserGroup(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createUserGroup: %w", err)
+		return nil, client.WrapOperation("createUserGroup", err)
 	}
 	if data, ok := result["createUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2937,7 +2936,7 @@ func (q *Querier) DeleteUserGroup(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteUserGroup: %w", err)
+		return nil, client.WrapOperation("deleteUserGroup", err)
 	}
 	if data, ok := result["deleteUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2955,7 +2954,7 @@ func (q *Querier) DetachUsersFromUserGroup(ctx context.Context, vars map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("detachUsersFromUserGroup: %w", err)
+		return nil, client.WrapOperation("detachUsersFromUserGroup", err)
 	}
 	if data, ok := result["detachUsersFromUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2973,7 +2972,7 @@ func (q *Querier) UpdateUserGroup(ctx context.Context, vars map[string]any) (map
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateUserGroup: %w", err)
+		return nil, client.WrapOperation("updateUserGroup", err)
 	}
 	if data, ok := result["updateUserGroup"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -2991,7 +2990,7 @@ func (q *Querier) Profile(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("profile: %w", err)
+		return nil, client.WrapOperation("profile", err)
 	}
 	if data, ok := result["profile"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3009,7 +3008,7 @@ func (q *Querier) WebhookEventLogs(ctx context.Context, vars map[string]any) (ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("webhookEventLogs: %w", err)
+		return nil, client.WrapOperation("webhookEventLogs", err)
 	}
 	return result, nil
 }
@@ -3022,7 +3021,7 @@ func (q *Querier) WebhookEvent(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("webhookEvent: %w", err)
+		return nil, client.WrapOperation("webhookEvent", err)
 	}
 	if data, ok := result["webhookEvent"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3040,7 +3039,7 @@ func (q *Querier) WebhookEvents(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("webhookEvents: %w", err)
+		return nil, client.WrapOperation("webhookEvents", err)
 	}
 	return result, nil
 }
@@ -3053,7 +3052,7 @@ func (q *Querier) RetryWebhookEvent(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("retryWebhookEvent: %w", err)
+		return nil, client.WrapOperation("retryWebhookEvent", err)
 	}
 	if data, ok := result["retryWebhookEvent"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3071,7 +3070,7 @@ func (q *Querier) Webhook(ctx context.Context, vars map[string]any) (map[string]
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("webhook: %w", err)
+		return nil, client.WrapOperation("webhook", err)
 	}
 	if data, ok := result["webhook"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3089,7 +3088,7 @@ func (q *Querier) Webhooks(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("webhooks: %w", err)
+		return nil, client.WrapOperation("webhooks", err)
 	}
 	return result, nil
 }
@@ -3102,7 +3101,7 @@ func (q *Querier) CreateWebhook(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createWebhook: %w", err)
+		return nil, client.WrapOperation("createWebhook", err)
 	}
 	if data, ok := result["createWebhook"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3120,7 +3119,7 @@ func (q *Querier) DeleteWebhook(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteWebhook: %w", err)
+		return nil, client.WrapOperation("deleteWebhook", err)
 	}
 	if data, ok := result["deleteWebhook"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3138,7 +3137,7 @@ func (q *Querier) UpdateWebhook(ctx context.Context, vars map[string]any) (map[s
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWebhook: %w", err)
+		return nil, client.WrapOperation("updateWebhook", err)
 	}
 	if data, ok := result["updateWebhook"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3156,7 +3155,7 @@ func (q *Querier) WithdrawForwardedCandidate(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("withdrawForwardedCandidate: %w", err)
+		return nil, client.WrapOperation("withdrawForwardedCandidate", err)
 	}
 	if data, ok := result["withdrawForwardedCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3174,7 +3173,7 @@ func (q *Querier) WithdrawJobCandidate(ctx context.Context, vars map[string]any)
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("withdrawJobCandidate: %w", err)
+		return nil, client.WrapOperation("withdrawJobCandidate", err)
 	}
 	if data, ok := result["withdrawJobCandidate"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3192,7 +3191,7 @@ func (q *Querier) Worker(ctx context.Context, vars map[string]any) (map[string]a
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("worker: %w", err)
+		return nil, client.WrapOperation("worker", err)
 	}
 	if data, ok := result["worker"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3210,7 +3209,7 @@ func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWorker: %w", err)
+		return nil, client.WrapOperation("updateWorker", err)
 	}
 	if data, ok := result["updateWorker"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3228,7 +3227,7 @@ func (q *Querier) UpdateWorkerCustomFieldValues(ctx context.Context, vars map[st
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWorkerCustomFieldValues: %w", err)
+		return nil, client.WrapOperation("updateWorkerCustomFieldValues", err)
 	}
 	if data, ok := result["updateWorkerCustomFieldValues"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3246,7 +3245,7 @@ func (q *Querier) UpdateWorkerIdentification(ctx context.Context, vars map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWorkerIdentification: %w", err)
+		return nil, client.WrapOperation("updateWorkerIdentification", err)
 	}
 	if data, ok := result["updateWorkerIdentification"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3264,7 +3263,7 @@ func (q *Querier) WorkflowVariables(ctx context.Context, vars map[string]any) (m
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("workflowVariables: %w", err)
+		return nil, client.WrapOperation("workflowVariables", err)
 	}
 	return result, nil
 }
@@ -3277,7 +3276,7 @@ func (q *Querier) Workflow(ctx context.Context, vars map[string]any) (map[string
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("workflow: %w", err)
+		return nil, client.WrapOperation("workflow", err)
 	}
 	if data, ok := result["workflow"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3295,7 +3294,7 @@ func (q *Querier) Workflows(ctx context.Context, vars map[string]any) (map[strin
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("workflows: %w", err)
+		return nil, client.WrapOperation("workflows", err)
 	}
 	return result, nil
 }
@@ -3308,7 +3307,7 @@ func (q *Querier) CreateWorkflow(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("createWorkflow: %w", err)
+		return nil, client.WrapOperation("createWorkflow", err)
 	}
 	if data, ok := result["createWorkflow"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3326,7 +3325,7 @@ func (q *Querier) DeleteWorkflow(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("deleteWorkflow: %w", err)
+		return nil, client.WrapOperation("deleteWorkflow", err)
 	}
 	if data, ok := result["deleteWorkflow"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3344,7 +3343,7 @@ func (q *Querier) UpdateWorkflow(ctx context.Context, vars map[string]any) (map[
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWorkflow: %w", err)
+		return nil, client.WrapOperation("updateWorkflow", err)
 	}
 	if data, ok := result["updateWorkflow"]; ok {
 		if m, ok := data.(map[string]any); ok {
@@ -3362,7 +3361,7 @@ func (q *Querier) UpdateWorksomeIntelligenceConsent(ctx context.Context, vars ma
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updateWorksomeIntelligenceConsent: %w", err)
+		return nil, client.WrapOperation("updateWorksomeIntelligenceConsent", err)
 	}
 	if data, ok := result["updateWorksomeIntelligenceConsent"]; ok {
 		if m, ok := data.(map[string]any); ok {

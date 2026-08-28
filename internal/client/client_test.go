@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -632,5 +633,88 @@ func TestGraphQLErrors_ErrorStringIncludesPathsAndCaps(t *testing.T) {
 	}
 	if n := strings.Count(got, "Internal server error"); n != maxReportedErrors {
 		t.Errorf("rendered %d errors, want %d", n, maxReportedErrors)
+	}
+}
+
+func TestWrapOperation(t *testing.T) {
+	tests := []struct {
+		name string
+		op   string
+		err  error
+		want string
+	}{
+		{
+			// The bug: the generated wrapper added "profile: " to an error
+			// whose GraphQL path already rendered as "profile".
+			name: "does not repeat a prefix the error already has",
+			op:   "profile",
+			err:  GraphQLErrors{{Message: "Unauthenticated.", Path: []any{"profile"}}},
+			want: "profile: Unauthenticated.",
+		},
+		{
+			name: "adds context to a GraphQL error with no path",
+			op:   "profile",
+			err:  GraphQLErrors{{Message: "Unauthenticated."}},
+			want: "profile: Unauthenticated.",
+		},
+		{
+			name: "adds context to a transport error",
+			op:   "hires",
+			err:  fmt.Errorf("sending request: connection refused"),
+			want: "hires: sending request: connection refused",
+		},
+		{
+			name: "keeps a deeper path that merely starts with the operation",
+			op:   "hires",
+			err:  GraphQLErrors{{Message: "boom", Path: []any{"hires", "data", float64(0), "triggersApproval"}}},
+			want: "hires.data[0].triggersApproval: boom",
+		},
+		{
+			// "hiresomething:" must not be mistaken for the "hires" prefix.
+			name: "does not treat a longer operation name as a match",
+			op:   "hire",
+			err:  GraphQLErrors{{Message: "boom", Path: []any{"hires"}}},
+			want: "hire: hires: boom",
+		},
+		{
+			name: "nil error stays nil",
+			op:   "hires",
+			err:  nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := WrapOperation(tt.op, tt.err)
+			if tt.want == "" {
+				if got != nil {
+					t.Fatalf("expected nil, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if got.Error() != tt.want {
+				t.Errorf("WrapOperation() = %q, want %q", got.Error(), tt.want)
+			}
+		})
+	}
+}
+
+// WrapOperation must not break errors.As/Is for callers inspecting the cause.
+func TestWrapOperationPreservesErrorIdentity(t *testing.T) {
+	orig := GraphQLErrors{{Message: "Unauthenticated."}}
+	wrapped := WrapOperation("profile", orig)
+
+	if !IsAuthError(errors.Unwrap(wrapped)) {
+		t.Error("unwrapping a wrapped GraphQL error should still detect the auth failure")
+	}
+
+	// Unprefixed pass-through keeps the concrete type directly.
+	located := GraphQLErrors{{Message: "Unauthenticated.", Path: []any{"profile"}}}
+	if !IsAuthError(WrapOperation("profile", located)) {
+		t.Error("a passed-through GraphQL error should keep its type")
 	}
 }
