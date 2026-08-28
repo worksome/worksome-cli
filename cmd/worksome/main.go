@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
 	"github.com/worksome/worksome-cli/internal/generated/commands"
+	"github.com/worksome/worksome-cli/internal/output"
+	"github.com/worksome/worksome-cli/internal/update"
 )
 
 var (
@@ -18,10 +21,55 @@ var (
 )
 
 func main() {
+	// Start the update check alongside the command rather than before it, so
+	// it never adds latency to the work the user actually asked for.
+	latest := startUpdateCheck()
+
 	rootCmd := newRootCmd()
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+
+	printUpdateNotice(latest)
+
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+// startUpdateCheck kicks off the once-a-day release check in the background,
+// returning a channel that yields the latest version, or nil when the check is
+// suppressed. Nothing downstream ever blocks on it for long.
+func startUpdateCheck() <-chan string {
+	if update.Suppressed(version, output.IsTTYFile(os.Stdout), output.IsTTYFile(os.Stderr)) {
+		return nil
+	}
+	ch := make(chan string, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		ch <- update.LatestCached(ctx, nil)
+	}()
+	return ch
+}
+
+// printUpdateNotice writes the notice once the check finishes.
+//
+// The check runs concurrently with the command, so for anything that touches
+// the API it has long since completed and this returns immediately. The wait
+// only bites on an instant command with a cold cache, once a day. It must be
+// long enough for the fetch to land: cutting it short would kill the goroutine
+// before it writes the cache, so the cache would never warm and the notice
+// would never appear at all.
+func printUpdateNotice(latest <-chan string) {
+	if latest == nil {
+		return
+	}
+	select {
+	case v := <-latest:
+		if update.IsNewer(version, v) {
+			fmt.Fprint(os.Stderr, update.Notice(version, v))
+		}
+	case <-time.After(2 * time.Second):
 	}
 }
 
@@ -177,13 +225,44 @@ func newRootCmd() *cobra.Command {
 }
 
 func newVersionCmd() *cobra.Command {
-	return &cobra.Command{
+	var check bool
+
+	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Long: `Print version information.
+
+With --check, ask GitHub for the latest release and report whether this
+build is out of date, along with the upgrade command for how it was
+installed. This always performs a request, ignoring the once-a-day cache.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("worksome-cli %s (commit: %s)\n", version, commit)
+			if !check {
+				return nil
+			}
+
+			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer cancel()
+
+			rel, err := update.Fetch(ctx, nil)
+			if err != nil {
+				return err
+			}
+
+			switch {
+			case version == "dev":
+				fmt.Printf("latest release: %s (this is a dev build)\n", rel.TagName)
+			case update.IsNewer(version, rel.TagName):
+				fmt.Printf("\nA new release is available: %s\n%s\n", rel.TagName, update.UpgradeHint())
+			default:
+				fmt.Println("up to date")
+			}
+			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&check, "check", false, "Check whether a newer release is available")
+	return cmd
 }
 
 func newCompletionCmd() *cobra.Command {
