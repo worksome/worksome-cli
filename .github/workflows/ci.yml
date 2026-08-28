@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# CI only reads the repo. The org default is write, which CI does not need.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
