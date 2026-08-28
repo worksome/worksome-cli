@@ -148,7 +148,7 @@ func pruneSelections(sels []*selection, paths [][]string, prefix string) ([]*sel
 	}
 	for _, name := range order {
 		if !matched[name] {
-			return nil, fmt.Errorf("--fields: unknown field %q (available: %s)", prefix+name, strings.Join(availableNames(sels), ", "))
+			return nil, fmt.Errorf("--fields: unknown field %q (available: %s)", prefix+name, formatAvailable(availableNames(sels)))
 		}
 	}
 	return kept, nil
@@ -166,6 +166,18 @@ func hasLeaf(tails [][]string) bool {
 
 // availableNames lists the selectable field names at a level, looking through
 // inline fragments.
+// maxSuggestedNames caps the field list in an unknown-field error. A hire has
+// 70 selectable fields; printing all of them buries the typo.
+const maxSuggestedNames = 12
+
+// formatAvailable renders the selectable field names, truncated.
+func formatAvailable(names []string) string {
+	if len(names) <= maxSuggestedNames {
+		return strings.Join(names, ", ")
+	}
+	return fmt.Sprintf("%s, ... and %d more", strings.Join(names[:maxSuggestedNames], ", "), len(names)-maxSuggestedNames)
+}
+
 func availableNames(sels []*selection) []string {
 	var names []string
 	for _, s := range sels {
