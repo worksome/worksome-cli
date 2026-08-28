@@ -13,6 +13,9 @@
 # Debug
 *.unformatted
 
+# Interrupted schema sync
+schema/*.tmp
+
 # Test
 coverage.out
 

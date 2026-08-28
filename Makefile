@@ -3,7 +3,7 @@ MODULE := github.com/worksome/worksome-cli
 SCHEMA := schema/schema.graphql
 OVERRIDES := schema/overrides.yaml
 GENERATED_DIR := internal/generated
-PLATFORM_SCHEMA := $(HOME)/Projects/platform/_schema_dump.graphql
+PLATFORM_SCHEMA ?= $(HOME)/Projects/platform/_schema_dump.graphql
 INTROSPECT_ENDPOINT ?= https://api.worksome.com/graphql
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -42,19 +42,20 @@ generate:
 
 ## sync-schema: Sync the GraphQL schema
 sync-schema:
-ifeq ($(SYNC_MODE),introspection)
-	@echo "Syncing schema via introspection..."
-	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) --token "$${WORKSOME_API_TOKEN}" > $(SCHEMA)
-else
+ifeq ($(SYNC_MODE),platform)
 	@if [ -f "$(PLATFORM_SCHEMA)" ]; then \
 		echo "Syncing schema from platform repo..."; \
 		cp "$(PLATFORM_SCHEMA)" "$(SCHEMA)"; \
 		echo "Schema synced successfully."; \
 	else \
 		echo "Error: Platform schema not found at $(PLATFORM_SCHEMA)"; \
-		echo "Set SYNC_MODE=introspection or ensure platform repo exists."; \
 		exit 1; \
 	fi
+else
+	@echo "Syncing schema via introspection..."
+	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) > $(SCHEMA).tmp || { rm -f $(SCHEMA).tmp; exit 1; }
+	@mv $(SCHEMA).tmp $(SCHEMA)
+	@echo "Schema synced successfully."
 endif
 
 ## sync: Sync schema and regenerate code

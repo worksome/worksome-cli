@@ -159,7 +159,7 @@ worksome completion powershell | Out-String | Invoke-Expression
 The CLI is generated from a vendored GraphQL schema. When the API changes:
 
 ```bash
-make sync-schema    # Copy latest schema from platform repo
+make sync-schema    # Introspect the API (needs WORKSOME_API_TOKEN)
 make generate       # Regenerate Go code
 make sync           # Both in one step
 ```
@@ -178,7 +178,7 @@ make install        # Install to $GOPATH/bin with version metadata
 make test           # Run unit tests
 make lint           # Run linter
 make generate       # Regenerate from schema
-make sync-schema    # Sync schema (from platform repo or via introspection)
+make sync-schema    # Sync schema via introspection
 make sync           # Sync schema + regenerate in one step
 make clean          # Remove build artifacts
 ```
@@ -209,4 +209,4 @@ See [docs/architecture.md](docs/architecture.md) for detailed diagrams and desig
 
 ## License
 
-Proprietary - Worksome internal use.
+MIT — see [LICENSE.md](LICENSE.md).
