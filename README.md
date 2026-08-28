@@ -2,6 +2,64 @@
 
 A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — 64 resource groups, 174 operations. Designed for both human users and AI agents.
 
+## What is Worksome?
+
+[Worksome](https://www.worksome.com) is a Freelance Management System (FMS). Companies use it to source, contract, onboard, and pay external workers — freelancers, independent contractors, and agency workers — while staying compliant with local employment and tax law. The classification side matters as much as the payment side: getting a contractor's status wrong (IR35 in the UK, worker classification in the US) is a legal and financial risk, so the platform tracks it as first-class data.
+
+This CLI wraps the same GraphQL API that powers the product, so anything the platform does to a job, a hire, a timesheet, or an invoice can be scripted.
+
+## Domain model
+
+The API is organised around a hiring lifecycle. Quoted descriptions below are taken from the GraphQL schema itself:
+
+```
+company ──creates──▶ job ──receives──▶ bid
+                      │                 │
+              (optionally inside     accept-bid
+                  a project)            │
+                                        ▼
+                                      hire ──┬──▶ contracts       (the legal documents)
+                                        │     ├──▶ compliance      (requirements to clear)
+                                        │     └──▶ classifications (IR35, SDS/WCR)
+                                        ▼
+                                    timesheet
+                                        ▼
+                               payment-request ──approved──▶ invoice
+                                        │                  (company pays Worksome)
+                                        └──grouped into──▶ batch  (bulk operations)
+```
+
+| Resource | What it is |
+|---|---|
+| `organisation`, `company` | The hiring side. An organisation can contain several companies. |
+| `worker` | The person being hired. |
+| `jobs` | "A job that a company has created on Worksome." |
+| `projects` | "A project with a budget containing one or more jobs." |
+| `bids` | "Represents a bid sent on a job." Accepting one hires the worker. |
+| `hires` | "A representation of a hiring on a job between parties" — links a worker, a company and a job. Explicitly *not* a legal document. |
+| `contracts` | The actual legal document, reached from a hire. |
+| `compliance`, `gate` | "A compliance requirement that must be met for business processes to proceed." |
+| `classifications` | "A worker classification (SDS/WCR) for a hire" — IR35, US Worker Classification, and similar. |
+| `timesheets` | Work logged against a hire. |
+| `payment-requests` | A worker's request to be paid; carries a hire and a timesheet. |
+| `invoices` | "An invoice gets created when one or more worker payment requests gets approved by a company user. The invoice defines the amount due and is to be paid to Worksome by the company." |
+| `batches` | Groups items for bulk actions. Mainly for internal operational workflows — "for most external integrations, batches are not usually needed". |
+| `approvals`, `workflows` | Approval rules, states and variables that gate actions. |
+| `viewer` | The currently authenticated user — the cheapest way to check who a token belongs to. |
+
+## Notes for AI agents
+
+The CLI is designed to be driven programmatically:
+
+- **Discovery is built in.** `worksome --help` lists every resource group; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
+- **Permissions are documented per action.** Many operations are restricted to one party — company, worker, or recruiter — and the help text says so (e.g. "Only companies can cancel their hires"). A permission error is usually a correct answer about the token's role, not a bug to work around.
+- **JSON without asking.** Output is JSON whenever stdout is not a TTY, so pipelines need no `--output json`. Pass it explicitly if you can't be sure of the environment.
+- **Keep responses small.** `--fields id,worker.name` selects output fields and `--filter status=ACTIVE` narrows results — useful when a full page of objects would be more than you need.
+- **Preview mutations.** `--dry-run` prints the operation name and variables without calling the API. Use it to confirm a mutation's shape before executing it.
+- **Pagination is explicit.** List commands return a single page. `--all` auto-paginates, which on large resources means many sequential requests — prefer `--first`/`--page` unless you genuinely need everything.
+- **Exit codes over stderr parsing.** `0` on success, non-zero for any failure (auth, validation, GraphQL, network). Branch on the exit code rather than matching on message text, which is not a stable interface.
+- **`viewer get` is a cheap preflight** to confirm a token works and see which account and permissions it carries before attempting real work.
+
 ## Install
 
 ```bash
@@ -102,7 +160,7 @@ worksome hires terminate --input terminate.json
 # Mix both (flags override file values)
 worksome hires terminate --input base.json --reason "PROJECT_COMPLETED_EARLY"
 
-# Dry run (shows the query without executing)
+# Dry run (prints the operation name and variables, makes no API call)
 worksome jobs create --company <id> --name "Test" --dry-run
 ```
 
@@ -135,7 +193,7 @@ worksome hires list --filter "status=ACTIVE"      # Shorthand for filter flags
 | `--fields` | Comma-separated list of fields to include in output |
 | `--filter` | Key=value filter pairs (e.g., `status=ACTIVE,currency=DKK`) |
 | `--no-color` | Disable colored output |
-| `--dry-run` | Show query without executing |
+| `--dry-run` | Print the operation name and variables without calling the API |
 | `--timeout` | Request timeout in seconds (default 30) |
 
 ## Shell Completion
