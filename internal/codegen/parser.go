@@ -20,6 +20,9 @@ type Overrides struct {
 	Resources       map[string]OverrideResource `yaml:"resources"`
 	Ignore          []string                    `yaml:"ignore"`
 	IgnoreMutations []string                    `yaml:"ignore_mutations"`
+	// Aliases maps a resource name to extra names it also answers to, so a
+	// rename in the API schema doesn't break the old invocation.
+	Aliases map[string][]string `yaml:"aliases"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -40,6 +43,7 @@ var scalarMap = map[string]string{
 	"Time":             "string",
 	"Decimal":          "float64",
 	"DecimalTwo":       "float64",
+	"DecimalFour":      "float64",
 	"Percentage":       "float64",
 	"StrictPercentage": "float64",
 	"Upload":           "string",
@@ -48,6 +52,7 @@ var scalarMap = map[string]string{
 	"Dictionary":       "map[string]any",
 	"URL":              "string",
 	"E164PhoneNumber":  "string",
+	"Email":            "string",
 }
 
 // knownScalars is the set of all scalars we recognize.
@@ -90,10 +95,10 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 	}
 
 	p := &parser{
-		doc:       doc,
-		overrides: overrides,
-		enums:     make(map[string]bool),
-		inputs:    make(map[string]bool),
+		doc:        doc,
+		overrides:  overrides,
+		enums:      make(map[string]bool),
+		inputs:     make(map[string]bool),
 		paginators: make(map[string]string),
 	}
 
@@ -106,6 +111,8 @@ type parser struct {
 	enums      map[string]bool
 	inputs     map[string]bool
 	paginators map[string]string // PaginatorTypeName -> DataTypeName
+
+	aliasErrors []string
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -191,15 +198,34 @@ func (p *parser) parse() (*Schema, error) {
 	})
 
 	// Collect scalar names
+	var unmapped []string
 	for name, def := range p.doc.Types {
 		if def.Kind == ast.Scalar && !isBuiltinType(name) {
 			schema.Scalars = append(schema.Scalars, name)
+			if _, ok := scalarMap[name]; !ok {
+				unmapped = append(unmapped, name)
+			}
 		}
 	}
 	sort.Strings(schema.Scalars)
 
+	// An unmapped scalar otherwise generates code referencing a Go type that
+	// doesn't exist, surfacing as "undefined: DecimalFour" from the compiler
+	// long after the point of failure. Say so here instead.
+	if len(unmapped) > 0 {
+		sort.Strings(unmapped)
+		return nil, fmt.Errorf(
+			"schema declares scalar(s) with no Go mapping: %s\nadd them to scalarMap in internal/codegen/parser.go",
+			strings.Join(unmapped, ", "))
+	}
+
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
+
+	if len(p.aliasErrors) > 0 {
+		return nil, fmt.Errorf("invalid aliases in overrides:\n  %s",
+			strings.Join(p.aliasErrors, "\n  "))
+	}
 
 	return schema, nil
 }
@@ -235,11 +261,11 @@ func (p *parser) parseInputObject(def *ast.Definition) InputObject {
 
 func (p *parser) parseArgument(f *ast.FieldDefinition) Argument {
 	return Argument{
-		Name:        f.Name,
-		GoName:      toPascalCase(f.Name),
-		CLIFlag:     toKebabCase(f.Name),
-		Description: cleanDescription(f.Description),
-		Type:        p.resolveType(f.Type),
+		Name:         f.Name,
+		GoName:       toPascalCase(f.Name),
+		CLIFlag:      toKebabCase(f.Name),
+		Description:  cleanDescription(f.Description),
+		Type:         p.resolveType(f.Type),
 		DefaultValue: defaultValueString(f.DefaultValue),
 	}
 }
@@ -651,12 +677,35 @@ func (p *parser) buildResources() []Resource {
 
 		// Generate table columns from the return type
 		res.TableColumns = p.buildTableColumns(res)
+		res.Aliases = p.overrides.Aliases[res.Name]
 
 		resources = append(resources, *res)
 	}
 	sort.Slice(resources, func(i, j int) bool {
 		return resources[i].Name < resources[j].Name
 	})
+
+	// An alias naming a resource that no longer exists is silently dead, and
+	// an alias colliding with a real resource shadows it. Both mean the
+	// overrides file is stale.
+	byName := make(map[string]bool, len(resources))
+	for _, r := range resources {
+		byName[r.Name] = true
+	}
+	for target, aliases := range p.overrides.Aliases {
+		if !byName[target] {
+			p.aliasErrors = append(p.aliasErrors,
+				fmt.Sprintf("alias target %q is not a generated resource", target))
+			continue
+		}
+		for _, a := range aliases {
+			if byName[a] {
+				p.aliasErrors = append(p.aliasErrors,
+					fmt.Sprintf("alias %q (for %q) collides with a real resource", a, target))
+			}
+		}
+	}
+	sort.Strings(p.aliasErrors)
 
 	return resources
 }
@@ -1015,7 +1064,7 @@ func (p *parser) exampleValueForType(t *ast.Type, depth int) any {
 		return "..."
 	case "Int":
 		return 0
-	case "Float", "Decimal", "DecimalTwo", "Percentage", "StrictPercentage":
+	case "Float", "Decimal", "DecimalTwo", "DecimalFour", "Percentage", "StrictPercentage":
 		return 0.0
 	case "Boolean":
 		return false

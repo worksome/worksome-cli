@@ -18,3 +18,11 @@ ignore:
 # Mutations to exclude from CLI generation (queries with the same name are kept).
 ignore_mutations:
   - "hire"  # deprecated: use createDraftHire
+
+# Extra names a resource group also answers to. Use this when the API schema
+# changes shape and would otherwise break an existing invocation.
+aliases:
+  # The API gained a `companies` list query, which folded the singular
+  # `company` query into the plural group. Keeps `worksome company get <id>`
+  # working. Generation fails if a target or alias here goes stale.
+  companies: ["company"]

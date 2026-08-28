@@ -543,9 +543,9 @@ func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
 	p := &parser{}
 
 	tests := []struct {
-		mutation     string
-		resource     string
-		expectedCLI  string
+		mutation    string
+		resource    string
+		expectedCLI string
 	}{
 		// Singular resource name in mutation should be stripped
 		{"terminateHire", "hires", "terminate"},
@@ -1148,4 +1148,185 @@ type PaginatorInfo {
 			t.Error("single-member union should NOT have a Type/__typename column")
 		}
 	}
+}
+
+// writeSchemaFile writes an arbitrary schema to a temp file for parsing.
+func writeSchemaFile(t *testing.T, schema string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "schema.graphql")
+	if err := os.WriteFile(path, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// An unmapped scalar used to generate code referencing a Go type that does
+// not exist, failing at `go build` with "undefined: DecimalFour" rather than
+// at the point of the actual problem.
+func TestParseSchemaRejectsUnmappedScalar(t *testing.T) {
+	path := writeSchemaFile(t, `
+scalar TotallyNewScalar
+
+type Query {
+	thing: TotallyNewScalar
+}
+`)
+
+	_, err := ParseSchema(path, "")
+	if err == nil {
+		t.Fatal("expected an error for a scalar with no Go mapping")
+	}
+	if !strings.Contains(err.Error(), "TotallyNewScalar") {
+		t.Errorf("error should name the offending scalar, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "scalarMap") {
+		t.Errorf("error should say where to fix it, got: %v", err)
+	}
+}
+
+func TestParseSchemaReportsEveryUnmappedScalar(t *testing.T) {
+	path := writeSchemaFile(t, `
+scalar AlphaScalar
+scalar BetaScalar
+
+type Query {
+	a: AlphaScalar
+	b: BetaScalar
+}
+`)
+
+	_, err := ParseSchema(path, "")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	// Listing all of them at once beats fixing one, regenerating, repeating.
+	for _, want := range []string{"AlphaScalar", "BetaScalar"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should list %s, got: %v", want, err)
+		}
+	}
+}
+
+// Every scalar the production schema declares must have a Go mapping, or a
+// schema sync breaks the build. Guards the whole scalarMap, not just the two
+// entries that happened to be missing.
+func TestVendoredSchemaScalarsAreAllMapped(t *testing.T) {
+	schema, err := ParseSchema("../../schema/schema.graphql", "../../schema/overrides.yaml")
+	if err != nil {
+		t.Fatalf("parsing the vendored schema: %v", err)
+	}
+	for _, name := range schema.Scalars {
+		if _, ok := scalarMap[name]; !ok {
+			t.Errorf("scalar %q declared in the vendored schema has no Go mapping", name)
+		}
+	}
+}
+
+func TestScalarGoTypes(t *testing.T) {
+	tests := map[string]string{
+		"DecimalFour":     "float64", // added when the API introduced it
+		"Email":           "string",  // was silently unmapped before
+		"Decimal":         "float64",
+		"DecimalTwo":      "float64",
+		"E164PhoneNumber": "string",
+		"JSON":            "map[string]any",
+	}
+	for scalar, want := range tests {
+		if got := scalarMap[scalar]; got != want {
+			t.Errorf("scalarMap[%q] = %q, want %q", scalar, got, want)
+		}
+	}
+}
+
+// writeSchemaAndOverrides writes both files for a parse that needs overrides.
+func writeSchemaAndOverrides(t *testing.T, schema, overrides string) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	sp := filepath.Join(dir, "schema.graphql")
+	op := filepath.Join(dir, "overrides.yaml")
+	if err := os.WriteFile(sp, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(op, []byte(overrides), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return sp, op
+}
+
+func TestResourceAliasesFromOverrides(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  hires: ["hire-alias", "h"]
+`)
+
+	schema, err := ParseSchema(sp, op)
+	if err != nil {
+		t.Fatalf("ParseSchema: %v", err)
+	}
+
+	var found *Resource
+	for i := range schema.Resources {
+		if schema.Resources[i].Name == "hires" {
+			found = &schema.Resources[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("hires resource not generated")
+	}
+	if len(found.Aliases) != 2 || found.Aliases[0] != "hire-alias" || found.Aliases[1] != "h" {
+		t.Errorf("Aliases = %v, want [hire-alias h]", found.Aliases)
+	}
+}
+
+// A stale alias would otherwise generate a command nobody can reach.
+func TestAliasTargetMustExist(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  not-a-resource: ["whatever"]
+`)
+
+	_, err := ParseSchema(sp, op)
+	if err == nil {
+		t.Fatal("expected an error for an alias on a non-existent resource")
+	}
+	if !strings.Contains(err.Error(), "not-a-resource") {
+		t.Errorf("error should name the bad target, got: %v", err)
+	}
+}
+
+// An alias that shadows a real resource would hide it from the CLI.
+func TestAliasMustNotCollideWithRealResource(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  hires: ["viewer"]
+`)
+
+	_, err := ParseSchema(sp, op)
+	if err == nil {
+		t.Fatal("expected an error for an alias colliding with a real resource")
+	}
+	if !strings.Contains(err.Error(), "collides") {
+		t.Errorf("error should mention the collision, got: %v", err)
+	}
+}
+
+// The whole point of the alias: `worksome company get <id>` must keep working
+// after the API folded the singular company query into the plural group.
+func TestVendoredOverridesKeepCompanyAlias(t *testing.T) {
+	schema, err := ParseSchema("../../schema/schema.graphql", "../../schema/overrides.yaml")
+	if err != nil {
+		t.Fatalf("parsing the vendored schema: %v", err)
+	}
+	for _, r := range schema.Resources {
+		if r.Name != "companies" {
+			continue
+		}
+		for _, a := range r.Aliases {
+			if a == "company" {
+				return
+			}
+		}
+		t.Fatalf(`companies resource is missing the "company" alias; aliases = %v`, r.Aliases)
+	}
+	t.Fatal("companies resource not found in the vendored schema")
 }

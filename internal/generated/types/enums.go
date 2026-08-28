@@ -79,21 +79,21 @@ func ValidApprovalApprovableOrderByColumn() []ApprovalApprovableOrderByColumn {
 	}
 }
 
-// ApprovalApprovableState — Status for approval states.
+// ApprovalApprovableState — The state of an approval request or an action taken by an approver.
 type ApprovalApprovableState string
 
 const (
-	// ApprovalApprovableStateUnknown — Approval state unknown status.
+	// ApprovalApprovableStateUnknown — The approval state could not be determined.
 	ApprovalApprovableStateUnknown ApprovalApprovableState = "UNKNOWN"
-	// ApprovalApprovableStateRequested — Approval state requested status.
+	// ApprovalApprovableStateRequested — The approval has been requested and is waiting for an approver to act. The item (e.g. hire) is blocked until reviewed.
 	ApprovalApprovableStateRequested ApprovalApprovableState = "REQUESTED"
-	// ApprovalApprovableStateApproved — Approval state approved status.
+	// ApprovalApprovableStateApproved — The approver has approved the request. If all approvers in the sequence have approved, the item proceeds.
 	ApprovalApprovableStateApproved ApprovalApprovableState = "APPROVED"
-	// ApprovalApprovableStateRejected — Approval state rejected status.
+	// ApprovalApprovableStateRejected — The approver has rejected the request. For hires, this results in the hire being cancelled.
 	ApprovalApprovableStateRejected ApprovalApprovableState = "REJECTED"
-	// ApprovalApprovableStateNeedsChange — Approval state needs change status.
+	// ApprovalApprovableStateNeedsChange — The approver has requested changes before they can approve. The item remains blocked until the changes are made and the request is re-evaluated.
 	ApprovalApprovableStateNeedsChange ApprovalApprovableState = "NEEDS_CHANGE"
-	// ApprovalApprovableStateCancelled — Approval state cancelled status.
+	// ApprovalApprovableStateCancelled — The approval request was automatically cancelled — for example, the hire was cancelled, the job was closed, or the workflow was re-triggered.
 	ApprovalApprovableStateCancelled ApprovalApprovableState = "CANCELLED"
 )
 
@@ -109,23 +109,23 @@ func ValidApprovalApprovableState() []ApprovalApprovableState {
 	}
 }
 
-// ApprovalCancellationReason — Reasons for why an approval was cancelled.
+// ApprovalCancellationReason — The reason an approval request was automatically cancelled before completion.
 type ApprovalCancellationReason string
 
 const (
-	// ApprovalCancellationReasonHireEnded — The hire has ended.
+	// ApprovalCancellationReasonHireEnded — The hire reached its end date or was otherwise ended, making the pending approval unnecessary.
 	ApprovalCancellationReasonHireEnded ApprovalCancellationReason = "HIRE_ENDED"
-	// ApprovalCancellationReasonHireCancelled — The hire was cancelled.
+	// ApprovalCancellationReasonHireCancelled — The hire was cancelled by the company before the approval could be completed.
 	ApprovalCancellationReasonHireCancelled ApprovalCancellationReason = "HIRE_CANCELLED"
-	// ApprovalCancellationReasonJobClosed — The associated job was closed.
+	// ApprovalCancellationReasonJobClosed — The job associated with the approval was closed, invalidating the pending request.
 	ApprovalCancellationReasonJobClosed ApprovalCancellationReason = "JOB_CLOSED"
-	// ApprovalCancellationReasonApprovalRejected — Another approval in the workflow was rejected.
+	// ApprovalCancellationReasonApprovalRejected — Another approval in the same workflow was rejected, causing this request to be cancelled as a consequence.
 	ApprovalCancellationReasonApprovalRejected ApprovalCancellationReason = "APPROVAL_REJECTED"
-	// ApprovalCancellationReasonClassificationRetriggered — The classification was re-triggered.
+	// ApprovalCancellationReasonClassificationRetriggered — A new classification was triggered, replacing the one this approval was for.
 	ApprovalCancellationReasonClassificationRetriggered ApprovalCancellationReason = "CLASSIFICATION_RETRIGGERED"
-	// ApprovalCancellationReasonWorkflowRetriggered — The workflow was re-triggered.
+	// ApprovalCancellationReasonWorkflowRetriggered — The approval workflow was re-triggered (e.g. after a contract change), replacing this request with a new one.
 	ApprovalCancellationReasonWorkflowRetriggered ApprovalCancellationReason = "WORKFLOW_RETRIGGERED"
-	// ApprovalCancellationReasonApprovableRemoved — The approvable item was removed.
+	// ApprovalCancellationReasonApprovableRemoved — The item that required approval was removed from the system.
 	ApprovalCancellationReasonApprovableRemoved ApprovalCancellationReason = "APPROVABLE_REMOVED"
 )
 
@@ -142,15 +142,15 @@ func ValidApprovalCancellationReason() []ApprovalCancellationReason {
 	}
 }
 
-// ApprovalStatus — Status for approvals.
+// ApprovalStatus — The operational status of an approval flow. Only active approvals are evaluated when trigger events occur.
 type ApprovalStatus string
 
 const (
-	// ApprovalStatusActive — Approval active/live status.
+	// ApprovalStatusActive — The approval flow is live and will be evaluated when its trigger event fires.
 	ApprovalStatusActive ApprovalStatus = "ACTIVE"
-	// ApprovalStatusInactive — Approval inactive status.
+	// ApprovalStatusInactive — The approval flow is paused and will not be evaluated. Can be reactivated later.
 	ApprovalStatusInactive ApprovalStatus = "INACTIVE"
-	// ApprovalStatusArchived — Approval archived status.
+	// ApprovalStatusArchived — The approval flow has been retired and is kept for historical reference only.
 	ApprovalStatusArchived ApprovalStatus = "ARCHIVED"
 )
 
@@ -163,17 +163,17 @@ func ValidApprovalStatus() []ApprovalStatus {
 	}
 }
 
-// ApprovalTrigger — Trigger types for approvals.
+// ApprovalTrigger — The event that triggers an approval flow. All triggers currently apply to hires only — jobs, payment requests, and other entities are not supported.
 type ApprovalTrigger string
 
 const (
-	// ApprovalTriggerNone — Nothing triggers.
+	// ApprovalTriggerNone — No trigger — the approval flow will not be automatically evaluated.
 	ApprovalTriggerNone ApprovalTrigger = "NONE"
-	// ApprovalTriggerHireCreated — Hire was created.
+	// ApprovalTriggerHireCreated — Triggered when a new hire is created. Evaluates conditions like rate and budget against the new hire details.
 	ApprovalTriggerHireCreated ApprovalTrigger = "HIRE_CREATED"
-	// ApprovalTriggerHireChanged — Hire was updated, representing a contract change.
+	// ApprovalTriggerHireChanged — Triggered when a hire contract is changed (e.g. rate or end date updated). Evaluates conditions against the updated contract terms.
 	ApprovalTriggerHireChanged ApprovalTrigger = "HIRE_CHANGED"
-	// ApprovalTriggerClassificationCreated — Classification was created.
+	// ApprovalTriggerClassificationCreated — Triggered when a worker classification (e.g. IR35 or US worker classification) is completed. Evaluates conditions against the classification result.
 	ApprovalTriggerClassificationCreated ApprovalTrigger = "CLASSIFICATION_CREATED"
 )
 
@@ -253,18 +253,51 @@ func ValidBatchItemStatus() []BatchItemStatus {
 	}
 }
 
-// BatchType — The type of a batch.
+// BatchType — The type of items grouped in a batch for bulk processing.
 type BatchType string
 
 const (
 	// BatchTypePartnerPaymentRequests — Partner payment requests batch.
 	BatchTypePartnerPaymentRequests BatchType = "PARTNER_PAYMENT_REQUESTS"
+	// BatchTypeInvoicesForIntegrationsService — Invoices batch for processing by the Integrations Service.
+	BatchTypeInvoicesForIntegrationsService BatchType = "INVOICES_FOR_INTEGRATIONS_SERVICE"
+	// BatchTypeCustomerInvoices — Customer invoices exported to an accounting system.
+	BatchTypeCustomerInvoices BatchType = "CUSTOMER_INVOICES"
+	// BatchTypeSelfBillJournal — Self-bill journal entries exported to an accounting system.
+	BatchTypeSelfBillJournal BatchType = "SELF_BILL_JOURNAL"
+	// BatchTypeAccrualsJournal — Accruals journal entries exported to an accounting system.
+	BatchTypeAccrualsJournal BatchType = "ACCRUALS_JOURNAL"
+	// BatchTypePaymentJournal — Journal entries for self-bills that have reached a payment file.
+	BatchTypePaymentJournal BatchType = "PAYMENT_JOURNAL"
 )
 
 // ValidBatchType returns all valid values for BatchType.
 func ValidBatchType() []BatchType {
 	return []BatchType{
 		BatchTypePartnerPaymentRequests,
+		BatchTypeInvoicesForIntegrationsService,
+		BatchTypeCustomerInvoices,
+		BatchTypeSelfBillJournal,
+		BatchTypeAccrualsJournal,
+		BatchTypePaymentJournal,
+	}
+}
+
+// BidOrderByColumn — The columns that the bids list can be ordered by.
+type BidOrderByColumn string
+
+const (
+	// BidOrderByColumnCreatedAt — The date and time that the bid was created.
+	BidOrderByColumnCreatedAt BidOrderByColumn = "CREATED_AT"
+	// BidOrderByColumnStatus — The status of the bid.
+	BidOrderByColumnStatus BidOrderByColumn = "STATUS"
+)
+
+// ValidBidOrderByColumn returns all valid values for BidOrderByColumn.
+func ValidBidOrderByColumn() []BidOrderByColumn {
+	return []BidOrderByColumn{
+		BidOrderByColumnCreatedAt,
+		BidOrderByColumnStatus,
 	}
 }
 
@@ -292,7 +325,7 @@ func ValidBidStatus() []BidStatus {
 	}
 }
 
-// BusinessEntityType — Business Entity Type
+// BusinessEntityType — The legal structure of a worker's business, which varies by market and determines payment and compliance requirements.
 type BusinessEntityType string
 
 const (
@@ -318,6 +351,10 @@ const (
 	BusinessEntityTypeNlLtd BusinessEntityType = "NL_LTD"
 	// BusinessEntityTypeNlSoleTrader — NL: Sole Trader
 	BusinessEntityTypeNlSoleTrader BusinessEntityType = "NL_SOLE_TRADER"
+	// BusinessEntityTypeNlGeneralPartnership — NL: General Partnership
+	BusinessEntityTypeNlGeneralPartnership BusinessEntityType = "NL_GENERAL_PARTNERSHIP"
+	// BusinessEntityTypeNlProfessionalPartnership — NL: Professional Partnership
+	BusinessEntityTypeNlProfessionalPartnership BusinessEntityType = "NL_PROFESSIONAL_PARTNERSHIP"
 	// BusinessEntityTypeBIncome — B-income
 	BusinessEntityTypeBIncome BusinessEntityType = "B_INCOME"
 	// BusinessEntityTypeFrLtd — FR: Limited
@@ -354,6 +391,8 @@ func ValidBusinessEntityType() []BusinessEntityType {
 		BusinessEntityTypeDeLtd,
 		BusinessEntityTypeNlLtd,
 		BusinessEntityTypeNlSoleTrader,
+		BusinessEntityTypeNlGeneralPartnership,
+		BusinessEntityTypeNlProfessionalPartnership,
 		BusinessEntityTypeBIncome,
 		BusinessEntityTypeFrLtd,
 		BusinessEntityTypeFrSoleTrader,
@@ -364,6 +403,24 @@ func ValidBusinessEntityType() []BusinessEntityType {
 		BusinessEntityTypeLtd,
 		BusinessEntityTypeSoleTrader,
 		BusinessEntityTypeUmbrella,
+	}
+}
+
+// CandidateSubmissionType — Describes how a supplier relates to the candidate submitted in a pitch.
+type CandidateSubmissionType string
+
+const (
+	// CandidateSubmissionTypeManaged — The supplier directly manages the candidate.
+	CandidateSubmissionTypeManaged CandidateSubmissionType = "MANAGED"
+	// CandidateSubmissionTypeReferred — The supplier is referring an independent candidate they do not manage.
+	CandidateSubmissionTypeReferred CandidateSubmissionType = "REFERRED"
+)
+
+// ValidCandidateSubmissionType returns all valid values for CandidateSubmissionType.
+func ValidCandidateSubmissionType() []CandidateSubmissionType {
+	return []CandidateSubmissionType{
+		CandidateSubmissionTypeManaged,
+		CandidateSubmissionTypeReferred,
 	}
 }
 
@@ -394,7 +451,7 @@ func ValidClassificationResult() []ClassificationResult {
 	}
 }
 
-// ClassificationStatus — Classification status
+// ClassificationStatus — The status of a worker classification (e.g. IR35) on a hire, from initial questionnaire through to acceptance.
 type ClassificationStatus string
 
 const (
@@ -466,6 +523,30 @@ func ValidClassificationUsage() []ClassificationUsage {
 	}
 }
 
+// CompanyNumberValidationStatus — The outcome of an external validation check (e.g. KvK, VAT/VIES).
+type CompanyNumberValidationStatus string
+
+const (
+	// CompanyNumberValidationStatusPending — Validation has not been attempted yet.
+	CompanyNumberValidationStatusPending CompanyNumberValidationStatus = "PENDING"
+	// CompanyNumberValidationStatusValid — The external authority confirmed the number is valid.
+	CompanyNumberValidationStatusValid CompanyNumberValidationStatus = "VALID"
+	// CompanyNumberValidationStatusInvalid — The external authority confirmed the number is not registered.
+	CompanyNumberValidationStatusInvalid CompanyNumberValidationStatus = "INVALID"
+	// CompanyNumberValidationStatusNotVerified — Validation was attempted but the external authority was unavailable or returned an error.
+	CompanyNumberValidationStatusNotVerified CompanyNumberValidationStatus = "NOT_VERIFIED"
+)
+
+// ValidCompanyNumberValidationStatus returns all valid values for CompanyNumberValidationStatus.
+func ValidCompanyNumberValidationStatus() []CompanyNumberValidationStatus {
+	return []CompanyNumberValidationStatus{
+		CompanyNumberValidationStatusPending,
+		CompanyNumberValidationStatusValid,
+		CompanyNumberValidationStatusInvalid,
+		CompanyNumberValidationStatusNotVerified,
+	}
+}
+
 // ComplianceActorTypes — The actor needed to complete a compliance.
 type ComplianceActorTypes string
 
@@ -487,6 +568,27 @@ func ValidComplianceActorTypes() []ComplianceActorTypes {
 		ComplianceActorTypesCompany,
 		ComplianceActorTypesRecruiter,
 		ComplianceActorTypesWorksome,
+	}
+}
+
+// ComplianceClassificationAnswer — Answer outcomes for a classification question.
+type ComplianceClassificationAnswer string
+
+const (
+	// ComplianceClassificationAnswerYes — The worker answered the question affirmatively.
+	ComplianceClassificationAnswerYes ComplianceClassificationAnswer = "YES"
+	// ComplianceClassificationAnswerNo — The worker answered the question negatively.
+	ComplianceClassificationAnswerNo ComplianceClassificationAnswer = "NO"
+	// ComplianceClassificationAnswerUnknown — The worker did not know, or chose not to answer.
+	ComplianceClassificationAnswerUnknown ComplianceClassificationAnswer = "UNKNOWN"
+)
+
+// ValidComplianceClassificationAnswer returns all valid values for ComplianceClassificationAnswer.
+func ValidComplianceClassificationAnswer() []ComplianceClassificationAnswer {
+	return []ComplianceClassificationAnswer{
+		ComplianceClassificationAnswerYes,
+		ComplianceClassificationAnswerNo,
+		ComplianceClassificationAnswerUnknown,
 	}
 }
 
@@ -576,6 +678,8 @@ const (
 	ComplianceNameRecruiterUsBusinessEntity ComplianceName = "RECRUITER_US_BUSINESS_ENTITY"
 	// ComplianceNameRecruiterNlBusinessEntity — Netherlands recruiter business entity compliance
 	ComplianceNameRecruiterNlBusinessEntity ComplianceName = "RECRUITER_NL_BUSINESS_ENTITY"
+	// ComplianceNameRecruiterDeBusinessEntity — German recruiter business entity compliance
+	ComplianceNameRecruiterDeBusinessEntity ComplianceName = "RECRUITER_DE_BUSINESS_ENTITY"
 	// ComplianceNameUkContractType — UK contract type compliance
 	ComplianceNameUkContractType ComplianceName = "UK_CONTRACT_TYPE"
 	// ComplianceNameUkContractTypeSoleTrader — UK contract type sole trader compliance
@@ -612,6 +716,8 @@ const (
 	ComplianceNameW2Hire ComplianceName = "W2_HIRE"
 	// ComplianceNameGlobalWorkerClassification — Global worker classification compliance
 	ComplianceNameGlobalWorkerClassification ComplianceName = "GLOBAL_WORKER_CLASSIFICATION"
+	// ComplianceNameNlInsurance — NL insurance compliance
+	ComplianceNameNlInsurance ComplianceName = "NL_INSURANCE"
 	// ComplianceNameNlContractType — NL contract type compliance
 	ComplianceNameNlContractType ComplianceName = "NL_CONTRACT_TYPE"
 	// ComplianceNameNlWorkerClassification — NL worker classification compliance
@@ -632,16 +738,42 @@ const (
 	ComplianceNameNlWaadiRegistration ComplianceName = "NL_WAADI_REGISTRATION"
 	// ComplianceNameNlSnaCertification — NL SNA quality mark certification for staffing agencies
 	ComplianceNameNlSnaCertification ComplianceName = "NL_SNA_CERTIFICATION"
+	// ComplianceNameNlKvkRegistration — NL KvK (Chamber of Commerce) registration for staffing agencies
+	ComplianceNameNlKvkRegistration ComplianceName = "NL_KVK_REGISTRATION"
+	// ComplianceNameNlBtwIdentification — NL BTW (VAT) identification for staffing agencies
+	ComplianceNameNlBtwIdentification ComplianceName = "NL_BTW_IDENTIFICATION"
+	// ComplianceNameBusinessEntityTypeValidity — Business entity type validity compliance
+	ComplianceNameBusinessEntityTypeValidity ComplianceName = "BUSINESS_ENTITY_TYPE_VALIDITY"
+	// ComplianceNameBusinessEntityTypeUpdate — Business entity type update compliance (dashboard alert)
+	ComplianceNameBusinessEntityTypeUpdate ComplianceName = "BUSINESS_ENTITY_TYPE_UPDATE"
 	// ComplianceNameNlGAccount — NL G-Account (Geblokkeerde Rekening) for staffing agency tax liability reserves
 	ComplianceNameNlGAccount ComplianceName = "NL_G_ACCOUNT"
-	// ComplianceNameKvkValidNumber — KvK number valid and company active
-	ComplianceNameKvkValidNumber ComplianceName = "KVK_VALID_NUMBER"
-	// ComplianceNameKvkCompanyNameMatch — Company name matches KvK trade names
-	ComplianceNameKvkCompanyNameMatch ComplianceName = "KVK_COMPANY_NAME_MATCH"
-	// ComplianceNameKvkWaadi — WAADI registration (staffing SBI codes)
-	ComplianceNameKvkWaadi ComplianceName = "KVK_WAADI"
-	// ComplianceNameKvkSnaQualityMark — SNA quality mark for staffing agencies
-	ComplianceNameKvkSnaQualityMark ComplianceName = "KVK_SNA_QUALITY_MARK"
+	// ComplianceNameNlBsn — NL BSN (Burgerservicenummer) for workers in the Netherlands
+	ComplianceNameNlBsn ComplianceName = "NL_BSN"
+	// ComplianceNameFreelancerNlKvkCertificate — NL KvK certificate upload compliance for freelancers
+	ComplianceNameFreelancerNlKvkCertificate ComplianceName = "FREELANCER_NL_KVK_CERTIFICATE"
+	// ComplianceNameRecruiterNlKvkCertificate — NL KvK certificate upload compliance for staffing agencies
+	ComplianceNameRecruiterNlKvkCertificate ComplianceName = "RECRUITER_NL_KVK_CERTIFICATE"
+	// ComplianceNameNlSupplierEmploymentConfirmation — NL supplier employment confirmation for staffing agencies
+	ComplianceNameNlSupplierEmploymentConfirmation ComplianceName = "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION"
+	// ComplianceNameNlSupplierEmploymentConfirmationReview — Client review of NL supplier employment confirmation
+	ComplianceNameNlSupplierEmploymentConfirmationReview ComplianceName = "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION_REVIEW"
+	// ComplianceNameVerifiedWorkerCompliance — Verified worker compliance — company verification of a worker
+	ComplianceNameVerifiedWorkerCompliance ComplianceName = "VERIFIED_WORKER_COMPLIANCE"
+	// ComplianceNameWorkerOnboarding — Worker onboarding — review of onboarding documents and required custom fields
+	ComplianceNameWorkerOnboarding ComplianceName = "WORKER_ONBOARDING"
+	// ComplianceNameIdentification — Required identification details
+	ComplianceNameIdentification ComplianceName = "IDENTIFICATION"
+	// ComplianceNameVerifiedRecruiterCompliance — Verified staffing-agency compliance — company verification of a staffing agency
+	ComplianceNameVerifiedRecruiterCompliance ComplianceName = "VERIFIED_RECRUITER_COMPLIANCE"
+	// ComplianceNameRecruiterOnboarding — Staffing-agency onboarding — review of onboarding documents and required custom fields
+	ComplianceNameRecruiterOnboarding ComplianceName = "RECRUITER_ONBOARDING"
+	// ComplianceNameDeterminationSupplierHireClientInput — End client input for supplier-managed worker classification
+	ComplianceNameDeterminationSupplierHireClientInput ComplianceName = "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT"
+	// ComplianceNameDeterminationSupplierHireAwaitingClient — Supplier awaiting end client classification input
+	ComplianceNameDeterminationSupplierHireAwaitingClient ComplianceName = "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT"
+	// ComplianceNameSupplierHirePrepared — Downstream supplier-mirror hire is out of draft and prepared by the staffing agency
+	ComplianceNameSupplierHirePrepared ComplianceName = "SUPPLIER_HIRE_PREPARED"
 )
 
 // ValidComplianceName returns all valid values for ComplianceName.
@@ -688,6 +820,7 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNamePayeAccept,
 		ComplianceNameRecruiterUsBusinessEntity,
 		ComplianceNameRecruiterNlBusinessEntity,
+		ComplianceNameRecruiterDeBusinessEntity,
 		ComplianceNameUkContractType,
 		ComplianceNameUkContractTypeSoleTrader,
 		ComplianceNameUkPayeEmployment,
@@ -706,6 +839,7 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameUkValidContractSetup,
 		ComplianceNameW2Hire,
 		ComplianceNameGlobalWorkerClassification,
+		ComplianceNameNlInsurance,
 		ComplianceNameNlContractType,
 		ComplianceNameNlWorkerClassification,
 		ComplianceNameValidVat,
@@ -716,11 +850,24 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameSoWConfirmation,
 		ComplianceNameNlWaadiRegistration,
 		ComplianceNameNlSnaCertification,
+		ComplianceNameNlKvkRegistration,
+		ComplianceNameNlBtwIdentification,
+		ComplianceNameBusinessEntityTypeValidity,
+		ComplianceNameBusinessEntityTypeUpdate,
 		ComplianceNameNlGAccount,
-		ComplianceNameKvkValidNumber,
-		ComplianceNameKvkCompanyNameMatch,
-		ComplianceNameKvkWaadi,
-		ComplianceNameKvkSnaQualityMark,
+		ComplianceNameNlBsn,
+		ComplianceNameFreelancerNlKvkCertificate,
+		ComplianceNameRecruiterNlKvkCertificate,
+		ComplianceNameNlSupplierEmploymentConfirmation,
+		ComplianceNameNlSupplierEmploymentConfirmationReview,
+		ComplianceNameVerifiedWorkerCompliance,
+		ComplianceNameWorkerOnboarding,
+		ComplianceNameIdentification,
+		ComplianceNameVerifiedRecruiterCompliance,
+		ComplianceNameRecruiterOnboarding,
+		ComplianceNameDeterminationSupplierHireClientInput,
+		ComplianceNameDeterminationSupplierHireAwaitingClient,
+		ComplianceNameSupplierHirePrepared,
 	}
 }
 
@@ -769,7 +916,31 @@ func ValidContactStatusFilter() []ContactStatusFilter {
 	}
 }
 
-// ContractStatus — The status of a contract.
+// ContractDocType — The type of contract document.
+type ContractDocType string
+
+const (
+	// ContractDocTypeKid — Key Information Document.
+	ContractDocTypeKid ContractDocType = "KID"
+	// ContractDocTypeGeneric — Generic contract document.
+	ContractDocTypeGeneric ContractDocType = "GENERIC"
+	// ContractDocTypeOnboarding — Worker onboarding document.
+	ContractDocTypeOnboarding ContractDocType = "ONBOARDING"
+	// ContractDocTypeStaffingAgencyOnboarding — Staffing agency onboarding document.
+	ContractDocTypeStaffingAgencyOnboarding ContractDocType = "STAFFING_AGENCY_ONBOARDING"
+)
+
+// ValidContractDocType returns all valid values for ContractDocType.
+func ValidContractDocType() []ContractDocType {
+	return []ContractDocType{
+		ContractDocTypeKid,
+		ContractDocTypeGeneric,
+		ContractDocTypeOnboarding,
+		ContractDocTypeStaffingAgencyOnboarding,
+	}
+}
+
+// ContractStatus — The lifecycle status of a contract within a hire — draft, active, or archived.
 type ContractStatus string
 
 const (
@@ -844,7 +1015,7 @@ func ValidContractTerminationReason() []ContractTerminationReason {
 	}
 }
 
-// ContractType — The type of a contract.
+// ContractType — The engagement model of a contract, which determines payment method and compliance requirements (e.g. PSC Contractor, PAYE, Statement of Work).
 type ContractType string
 
 const (
@@ -1698,6 +1869,10 @@ const (
 	CustomFieldTypeSingleSelect CustomFieldType = "SINGLE_SELECT"
 	// CustomFieldTypeFreeText — Free Text input field. This can be used to receive any text value
 	CustomFieldTypeFreeText CustomFieldType = "FREE_TEXT"
+	// CustomFieldTypeMultiSelect — Multi Select input field. Used to collect values from multi select dropdown.
+	CustomFieldTypeMultiSelect CustomFieldType = "MULTI_SELECT"
+	// CustomFieldTypeFileUpload — File Upload input field. Used to attach an uploaded file as the field value.
+	CustomFieldTypeFileUpload CustomFieldType = "FILE_UPLOAD"
 )
 
 // ValidCustomFieldType returns all valid values for CustomFieldType.
@@ -1705,6 +1880,8 @@ func ValidCustomFieldType() []CustomFieldType {
 	return []CustomFieldType{
 		CustomFieldTypeSingleSelect,
 		CustomFieldTypeFreeText,
+		CustomFieldTypeMultiSelect,
+		CustomFieldTypeFileUpload,
 	}
 }
 
@@ -1726,11 +1903,11 @@ func ValidCustomFieldValidationRules() []CustomFieldValidationRules {
 	}
 }
 
-// CustomFieldVisibility — Define the different values available for Custom field visibility field.
+// CustomFieldVisibility — The visibility of a custom field — whether it is hidden from the worker or editable by them.
 type CustomFieldVisibility string
 
 const (
-	// CustomFieldVisibilityInternal — Custom field with this visibility will only be seen internally by the company.
+	// CustomFieldVisibilityInternal — Custom field with this visibility will not be seen by the worker.
 	CustomFieldVisibilityInternal CustomFieldVisibility = "INTERNAL"
 	// CustomFieldVisibilityWorker — Custom field with this visibility will be available to the worker for input.
 	CustomFieldVisibilityWorker CustomFieldVisibility = "WORKER"
@@ -1744,7 +1921,28 @@ func ValidCustomFieldVisibility() []CustomFieldVisibility {
 	}
 }
 
-// EmployerRecordStatus — @implements IsStatusDeterminable<Employment>
+// CustomTimesheetRejectionReason — The reason a timesheet registration was rejected by Worksome.
+type CustomTimesheetRejectionReason string
+
+const (
+	// CustomTimesheetRejectionReasonMissingRequiredField — One or more required fields were missing or had the wrong type.
+	CustomTimesheetRejectionReasonMissingRequiredField CustomTimesheetRejectionReason = "MISSING_REQUIRED_FIELD"
+	// CustomTimesheetRejectionReasonHireNotFound — The hireId did not resolve to a hire the authenticated account can submit timesheets for.
+	CustomTimesheetRejectionReasonHireNotFound CustomTimesheetRejectionReason = "HIRE_NOT_FOUND"
+	// CustomTimesheetRejectionReasonDateOutsideContractPeriod — The reportedDate falls outside the hire's contract start/end dates.
+	CustomTimesheetRejectionReasonDateOutsideContractPeriod CustomTimesheetRejectionReason = "DATE_OUTSIDE_CONTRACT_PERIOD"
+)
+
+// ValidCustomTimesheetRejectionReason returns all valid values for CustomTimesheetRejectionReason.
+func ValidCustomTimesheetRejectionReason() []CustomTimesheetRejectionReason {
+	return []CustomTimesheetRejectionReason{
+		CustomTimesheetRejectionReasonMissingRequiredField,
+		CustomTimesheetRejectionReasonHireNotFound,
+		CustomTimesheetRejectionReasonDateOutsideContractPeriod,
+	}
+}
+
+// EmployerRecordStatus — The status of the employer record setup for a payroll employment, tracking whether required information has been provided.
 type EmployerRecordStatus string
 
 const (
@@ -1768,7 +1966,7 @@ func ValidEmployerRecordStatus() []EmployerRecordStatus {
 	}
 }
 
-// EmploymentCostCategory — The category of an employment cost.
+// EmploymentCostCategory — The category grouping for an employment cost on a payroll engagement.
 type EmploymentCostCategory string
 
 const (
@@ -1783,7 +1981,7 @@ func ValidEmploymentCostCategory() []EmploymentCostCategory {
 	}
 }
 
-// EmploymentCostFrequency — The frequency of an employment cost.
+// EmploymentCostFrequency — How often an employment cost is applied — ongoing (every pay period) or as a one-time charge.
 type EmploymentCostFrequency string
 
 const (
@@ -1801,7 +1999,7 @@ func ValidEmploymentCostFrequency() []EmploymentCostFrequency {
 	}
 }
 
-// EmploymentCostType — The type of an employment cost.
+// EmploymentCostType — How an employment cost is calculated — as a percentage of the worker's pay or as a fixed amount.
 type EmploymentCostType string
 
 const (
@@ -1846,7 +2044,7 @@ func ValidEmploymentOrderByColumn() []EmploymentOrderByColumn {
 	}
 }
 
-// EmploymentStatus — @implements IsStatusDeterminable<Employment>
+// EmploymentStatus — The lifecycle status of a payroll employment record associated with a hire.
 type EmploymentStatus string
 
 const (
@@ -1867,7 +2065,7 @@ func ValidEmploymentStatus() []EmploymentStatus {
 	}
 }
 
-// EngagementType — The type of an engagement.
+// EngagementType — How a worker is engaged on a hire — as a contractor (direct payment), on payroll, via an external arrangement, or pending classification.
 type EngagementType string
 
 const (
@@ -1901,7 +2099,7 @@ const (
 	EngagementTypeSetupPaye EngagementTypeSetup = "PAYE"
 	// EngagementTypeSetupInsideIr35 — The engagement is Inside IR35.
 	EngagementTypeSetupInsideIr35 EngagementTypeSetup = "INSIDE_IR35"
-	// EngagementTypeSetupGlobalPayroll — The engagement is Global Payroll.
+	// EngagementTypeSetupGlobalPayroll — The engagement is employee on payroll.
 	EngagementTypeSetupGlobalPayroll EngagementTypeSetup = "GLOBAL_PAYROLL"
 	// EngagementTypeSetupW2Classify — The engagement is W-2 (via Worksome Classify).
 	EngagementTypeSetupW2Classify EngagementTypeSetup = "W2_CLASSIFY"
@@ -1909,7 +2107,7 @@ const (
 	EngagementTypeSetupPayeClassify EngagementTypeSetup = "PAYE_CLASSIFY"
 	// EngagementTypeSetupInsideIr35Classify — The engagement is Inside IR35 (via Worksome Classify).
 	EngagementTypeSetupInsideIr35Classify EngagementTypeSetup = "INSIDE_IR35_CLASSIFY"
-	// EngagementTypeSetupGlobalEmployeeClassify — The engagement is Global Employee (via Worksome Classify).
+	// EngagementTypeSetupGlobalEmployeeClassify — The engagement is Employee (via Worksome Classify).
 	EngagementTypeSetupGlobalEmployeeClassify EngagementTypeSetup = "GLOBAL_EMPLOYEE_CLASSIFY"
 	// EngagementTypeSetupIc1099 — The engagement is 1099.
 	EngagementTypeSetupIc1099 EngagementTypeSetup = "IC1099"
@@ -1919,6 +2117,8 @@ const (
 	EngagementTypeSetupSoleTrader EngagementTypeSetup = "SOLE_TRADER"
 	// EngagementTypeSetupStatementOfWork — The engagement is Statement of Work.
 	EngagementTypeSetupStatementOfWork EngagementTypeSetup = "STATEMENT_OF_WORK"
+	// EngagementTypeSetupContractorZzp — The engagement is ZZP (Netherlands independent contractor).
+	EngagementTypeSetupContractorZzp EngagementTypeSetup = "CONTRACTOR_ZZP"
 	// EngagementTypeSetupDefault — The engagement is Default.
 	EngagementTypeSetupDefault EngagementTypeSetup = "DEFAULT"
 	// EngagementTypeSetupIc1099Classify — The engagement is 1099 (via Worksome Classify).
@@ -1927,8 +2127,10 @@ const (
 	EngagementTypeSetupOutsideIr35Classify EngagementTypeSetup = "OUTSIDE_IR35_CLASSIFY"
 	// EngagementTypeSetupSoleTraderClassify — The engagement is Sole Trader (via Worksome Classify).
 	EngagementTypeSetupSoleTraderClassify EngagementTypeSetup = "SOLE_TRADER_CLASSIFY"
-	// EngagementTypeSetupGlobalContractorClassify — The engagement is Global Contractor (via Worksome Classify).
+	// EngagementTypeSetupGlobalContractorClassify — The engagement is Independent Contractor (via Worksome Classify).
 	EngagementTypeSetupGlobalContractorClassify EngagementTypeSetup = "GLOBAL_CONTRACTOR_CLASSIFY"
+	// EngagementTypeSetupContractorZzpClassify — The engagement is ZZP (via Worksome Classify).
+	EngagementTypeSetupContractorZzpClassify EngagementTypeSetup = "CONTRACTOR_ZZP_CLASSIFY"
 	// EngagementTypeSetupUmbrella — The worker is engaged via an umbrella company.
 	EngagementTypeSetupUmbrella EngagementTypeSetup = "UMBRELLA"
 	// EngagementTypeSetupStaffingAgency — The associated hire is managed via a staffing agency.
@@ -1952,11 +2154,13 @@ func ValidEngagementTypeSetup() []EngagementTypeSetup {
 		EngagementTypeSetupOutsideIr35,
 		EngagementTypeSetupSoleTrader,
 		EngagementTypeSetupStatementOfWork,
+		EngagementTypeSetupContractorZzp,
 		EngagementTypeSetupDefault,
 		EngagementTypeSetupIc1099Classify,
 		EngagementTypeSetupOutsideIr35Classify,
 		EngagementTypeSetupSoleTraderClassify,
 		EngagementTypeSetupGlobalContractorClassify,
+		EngagementTypeSetupContractorZzpClassify,
 		EngagementTypeSetupUmbrella,
 		EngagementTypeSetupStaffingAgency,
 		EngagementTypeSetupPending,
@@ -1992,6 +2196,8 @@ const (
 	ExpectedExperienceLevelStudent ExpectedExperienceLevel = "STUDENT"
 	// ExpectedExperienceLevelJunior — Junior
 	ExpectedExperienceLevelJunior ExpectedExperienceLevel = "JUNIOR"
+	// ExpectedExperienceLevelMidLevel — Mid level
+	ExpectedExperienceLevelMidLevel ExpectedExperienceLevel = "MID_LEVEL"
 	// ExpectedExperienceLevelSenior — Senior
 	ExpectedExperienceLevelSenior ExpectedExperienceLevel = "SENIOR"
 	// ExpectedExperienceLevelExpert — Expert
@@ -2003,6 +2209,7 @@ func ValidExpectedExperienceLevel() []ExpectedExperienceLevel {
 	return []ExpectedExperienceLevel{
 		ExpectedExperienceLevelStudent,
 		ExpectedExperienceLevelJunior,
+		ExpectedExperienceLevelMidLevel,
 		ExpectedExperienceLevelSenior,
 		ExpectedExperienceLevelExpert,
 	}
@@ -2065,6 +2272,66 @@ func ValidExportResponseStatus() []ExportResponseStatus {
 	}
 }
 
+// FeeApplication — How a fee is applied when calculating or explaining an amount.
+type FeeApplication string
+
+const (
+	// FeeApplicationAdditive — The fee is added on top of the base amount.
+	FeeApplicationAdditive FeeApplication = "ADDITIVE"
+	// FeeApplicationConstituent — The fee is a constituent part of an already agreed amount.
+	FeeApplicationConstituent FeeApplication = "CONSTITUENT"
+)
+
+// ValidFeeApplication returns all valid values for FeeApplication.
+func ValidFeeApplication() []FeeApplication {
+	return []FeeApplication{
+		FeeApplicationAdditive,
+		FeeApplicationConstituent,
+	}
+}
+
+// FeeBasis — The basis on which a fee is calculated.
+type FeeBasis string
+
+const (
+	// FeeBasisPercentage — A percentage of the total amount.
+	FeeBasisPercentage FeeBasis = "PERCENTAGE"
+	// FeeBasisHourly — A fixed monetary rate per hour.
+	FeeBasisHourly FeeBasis = "HOURLY"
+	// FeeBasisDaily — A fixed monetary rate per day.
+	FeeBasisDaily FeeBasis = "DAILY"
+	// FeeBasisWeekly — A fixed monetary rate per week.
+	FeeBasisWeekly FeeBasis = "WEEKLY"
+	// FeeBasisMonthly — A fixed monetary rate per month.
+	FeeBasisMonthly FeeBasis = "MONTHLY"
+)
+
+// ValidFeeBasis returns all valid values for FeeBasis.
+func ValidFeeBasis() []FeeBasis {
+	return []FeeBasis{
+		FeeBasisPercentage,
+		FeeBasisHourly,
+		FeeBasisDaily,
+		FeeBasisWeekly,
+		FeeBasisMonthly,
+	}
+}
+
+// FeeType — The type of fee being applied.
+type FeeType string
+
+const (
+	// FeeTypeReferral — A referral fee paid to a staffing agency for sourcing a worker.
+	FeeTypeReferral FeeType = "REFERRAL"
+)
+
+// ValidFeeType returns all valid values for FeeType.
+func ValidFeeType() []FeeType {
+	return []FeeType{
+		FeeTypeReferral,
+	}
+}
+
 // Fluency — The fluency of a language.
 type Fluency string
 
@@ -2098,7 +2365,7 @@ func ValidGeneratorType() []GeneratorType {
 	}
 }
 
-// HireActiveStatus — Hire activity status
+// HireActiveStatus — The lifecycle status of a hire, from initial creation through completion or early termination. Draft: created but not yet offered, may be pending approval. Offered: awaiting worker acceptance. Ready: accepted but start date not yet reached. Active: engagement in progress. Ended: concluded naturally or job removed. Cancelled: cancelled before becoming active (includes approval rejections). Terminated: ended early by the company with a termination reason.
 type HireActiveStatus string
 
 const (
@@ -2151,6 +2418,8 @@ const (
 	HireOrderByColumnCreatedAt HireOrderByColumn = "CREATED_AT"
 	// HireOrderByColumnEngagementType — The hire engagement type
 	HireOrderByColumnEngagementType HireOrderByColumn = "ENGAGEMENT_TYPE"
+	// HireOrderByColumnLastPaymentRequestDate — The date the worker last submitted a payment request
+	HireOrderByColumnLastPaymentRequestDate HireOrderByColumn = "LAST_PAYMENT_REQUEST_DATE"
 )
 
 // ValidHireOrderByColumn returns all valid values for HireOrderByColumn.
@@ -2164,6 +2433,28 @@ func ValidHireOrderByColumn() []HireOrderByColumn {
 		HireOrderByColumnHireId,
 		HireOrderByColumnCreatedAt,
 		HireOrderByColumnEngagementType,
+		HireOrderByColumnLastPaymentRequestDate,
+	}
+}
+
+// IdentificationDocumentType — The type of identification document a worker has provided for compliance.
+type IdentificationDocumentType string
+
+const (
+	// IdentificationDocumentTypePassport — A government-issued passport.
+	IdentificationDocumentTypePassport IdentificationDocumentType = "PASSPORT"
+	// IdentificationDocumentTypeNationalIdCard — A government-issued national identity card.
+	IdentificationDocumentTypeNationalIdCard IdentificationDocumentType = "NATIONAL_ID_CARD"
+	// IdentificationDocumentTypeResidencePermit — A residence permit issued by the worker's country of residence.
+	IdentificationDocumentTypeResidencePermit IdentificationDocumentType = "RESIDENCE_PERMIT"
+)
+
+// ValidIdentificationDocumentType returns all valid values for IdentificationDocumentType.
+func ValidIdentificationDocumentType() []IdentificationDocumentType {
+	return []IdentificationDocumentType{
+		IdentificationDocumentTypePassport,
+		IdentificationDocumentTypeNationalIdCard,
+		IdentificationDocumentTypeResidencePermit,
 	}
 }
 
@@ -2191,7 +2482,7 @@ func ValidInsuranceType() []InsuranceType {
 	}
 }
 
-// InvoiceStatus — The status of an invoice.
+// InvoiceStatus — The payment status of an invoice issued to a company.
 type InvoiceStatus string
 
 const (
@@ -2272,6 +2563,46 @@ const (
 	JobCandidateHiringStepApplied JobCandidateHiringStep = "APPLIED"
 	// JobCandidateHiringStepHiring — A JobCandidate in the (they have a hire for the job) hiring step
 	JobCandidateHiringStepHiring JobCandidateHiringStep = "HIRING"
+	// JobCandidateHiringStepSelectionSubmitted — The supplier has uploaded a candidate. No action has been taken by the MSP yet.
+	JobCandidateHiringStepSelectionSubmitted JobCandidateHiringStep = "SELECTION_SUBMITTED"
+	// JobCandidateHiringStepSelectionUnderReview — The MSP is reviewing the CV and assessing the candidate against the hard requirements of the request.
+	JobCandidateHiringStepSelectionUnderReview JobCandidateHiringStep = "SELECTION_UNDER_REVIEW"
+	// JobCandidateHiringStepSelectionShortlisted — The MSP has shortlisted the candidate with another runner-up.
+	JobCandidateHiringStepSelectionShortlisted JobCandidateHiringStep = "SELECTION_SHORTLISTED"
+	// JobCandidateHiringStepSelectionDeclinedByMsp — The candidate does not meet the requirements. A reason should be provided (e.g., rate, skills).
+	JobCandidateHiringStepSelectionDeclinedByMsp JobCandidateHiringStep = "SELECTION_DECLINED_BY_MSP"
+	// JobCandidateHiringStepSelectionWithdrawn — The candidate has withdrawn themselves from the process.
+	JobCandidateHiringStepSelectionWithdrawn JobCandidateHiringStep = "SELECTION_WITHDRAWN"
+	// JobCandidateHiringStepSelectionPresentedToClient — The MSP has approved the candidate and presented them to the client.
+	JobCandidateHiringStepSelectionPresentedToClient JobCandidateHiringStep = "SELECTION_PRESENTED_TO_CLIENT"
+	// JobCandidateHiringStepInterviewSelected — The client has indicated that they want to speak with the candidate.
+	JobCandidateHiringStepInterviewSelected JobCandidateHiringStep = "INTERVIEW_SELECTED"
+	// JobCandidateHiringStepInterviewScheduled — The date and time have been confirmed and recorded in the system.
+	JobCandidateHiringStepInterviewScheduled JobCandidateHiringStep = "INTERVIEW_SCHEDULED"
+	// JobCandidateHiringStepInterviewCompleted — The interview is completed; we are waiting for feedback from the client or candidate.
+	JobCandidateHiringStepInterviewCompleted JobCandidateHiringStep = "INTERVIEW_COMPLETED"
+	// JobCandidateHiringStepInterviewWithdrawn — The candidate or supplier has withdrawn themselves from the process.
+	JobCandidateHiringStepInterviewWithdrawn JobCandidateHiringStep = "INTERVIEW_WITHDRAWN"
+	// JobCandidateHiringStepInterviewShortlisted — The MSP is hesitant or is comparing the candidate with another runner-up.
+	JobCandidateHiringStepInterviewShortlisted JobCandidateHiringStep = "INTERVIEW_SHORTLISTED"
+	// JobCandidateHiringStepCompletionRejectedByClient — The client does not choose this candidate after the interview.
+	JobCandidateHiringStepCompletionRejectedByClient JobCandidateHiringStep = "COMPLETION_REJECTED_BY_CLIENT"
+	// JobCandidateHiringStepCompletionDeclinedByMsp — The MSP decides to not accept candidate anymore.
+	JobCandidateHiringStepCompletionDeclinedByMsp JobCandidateHiringStep = "COMPLETION_DECLINED_BY_MSP"
+	// JobCandidateHiringStepCompletionWithdrawn — The candidate/supplier has withdrawn themselves from the process.
+	JobCandidateHiringStepCompletionWithdrawn JobCandidateHiringStep = "COMPLETION_WITHDRAWN"
+	// JobCandidateHiringStepCompletionOfferExtended — The client wants the candidate; the contract proposal is with the supplier.
+	JobCandidateHiringStepCompletionOfferExtended JobCandidateHiringStep = "COMPLETION_OFFER_EXTENDED"
+	// JobCandidateHiringStepCompletionCandidateOnboarding — The supplier/freelancer is to provide all documents and information.
+	JobCandidateHiringStepCompletionCandidateOnboarding JobCandidateHiringStep = "COMPLETION_CANDIDATE_ONBOARDING"
+	// JobCandidateHiringStepCompletionBackgroundCheck — The MSP's turn to screen all documents and information.
+	JobCandidateHiringStepCompletionBackgroundCheck JobCandidateHiringStep = "COMPLETION_BACKGROUND_CHECK"
+	// JobCandidateHiringStepCompletionHired — The contract is signed. Recruitment for this request is closed.
+	JobCandidateHiringStepCompletionHired JobCandidateHiringStep = "COMPLETION_HIRED"
+	// JobCandidateHiringStepCompletionOnHold — Candidates on hold until interviews with other candidates have taken place.
+	JobCandidateHiringStepCompletionOnHold JobCandidateHiringStep = "COMPLETION_ON_HOLD"
+	// JobCandidateHiringStepCompletionTalentpool — Link a candidate to a talent pool across organizations.
+	JobCandidateHiringStepCompletionTalentpool JobCandidateHiringStep = "COMPLETION_TALENTPOOL"
 )
 
 // ValidJobCandidateHiringStep returns all valid values for JobCandidateHiringStep.
@@ -2281,6 +2612,26 @@ func ValidJobCandidateHiringStep() []JobCandidateHiringStep {
 		JobCandidateHiringStepInvitedToApply,
 		JobCandidateHiringStepApplied,
 		JobCandidateHiringStepHiring,
+		JobCandidateHiringStepSelectionSubmitted,
+		JobCandidateHiringStepSelectionUnderReview,
+		JobCandidateHiringStepSelectionShortlisted,
+		JobCandidateHiringStepSelectionDeclinedByMsp,
+		JobCandidateHiringStepSelectionWithdrawn,
+		JobCandidateHiringStepSelectionPresentedToClient,
+		JobCandidateHiringStepInterviewSelected,
+		JobCandidateHiringStepInterviewScheduled,
+		JobCandidateHiringStepInterviewCompleted,
+		JobCandidateHiringStepInterviewWithdrawn,
+		JobCandidateHiringStepInterviewShortlisted,
+		JobCandidateHiringStepCompletionRejectedByClient,
+		JobCandidateHiringStepCompletionDeclinedByMsp,
+		JobCandidateHiringStepCompletionWithdrawn,
+		JobCandidateHiringStepCompletionOfferExtended,
+		JobCandidateHiringStepCompletionCandidateOnboarding,
+		JobCandidateHiringStepCompletionBackgroundCheck,
+		JobCandidateHiringStepCompletionHired,
+		JobCandidateHiringStepCompletionOnHold,
+		JobCandidateHiringStepCompletionTalentpool,
 	}
 }
 
@@ -2365,7 +2716,7 @@ func ValidJobCandidateStatusReason() []JobCandidateStatusReason {
 	}
 }
 
-// JobEndTimeframe — This class defines the different levels of time frames for job end.
+// JobEndTimeframe — The expected duration or end date of a job engagement.
 type JobEndTimeframe string
 
 const (
@@ -2431,7 +2782,7 @@ func ValidJobShareOrderByColumn() []JobShareOrderByColumn {
 	}
 }
 
-// JobStartTimeframe — This class defines the different levels of time frames for job start.
+// JobStartTimeframe — When the company expects the job engagement to start.
 type JobStartTimeframe string
 
 const (
@@ -2452,7 +2803,7 @@ func ValidJobStartTimeframe() []JobStartTimeframe {
 	}
 }
 
-// JobStatus — Job status
+// JobStatus — The lifecycle status of a job posting. Draft jobs are not yet published — use updateJob to complete details and publish. Active jobs are visible and accepting bids. Completed jobs have been closed after filling or manually. Removed jobs were discarded before any hires.
 type JobStatus string
 
 const (
@@ -2476,7 +2827,7 @@ func ValidJobStatus() []JobStatus {
 	}
 }
 
-// JobVisibility — The visibility of a job.
+// JobVisibility — Who can see a job posting — trusted contacts in the Talent Pool, staffing agencies, or all workers on the marketplace.
 type JobVisibility string
 
 const (
@@ -2560,7 +2911,7 @@ func ValidLanguageName() []LanguageName {
 	}
 }
 
-// LegacyTimesheetType — The type of a timesheet.
+// LegacyTimesheetType — The format of a timesheet submission — structured sheet, uploaded file, free-text entry, or standard timesheet.
 type LegacyTimesheetType string
 
 const (
@@ -2695,7 +3046,7 @@ func ValidMarketCode() []MarketCode {
 	}
 }
 
-// MilestoneStatus — Milestone status.
+// MilestoneStatus — The status of a deliverable-based milestone, tracking whether payment has been requested and completed.
 type MilestoneStatus string
 
 const (
@@ -2757,6 +3108,27 @@ func ValidMultiFactorStatus() []MultiFactorStatus {
 	}
 }
 
+// NlSnaStatus — SNA certification status for Dutch staffing agencies. Determines G-Account split percentage.
+type NlSnaStatus string
+
+const (
+	// NlSnaStatusCertified — Agency holds valid SNA quality mark (NEN 4400-1).
+	NlSnaStatusCertified NlSnaStatus = "CERTIFIED"
+	// NlSnaStatusNotCertified — Agency does not hold SNA certification.
+	NlSnaStatusNotCertified NlSnaStatus = "NOT_CERTIFIED"
+	// NlSnaStatusNotApplicable — SNA certification does not apply.
+	NlSnaStatusNotApplicable NlSnaStatus = "NOT_APPLICABLE"
+)
+
+// ValidNlSnaStatus returns all valid values for NlSnaStatus.
+func ValidNlSnaStatus() []NlSnaStatus {
+	return []NlSnaStatus{
+		NlSnaStatusCertified,
+		NlSnaStatusNotCertified,
+		NlSnaStatusNotApplicable,
+	}
+}
+
 // OrderByRelationAggregateFunction — Aggregate functions when ordering by a relation without specifying a column.
 type OrderByRelationAggregateFunction string
 
@@ -2799,7 +3171,7 @@ func ValidOrderByRelationWithColumnAggregateFunction() []OrderByRelationWithColu
 	}
 }
 
-// OvertimeType — The type for an overtime entry.
+// OvertimeType — The overtime calculation period — daily, weekly, or based on sixth/seventh consecutive working days.
 type OvertimeType string
 
 const (
@@ -2847,17 +3219,17 @@ func ValidPaymentRequestOrderByColumn() []PaymentRequestOrderByColumn {
 	}
 }
 
-// PaymentRequestStatus — Status for a payment request from the client perspective.
+// PaymentRequestStatus — The approval status of a payment request from the company's perspective.
 type PaymentRequestStatus string
 
 const (
-	// PaymentRequestStatusApproved — Approved status.
+	// PaymentRequestStatusApproved — Approved
 	PaymentRequestStatusApproved PaymentRequestStatus = "APPROVED"
-	// PaymentRequestStatusCancelled — Cancelled status.
+	// PaymentRequestStatusCancelled — Cancelled
 	PaymentRequestStatusCancelled PaymentRequestStatus = "CANCELLED"
-	// PaymentRequestStatusUnapproved — Unapproved status.
+	// PaymentRequestStatusUnapproved — Unapproved
 	PaymentRequestStatusUnapproved PaymentRequestStatus = "UNAPPROVED"
-	// PaymentRequestStatusRejected — Rejected status.
+	// PaymentRequestStatusRejected — Rejected
 	PaymentRequestStatusRejected PaymentRequestStatus = "REJECTED"
 )
 
@@ -2871,7 +3243,7 @@ func ValidPaymentRequestStatus() []PaymentRequestStatus {
 	}
 }
 
-// PaymentRequestType — Type of payment request.
+// PaymentRequestType — The basis for a payment request — time-based (hours/days), a fixed amount, or expenses.
 type PaymentRequestType string
 
 const (
@@ -2892,7 +3264,28 @@ func ValidPaymentRequestType() []PaymentRequestType {
 	}
 }
 
-// PaymentRequestWorkerPayoutStatus — Worker payout status for a payment request from the client perspective.
+// PaymentRequestViewerRole — Which side of a payment request the viewer is being asked about.
+type PaymentRequestViewerRole string
+
+const (
+	// PaymentRequestViewerRolePayer — The viewer is the one paying.
+	PaymentRequestViewerRolePayer PaymentRequestViewerRole = "PAYER"
+	// PaymentRequestViewerRolePayee — The viewer is the one being paid.
+	PaymentRequestViewerRolePayee PaymentRequestViewerRole = "PAYEE"
+	// PaymentRequestViewerRoleAny — Either side.
+	PaymentRequestViewerRoleAny PaymentRequestViewerRole = "ANY"
+)
+
+// ValidPaymentRequestViewerRole returns all valid values for PaymentRequestViewerRole.
+func ValidPaymentRequestViewerRole() []PaymentRequestViewerRole {
+	return []PaymentRequestViewerRole{
+		PaymentRequestViewerRolePayer,
+		PaymentRequestViewerRolePayee,
+		PaymentRequestViewerRoleAny,
+	}
+}
+
+// PaymentRequestWorkerPayoutStatus — The worker payout status for a payment request, as seen by the company.
 type PaymentRequestWorkerPayoutStatus string
 
 const (
@@ -2919,23 +3312,23 @@ func ValidPaymentRequestWorkerPayoutStatus() []PaymentRequestWorkerPayoutStatus 
 	}
 }
 
-// PaymentRequestWorkerStatus — Status for a payment request from the worker perspective.
+// PaymentRequestWorkerStatus — The status of a payment request as seen by the worker who submitted it.
 type PaymentRequestWorkerStatus string
 
 const (
-	// PaymentRequestWorkerStatusDraft — Draft status.
+	// PaymentRequestWorkerStatusDraft — Draft
 	PaymentRequestWorkerStatusDraft PaymentRequestWorkerStatus = "DRAFT"
-	// PaymentRequestWorkerStatusRejected — Rejected status.
+	// PaymentRequestWorkerStatusRejected — Rejected
 	PaymentRequestWorkerStatusRejected PaymentRequestWorkerStatus = "REJECTED"
-	// PaymentRequestWorkerStatusCancelled — Cancelled status.
+	// PaymentRequestWorkerStatusCancelled — Cancelled
 	PaymentRequestWorkerStatusCancelled PaymentRequestWorkerStatus = "CANCELLED"
-	// PaymentRequestWorkerStatusProcessing — Processing status.
+	// PaymentRequestWorkerStatusProcessing — Processing
 	PaymentRequestWorkerStatusProcessing PaymentRequestWorkerStatus = "PROCESSING"
-	// PaymentRequestWorkerStatusCompleted — Completed status.
+	// PaymentRequestWorkerStatusCompleted — Completed
 	PaymentRequestWorkerStatusCompleted PaymentRequestWorkerStatus = "COMPLETED"
-	// PaymentRequestWorkerStatusRequested — Requested status.
+	// PaymentRequestWorkerStatusRequested — Requested
 	PaymentRequestWorkerStatusRequested PaymentRequestWorkerStatus = "REQUESTED"
-	// PaymentRequestWorkerStatusApproved — Approved status.
+	// PaymentRequestWorkerStatusApproved — Approved
 	PaymentRequestWorkerStatusApproved PaymentRequestWorkerStatus = "APPROVED"
 )
 
@@ -3005,6 +3398,8 @@ const (
 	PaymentTermDaysEight PaymentTermDays = "EIGHT"
 	// PaymentTermDaysFourteen — Indicates an fourteen day payment term.
 	PaymentTermDaysFourteen PaymentTermDays = "FOURTEEN"
+	// PaymentTermDaysTwentyOne — Indicates an twenty one day payment term.
+	PaymentTermDaysTwentyOne PaymentTermDays = "TWENTY_ONE"
 	// PaymentTermDaysThirty — Indicates an thirty day payment term.
 	PaymentTermDaysThirty PaymentTermDays = "THIRTY"
 	// PaymentTermDaysFortyFive — Indicates an forty five day payment term.
@@ -3024,6 +3419,7 @@ func ValidPaymentTermDays() []PaymentTermDays {
 	return []PaymentTermDays{
 		PaymentTermDaysEight,
 		PaymentTermDaysFourteen,
+		PaymentTermDaysTwentyOne,
 		PaymentTermDaysThirty,
 		PaymentTermDaysFortyFive,
 		PaymentTermDaysFiftyThree,
@@ -3069,7 +3465,7 @@ func ValidProjectStatusFilter() []ProjectStatusFilter {
 	}
 }
 
-// RateType — The rate type for payments.
+// RateType — The billing frequency for a hire or payment request — hourly, daily, weekly, monthly, or a fixed amount.
 type RateType string
 
 const (
@@ -3099,6 +3495,69 @@ func ValidRateType() []RateType {
 	}
 }
 
+// RecruiterCandidateRelationshipLabel — Rolled-up label describing a staffing agency's commercial relationship with a candidate.
+type RecruiterCandidateRelationshipLabel string
+
+const (
+	// RecruiterCandidateRelationshipLabelManaged — Staffing agency fully manages at least one engagement for this worker.
+	RecruiterCandidateRelationshipLabelManaged RecruiterCandidateRelationshipLabel = "MANAGED"
+	// RecruiterCandidateRelationshipLabelReferral — Staffing agency has at least one referral-fee engagement for this worker, none managed.
+	RecruiterCandidateRelationshipLabelReferral RecruiterCandidateRelationshipLabel = "REFERRAL"
+	// RecruiterCandidateRelationshipLabelListed — Worker is on the staffing agency's candidate list with no engagement yet.
+	RecruiterCandidateRelationshipLabelListed RecruiterCandidateRelationshipLabel = "LISTED"
+)
+
+// ValidRecruiterCandidateRelationshipLabel returns all valid values for RecruiterCandidateRelationshipLabel.
+func ValidRecruiterCandidateRelationshipLabel() []RecruiterCandidateRelationshipLabel {
+	return []RecruiterCandidateRelationshipLabel{
+		RecruiterCandidateRelationshipLabelManaged,
+		RecruiterCandidateRelationshipLabelReferral,
+		RecruiterCandidateRelationshipLabelListed,
+	}
+}
+
+// RecruiterComplianceStatus — The compliance review status of a staffing agency, mirroring the status pill shown on the compliance tracker row.
+type RecruiterComplianceStatus string
+
+const (
+	// RecruiterComplianceStatusIncomplete — The staffing agency hasn't started or completed all sub-compliances yet.
+	RecruiterComplianceStatusIncomplete RecruiterComplianceStatus = "INCOMPLETE"
+	// RecruiterComplianceStatusReadyToReview — All sub-compliances are complete and the staffing agency is awaiting review.
+	RecruiterComplianceStatusReadyToReview RecruiterComplianceStatus = "READY_TO_REVIEW"
+	// RecruiterComplianceStatusChangesRequested — The reviewer requested changes from the staffing agency.
+	RecruiterComplianceStatusChangesRequested RecruiterComplianceStatus = "CHANGES_REQUESTED"
+	// RecruiterComplianceStatusCleared — The reviewer has cleared the staffing agency.
+	RecruiterComplianceStatusCleared RecruiterComplianceStatus = "CLEARED"
+)
+
+// ValidRecruiterComplianceStatus returns all valid values for RecruiterComplianceStatus.
+func ValidRecruiterComplianceStatus() []RecruiterComplianceStatus {
+	return []RecruiterComplianceStatus{
+		RecruiterComplianceStatusIncomplete,
+		RecruiterComplianceStatusReadyToReview,
+		RecruiterComplianceStatusChangesRequested,
+		RecruiterComplianceStatusCleared,
+	}
+}
+
+// RecruiterOnboardingStatus — The onboarding status of a staffing agency.
+type RecruiterOnboardingStatus string
+
+const (
+	// RecruiterOnboardingStatusPending — Staffing agency has pending onboarding requirements.
+	RecruiterOnboardingStatusPending RecruiterOnboardingStatus = "PENDING"
+	// RecruiterOnboardingStatusCompleted — Staffing agency onboarding is completed.
+	RecruiterOnboardingStatusCompleted RecruiterOnboardingStatus = "COMPLETED"
+)
+
+// ValidRecruiterOnboardingStatus returns all valid values for RecruiterOnboardingStatus.
+func ValidRecruiterOnboardingStatus() []RecruiterOnboardingStatus {
+	return []RecruiterOnboardingStatus{
+		RecruiterOnboardingStatusPending,
+		RecruiterOnboardingStatusCompleted,
+	}
+}
+
 // RecruiterOrderByColumn — The columns that the recruiters list can be ordered by.
 type RecruiterOrderByColumn string
 
@@ -3113,6 +3572,10 @@ const (
 	RecruiterOrderByColumnRecruiterOwnershipDays RecruiterOrderByColumn = "RECRUITER_OWNERSHIP_DAYS"
 	// RecruiterOrderByColumnRecruiterStatus — The recruiter invite status.
 	RecruiterOrderByColumnRecruiterStatus RecruiterOrderByColumn = "RECRUITER_STATUS"
+	// RecruiterOrderByColumnRecruiterInvitedAt — The date the staffing agency was invited.
+	RecruiterOrderByColumnRecruiterInvitedAt RecruiterOrderByColumn = "RECRUITER_INVITED_AT"
+	// RecruiterOrderByColumnComplianceUpdatedAt — The date the staffing-agency compliance was last updated.
+	RecruiterOrderByColumnComplianceUpdatedAt RecruiterOrderByColumn = "COMPLIANCE_UPDATED_AT"
 )
 
 // ValidRecruiterOrderByColumn returns all valid values for RecruiterOrderByColumn.
@@ -3123,6 +3586,26 @@ func ValidRecruiterOrderByColumn() []RecruiterOrderByColumn {
 		RecruiterOrderByColumnRecruiterFee,
 		RecruiterOrderByColumnRecruiterOwnershipDays,
 		RecruiterOrderByColumnRecruiterStatus,
+		RecruiterOrderByColumnRecruiterInvitedAt,
+		RecruiterOrderByColumnComplianceUpdatedAt,
+	}
+}
+
+// RecruiterReviewDecision — The outcome of a staffing-agency compliance review.
+type RecruiterReviewDecision string
+
+const (
+	// RecruiterReviewDecisionCleared — The reviewer marks the staffing agency's compliance as cleared.
+	RecruiterReviewDecisionCleared RecruiterReviewDecision = "CLEARED"
+	// RecruiterReviewDecisionChangesRequested — The reviewer asks the staffing agency to supply or correct information. A note is delivered to the staffing agency.
+	RecruiterReviewDecisionChangesRequested RecruiterReviewDecision = "CHANGES_REQUESTED"
+)
+
+// ValidRecruiterReviewDecision returns all valid values for RecruiterReviewDecision.
+func ValidRecruiterReviewDecision() []RecruiterReviewDecision {
+	return []RecruiterReviewDecision{
+		RecruiterReviewDecisionCleared,
+		RecruiterReviewDecisionChangesRequested,
 	}
 }
 
@@ -3180,27 +3663,6 @@ func ValidSkillableType() []SkillableType {
 	}
 }
 
-// SnaStatus — SNA certification status for Dutch staffing agencies. Determines G-Account split percentage.
-type SnaStatus string
-
-const (
-	// SnaStatusCertified — Agency holds valid SNA quality mark (NEN 4400-1).
-	SnaStatusCertified SnaStatus = "CERTIFIED"
-	// SnaStatusNotCertified — Agency does not hold SNA certification.
-	SnaStatusNotCertified SnaStatus = "NOT_CERTIFIED"
-	// SnaStatusNotApplicable — SNA certification does not apply.
-	SnaStatusNotApplicable SnaStatus = "NOT_APPLICABLE"
-)
-
-// ValidSnaStatus returns all valid values for SnaStatus.
-func ValidSnaStatus() []SnaStatus {
-	return []SnaStatus{
-		SnaStatusCertified,
-		SnaStatusNotCertified,
-		SnaStatusNotApplicable,
-	}
-}
-
 // SortOrder — Directions for ordering a list of records.
 type SortOrder string
 
@@ -3243,6 +3705,24 @@ func ValidSourcingChannel() []SourcingChannel {
 	}
 }
 
+// SourcingDeadlineChoice — Tracks a pending choice for a job's sourcing deadline while it is still unresolved (sourcing_end_date is null and the job is not yet published). Cleared once sourcing_end_date is set, either by resolving "use default" at publish time or by the user picking a custom date directly.
+type SourcingDeadlineChoice string
+
+const (
+	// SourcingDeadlineChoiceUseDefault — Use the company's configured default number of hours, resolved when the job is published.
+	SourcingDeadlineChoiceUseDefault SourcingDeadlineChoice = "USE_DEFAULT"
+	// SourcingDeadlineChoiceNone — Explicitly no sourcing deadline.
+	SourcingDeadlineChoiceNone SourcingDeadlineChoice = "NONE"
+)
+
+// ValidSourcingDeadlineChoice returns all valid values for SourcingDeadlineChoice.
+func ValidSourcingDeadlineChoice() []SourcingDeadlineChoice {
+	return []SourcingDeadlineChoice{
+		SourcingDeadlineChoiceUseDefault,
+		SourcingDeadlineChoiceNone,
+	}
+}
+
 // TimesheetRegistrationDurationUnit — The unit of a duration for a timesheet registration.
 type TimesheetRegistrationDurationUnit string
 
@@ -3261,7 +3741,7 @@ func ValidTimesheetRegistrationDurationUnit() []TimesheetRegistrationDurationUni
 	}
 }
 
-// TimesheetRegistrationType — The type of a timesheet registration.
+// TimesheetRegistrationType — The type of an individual entry within a timesheet — a full day, a break period, or a line item.
 type TimesheetRegistrationType string
 
 const (
@@ -3339,7 +3819,7 @@ func ValidTrustedContactHireStatus() []TrustedContactHireStatus {
 	}
 }
 
-// TrustedContactManagedStatus — Trusted Contact managed status.
+// TrustedContactManagedStatus — Who currently manages a trusted contact's profile — the worker themselves, a staffing agency, or no one (unmanaged).
 type TrustedContactManagedStatus string
 
 const (
@@ -3347,7 +3827,7 @@ const (
 	TrustedContactManagedStatusStaffingAgency TrustedContactManagedStatus = "STAFFING_AGENCY"
 	// TrustedContactManagedStatusWorker — The Trusted Contact profile is managed by the worker themselves.
 	TrustedContactManagedStatusWorker TrustedContactManagedStatus = "WORKER"
-	// TrustedContactManagedStatusUnmanaged — A Staffing Agency's ownership of the Trusted Contact has expired and the profile is not yet claimed by the worker.
+	// TrustedContactManagedStatusUnmanaged — A staffing agency's ownership has expired and the worker has not yet claimed the account.
 	TrustedContactManagedStatusUnmanaged TrustedContactManagedStatus = "UNMANAGED"
 )
 
@@ -3364,7 +3844,7 @@ func ValidTrustedContactManagedStatus() []TrustedContactManagedStatus {
 type TrustedContactOnboardingStatus string
 
 const (
-	// TrustedContactOnboardingStatusPending — Trusted contact has pending documents to sign.
+	// TrustedContactOnboardingStatusPending — Trusted contact has pending onboarding requirements (documents or custom fields).
 	TrustedContactOnboardingStatusPending TrustedContactOnboardingStatus = "PENDING"
 	// TrustedContactOnboardingStatusCompleted — Trusted contact onboarding is completed.
 	TrustedContactOnboardingStatusCompleted TrustedContactOnboardingStatus = "COMPLETED"
@@ -3400,6 +3880,8 @@ const (
 	TrustedContactOrderByColumnWorkerStatusUpdated TrustedContactOrderByColumn = "WORKER_STATUS_UPDATED"
 	// TrustedContactOrderByColumnWorkerRtwVerification — Sort by the right to work verification status on the worker.
 	TrustedContactOrderByColumnWorkerRtwVerification TrustedContactOrderByColumn = "WORKER_RTW_VERIFICATION"
+	// TrustedContactOrderByColumnComplianceUpdatedAt — The date the worker compliance was last updated.
+	TrustedContactOrderByColumnComplianceUpdatedAt TrustedContactOrderByColumn = "COMPLIANCE_UPDATED_AT"
 )
 
 // ValidTrustedContactOrderByColumn returns all valid values for TrustedContactOrderByColumn.
@@ -3414,6 +3896,7 @@ func ValidTrustedContactOrderByColumn() []TrustedContactOrderByColumn {
 		TrustedContactOrderByColumnWorkerDateAdded,
 		TrustedContactOrderByColumnWorkerStatusUpdated,
 		TrustedContactOrderByColumnWorkerRtwVerification,
+		TrustedContactOrderByColumnComplianceUpdatedAt,
 	}
 }
 
@@ -3498,6 +3981,8 @@ const (
 	TypeSupportingCustomFieldValuesTrustedContact TypeSupportingCustomFieldValues = "TRUSTED_CONTACT"
 	// TypeSupportingCustomFieldValuesPaymentRequest — A Payment request
 	TypeSupportingCustomFieldValuesPaymentRequest TypeSupportingCustomFieldValues = "PAYMENT_REQUEST"
+	// TypeSupportingCustomFieldValuesCompanyRecruiter — A Company Recruiter relationship
+	TypeSupportingCustomFieldValuesCompanyRecruiter TypeSupportingCustomFieldValues = "COMPANY_RECRUITER"
 )
 
 // ValidTypeSupportingCustomFieldValues returns all valid values for TypeSupportingCustomFieldValues.
@@ -3507,18 +3992,19 @@ func ValidTypeSupportingCustomFieldValues() []TypeSupportingCustomFieldValues {
 		TypeSupportingCustomFieldValuesContract,
 		TypeSupportingCustomFieldValuesTrustedContact,
 		TypeSupportingCustomFieldValuesPaymentRequest,
+		TypeSupportingCustomFieldValuesCompanyRecruiter,
 	}
 }
 
-// UserGroupStatus — Status for user groups.
+// UserGroupStatus — The status of a user group used in approval workflows — active groups can be assigned as approvers.
 type UserGroupStatus string
 
 const (
-	// UserGroupStatusActive — User group active status.
+	// UserGroupStatusActive — Active
 	UserGroupStatusActive UserGroupStatus = "ACTIVE"
-	// UserGroupStatusInactive — User group inactive status.
+	// UserGroupStatusInactive — Inactive
 	UserGroupStatusInactive UserGroupStatus = "INACTIVE"
-	// UserGroupStatusArchived — User group archived status.
+	// UserGroupStatusArchived — Archived
 	UserGroupStatusArchived UserGroupStatus = "ARCHIVED"
 )
 
@@ -3528,6 +4014,30 @@ func ValidUserGroupStatus() []UserGroupStatus {
 		UserGroupStatusActive,
 		UserGroupStatusInactive,
 		UserGroupStatusArchived,
+	}
+}
+
+// VerifiedWorkerComplianceStatus — The compliance review status of a worker, mirroring the status pill shown on the compliance tracker row.
+type VerifiedWorkerComplianceStatus string
+
+const (
+	// VerifiedWorkerComplianceStatusIncomplete — The worker hasn't started or completed all sub-compliances yet.
+	VerifiedWorkerComplianceStatusIncomplete VerifiedWorkerComplianceStatus = "INCOMPLETE"
+	// VerifiedWorkerComplianceStatusReadyToReview — All sub-compliances are complete and the worker is awaiting review.
+	VerifiedWorkerComplianceStatusReadyToReview VerifiedWorkerComplianceStatus = "READY_TO_REVIEW"
+	// VerifiedWorkerComplianceStatusChangesRequested — The reviewer requested changes from the worker.
+	VerifiedWorkerComplianceStatusChangesRequested VerifiedWorkerComplianceStatus = "CHANGES_REQUESTED"
+	// VerifiedWorkerComplianceStatusCleared — The reviewer has cleared the worker.
+	VerifiedWorkerComplianceStatusCleared VerifiedWorkerComplianceStatus = "CLEARED"
+)
+
+// ValidVerifiedWorkerComplianceStatus returns all valid values for VerifiedWorkerComplianceStatus.
+func ValidVerifiedWorkerComplianceStatus() []VerifiedWorkerComplianceStatus {
+	return []VerifiedWorkerComplianceStatus{
+		VerifiedWorkerComplianceStatusIncomplete,
+		VerifiedWorkerComplianceStatusReadyToReview,
+		VerifiedWorkerComplianceStatusChangesRequested,
+		VerifiedWorkerComplianceStatusCleared,
 	}
 }
 
@@ -3567,6 +4077,26 @@ const (
 	WebhookEventTypeTrustedContactUpdated WebhookEventType = "TRUSTED_CONTACT_UPDATED"
 	// WebhookEventTypeHireTerminated — Triggered when a hire is terminated.
 	WebhookEventTypeHireTerminated WebhookEventType = "HIRE_TERMINATED"
+	// WebhookEventTypePaymentRequestIssued — Triggered when a payment request is issued.
+	WebhookEventTypePaymentRequestIssued WebhookEventType = "PAYMENT_REQUEST_ISSUED"
+	// WebhookEventTypePaymentRequestApproved — Triggered when a payment request is approved.
+	WebhookEventTypePaymentRequestApproved WebhookEventType = "PAYMENT_REQUEST_APPROVED"
+	// WebhookEventTypePaymentRequestRejected — Triggered when a payment request is rejected.
+	WebhookEventTypePaymentRequestRejected WebhookEventType = "PAYMENT_REQUEST_REJECTED"
+	// WebhookEventTypePaymentRequestPaid — Triggered when a payment request is paid by the company.
+	WebhookEventTypePaymentRequestPaid WebhookEventType = "PAYMENT_REQUEST_PAID"
+	// WebhookEventTypePaymentRequestCancelled — Triggered when a payment request is cancelled.
+	WebhookEventTypePaymentRequestCancelled WebhookEventType = "PAYMENT_REQUEST_CANCELLED"
+	// WebhookEventTypePaymentRequestWorkerPaidOut — Triggered when a worker has been paid out for a payment request.
+	WebhookEventTypePaymentRequestWorkerPaidOut WebhookEventType = "PAYMENT_REQUEST_WORKER_PAID_OUT"
+	// WebhookEventTypePaymentRequestRecruiterPaidOut — Triggered when a recruiter has been paid out for a payment request.
+	WebhookEventTypePaymentRequestRecruiterPaidOut WebhookEventType = "PAYMENT_REQUEST_RECRUITER_PAID_OUT"
+	// WebhookEventTypeInvoiceCreated — Triggered when an invoice is created.
+	WebhookEventTypeInvoiceCreated WebhookEventType = "INVOICE_CREATED"
+	// WebhookEventTypeInvoicePaid — Triggered when an invoice is paid.
+	WebhookEventTypeInvoicePaid WebhookEventType = "INVOICE_PAID"
+	// WebhookEventTypeCreditNoteCreated — Triggered when a credit note is created.
+	WebhookEventTypeCreditNoteCreated WebhookEventType = "CREDIT_NOTE_CREATED"
 )
 
 // ValidWebhookEventType returns all valid values for WebhookEventType.
@@ -3579,6 +4109,34 @@ func ValidWebhookEventType() []WebhookEventType {
 		WebhookEventTypeHireUpdated,
 		WebhookEventTypeTrustedContactUpdated,
 		WebhookEventTypeHireTerminated,
+		WebhookEventTypePaymentRequestIssued,
+		WebhookEventTypePaymentRequestApproved,
+		WebhookEventTypePaymentRequestRejected,
+		WebhookEventTypePaymentRequestPaid,
+		WebhookEventTypePaymentRequestCancelled,
+		WebhookEventTypePaymentRequestWorkerPaidOut,
+		WebhookEventTypePaymentRequestRecruiterPaidOut,
+		WebhookEventTypeInvoiceCreated,
+		WebhookEventTypeInvoicePaid,
+		WebhookEventTypeCreditNoteCreated,
+	}
+}
+
+// WorkerReviewDecision — The outcome of a worker compliance review.
+type WorkerReviewDecision string
+
+const (
+	// WorkerReviewDecisionCleared — The reviewer marks the worker's compliance as cleared.
+	WorkerReviewDecisionCleared WorkerReviewDecision = "CLEARED"
+	// WorkerReviewDecisionChangesRequested — The reviewer asks the worker to supply or correct information. A note is delivered to the worker.
+	WorkerReviewDecisionChangesRequested WorkerReviewDecision = "CHANGES_REQUESTED"
+)
+
+// ValidWorkerReviewDecision returns all valid values for WorkerReviewDecision.
+func ValidWorkerReviewDecision() []WorkerReviewDecision {
+	return []WorkerReviewDecision{
+		WorkerReviewDecisionCleared,
+		WorkerReviewDecisionChangesRequested,
 	}
 }
 
