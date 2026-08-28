@@ -507,3 +507,130 @@ func TestExecute_DoesNotRetryCertificateErrors(t *testing.T) {
 		t.Errorf("dialled %d times, want exactly 1: certificate errors must not be retried", got)
 	}
 }
+
+// The real hires query returns every row plus a "DOWNSTREAM_SERVICE_ERROR" for
+// two fields on each of them. Discarding the rows because errors is non-empty
+// made the whole resource unusable.
+func TestExecute_PartialResponseKeepsData(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{
+			"data": {"hires": {"data": [{"id": "SGlyZTox", "triggersApproval": null}]}},
+			"errors": [
+				{"message": "Internal server error", "path": ["hires", "data", 0, "triggersApproval"]}
+			]
+		}`)
+	})
+	defer srv.Close()
+
+	var warnings bytes.Buffer
+	c := New(srv.URL, "token", WithWarnWriter(&warnings))
+
+	var result map[string]any
+	if err := c.Execute(context.Background(), "query Hires { hires }", nil, &result); err != nil {
+		t.Fatalf("partial response should not fail: %v", err)
+	}
+
+	hires, ok := result["hires"].(map[string]any)
+	if !ok {
+		t.Fatalf("data was dropped, got %#v", result)
+	}
+	if rows, _ := hires["data"].([]any); len(rows) != 1 {
+		t.Errorf("expected 1 row, got %d", len(rows))
+	}
+
+	// The failure still has to reach the operator, on stderr and with the path
+	// so they can tell which field broke.
+	if got := warnings.String(); !strings.Contains(got, "hires.data[0].triggersApproval: Internal server error") {
+		t.Errorf("warning = %q, want the failing path", got)
+	}
+}
+
+func TestExecute_NullDataWithErrorsStillFails(t *testing.T) {
+	for name, body := range map[string]string{
+		"explicit null": `{"data": null, "errors": [{"message": "Unauthenticated."}]}`,
+		"absent key":    `{"errors": [{"message": "Unauthenticated."}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, body)
+			})
+			defer srv.Close()
+
+			var warnings bytes.Buffer
+			c := New(srv.URL, "token", WithWarnWriter(&warnings))
+			err := c.Execute(context.Background(), "query { viewer }", nil, nil)
+			if err == nil {
+				t.Fatal("expected an error when no data resolved")
+			}
+			if warnings.Len() != 0 {
+				t.Errorf("a hard failure should not warn, got %q", warnings.String())
+			}
+		})
+	}
+}
+
+func TestExecute_PartialResponseIsNotCached(t *testing.T) {
+	var calls atomic.Int32
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{
+			"data": {"hires": []},
+			"errors": [{"message": "Internal server error", "path": ["hires", "total"]}]
+		}`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "token", WithCache(NewCache(time.Minute)), WithWarnWriter(&bytes.Buffer{}))
+	query := "query Hires { hires }"
+	for range 2 {
+		if err := c.Execute(context.Background(), query, nil, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+
+	// Caching a partial response would serve the missing fields as real until
+	// the entry expires.
+	if got := calls.Load(); got != 2 {
+		t.Errorf("request count = %d, want 2 (partial response was cached)", got)
+	}
+}
+
+func TestGraphQLError_Location(t *testing.T) {
+	for name, tc := range map[string]struct {
+		path []any
+		want string
+	}{
+		"nested with index": {[]any{"hires", "data", float64(0), "triggersApproval"}, "hires.data[0].triggersApproval"},
+		"leading index":     {[]any{float64(2), "id"}, "[2].id"},
+		"single field":      {[]any{"viewer"}, "viewer"},
+		"no path":           {nil, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := (GraphQLError{Path: tc.path}).Location(); got != tc.want {
+				t.Errorf("Location() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGraphQLErrors_ErrorStringIncludesPathsAndCaps(t *testing.T) {
+	errs := GraphQLErrors{{Message: "boom", Path: []any{"hires", float64(0), "field"}}}
+	if got, want := errs.Error(), "hires[0].field: boom"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+
+	var many GraphQLErrors
+	for range maxReportedErrors + 3 {
+		many = append(many, GraphQLError{Message: "Internal server error"})
+	}
+	got := many.Error()
+	if !strings.HasSuffix(got, "(and 3 more)") {
+		t.Errorf("Error() = %q, want a truncation suffix", got)
+	}
+	if n := strings.Count(got, "Internal server error"); n != maxReportedErrors {
+		t.Errorf("rendered %d errors, want %d", n, maxReportedErrors)
+	}
+}
