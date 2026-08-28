@@ -43,7 +43,7 @@ company ──creates──▶ job ──receives──▶ bid
 | `timesheets` | Work logged against a hire. |
 | `payment-requests` | A worker's request to be paid; carries a hire and a timesheet. |
 | `invoices` | "An invoice gets created when one or more worker payment requests gets approved by a company user. The invoice defines the amount due and is to be paid to Worksome by the company." |
-| `batches` | Groups items for bulk actions. Mainly for internal operational workflows — "for most external integrations, batches are not usually needed". |
+| `batches` | Groups items for bulk actions. Mainly for internal operational workflows — "For most external integrations, batches are not usually needed – you'll likely want to work directly with the individual items instead." |
 | `approvals`, `workflows` | Approval rules, states and variables that gate actions. |
 | `viewer` | The currently authenticated user — the cheapest way to check who a token belongs to. |
 
