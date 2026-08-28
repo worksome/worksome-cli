@@ -40,10 +40,7 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/worksome/worksome-cli
     description: CLI for the Worksome API
-    # Cask URLs point at this repo's release assets, which are private until the
-    # repo goes public — publishing the cask now would break `brew install` for
-    # anyone without repo access. Flip to false when worksome-cli becomes public.
-    skip_upload: true
+    skip_upload: false
     # Unsigned binary: strip the quarantine attribute so Gatekeeper doesn't block it.
     hooks:
       post:

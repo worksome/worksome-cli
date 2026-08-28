@@ -30,6 +30,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Only used when brews skip_upload is flipped off (public repo);
-          # empty until the HOMEBREW_TAP_GITHUB_TOKEN secret is configured.
+          # Fine-grained PAT, contents:write on worksome/homebrew-tap only.
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
