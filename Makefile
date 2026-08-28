@@ -53,7 +53,9 @@ ifeq ($(SYNC_MODE),platform)
 	fi
 else
 	@echo "Syncing schema via introspection..."
-	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) --token "$${WORKSOME_API_TOKEN}" > $(SCHEMA)
+	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) > $(SCHEMA).tmp || { rm -f $(SCHEMA).tmp; exit 1; }
+	@mv $(SCHEMA).tmp $(SCHEMA)
+	@echo "Schema synced successfully."
 endif
 
 ## sync: Sync schema and regenerate code
