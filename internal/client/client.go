@@ -328,7 +328,7 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 			return gqlResp.Errors
 		}
 		if partial {
-			fmt.Fprint(c.warnw, gqlResp.Errors.Warning())
+			_, _ = fmt.Fprint(c.warnw, gqlResp.Errors.Warning())
 		}
 
 		// Store successful query responses in the cache. A partial response is
