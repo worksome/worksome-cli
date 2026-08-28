@@ -543,9 +543,9 @@ func TestDeriveMutationCLIName_SingularStrip(t *testing.T) {
 	p := &parser{}
 
 	tests := []struct {
-		mutation     string
-		resource     string
-		expectedCLI  string
+		mutation    string
+		resource    string
+		expectedCLI string
 	}{
 		// Singular resource name in mutation should be stripped
 		{"terminateHire", "hires", "terminate"},
@@ -1146,6 +1146,94 @@ type PaginatorInfo {
 	for _, col := range appResource.TableColumns {
 		if col.Field == "__typename" {
 			t.Error("single-member union should NOT have a Type/__typename column")
+		}
+	}
+}
+
+// writeSchemaFile writes an arbitrary schema to a temp file for parsing.
+func writeSchemaFile(t *testing.T, schema string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "schema.graphql")
+	if err := os.WriteFile(path, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// An unmapped scalar used to generate code referencing a Go type that does
+// not exist, failing at `go build` with "undefined: DecimalFour" rather than
+// at the point of the actual problem.
+func TestParseSchemaRejectsUnmappedScalar(t *testing.T) {
+	path := writeSchemaFile(t, `
+scalar TotallyNewScalar
+
+type Query {
+	thing: TotallyNewScalar
+}
+`)
+
+	_, err := ParseSchema(path, "")
+	if err == nil {
+		t.Fatal("expected an error for a scalar with no Go mapping")
+	}
+	if !strings.Contains(err.Error(), "TotallyNewScalar") {
+		t.Errorf("error should name the offending scalar, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "scalarMap") {
+		t.Errorf("error should say where to fix it, got: %v", err)
+	}
+}
+
+func TestParseSchemaReportsEveryUnmappedScalar(t *testing.T) {
+	path := writeSchemaFile(t, `
+scalar AlphaScalar
+scalar BetaScalar
+
+type Query {
+	a: AlphaScalar
+	b: BetaScalar
+}
+`)
+
+	_, err := ParseSchema(path, "")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	// Listing all of them at once beats fixing one, regenerating, repeating.
+	for _, want := range []string{"AlphaScalar", "BetaScalar"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should list %s, got: %v", want, err)
+		}
+	}
+}
+
+// Every scalar the production schema declares must have a Go mapping, or a
+// schema sync breaks the build. Guards the whole scalarMap, not just the two
+// entries that happened to be missing.
+func TestVendoredSchemaScalarsAreAllMapped(t *testing.T) {
+	schema, err := ParseSchema("../../schema/schema.graphql", "../../schema/overrides.yaml")
+	if err != nil {
+		t.Fatalf("parsing the vendored schema: %v", err)
+	}
+	for _, name := range schema.Scalars {
+		if _, ok := scalarMap[name]; !ok {
+			t.Errorf("scalar %q declared in the vendored schema has no Go mapping", name)
+		}
+	}
+}
+
+func TestScalarGoTypes(t *testing.T) {
+	tests := map[string]string{
+		"DecimalFour":     "float64", // added when the API introduced it
+		"Email":           "string",  // was silently unmapped before
+		"Decimal":         "float64",
+		"DecimalTwo":      "float64",
+		"E164PhoneNumber": "string",
+		"JSON":            "map[string]any",
+	}
+	for scalar, want := range tests {
+		if got := scalarMap[scalar]; got != want {
+			t.Errorf("scalarMap[%q] = %q, want %q", scalar, got, want)
 		}
 	}
 }
