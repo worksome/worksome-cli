@@ -60,6 +60,24 @@ The CLI is designed to be driven programmatically:
 - **Exit codes over stderr parsing.** `0` on success, non-zero for any failure (auth, validation, GraphQL, network). Branch on the exit code rather than matching on message text, which is not a stable interface.
 - **`viewer get` is a cheap preflight** to confirm a token works and see which account and permissions it carries before attempting real work.
 
+### Running in a container
+
+The binaries are statically linked (`CGO_ENABLED=0`), so they run unmodified on glibc, musl (Alpine), and distroless images.
+
+```dockerfile
+FROM debian:stable-slim
+# Required: the CLI talks HTTPS and slim images ship no CA bundle.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY worksome /usr/local/bin/worksome
+ENV WORKSOME_API_TOKEN=...
+```
+
+Two things that catch people out:
+
+- **CA certificates.** Without them every request fails with `tls: failed to verify certificate: x509: certificate signed by unknown authority`. `debian:slim` and `distroless/static` need `ca-certificates` installed or copied in; Alpine already ships a bundle. Alternatively point `SSL_CERT_FILE` at a bundle.
+- **No `HOME` required.** With `WORKSOME_API_TOKEN` set, the CLI never reads or writes the config file, so it works with `HOME` unset, with a read-only root filesystem, and as a non-root user. Only `worksome auth login` writes to disk.
+
 ## Install
 
 ### Homebrew (macOS, Linux)
