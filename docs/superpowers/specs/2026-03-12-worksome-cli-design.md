@@ -178,7 +178,7 @@ ignore:
 
 ```bash
 make generate          # parse schema → generate all code
-make sync-schema       # pull latest schema from platform repo or introspection
+make sync-schema       # pull latest schema via introspection
 make sync              # sync-schema + generate
 ```
 
@@ -186,10 +186,8 @@ make sync              # sync-schema + generate
 
 `make sync-schema` supports two modes:
 
-1. **From platform repo (default):** Copies `~/Projects/platform/_schema_dump.graphql` → `schema/schema.graphql`. Requires local access to the platform repo. Used during development.
-2. **From introspection:** Runs a GraphQL introspection query against the live API endpoint using the configured token. Used in CI or when platform repo isn't available. Requires `WORKSOME_API_TOKEN` to be set.
-
-The Makefile target detects which mode to use based on whether the platform repo path exists, with a `SYNC_MODE=introspection|local` override flag.
+1. **From introspection (default):** Runs a GraphQL introspection query against the live API endpoint using the configured token. Requires `WORKSOME_API_TOKEN` to be set.
+2. **From a local schema dump:** Copies a schema file from a local checkout. Opt in with `SYNC_MODE=platform`; the source path is the `PLATFORM_SCHEMA` Makefile variable.
 
 ### Codegen error handling
 
