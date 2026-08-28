@@ -40,6 +40,7 @@ var scalarMap = map[string]string{
 	"Time":             "string",
 	"Decimal":          "float64",
 	"DecimalTwo":       "float64",
+	"DecimalFour":      "float64",
 	"Percentage":       "float64",
 	"StrictPercentage": "float64",
 	"Upload":           "string",
@@ -48,6 +49,7 @@ var scalarMap = map[string]string{
 	"Dictionary":       "map[string]any",
 	"URL":              "string",
 	"E164PhoneNumber":  "string",
+	"Email":            "string",
 }
 
 // knownScalars is the set of all scalars we recognize.
@@ -90,10 +92,10 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 	}
 
 	p := &parser{
-		doc:       doc,
-		overrides: overrides,
-		enums:     make(map[string]bool),
-		inputs:    make(map[string]bool),
+		doc:        doc,
+		overrides:  overrides,
+		enums:      make(map[string]bool),
+		inputs:     make(map[string]bool),
 		paginators: make(map[string]string),
 	}
 
@@ -191,12 +193,26 @@ func (p *parser) parse() (*Schema, error) {
 	})
 
 	// Collect scalar names
+	var unmapped []string
 	for name, def := range p.doc.Types {
 		if def.Kind == ast.Scalar && !isBuiltinType(name) {
 			schema.Scalars = append(schema.Scalars, name)
+			if _, ok := scalarMap[name]; !ok {
+				unmapped = append(unmapped, name)
+			}
 		}
 	}
 	sort.Strings(schema.Scalars)
+
+	// An unmapped scalar otherwise generates code referencing a Go type that
+	// doesn't exist, surfacing as "undefined: DecimalFour" from the compiler
+	// long after the point of failure. Say so here instead.
+	if len(unmapped) > 0 {
+		sort.Strings(unmapped)
+		return nil, fmt.Errorf(
+			"schema declares scalar(s) with no Go mapping: %s\nadd them to scalarMap in internal/codegen/parser.go",
+			strings.Join(unmapped, ", "))
+	}
 
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
@@ -235,11 +251,11 @@ func (p *parser) parseInputObject(def *ast.Definition) InputObject {
 
 func (p *parser) parseArgument(f *ast.FieldDefinition) Argument {
 	return Argument{
-		Name:        f.Name,
-		GoName:      toPascalCase(f.Name),
-		CLIFlag:     toKebabCase(f.Name),
-		Description: cleanDescription(f.Description),
-		Type:        p.resolveType(f.Type),
+		Name:         f.Name,
+		GoName:       toPascalCase(f.Name),
+		CLIFlag:      toKebabCase(f.Name),
+		Description:  cleanDescription(f.Description),
+		Type:         p.resolveType(f.Type),
 		DefaultValue: defaultValueString(f.DefaultValue),
 	}
 }
@@ -1015,7 +1031,7 @@ func (p *parser) exampleValueForType(t *ast.Type, depth int) any {
 		return "..."
 	case "Int":
 		return 0
-	case "Float", "Decimal", "DecimalTwo", "Percentage", "StrictPercentage":
+	case "Float", "Decimal", "DecimalTwo", "DecimalFour", "Percentage", "StrictPercentage":
 		return 0.0
 	case "Boolean":
 		return false
