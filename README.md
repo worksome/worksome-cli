@@ -62,21 +62,37 @@ The CLI is designed to be driven programmatically:
 
 ## Install
 
+### Homebrew (macOS, Linux)
+
 ```bash
-# From source (includes version and commit metadata)
+brew tap worksome/tap
+brew trust --cask worksome/tap/worksome
+brew install worksome/tap/worksome
+```
+
+The `brew trust` step is required. Homebrew refuses to load casks from third-party taps until you explicitly trust them, so without it the install fails with `Refusing to load cask worksome/tap/worksome from untrusted tap`. See [Tap Trust](https://docs.brew.sh/Tap-Trust).
+
+### Binaries
+
+Prebuilt binaries for macOS, Linux, and Windows (amd64 and arm64) are attached to every [GitHub release](https://github.com/worksome/worksome-cli/releases), with `checksums.txt` to verify them.
+
+### From source
+
+```bash
+# Includes version and commit metadata
 make install
 
 # Or build a local binary
 make build
 
 # Plain go install (no version metadata)
-go install ./cmd/worksome/
+go install github.com/worksome/worksome-cli/cmd/worksome@latest
 ```
 
-Pushing a `v*` tag builds binaries for macOS, Linux, and Windows, attaches them to the [GitHub release](https://github.com/worksome/worksome-cli/releases), and publishes the Homebrew cask:
+Verify any of the above with:
 
 ```bash
-brew install worksome/tap/worksome
+worksome version
 ```
 
 ## Quick Start
