@@ -322,6 +322,17 @@ schema/
 
 See [docs/architecture.md](docs/architecture.md) for detailed diagrams and design decisions.
 
+## Contributing
+
+Most of this codebase is generated from the GraphQL schema — see
+[CONTRIBUTING.md](CONTRIBUTING.md) before editing anything under
+`internal/generated/`.
+
+## Security
+
+Found a vulnerability? Please report it privately rather than opening an issue:
+[SECURITY.md](SECURITY.md).
+
 ## License
 
 MIT — see [LICENSE.md](LICENSE.md).
