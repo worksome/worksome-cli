@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -25,6 +26,7 @@ type Client struct {
 	userAgent  string
 	cache      *Cache
 	warnw      io.Writer
+	fields     []string
 }
 
 // Option configures the Client.
@@ -76,6 +78,15 @@ func WithCache(cache *Cache) Option {
 func WithWarnWriter(w io.Writer) Option {
 	return func(c *Client) {
 		c.warnw = w
+	}
+}
+
+// WithFields narrows the GraphQL selection set of every operation to the given
+// dot-notation field paths (e.g. "id", "worker.name"). Operations whose shape
+// cannot be narrowed safely are sent unchanged.
+func WithFields(fields []string) Option {
+	return func(c *Client) {
+		c.fields = slices.Clone(fields)
 	}
 }
 
@@ -247,6 +258,14 @@ func isQuery(query string) bool {
 // When a Cache is configured via WithCache, read queries are served from the
 // cache on hit and stored on miss. Mutations are never cached.
 func (c *Client) Execute(ctx context.Context, query string, variables map[string]any, result any) error {
+	if len(c.fields) > 0 {
+		pruned, err := pruneQuery(query, c.fields)
+		if err != nil {
+			return err
+		}
+		query = pruned
+	}
+
 	cacheable := c.cache != nil && isQuery(query)
 
 	// Check cache before making a network request.
