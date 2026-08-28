@@ -28,12 +28,15 @@ func main() {
 	rootCmd := newRootCmd()
 	err := rootCmd.Execute()
 
-	printUpdateNotice(latest)
-
+	// Report the failure immediately. Waiting on a courtesy check first would
+	// delay the error the user actually needs, by up to the whole fetch budget
+	// on a cold cache.
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	printUpdateNotice(latest)
 }
 
 // startUpdateCheck kicks off the once-a-day release check in the background,

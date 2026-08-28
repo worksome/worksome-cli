@@ -45,9 +45,12 @@ type cache struct {
 
 // Fetch asks GitHub for the latest release. It is the uncached path, used by
 // `worksome version --check`.
+// The context deadline is the only bound: http.Client.Timeout covers the whole
+// request including body reads, so a client-side timeout shorter than the
+// caller's deadline would silently win. Both call sites set a deadline.
 func Fetch(ctx context.Context, client *http.Client) (*Release, error) {
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
+		client = &http.Client{}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, releasesURL, nil)
 	if err != nil {
