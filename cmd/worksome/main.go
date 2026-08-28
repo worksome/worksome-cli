@@ -45,7 +45,7 @@ func startUpdateCheck() <-chan string {
 	}
 	ch := make(chan string, 1)
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), update.FetchTimeout)
 		defer cancel()
 		ch <- update.LatestCached(ctx, nil)
 	}()
@@ -69,15 +69,17 @@ func printUpdateNotice(latest <-chan string) {
 		if update.IsNewer(version, v) {
 			fmt.Fprint(os.Stderr, update.Notice(version, v))
 		}
-	case <-time.After(2 * time.Second):
+	// Outlast the fetch itself, or a slow response is cut off mid-write and the
+	// cache never warms -- the notice would then never appear at all.
+	case <-time.After(update.FetchTimeout + 500*time.Millisecond):
 	}
 }
 
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "worksome",
-		Short: "CLI wrapper for the Worksome API",
-		Long:  "A multiplatform CLI for interacting with the Worksome GraphQL API. Designed for both human users and AI agents.",
+		Use:           "worksome",
+		Short:         "CLI wrapper for the Worksome API",
+		Long:          "A multiplatform CLI for interacting with the Worksome GraphQL API. Designed for both human users and AI agents.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -189,12 +191,12 @@ func newRootCmd() *cobra.Command {
 		"approvals": true, "approval-rules": true, "approval-states": true,
 		"approval-approvables": true, "approvers": true, "custom-fields": true,
 		"inherited-custom-fields": true,
-		"email": true, "password": true,
+		"email":                   true, "password": true,
 	}
 	recruitmentResources := map[string]bool{
 		"company-recruiters": true, "recruiter-candidates": true, "recruiters": true,
 		"trusted-contacts": true, "organisation-trusted-contacts": true,
-		"invite-link": true,
+		"invite-link":              true,
 		"reinvite-trusted-contact": true, "block-trusted-contact": true,
 		"job-candidates": true, "job-candidate-preferred": true,
 		"job-candidate-status": true, "job-shares": true, "partner": true,

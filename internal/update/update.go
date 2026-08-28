@@ -12,12 +12,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // releasesURL is a var so tests can point it at a local server.
 var releasesURL = "https://api.github.com/repos/worksome/worksome-cli/releases/latest"
+
+// FetchTimeout bounds the background release check. The caller must wait at
+// least this long before exiting, or it will kill the goroutine before the
+// result is cached and the cache will never warm.
+const FetchTimeout = 2 * time.Second
 
 const (
 	// checkInterval is how long a result is reused before asking again.
@@ -56,8 +62,10 @@ func Fetch(ctx context.Context, client *http.Client) (*Release, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		// Unauthenticated GitHub API calls are rate limited per IP. That is not
-		// worth surfacing as a failure the user must act on.
+		// Surfaced to `version --check`, where the user asked and deserves to
+		// know the answer is unavailable rather than see a bogus "up to date".
+		// Unauthenticated calls are rate limited per IP, so this is the common
+		// failure; the passive path swallows it in LatestCached.
 		return nil, fmt.Errorf("checking for updates: %s", resp.Status)
 	}
 
@@ -71,18 +79,60 @@ func Fetch(ctx context.Context, client *http.Client) (*Release, error) {
 	return &rel, nil
 }
 
-// IsNewer reports whether latest is a different released version from current.
+// IsNewer reports whether latest is strictly newer than current.
 //
-// It deliberately compares for inequality rather than ordering: a development
-// build reports "dev" and must never be told it is out of date, and a user
-// running something newer than the latest release has nothing to do either.
+// Ordering matters rather than mere inequality: a development build reports
+// "dev", and someone running a build ahead of the latest release has nothing
+// to do. Anything that doesn't parse as a dotted numeric version — a
+// pre-release tag, say — returns false, because a courtesy notice is the wrong
+// place to guess.
 func IsNewer(current, latest string) bool {
-	current = normalise(current)
-	latest = normalise(latest)
-	if current == "" || latest == "" || current == "dev" {
+	c, ok := parseVersion(current)
+	if !ok {
 		return false
 	}
-	return current != latest
+	l, ok := parseVersion(latest)
+	if !ok {
+		return false
+	}
+	return compare(l, c) > 0
+}
+
+// parseVersion splits a dotted numeric version into its parts. It reports
+// false for "dev", empty strings, and anything carrying a suffix.
+func parseVersion(v string) ([]int, bool) {
+	v = normalise(v)
+	if v == "" {
+		return nil, false
+	}
+	fields := strings.Split(v, ".")
+	parts := make([]int, 0, len(fields))
+	for _, f := range fields {
+		n, err := strconv.Atoi(f)
+		if err != nil || n < 0 {
+			return nil, false
+		}
+		parts = append(parts, n)
+	}
+	return parts, true
+}
+
+// compare returns >0 when a is newer than b, 0 when equal, <0 otherwise.
+// Missing trailing components count as zero, so 1.2 == 1.2.0.
+func compare(a, b []int) int {
+	for i := 0; i < len(a) || i < len(b); i++ {
+		var x, y int
+		if i < len(a) {
+			x = a[i]
+		}
+		if i < len(b) {
+			y = b[i]
+		}
+		if x != y {
+			return x - y
+		}
+	}
+	return 0
 }
 
 func normalise(v string) string {

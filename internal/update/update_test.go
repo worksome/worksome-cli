@@ -24,9 +24,20 @@ func TestIsNewer(t *testing.T) {
 		// A dev build must never be nagged: it has no meaningful version.
 		{"dev", "v0.4.1", false},
 		// A local build ahead of the latest release has nothing to do either.
-		{"0.5.0", "v0.4.1", true},
+		{"0.5.0", "v0.4.1", false},
+		{"0.4.2", "v0.4.1", false},
 		{"", "v0.4.1", false},
 		{"0.4.0", "", false},
+		// Ordering, not string inequality: 10 > 9.
+		{"0.9.0", "v0.10.0", true},
+		{"0.10.0", "v0.9.0", false},
+		{"1.0.0", "v1.0.1", true},
+		// Missing components count as zero.
+		{"1.2", "v1.2.0", false},
+		{"1.2", "v1.2.1", true},
+		// Pre-release tags don't parse, so we never guess.
+		{"0.4.0", "v0.5.0-rc1", false},
+		{"0.4.0-rc1", "v0.5.0", false},
 	}
 	for _, tt := range tests {
 		if got := IsNewer(tt.current, tt.latest); got != tt.want {
