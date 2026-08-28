@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
 	"github.com/worksome/worksome-cli/internal/generated/commands"
+	"github.com/worksome/worksome-cli/internal/output"
+	"github.com/worksome/worksome-cli/internal/update"
 )
 
 var (
@@ -19,18 +22,68 @@ var (
 )
 
 func main() {
+	// Start the update check alongside the command rather than before it, so
+	// it never adds latency to the work the user actually asked for.
+	latest := startUpdateCheck()
+
 	rootCmd := newRootCmd()
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+
+	// Report the failure immediately. Waiting on a courtesy check first would
+	// delay the error the user actually needs, by up to the whole fetch budget
+	// on a cold cache.
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	printUpdateNotice(latest)
+}
+
+// startUpdateCheck kicks off the once-a-day release check in the background,
+// returning a channel that yields the latest version, or nil when the check is
+// suppressed. Nothing downstream ever blocks on it for long.
+func startUpdateCheck() <-chan string {
+	if update.Suppressed(version, output.IsTTYFile(os.Stdout), output.IsTTYFile(os.Stderr)) {
+		return nil
+	}
+	ch := make(chan string, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), update.FetchTimeout)
+		defer cancel()
+		ch <- update.LatestCached(ctx, nil)
+	}()
+	return ch
+}
+
+// printUpdateNotice writes the notice once the check finishes.
+//
+// The check runs concurrently with the command, so for anything that touches
+// the API it has long since completed and this returns immediately. The wait
+// only bites on an instant command with a cold cache, once a day. It must be
+// long enough for the fetch to land: cutting it short would kill the goroutine
+// before it writes the cache, so the cache would never warm and the notice
+// would never appear at all.
+func printUpdateNotice(latest <-chan string) {
+	if latest == nil {
+		return
+	}
+	select {
+	case v := <-latest:
+		if update.IsNewer(version, v) {
+			fmt.Fprint(os.Stderr, update.Notice(version, v))
+		}
+	// Outlast the fetch itself, or a slow response is cut off mid-write and the
+	// cache never warms -- the notice would then never appear at all.
+	case <-time.After(update.FetchTimeout + 500*time.Millisecond):
 	}
 }
 
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "worksome",
-		Short: "CLI wrapper for the Worksome API",
-		Long:  "A multiplatform CLI for interacting with the Worksome GraphQL API. Designed for both human users and AI agents.",
+		Use:           "worksome",
+		Short:         "CLI wrapper for the Worksome API",
+		Long:          "A multiplatform CLI for interacting with the Worksome GraphQL API. Designed for both human users and AI agents.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -145,12 +198,12 @@ func newRootCmd() *cobra.Command {
 		"approvals": true, "approval-rules": true, "approval-states": true,
 		"approval-approvables": true, "approvers": true, "custom-fields": true,
 		"inherited-custom-fields": true,
-		"email": true, "password": true,
+		"email":                   true, "password": true,
 	}
 	recruitmentResources := map[string]bool{
 		"company-recruiters": true, "recruiter-candidates": true, "recruiters": true,
 		"trusted-contacts": true, "organisation-trusted-contacts": true,
-		"invite-link": true,
+		"invite-link":              true,
 		"reinvite-trusted-contact": true, "block-trusted-contact": true,
 		"job-candidates": true, "job-candidate-preferred": true,
 		"job-candidate-status": true, "job-shares": true, "partner": true,
@@ -181,13 +234,44 @@ func newRootCmd() *cobra.Command {
 }
 
 func newVersionCmd() *cobra.Command {
-	return &cobra.Command{
+	var check bool
+
+	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Long: `Print version information.
+
+With --check, ask GitHub for the latest release and report whether this
+build is out of date, along with the upgrade command for how it was
+installed. This always performs a request, ignoring the once-a-day cache.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("worksome-cli %s (commit: %s)\n", version, commit)
+			if !check {
+				return nil
+			}
+
+			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer cancel()
+
+			rel, err := update.Fetch(ctx, nil)
+			if err != nil {
+				return err
+			}
+
+			switch {
+			case version == "dev":
+				fmt.Printf("latest release: %s (this is a dev build)\n", rel.TagName)
+			case update.IsNewer(version, rel.TagName):
+				fmt.Printf("\nA new release is available: %s\n%s\n", rel.TagName, update.UpgradeHint())
+			default:
+				fmt.Println("up to date")
+			}
+			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&check, "check", false, "Check whether a newer release is available")
+	return cmd
 }
 
 func newCompletionCmd() *cobra.Command {
