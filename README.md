@@ -58,6 +58,7 @@ The CLI is designed to be driven programmatically:
 - **Preview mutations.** `--dry-run` prints the operation name and variables without calling the API. Use it to confirm a mutation's shape before executing it.
 - **Pagination is explicit.** List commands return a single page. `--all` auto-paginates, which on large resources means many sequential requests — prefer `--first`/`--page` unless you genuinely need everything.
 - **Exit codes over stderr parsing.** `0` on success, non-zero for any failure (auth, validation, GraphQL, network). Branch on the exit code rather than matching on message text, which is not a stable interface.
+- **Partial responses still succeed.** GraphQL can fail individual fields while resolving the rest. When that happens the data is written to stdout and the exit code stays `0`; the failed fields are reported on stderr with their response path (`hires.data[0].triggersApproval: ...`). Only a wholly unresolved request is an error. Read stderr if you need to know a field is missing rather than null.
 - **`viewer get` is a cheap preflight** to confirm a token works and see which account and permissions it carries before attempting real work.
 
 ### Running in a container

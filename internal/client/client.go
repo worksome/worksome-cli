@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -23,6 +24,7 @@ type Client struct {
 	timeout    time.Duration
 	userAgent  string
 	cache      *Cache
+	warnw      io.Writer
 }
 
 // Option configures the Client.
@@ -68,6 +70,15 @@ func WithCache(cache *Cache) Option {
 	}
 }
 
+// WithWarnWriter sets where non-fatal warnings (such as field errors in a
+// partial response) are written. Defaults to os.Stderr so warnings stay out of
+// piped stdout.
+func WithWarnWriter(w io.Writer) Option {
+	return func(c *Client) {
+		c.warnw = w
+	}
+}
+
 // New creates a new GraphQL Client for the given endpoint and bearer token.
 func New(endpoint, token string, opts ...Option) *Client {
 	c := &Client{
@@ -79,6 +90,9 @@ func New(endpoint, token string, opts ...Option) *Client {
 	}
 	if c.userAgent == "" {
 		c.userAgent = "worksome-cli"
+	}
+	if c.warnw == nil {
+		c.warnw = os.Stderr
 	}
 	// If no custom HTTP client was provided, create a default one with the
 	// configured (or default 30s) timeout.
@@ -111,21 +125,85 @@ type GraphQLError struct {
 	Extensions map[string]any `json:"extensions,omitempty"`
 }
 
-// Error implements the error interface.
+// Error implements the error interface. The response path is included when the
+// API reports one, since a bare "Internal server error" repeated once per field
+// says nothing about which field failed.
 func (e GraphQLError) Error() string {
+	if loc := e.Location(); loc != "" {
+		return loc + ": " + e.Message
+	}
 	return e.Message
+}
+
+// Location renders the error's response path in dotted form, e.g.
+// ["hires","data",0,"triggersApproval"] becomes "hires.data[0].triggersApproval".
+// It returns an empty string when the API reported no path.
+func (e GraphQLError) Location() string {
+	var b strings.Builder
+	for _, seg := range e.Path {
+		switch v := seg.(type) {
+		case string:
+			if b.Len() > 0 {
+				b.WriteByte('.')
+			}
+			b.WriteString(v)
+		case float64: // list indices arrive as JSON numbers
+			fmt.Fprintf(&b, "[%d]", int(v))
+		default:
+			if b.Len() > 0 {
+				b.WriteByte('.')
+			}
+			fmt.Fprint(&b, v)
+		}
+	}
+	return b.String()
 }
 
 // GraphQLErrors is a slice of GraphQLError that implements the error interface.
 type GraphQLErrors []GraphQLError
 
+// maxReportedErrors caps how many individual errors are rendered. A single page
+// can carry one error per row per field, which is noise past the first few.
+const maxReportedErrors = 5
+
 // Error returns a combined error message from all GraphQL errors.
 func (errs GraphQLErrors) Error() string {
-	msgs := make([]string, len(errs))
-	for i, e := range errs {
-		msgs[i] = e.Message
+	shown := errs
+	var suffix string
+	if len(errs) > maxReportedErrors {
+		shown = errs[:maxReportedErrors]
+		suffix = fmt.Sprintf("; (and %d more)", len(errs)-maxReportedErrors)
 	}
-	return strings.Join(msgs, "; ")
+	msgs := make([]string, len(shown))
+	for i, e := range shown {
+		msgs[i] = e.Error()
+	}
+	return strings.Join(msgs, "; ") + suffix
+}
+
+// Warning renders the errors as a multi-line stderr notice for the case where
+// the API returned usable data alongside them.
+func (errs GraphQLErrors) Warning() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "warning: the API returned %s alongside the data:\n", pluralise(len(errs), "error"))
+	shown := errs
+	if len(errs) > maxReportedErrors {
+		shown = errs[:maxReportedErrors]
+	}
+	for _, e := range shown {
+		fmt.Fprintf(&b, "  %s\n", e.Error())
+	}
+	if len(errs) > len(shown) {
+		fmt.Fprintf(&b, "  (and %d more)\n", len(errs)-len(shown))
+	}
+	return b.String()
+}
+
+func pluralise(n int, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 %s", word)
+	}
+	return fmt.Sprintf("%d %ss", n, word)
 }
 
 // IsAuthError reports whether the errors contain an authentication failure.
@@ -240,12 +318,23 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 			return fmt.Errorf("decoding response: %w", err)
 		}
 
-		if len(gqlResp.Errors) > 0 {
+		// GraphQL reports field-level failures in "errors" while still
+		// returning every field that did resolve. Per the spec, data is null
+		// only when the request could not be executed at all — that is the
+		// case that deserves a non-zero exit. Anything else is a partial
+		// success: surface the failures on stderr and hand back the data.
+		partial := len(gqlResp.Errors) > 0
+		if partial && !hasData(gqlResp.Data) {
 			return gqlResp.Errors
 		}
+		if partial {
+			fmt.Fprint(c.warnw, gqlResp.Errors.Warning())
+		}
 
-		// Store successful query responses in the cache.
-		if cacheable && gqlResp.Data != nil {
+		// Store successful query responses in the cache. A partial response is
+		// not cached: the missing fields would be served as though they were
+		// real for the lifetime of the entry.
+		if cacheable && !partial && hasData(gqlResp.Data) {
 			c.cache.Set(query, variables, gqlResp.Data)
 		}
 
@@ -307,6 +396,13 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	}
 
 	return body, nil
+}
+
+// hasData reports whether the response carries a usable data envelope. An
+// absent key and a literal JSON null both mean "nothing resolved".
+func hasData(data json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(data)
+	return len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null"))
 }
 
 // pow computes base^exp for small non-negative integers.
