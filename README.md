@@ -73,7 +73,11 @@ make build
 go install ./cmd/worksome/
 ```
 
-Pushing a `v*` tag builds and attaches binaries for macOS, Linux, and Windows to the [GitHub release](https://github.com/worksome/worksome-cli/releases). A Homebrew cask (`brew install worksome/tap/worksome`) is prepared and will be published automatically once the repository is public.
+Pushing a `v*` tag builds binaries for macOS, Linux, and Windows, attaches them to the [GitHub release](https://github.com/worksome/worksome-cli/releases), and publishes the Homebrew cask:
+
+```bash
+brew install worksome/tap/worksome
+```
 
 ## Quick Start
 
