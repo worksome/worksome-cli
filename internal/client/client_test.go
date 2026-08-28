@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -193,9 +195,15 @@ func TestExecute_Verbose(t *testing.T) {
 	defer srv.Close()
 
 	var buf bytes.Buffer
+	prevOut, prevFlags := log.Default().Writer(), log.Flags()
 	log.SetOutput(&buf)
 	log.SetFlags(0) // Remove timestamps for deterministic output.
-	defer log.SetOutput(nil)
+	// Restore the real writer, not nil: a nil writer makes every later
+	// log.Printf in the process panic.
+	defer func() {
+		log.SetOutput(prevOut)
+		log.SetFlags(prevFlags)
+	}()
 
 	c := New(srv.URL, "token", WithVerbose(true))
 	var result struct {
@@ -455,5 +463,47 @@ func TestExecute_NonJSONResponse(t *testing.T) {
 	// Must NOT contain the actual HTML body.
 	if strings.Contains(err.Error(), "<!DOCTYPE") {
 		t.Error("error should not contain raw HTML body")
+	}
+}
+
+// A certificate that fails verification will fail identically on every
+// retry. Retrying burned ~7s before surfacing the real problem, which in
+// containers is almost always a missing CA bundle.
+func TestExecute_DoesNotRetryCertificateErrors(t *testing.T) {
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{}}`))
+	}))
+	// Count connections, not handler calls: the handshake fails before the
+	// handler ever runs, so a request counter would read 0 whether we retry
+	// once or ten times. Each retry dials a new connection.
+	var conns atomic.Int32
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	// The client will fail the handshake by design; don't let the server
+	// spew that onto the shared logger.
+	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	srv.StartTLS()
+	defer srv.Close()
+
+	// Default client: does not trust the test server's self-signed cert.
+	c := New(srv.URL, "token")
+
+	err := c.Execute(context.Background(), "query { viewer { id } }", nil, nil)
+
+	if err == nil {
+		t.Fatal("expected a certificate verification error")
+	}
+	if !strings.Contains(err.Error(), "certificate") {
+		t.Fatalf("expected a certificate error, got: %v", err)
+	}
+	// Only the exhausted-retry path wraps with "after N attempts".
+	if strings.Contains(err.Error(), "attempts") {
+		t.Errorf("certificate error should not be retried, got: %v", err)
+	}
+	if got := conns.Load(); got != 1 {
+		t.Errorf("dialled %d times, want exactly 1: certificate errors must not be retried", got)
 	}
 }

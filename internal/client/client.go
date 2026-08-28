@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -210,6 +211,12 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 			}
 			var he *httpError
 			if errors.As(lastErr, &he) {
+				return lastErr
+			}
+			// A certificate that doesn't verify won't start verifying on
+			// attempt three. Common in slim containers with no CA bundle.
+			var cve *tls.CertificateVerificationError
+			if errors.As(lastErr, &cve) {
 				return lastErr
 			}
 			if c.verbose {

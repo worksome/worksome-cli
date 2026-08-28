@@ -333,7 +333,7 @@ func TestConfigPath(t *testing.T) {
 	}
 }
 
-func TestLoadCreatesDirectoryAndReturnsEmpty(t *testing.T) {
+func TestLoadReturnsEmptyConfigWhenNoneExists(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -347,16 +347,6 @@ func TestLoadCreatesDirectoryAndReturnsEmpty(t *testing.T) {
 	}
 	if len(cfg.Profiles) != 0 {
 		t.Errorf("expected empty Profiles, got %d", len(cfg.Profiles))
-	}
-
-	// The config directory should have been created
-	configDir := filepath.Join(dir, ".worksome")
-	info, err := os.Stat(configDir)
-	if err != nil {
-		t.Fatalf("config directory not created: %v", err)
-	}
-	if !info.IsDir() {
-		t.Error("expected .worksome to be a directory")
 	}
 }
 
@@ -428,5 +418,49 @@ func TestFilePermissions(t *testing.T) {
 	perm := info.Mode().Perm()
 	if perm != 0600 {
 		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+}
+
+// A container may have no HOME at all while still passing a token via
+// --token or WORKSOME_API_TOKEN. Load must degrade to an empty config
+// rather than failing the whole command.
+func TestLoadWithoutHomeDirectory(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "") // windows
+
+	// Guard the premise: os.UserHomeDir must actually fail here, otherwise
+	// the assertions below would pass vacuously against a real ~/.worksome.
+	if _, err := os.UserHomeDir(); err == nil {
+		t.Skip("os.UserHomeDir resolves without HOME on this platform")
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load must not error when the home directory is unresolvable: %v", err)
+	}
+	if cfg == nil || cfg.Profiles == nil {
+		t.Fatal("Load must return a usable zero-value config")
+	}
+	if len(cfg.Profiles) != 0 {
+		t.Errorf("expected an empty config, got %d profiles — a real config file was read", len(cfg.Profiles))
+	}
+	if got := cfg.ResolveToken("flag-token"); got != "flag-token" {
+		t.Errorf("token from flag should still resolve, got %q", got)
+	}
+}
+
+// Reading config must never create directories: a hardened container can
+// have a read-only filesystem, and a plain query has nothing to persist.
+func TestLoadDoesNotCreateConfigDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	if _, err := Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(home, configDir)); !os.IsNotExist(err) {
+		t.Errorf("Load created %s; it must only be created when saving", configDir)
 	}
 }

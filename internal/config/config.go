@@ -41,16 +41,15 @@ func configPath() (string, error) {
 
 // Load reads the config from ~/.worksome/config.yaml.
 // If the file does not exist, it returns a zero-value Config (no error).
-// The parent directory is created if it does not exist.
+//
+// Loading never writes to disk and never fails on an unresolvable home
+// directory: a container may have no HOME, or a read-only one, while still
+// supplying a token via --token or WORKSOME_API_TOKEN. Save creates the
+// directory when there is actually something to persist.
 func Load() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
-		return nil, err
-	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, fmt.Errorf("creating config directory: %w", err)
+		return &Config{Profiles: map[string]Profile{}}, nil
 	}
 
 	data, err := os.ReadFile(path)
