@@ -3038,9 +3038,10 @@ var companiesColumns = []output.Column{
 // NewCompaniesCmd creates the companies resource command.
 func NewCompaniesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "companies",
-		Short: "Get a list of companies that the authenticated user has access to.",
-		Args:  cobra.NoArgs,
+		Use:     "companies",
+		Aliases: []string{"company"},
+		Short:   "Get a list of companies that the authenticated user has access to.",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

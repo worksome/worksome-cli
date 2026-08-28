@@ -434,6 +434,9 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	{{- $mut := index $res.Mutations 0}}
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
+		{{- if $res.Aliases}}
+		Aliases: []string{ {{range $i, $a := $res.Aliases}}{{if $i}}, {{end}}{{quote $a}}{{end}} },
+		{{- end}}
 		Short: {{quote (shortDesc $mut.Description)}},
 		{{- if $mut.InputExample}}
 		Example: {{inputExampleBlockHoisted $res.Name $mut.InputFields $mut.InputExample | quote}},
@@ -542,6 +545,9 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 {{- else}}
 	cmd := &cobra.Command{
 		Use:   "{{$res.Name}}",
+		{{- if $res.Aliases}}
+		Aliases: []string{ {{range $i, $a := $res.Aliases}}{{if $i}}, {{end}}{{quote $a}}{{end}} },
+		{{- end}}
 		Short: {{quote (shortDesc $res.Description)}},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1237,3 +1237,96 @@ func TestScalarGoTypes(t *testing.T) {
 		}
 	}
 }
+
+// writeSchemaAndOverrides writes both files for a parse that needs overrides.
+func writeSchemaAndOverrides(t *testing.T, schema, overrides string) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	sp := filepath.Join(dir, "schema.graphql")
+	op := filepath.Join(dir, "overrides.yaml")
+	if err := os.WriteFile(sp, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(op, []byte(overrides), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return sp, op
+}
+
+func TestResourceAliasesFromOverrides(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  hires: ["hire-alias", "h"]
+`)
+
+	schema, err := ParseSchema(sp, op)
+	if err != nil {
+		t.Fatalf("ParseSchema: %v", err)
+	}
+
+	var found *Resource
+	for i := range schema.Resources {
+		if schema.Resources[i].Name == "hires" {
+			found = &schema.Resources[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("hires resource not generated")
+	}
+	if len(found.Aliases) != 2 || found.Aliases[0] != "hire-alias" || found.Aliases[1] != "h" {
+		t.Errorf("Aliases = %v, want [hire-alias h]", found.Aliases)
+	}
+}
+
+// A stale alias would otherwise generate a command nobody can reach.
+func TestAliasTargetMustExist(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  not-a-resource: ["whatever"]
+`)
+
+	_, err := ParseSchema(sp, op)
+	if err == nil {
+		t.Fatal("expected an error for an alias on a non-existent resource")
+	}
+	if !strings.Contains(err.Error(), "not-a-resource") {
+		t.Errorf("error should name the bad target, got: %v", err)
+	}
+}
+
+// An alias that shadows a real resource would hide it from the CLI.
+func TestAliasMustNotCollideWithRealResource(t *testing.T) {
+	sp, op := writeSchemaAndOverrides(t, minimalSchema, `
+aliases:
+  hires: ["viewer"]
+`)
+
+	_, err := ParseSchema(sp, op)
+	if err == nil {
+		t.Fatal("expected an error for an alias colliding with a real resource")
+	}
+	if !strings.Contains(err.Error(), "collides") {
+		t.Errorf("error should mention the collision, got: %v", err)
+	}
+}
+
+// The whole point of the alias: `worksome company get <id>` must keep working
+// after the API folded the singular company query into the plural group.
+func TestVendoredOverridesKeepCompanyAlias(t *testing.T) {
+	schema, err := ParseSchema("../../schema/schema.graphql", "../../schema/overrides.yaml")
+	if err != nil {
+		t.Fatalf("parsing the vendored schema: %v", err)
+	}
+	for _, r := range schema.Resources {
+		if r.Name != "companies" {
+			continue
+		}
+		for _, a := range r.Aliases {
+			if a == "company" {
+				return
+			}
+		}
+		t.Fatalf(`companies resource is missing the "company" alias; aliases = %v`, r.Aliases)
+	}
+	t.Fatal("companies resource not found in the vendored schema")
+}

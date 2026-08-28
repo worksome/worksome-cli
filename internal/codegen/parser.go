@@ -20,6 +20,9 @@ type Overrides struct {
 	Resources       map[string]OverrideResource `yaml:"resources"`
 	Ignore          []string                    `yaml:"ignore"`
 	IgnoreMutations []string                    `yaml:"ignore_mutations"`
+	// Aliases maps a resource name to extra names it also answers to, so a
+	// rename in the API schema doesn't break the old invocation.
+	Aliases map[string][]string `yaml:"aliases"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -108,6 +111,8 @@ type parser struct {
 	enums      map[string]bool
 	inputs     map[string]bool
 	paginators map[string]string // PaginatorTypeName -> DataTypeName
+
+	aliasErrors []string
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -216,6 +221,11 @@ func (p *parser) parse() (*Schema, error) {
 
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
+
+	if len(p.aliasErrors) > 0 {
+		return nil, fmt.Errorf("invalid aliases in overrides:\n  %s",
+			strings.Join(p.aliasErrors, "\n  "))
+	}
 
 	return schema, nil
 }
@@ -667,12 +677,35 @@ func (p *parser) buildResources() []Resource {
 
 		// Generate table columns from the return type
 		res.TableColumns = p.buildTableColumns(res)
+		res.Aliases = p.overrides.Aliases[res.Name]
 
 		resources = append(resources, *res)
 	}
 	sort.Slice(resources, func(i, j int) bool {
 		return resources[i].Name < resources[j].Name
 	})
+
+	// An alias naming a resource that no longer exists is silently dead, and
+	// an alias colliding with a real resource shadows it. Both mean the
+	// overrides file is stale.
+	byName := make(map[string]bool, len(resources))
+	for _, r := range resources {
+		byName[r.Name] = true
+	}
+	for target, aliases := range p.overrides.Aliases {
+		if !byName[target] {
+			p.aliasErrors = append(p.aliasErrors,
+				fmt.Sprintf("alias target %q is not a generated resource", target))
+			continue
+		}
+		for _, a := range aliases {
+			if byName[a] {
+				p.aliasErrors = append(p.aliasErrors,
+					fmt.Sprintf("alias %q (for %q) collides with a real resource", a, target))
+			}
+		}
+	}
+	sort.Strings(p.aliasErrors)
 
 	return resources
 }

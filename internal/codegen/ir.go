@@ -25,6 +25,7 @@ type Resource struct {
 	Mutations    []Operation
 	TableColumns []TableColumn // Columns for table output in list/get commands
 	Hoisted      bool          // true when single-mutation resource is promoted to a flat command
+	Aliases      []string      // extra command names, e.g. "company" for "companies"
 }
 
 // TableColumn describes a column for table output.
