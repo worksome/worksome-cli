@@ -40,7 +40,13 @@ func pruneQuery(query string, fields []string) (string, error) {
 		if f == "" {
 			continue
 		}
-		paths = append(paths, strings.Split(f, "."))
+		segments := strings.Split(f, ".")
+		for _, seg := range segments {
+			if strings.TrimSpace(seg) == "" {
+				return "", fmt.Errorf("--fields: %q has an empty segment", f)
+			}
+		}
+		paths = append(paths, segments)
 	}
 	if len(paths) == 0 {
 		return query, nil

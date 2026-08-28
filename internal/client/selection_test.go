@@ -191,3 +191,25 @@ func TestExecute_WithUnknownFieldFailsBeforeRequest(t *testing.T) {
 		t.Fatal("Execute() error = nil, want unknown field error")
 	}
 }
+
+func TestPruneQuery_RejectsEmptyPathSegments(t *testing.T) {
+	const query = `query Jobs { jobs { data { id name } paginatorInfo { total } } }`
+	for _, f := range []string{".name", "worker.", "worker..name", "."} {
+		t.Run(f, func(t *testing.T) {
+			if _, err := pruneQuery(query, []string{f}); err == nil {
+				t.Fatalf("pruneQuery(%q) should reject an empty segment", f)
+			}
+		})
+	}
+}
+
+// The option must not alias the caller's slice: a later mutation would silently
+// change which fields every subsequent request asks for.
+func TestWithFields_ClonesInput(t *testing.T) {
+	fields := []string{"id", "name"}
+	c := New("http://example.invalid", "token", WithFields(fields))
+	fields[0] = "mutated"
+	if c.fields[0] != "id" {
+		t.Errorf("client.fields[0] = %q, want %q", c.fields[0], "id")
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -85,7 +86,7 @@ func WithWarnWriter(w io.Writer) Option {
 // cannot be narrowed safely are sent unchanged.
 func WithFields(fields []string) Option {
 	return func(c *Client) {
-		c.fields = fields
+		c.fields = slices.Clone(fields)
 	}
 }
 
