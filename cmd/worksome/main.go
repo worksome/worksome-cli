@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -44,7 +45,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
-	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., id,name,worker.name)")
+	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to request and display (e.g., id,name,worker.name)")
 	rootCmd.PersistentFlags().String("filter", "", `Key=value filter pairs (e.g., "status=ACTIVE,currency=DKK")`)
 
 	// Register shell completion for --profile flag
@@ -98,6 +99,9 @@ func newRootCmd() *cobra.Command {
 		}
 		if timeout > 0 {
 			opts = append(opts, client.WithTimeout(time.Duration(timeout)*time.Second))
+		}
+		if fields, _ := rootCmd.PersistentFlags().GetString("fields"); fields != "" {
+			opts = append(opts, client.WithFields(strings.Split(fields, ",")))
 		}
 
 		return client.New(endpoint, token, opts...), nil
