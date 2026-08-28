@@ -428,12 +428,21 @@ func TestLoadWithoutHomeDirectory(t *testing.T) {
 	t.Setenv("HOME", "")
 	t.Setenv("USERPROFILE", "") // windows
 
+	// Guard the premise: os.UserHomeDir must actually fail here, otherwise
+	// the assertions below would pass vacuously against a real ~/.worksome.
+	if _, err := os.UserHomeDir(); err == nil {
+		t.Skip("os.UserHomeDir resolves without HOME on this platform")
+	}
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load must not error when the home directory is unresolvable: %v", err)
 	}
 	if cfg == nil || cfg.Profiles == nil {
 		t.Fatal("Load must return a usable zero-value config")
+	}
+	if len(cfg.Profiles) != 0 {
+		t.Errorf("expected an empty config, got %d profiles — a real config file was read", len(cfg.Profiles))
 	}
 	if got := cfg.ResolveToken("flag-token"); got != "flag-token" {
 		t.Errorf("token from flag should still resolve, got %q", got)
