@@ -797,7 +797,9 @@ func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 				break
 			}
 			nfType := unwrapType(nf.Type)
-			if knownScalars[nfType] || p.enums[nfType] {
+			// Same allowlist the selection set uses — a column for a field the
+			// query never asks for renders blank, which reads as "no data".
+			if (knownScalars[nfType] || p.enums[nfType]) && safeNestedFields[nf.Name] {
 				columns = append(columns, TableColumn{
 					Header: toTitleCase(f.Name) + " " + toTitleCase(nf.Name),
 					Field:  f.Name + "." + nf.Name,
