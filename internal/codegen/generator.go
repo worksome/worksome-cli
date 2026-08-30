@@ -407,6 +407,29 @@ func requireInput(vars map[string]any) error {
 	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
 }
 
+// jsonArg decodes a flag whose GraphQL type is an input object (or a list of
+// them) from JSON. Sending the raw string would be rejected by the server as a
+// type mismatch, so a bad value is reported here with the type it needs.
+func jsonArg(flag, gqlType, raw string) (any, error) {
+	var v any
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		return nil, fmt.Errorf("--%s expects JSON for %s, got %q: %w", flag, gqlType, raw, err)
+	}
+	// Well-formed JSON of the wrong shape ("42", "\"2026-07-01\"") parses fine and
+	// would only fail server-side. gqlType starts with "[" exactly when a list is
+	// wanted; a lone object is legal there, since GraphQL coerces it to one item.
+	switch v.(type) {
+	case nil, map[string]any:
+	case []any:
+		if !strings.HasPrefix(gqlType, "[") {
+			return nil, fmt.Errorf("--%s expects a JSON object for %s, got a list: %s", flag, gqlType, raw)
+		}
+	default:
+		return nil, fmt.Errorf("--%s expects a JSON object for %s, got %s", flag, gqlType, raw)
+	}
+	return v, nil
+}
+
 {{range $res := .Resources}}
 {{- if $res.TableColumns}}
 var {{$res.GoName | lower}}Columns = []output.Column{
@@ -522,15 +545,15 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	{{range $mut.InputFields -}}
 	{{if eq (flagBaseType .Type) "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "stringSlice" -}}
-	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (flagHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (flagHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	{{range $mut.InputFields -}}
@@ -596,7 +619,13 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 			{{- range $res.GetQuery.Arguments}}
 			{{- if ne .Name "id"}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
-				{{- if eq (flagBaseType .Type) "bool"}}
+				{{- if isJSONArg .Type}}
+				raw, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				v, err := jsonArg("{{.CLIFlag}}", "{{gqlTypeName .Type}}", raw)
+				if err != nil {
+					return err
+				}
+				{{- else if eq (flagBaseType .Type) "bool"}}
 				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
 				{{- else if eq (flagBaseType .Type) "int"}}
 				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
@@ -636,15 +665,15 @@ func new{{$res.GoName}}GetCmd() *cobra.Command {
 	{{range $res.GetQuery.Arguments -}}
 	{{if ne .Name "id" -}}
 	{{if eq (flagBaseType .Type) "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "stringSlice" -}}
-	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (flagHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (flagHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	{{end -}}
@@ -696,7 +725,13 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 			{{- range $res.ListQuery.Arguments}}
 			{{- if and (ne .Name "first") (ne .Name "page")}}
 			if cmd.Flags().Changed("{{.CLIFlag}}") {
-				{{- if eq (flagBaseType .Type) "bool"}}
+				{{- if isJSONArg .Type}}
+				raw, _ := cmd.Flags().GetString("{{.CLIFlag}}")
+				v, err := jsonArg("{{.CLIFlag}}", "{{gqlTypeName .Type}}", raw)
+				if err != nil {
+					return err
+				}
+				{{- else if eq (flagBaseType .Type) "bool"}}
 				v, _ := cmd.Flags().GetBool("{{.CLIFlag}}")
 				{{- else if eq (flagBaseType .Type) "int"}}
 				v, _ := cmd.Flags().GetInt("{{.CLIFlag}}")
@@ -785,15 +820,15 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 	{{range $res.ListQuery.Arguments -}}
 	{{if and (ne .Name "first") (ne .Name "page") -}}
 	{{if eq (flagBaseType .Type) "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "stringSlice" -}}
-	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (flagHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (flagHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	{{end -}}
@@ -952,15 +987,15 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	{{range $mut.InputFields -}}
 	{{if eq (flagBaseType .Type) "int" -}}
-	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Int("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "float64" -}}
-	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Float64("{{.CLIFlag}}", 0, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "bool" -}}
-	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().Bool("{{.CLIFlag}}", false, {{quote (flagHint .Description .Type)}})
 	{{else if eq (flagBaseType .Type) "stringSlice" -}}
-	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (enumHint .Description .Type)}})
+	cmd.Flags().StringSlice("{{.CLIFlag}}", nil, {{quote (flagHint .Description .Type)}})
 	{{else -}}
-	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (enumHint .Description .Type)}})
+	cmd.Flags().String("{{.CLIFlag}}", "", {{quote (flagHint .Description .Type)}})
 	{{end -}}
 	{{end -}}
 	{{range $mut.InputFields -}}
@@ -1009,7 +1044,9 @@ func init() {
 	templateFuncs["inputFlagExample"] = inputFlagExample
 	templateFuncs["inputFlagExampleHoisted"] = inputFlagExampleHoisted
 	templateFuncs["flagBaseType"] = flagBaseType
-	templateFuncs["enumHint"] = enumHint
+	templateFuncs["flagHint"] = flagHint
+	templateFuncs["isJSONArg"] = isJSONArg
+	templateFuncs["gqlTypeName"] = gqlTypeName
 	templateFuncs["shortDesc"] = shortDesc
 	templateFuncs["enumValuesLiteral"] = enumValuesLiteral
 	templateFuncs["inputExampleBlock"] = inputExampleBlock
@@ -1205,8 +1242,45 @@ func flagBaseType(t TypeRef) string {
 	}
 }
 
-// enumHint appends valid enum values to a flag description when the type is an enum.
-func enumHint(desc string, t TypeRef) string {
+// isJSONArg reports whether an argument's GraphQL type is an input object, or a
+// list of them. Those cannot be sent as a bare string — the flag value is parsed
+// as JSON instead.
+func isJSONArg(t TypeRef) bool {
+	if t.IsList {
+		return t.ListItem != nil && t.ListItem.IsInput
+	}
+	return t.IsInput
+}
+
+// gqlTypeName renders a GraphQL type for display in flag help and error text,
+// e.g. "DateRangeInput" or "[OrderByClauseInput!]".
+func gqlTypeName(t TypeRef) string {
+	name := t.Name
+	if t.IsList {
+		inner := t.Name
+		if t.ListItem != nil && t.ListItem.IsRequired {
+			inner += "!"
+		}
+		name = "[" + inner + "]"
+	}
+	if t.IsRequired {
+		name += "!"
+	}
+	return name
+}
+
+// flagHint appends valid enum values to a flag description when the type is an enum.
+func flagHint(desc string, t TypeRef) string {
+	// Input-object flags take JSON — say so, and name the type to look up.
+	if isJSONArg(t) {
+		hint := "(JSON for " + gqlTypeName(t) + ")"
+		// Schema arguments don't always carry a description.
+		if desc = strings.TrimSpace(desc); desc == "" {
+			return hint
+		}
+		return desc + " " + hint
+	}
+
 	var values []string
 	if t.IsEnum {
 		values = t.EnumValues
@@ -1218,7 +1292,9 @@ func enumHint(desc string, t TypeRef) string {
 	}
 	display := values
 	if len(display) > 5 {
-		display = append(display[:5], "...")
+		// Copy first: appending into values[:5] would overwrite values[5] in the
+		// shared IR, and shell completions render the same slice afterwards.
+		display = append(append([]string{}, values[:5]...), "...")
 	}
 	return desc + " [" + strings.Join(display, ", ") + "]"
 }
