@@ -223,7 +223,7 @@ printf "  ${YELLOW}Permission:${NC} %d  (expected)\n" "$perm"
 printf "  ${CYAN}Skipped:${NC}    %d  (expected — incomplete probe)\n" "$skipped"
 printf "  ${YELLOW}Server 5xx:${NC} %d  <- platform bugs, not CLI\n" "$server"
 printf "  ${RED}Validation:${NC} %d  <- BUGS to fix\n" "$validation"
-printf "  ${RED}JSON flags:${NC} %d of %d exercised  <- BUGS to fix\n" "$jsonflag" "$jsonchecked"
+printf "  ${RED}JSON flags:${NC} %d failed of %d exercised\n" "$jsonflag" "$jsonchecked"
 printf "  ${RED}Other:${NC}      %d  <- read these\n" "$other"
 
 if [ ${#validation_cmds[@]} -gt 0 ]; then
