@@ -328,28 +328,7 @@ func FilterFields(data any, fields []string) any {
 		trimmed[i] = strings.TrimSpace(f)
 	}
 
-	switch v := data.(type) {
-	case map[string]any:
-		return filterMap(v, trimmed)
-	case []any:
-		result := make([]any, len(v))
-		for i, item := range v {
-			if m, ok := item.(map[string]any); ok {
-				result[i] = filterMap(m, trimmed)
-			} else {
-				result[i] = item
-			}
-		}
-		return result
-	case []map[string]any:
-		result := make([]any, len(v))
-		for i, m := range v {
-			result[i] = filterMap(m, trimmed)
-		}
-		return result
-	default:
-		return data
-	}
+	return filterValue(data, trimmed)
 }
 
 // filterMap returns a new map containing only the keys/paths listed in fields.
