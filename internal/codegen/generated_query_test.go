@@ -8,6 +8,7 @@ import (
 
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/validator/rules"
 )
 
 // queryLiteral matches the backtick-quoted GraphQL documents emitted into the
@@ -50,7 +51,7 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 		doc := m[1] + m[2]
 		name := operationName(doc)
 
-		if _, errs := gqlparser.LoadQuery(schema, doc); errs != nil {
+		if _, errs := gqlparser.LoadQueryWithRules(schema, doc, rules.NewDefaultRules()); errs != nil {
 			t.Errorf("generated query %s is invalid against the schema:\n%v\n\n%s", name, errs, doc)
 		}
 	}
