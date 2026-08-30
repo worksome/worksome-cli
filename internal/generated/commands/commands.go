@@ -364,7 +364,7 @@ var approvalapprovablesColumns = []output.Column{
 	{Header: "Approval Rule ID", Field: "approvalRule.id"},
 	{Header: "Approval Rule Created At", Field: "approvalRule.createdAt"},
 	{Header: "Approval States ID", Field: "approvalStates.id"},
-	{Header: "Approval States Created At", Field: "approvalStates.createdAt"},
+	{Header: "Approval States State", Field: "approvalStates.state"},
 	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
@@ -606,7 +606,7 @@ var approvalapprovablesActionColumns = []output.Column{
 	{Header: "Approval Rule ID", Field: "approvalRule.id"},
 	{Header: "Approval Rule Created At", Field: "approvalRule.createdAt"},
 	{Header: "Approval States ID", Field: "approvalStates.id"},
-	{Header: "Approval States Created At", Field: "approvalStates.createdAt"},
+	{Header: "Approval States State", Field: "approvalStates.state"},
 	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
@@ -4255,7 +4255,7 @@ var contractsColumns = []output.Column{
 	{Header: "Status", Field: "status"},
 	{Header: "Start Date", Field: "startDate"},
 	{Header: "End Date", Field: "endDate"},
-	{Header: "Address", Field: "address"},
+	{Header: "Location State", Field: "location.state"},
 }
 
 // NewContractsCmd creates the contracts resource command.
@@ -6433,8 +6433,8 @@ func NewForwardCandidateCmd() *cobra.Command {
 var gateColumns = []output.Column{
 	{Header: "Actor", Field: "actor"},
 	{Header: "Name", Field: "name"},
+	{Header: "Compliances Actor", Field: "compliances.actor"},
 	{Header: "Compliances Name", Field: "compliances.name"},
-	{Header: "Compliances Type", Field: "compliances.type"},
 	{Header: "Completed", Field: "completed"},
 	{Header: "Applicable", Field: "applicable"},
 	{Header: "Title", Field: "title"},
@@ -12331,8 +12331,8 @@ var partnerColumns = []output.Column{
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
 	{Header: "Avatar", Field: "avatar"},
+	{Header: "Address State", Field: "address.state"},
 	{Header: "Primary Business Entity ID", Field: "primaryBusinessEntity.id"},
-	{Header: "Primary Business Entity Type", Field: "primaryBusinessEntity.type"},
 }
 
 // NewPartnerCmd creates the partner resource command.

@@ -1202,6 +1202,11 @@ func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) 
 // canCreatePassword, missingAuthentication) when the viewer isn't the resource
 // owner. By limiting nested selections to common identifying/display fields, we
 // avoid triggering access-control errors.
+//
+// Keyed on bare field names, so an entry matches that name on every type:
+// "state" admits an approval's workflow state and an address's geographic one
+// alike. Type-scoped keys ("Type.field") would match on meaning rather than
+// spelling; not needed while every entry here is safe on all its homonyms.
 var safeNestedFields = map[string]bool{
 	"id": true, "name": true, "email": true, "avatar": true,
 	"status": true, "type": true, "currency": true, "market": true,
@@ -1209,6 +1214,16 @@ var safeNestedFields = map[string]bool{
 	"middleName": true, "phone": true, "initials": true, "subject": true,
 	"url": true, "title": true, "label": true, "slug": true, "code": true,
 	"createdAt": true, "updatedAt": true, "startDate": true, "endDate": true,
+	// State fields. Without these a nested row is unreadable — a hire's
+	// compliances came back as catalogue entries with no indication of which
+	// applied or were already done, and an approval state carried no state.
+	//
+	// Named individually rather than admitting every enum: introspection strips
+	// @passes/@guard, so the generator cannot see which fields are access
+	// controlled. Selecting by type would be default-allow on a property the
+	// schema we parse does not carry.
+	"actor": true, "state": true, "cancellationReason": true,
+	"applicable": true, "completed": true, "completedAt": true,
 }
 
 // selectScalarFields returns a space-separated list of scalar field selections for a type.
