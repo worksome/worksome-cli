@@ -265,3 +265,121 @@ func TestGenerateFromFullSchema(t *testing.T) {
 		t.Error("root.go seems too small")
 	}
 }
+
+// An argument whose GraphQL type is an input object (or a list of them) cannot
+// be sent as a bare string — the server rejects it as a type mismatch. The
+// generated command must decode the flag value as JSON instead.
+func TestInputObjectArgsDecodeAsJSON(t *testing.T) {
+	schema := `
+type Query {
+	paymentRequests(
+		requestedDateRange: DateRangeInput
+		orderBy: [OrderByClauseInput!]
+		search: String
+		first: Int! = 10
+		page: Int
+	): PaymentRequestPaginator!
+}
+
+input DateRangeInput {
+	start: Date!
+	end: Date!
+}
+
+input OrderByClauseInput {
+	column: String!
+	order: String!
+}
+
+scalar Date
+
+type PaymentRequest {
+	id: ID!
+	number: String!
+}
+
+type PaymentRequestPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [PaymentRequest!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	outputDir := t.TempDir()
+	gen := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli")
+	if err := gen.Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	cmdsBytes, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatalf("reading generated commands: %v", err)
+	}
+	cmds := string(cmdsBytes)
+
+	if !strings.Contains(cmds, "func jsonArg(flag, gqlType, raw string) (any, error)") {
+		t.Error("expected generated commands to define the jsonArg helper")
+	}
+
+	// The input object and the list of input objects both decode as JSON.
+	if !strings.Contains(cmds, `jsonArg("requested-date-range", "DateRangeInput", raw)`) {
+		t.Error("expected --requested-date-range to decode as JSON for DateRangeInput")
+	}
+	if !strings.Contains(cmds, `jsonArg("order-by", "[OrderByClauseInput!]", raw)`) {
+		t.Error("expected --order-by to decode as JSON for a list of input objects")
+	}
+
+	// A plain scalar argument must keep its string handling.
+	if !strings.Contains(cmds, `v, _ := cmd.Flags().GetString("search")`) {
+		t.Error("expected --search to keep plain string handling")
+	}
+	if strings.Contains(cmds, `jsonArg("search"`) {
+		t.Error("--search is a String, it must not be JSON-decoded")
+	}
+
+	// Help text should tell the user JSON is expected.
+	if !strings.Contains(cmds, "(JSON for DateRangeInput)") {
+		t.Error("expected the flag description to advertise JSON and name the type")
+	}
+}
+
+func TestIsJSONArg(t *testing.T) {
+	inputRef := TypeRef{Name: "DateRangeInput", IsInput: true}
+	tests := []struct {
+		name string
+		t    TypeRef
+		want bool
+	}{
+		{"input object", inputRef, true},
+		{"list of input objects", TypeRef{Name: "DateRangeInput", IsList: true, ListItem: &inputRef}, true},
+		{"scalar", TypeRef{Name: "String", IsScalar: true}, false},
+		{"enum", TypeRef{Name: "Status", IsEnum: true}, false},
+		{"list of scalars", TypeRef{Name: "ID", IsList: true, ListItem: &TypeRef{Name: "ID", IsScalar: true}}, false},
+		{"list with no item", TypeRef{Name: "X", IsList: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isJSONArg(tt.t); got != tt.want {
+				t.Errorf("isJSONArg(%s) = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
