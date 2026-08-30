@@ -383,3 +383,66 @@ func TestIsJSONArg(t *testing.T) {
 		})
 	}
 }
+
+func TestGqlTypeName(t *testing.T) {
+	req := TypeRef{Name: "OrderByInput", IsInput: true, IsRequired: true}
+	opt := TypeRef{Name: "OrderByInput", IsInput: true}
+	tests := []struct {
+		name string
+		t    TypeRef
+		want string
+	}{
+		{"optional input", opt, "OrderByInput"},
+		{"required input", TypeRef{Name: "DateRangeInput", IsInput: true, IsRequired: true}, "DateRangeInput!"},
+		{"list of required items", TypeRef{Name: "OrderByInput", IsList: true, ListItem: &req}, "[OrderByInput!]"},
+		{"required list of required items", TypeRef{Name: "OrderByInput", IsList: true, IsRequired: true, ListItem: &req}, "[OrderByInput!]!"},
+		{"required list of optional items", TypeRef{Name: "OrderByInput", IsList: true, IsRequired: true, ListItem: &opt}, "[OrderByInput]!"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := gqlTypeName(tt.t); got != tt.want {
+				t.Errorf("gqlTypeName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFlagHintJSONDescription(t *testing.T) {
+	input := TypeRef{Name: "DateRangeInput", IsInput: true}
+
+	// An argument with no description must not produce a leading space.
+	for _, desc := range []string{"", "   ", "\t\n"} {
+		if got := flagHint(desc, input); got != "(JSON for DateRangeInput)" {
+			t.Errorf("flagHint(%q) = %q, want no leading space", desc, got)
+		}
+	}
+
+	if got := flagHint("Filter by date.", input); got != "Filter by date. (JSON for DateRangeInput)" {
+		t.Errorf("flagHint with description = %q", got)
+	}
+
+	// Non-JSON types keep their existing behaviour untouched.
+	if got := flagHint("Plain.", TypeRef{Name: "String", IsScalar: true}); got != "Plain." {
+		t.Errorf("scalar flagHint = %q, want %q", got, "Plain.")
+	}
+}
+
+// flagHint truncates long enum lists for display. It must not do so in place:
+// the slice aliases the shared IR, and enumValuesLiteral renders the same values
+// into shell completions afterwards.
+func TestFlagHintDoesNotMutateEnumValues(t *testing.T) {
+	original := []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED", "EXPIRED"}
+	values := append([]string{}, original...)
+	typ := TypeRef{Name: "ApprovalApprovableState", IsEnum: true, EnumValues: values}
+
+	hint := flagHint("The state.", typ)
+	if !strings.Contains(hint, "...") {
+		t.Fatalf("expected a truncated hint, got %q", hint)
+	}
+
+	for i, want := range original {
+		if typ.EnumValues[i] != want {
+			t.Errorf("flagHint corrupted EnumValues[%d]: got %q, want %q", i, typ.EnumValues[i], want)
+		}
+	}
+}

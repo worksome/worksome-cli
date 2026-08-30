@@ -1243,21 +1243,30 @@ func isJSONArg(t TypeRef) bool {
 // gqlTypeName renders a GraphQL type for display in flag help and error text,
 // e.g. "DateRangeInput" or "[OrderByClauseInput!]".
 func gqlTypeName(t TypeRef) string {
+	name := t.Name
 	if t.IsList {
 		inner := t.Name
 		if t.ListItem != nil && t.ListItem.IsRequired {
 			inner += "!"
 		}
-		return "[" + inner + "]"
+		name = "[" + inner + "]"
 	}
-	return t.Name
+	if t.IsRequired {
+		name += "!"
+	}
+	return name
 }
 
 // flagHint appends valid enum values to a flag description when the type is an enum.
 func flagHint(desc string, t TypeRef) string {
 	// Input-object flags take JSON — say so, and name the type to look up.
 	if isJSONArg(t) {
-		return strings.TrimSpace(desc) + " (JSON for " + gqlTypeName(t) + ")"
+		hint := "(JSON for " + gqlTypeName(t) + ")"
+		// Schema arguments don't always carry a description.
+		if desc = strings.TrimSpace(desc); desc == "" {
+			return hint
+		}
+		return desc + " " + hint
 	}
 
 	var values []string
@@ -1271,7 +1280,9 @@ func flagHint(desc string, t TypeRef) string {
 	}
 	display := values
 	if len(display) > 5 {
-		display = append(display[:5], "...")
+		// Copy first: appending into values[:5] would overwrite values[5] in the
+		// shared IR, and shell completions render the same slice afterwards.
+		display = append(append([]string{}, values[:5]...), "...")
 	}
 	return desc + " [" + strings.Join(display, ", ") + "]"
 }
