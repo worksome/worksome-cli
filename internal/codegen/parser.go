@@ -1133,7 +1133,7 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		}
 
 		dataFields := p.selectScalarFields(innerDef, 1)
-		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
+		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + typenamePrefix(innerDef) + dataFields + " } }"
 	}
 
 	// Check if it's a union type
@@ -1155,7 +1155,18 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 	if fields == "" {
 		return "{ id }"
 	}
-	return "{ " + fields + " }"
+	return "{ " + typenamePrefix(def) + fields + " }"
+}
+
+// typenamePrefix returns "__typename " for interface types. An interface
+// selection is the fields every implementor shares, so without it a list of
+// accounts gives no way to tell a Worker from a Company. Unions already do
+// this; interfaces are the same problem.
+func typenamePrefix(def *ast.Definition) string {
+	if def != nil && def.Kind == ast.Interface {
+		return "__typename "
+	}
+	return ""
 }
 
 // buildUnionSelectionFields generates the inline fragment portion of a selection
@@ -1227,7 +1238,7 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			if nestedDef, ok := p.doc.Types[innerType]; ok && (nestedDef.Kind == ast.Object || nestedDef.Kind == ast.Interface) {
 				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
-					fields = append(fields, f.Name+" { "+nestedFields+" }")
+					fields = append(fields, f.Name+" { "+typenamePrefix(nestedDef)+nestedFields+" }")
 				}
 			}
 		}

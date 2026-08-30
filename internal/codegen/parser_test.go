@@ -1386,7 +1386,9 @@ type Company implements Account {
 	if strings.TrimSpace(sel) == "" {
 		t.Fatal("interface return type produced an empty selection set; the server rejects this")
 	}
-	for _, want := range []string{"id", "name", "avatar"} {
+	// __typename comes along: an interface selection is only the shared fields,
+	// so without it a list of accounts gives no way to tell the implementors apart.
+	for _, want := range []string{"__typename", "id", "name", "avatar"} {
 		if !strings.Contains(sel, want) {
 			t.Errorf("selection set should include interface field %q, got: %s", want, sel)
 		}
