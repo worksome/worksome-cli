@@ -43,8 +43,18 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 	}
 
 	matches := queryLiteral.FindAllStringSubmatch(string(src), -1)
-	if len(matches) == 0 {
-		t.Fatal("no GraphQL documents found in generated queries — regex out of date?")
+
+	// A guard that silently stops covering things is worse than no guard. Every
+	// generated operation assigns exactly one document, so the two counts must
+	// agree — if the emitted shape ever changes, this fails instead of passing
+	// on a shrinking subset.
+	declared := strings.Count(string(src), "query := `")
+	if len(matches) != declared {
+		t.Fatalf("matched %d GraphQL documents but the file declares %d — queryLiteral is out of date",
+			len(matches), declared)
+	}
+	if declared == 0 {
+		t.Fatal("no GraphQL documents found in generated queries")
 	}
 
 	for _, m := range matches {
