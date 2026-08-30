@@ -205,16 +205,31 @@ func extractRow(item any, columns []Column) []string {
 // resolveField walks a dot-separated field path against a value and returns
 // a string representation. Supports both map[string]any and struct types.
 func resolveField(v reflect.Value, path string) string {
-	parts := strings.Split(path, ".")
+	return resolvePath(v, strings.Split(path, "."))
+}
 
+// resolvePath walks the remaining path segments against a value. A segment that
+// lands on a list is applied to every element and the results joined — otherwise
+// the column would render blank, which reads as "no data" rather than "unsupported".
+func resolvePath(v reflect.Value, parts []string) string {
 	cur := v
-	for _, part := range parts {
+	for i, part := range parts {
 		// Dereference pointers/interfaces along the way.
 		for cur.Kind() == reflect.Ptr || cur.Kind() == reflect.Interface {
 			if cur.IsNil() {
 				return ""
 			}
 			cur = cur.Elem()
+		}
+
+		if cur.Kind() == reflect.Slice || cur.Kind() == reflect.Array {
+			var vals []string
+			for j := 0; j < cur.Len(); j++ {
+				if s := resolvePath(cur.Index(j), parts[i:]); s != "" {
+					vals = append(vals, s)
+				}
+			}
+			return strings.Join(vals, ", ")
 		}
 
 		switch cur.Kind() {

@@ -3,6 +3,7 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -1393,4 +1394,70 @@ type Company implements Account {
 			t.Errorf("selection set should include interface field %q, got: %s", want, sel)
 		}
 	}
+}
+
+// innerSelection matches the innermost `name { a b c }` groups of a selection
+// set. Nested object selections are always scalar-only, so the innermost groups
+// are exactly the `parent { child ... }` pairs a "parent.child" column needs.
+var innerSelection = regexp.MustCompile(`(\w+) \{ ([^{}]*) \}`)
+
+// TestTableColumnsAreSelectedByTheQuery asserts that every generated nested
+// table column is actually requested by the query that fills the table.
+//
+// The column list and the selection set are built by two different functions.
+// When they disagree the cell renders blank, which reads as "this record has no
+// compliances" rather than "the CLI never asked for that field" — a table that
+// is quietly wrong instead of one that fails. That shipped once: `compliances.actor`
+// and `approvalStates.state` were columns no query ever selected.
+func TestTableColumnsAreSelectedByTheQuery(t *testing.T) {
+	parsed, err := ParseSchema("../../schema/schema.graphql", "../../schema/overrides.yaml")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	check := func(what string, columns []TableColumn, selectionSet string) {
+		if selectionSet == "" {
+			return
+		}
+		selected := make(map[string]map[string]bool)
+		for _, m := range innerSelection.FindAllStringSubmatch(selectionSet, -1) {
+			children := selected[m[1]]
+			if children == nil {
+				children = make(map[string]bool)
+				selected[m[1]] = children
+			}
+			for _, f := range strings.Fields(m[2]) {
+				children[f] = true
+			}
+		}
+
+		for _, col := range columns {
+			parent, child, nested := strings.Cut(col.Field, ".")
+			if !nested {
+				continue
+			}
+			if !selected[parent][child] {
+				t.Errorf("%s: column %q (%s) is never selected by the query — it renders blank\nselection set: %s",
+					what, col.Header, col.Field, selectionSet)
+			}
+		}
+	}
+
+	var checked int
+	for _, res := range parsed.Resources {
+		if len(res.TableColumns) == 0 {
+			continue
+		}
+		for _, op := range []*Operation{res.GetQuery, res.ListQuery} {
+			if op == nil {
+				continue
+			}
+			check(res.Name, res.TableColumns, op.SelectionSet)
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no resources with table columns found — the test is covering nothing")
+	}
+	t.Logf("checked table columns for %d operations", checked)
 }

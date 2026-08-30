@@ -823,6 +823,65 @@ func TestFilterFields_deepNesting(t *testing.T) {
 	}
 }
 
+// Table columns whose path continues into a list (e.g. hires' "compliances.name",
+// approvals' "approvalStates.state") rendered permanently blank. The path applies
+// to every element; join the results rather than giving up.
+func TestExtractFields_pathThroughList(t *testing.T) {
+	data := []map[string]any{
+		{
+			"id": "h1",
+			"compliances": []any{
+				map[string]any{"name": "IR35", "actor": "Alice"},
+				map[string]any{"name": "SDS", "actor": "Bob"},
+			},
+		},
+	}
+
+	cols := []Column{
+		{Header: "ID", Field: "id"},
+		{Header: "Compliances Name", Field: "compliances.name"},
+		{Header: "Compliances Actor", Field: "compliances.actor"},
+	}
+
+	rows := ExtractFields(data, cols)
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+	if rows[0][0] != "h1" {
+		t.Errorf("expected id=h1, got %q", rows[0][0])
+	}
+	if rows[0][1] != "IR35, SDS" {
+		t.Errorf("expected joined names %q, got %q", "IR35, SDS", rows[0][1])
+	}
+	if rows[0][2] != "Alice, Bob" {
+		t.Errorf("expected joined actors %q, got %q", "Alice, Bob", rows[0][2])
+	}
+}
+
+func TestExtractFields_pathThroughEmptyAndSparseList(t *testing.T) {
+	data := []map[string]any{
+		{"id": "h1", "compliances": []any{}},
+		{"id": "h2", "compliances": []any{
+			map[string]any{"name": "IR35"},
+			map[string]any{}, // element missing the field
+		}},
+		{"id": "h3", "compliances": nil},
+	}
+
+	cols := []Column{{Header: "Name", Field: "compliances.name"}}
+	rows := ExtractFields(data, cols)
+
+	if rows[0][0] != "" {
+		t.Errorf("empty list should render blank, got %q", rows[0][0])
+	}
+	if rows[1][0] != "IR35" {
+		t.Errorf("sparse list should skip missing values, got %q", rows[1][0])
+	}
+	if rows[2][0] != "" {
+		t.Errorf("nil list should render blank, got %q", rows[2][0])
+	}
+}
+
 // A nested path through a list-valued field (e.g. hires' `owners: [User!]!`)
 // must filter each element, not drop the field. Dropping it silently produced
 // a report that was quietly wrong rather than one that failed.
