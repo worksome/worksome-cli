@@ -1461,3 +1461,113 @@ func TestTableColumnsAreSelectedByTheQuery(t *testing.T) {
 	}
 	t.Logf("checked table columns for %d operations", checked)
 }
+
+// Nested objects are filtered through safeNestedFields to avoid requesting
+// access-controlled fields. That allowlist was dropping the state fields that
+// make a nested row interpretable: a hire's compliances came back as catalogue
+// entries with no applicable/completed, reading as outstanding requirements
+// when the true answer is zero.
+func TestNestedSelectionKeepsStateFields(t *testing.T) {
+	schema := `
+type Query {
+	hire(id: ID!): Hire
+	hires(first: Int! = 10, page: Int): HirePaginator!
+}
+
+type Hire {
+	id: ID!
+	compliances: [Compliance!]!
+	approvalStates: [ApprovalState!]!
+	owner: User!
+}
+
+type Compliance {
+	actor: ComplianceActorTypes!
+	name: String!
+	applicable: Boolean!
+	completed: Boolean!
+	completedAt: DateTime
+	title: String!
+}
+
+type ApprovalState {
+	id: ID!
+	state: ApprovalApprovableState!
+	createdAt: DateTime
+}
+
+type User {
+	id: ID!
+	name: String!
+	canCreatePassword: Boolean!
+	missingAuthentication: Boolean!
+}
+
+enum ComplianceActorTypes { WORKER CLIENT }
+enum ApprovalApprovableState { REQUESTED APPROVED }
+
+scalar DateTime
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var hires *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "hires" {
+			hires = &parsed.Resources[i]
+			break
+		}
+	}
+	if hires == nil {
+		t.Fatal("expected a 'hires' resource")
+	}
+	if hires.GetQuery == nil {
+		t.Fatal("expected a get query for hires")
+	}
+	sel := hires.GetQuery.SelectionSet
+
+	// The state fields that make a compliance row readable.
+	for _, want := range []string{"applicable", "completed", "completedAt"} {
+		if !strings.Contains(sel, want) {
+			t.Errorf("selection set should include compliance state field %q, got: %s", want, sel)
+		}
+	}
+
+	// Enums are state/classification — always worth selecting.
+	if !strings.Contains(sel, "state") {
+		t.Errorf("selection set should include the ApprovalState enum field 'state', got: %s", sel)
+	}
+	if !strings.Contains(sel, "actor") {
+		t.Errorf("selection set should include the Compliance enum field 'actor', got: %s", sel)
+	}
+
+	// The access-controlled User booleans must stay out — that is what the
+	// allowlist is for.
+	for _, unwanted := range []string{"canCreatePassword", "missingAuthentication"} {
+		if strings.Contains(sel, unwanted) {
+			t.Errorf("selection set must not request access-controlled field %q, got: %s", unwanted, sel)
+		}
+	}
+}

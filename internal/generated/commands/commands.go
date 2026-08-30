@@ -125,9 +125,9 @@ var acceptbidHoistedColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -364,7 +364,7 @@ var approvalapprovablesColumns = []output.Column{
 	{Header: "Approval Rule ID", Field: "approvalRule.id"},
 	{Header: "Approval Rule Created At", Field: "approvalRule.createdAt"},
 	{Header: "Approval States ID", Field: "approvalStates.id"},
-	{Header: "Approval States Created At", Field: "approvalStates.createdAt"},
+	{Header: "Approval States State", Field: "approvalStates.state"},
 	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
@@ -606,7 +606,7 @@ var approvalapprovablesActionColumns = []output.Column{
 	{Header: "Approval Rule ID", Field: "approvalRule.id"},
 	{Header: "Approval Rule Created At", Field: "approvalRule.createdAt"},
 	{Header: "Approval States ID", Field: "approvalStates.id"},
-	{Header: "Approval States Created At", Field: "approvalStates.createdAt"},
+	{Header: "Approval States State", Field: "approvalStates.state"},
 	{Header: "Viewer Can Action", Field: "viewerCanAction"},
 }
 
@@ -691,7 +691,7 @@ var approvalrulesColumns = []output.Column{
 	{Header: "Fields ID", Field: "fields.id"},
 	{Header: "Fields Title", Field: "fields.title"},
 	{Header: "Rules ID", Field: "rules.id"},
-	{Header: "Rules Created At", Field: "rules.createdAt"},
+	{Header: "Rules Operator", Field: "rules.operator"},
 	{Header: "Approvers ID", Field: "approvers.id"},
 }
 
@@ -899,7 +899,7 @@ var approvalrulesCreateColumns = []output.Column{
 	{Header: "Fields ID", Field: "fields.id"},
 	{Header: "Fields Title", Field: "fields.title"},
 	{Header: "Rules ID", Field: "rules.id"},
-	{Header: "Rules Created At", Field: "rules.createdAt"},
+	{Header: "Rules Operator", Field: "rules.operator"},
 	{Header: "Approvers ID", Field: "approvers.id"},
 }
 
@@ -6433,8 +6433,8 @@ func NewForwardCandidateCmd() *cobra.Command {
 var gateColumns = []output.Column{
 	{Header: "Actor", Field: "actor"},
 	{Header: "Name", Field: "name"},
+	{Header: "Compliances Actor", Field: "compliances.actor"},
 	{Header: "Compliances Name", Field: "compliances.name"},
-	{Header: "Compliances Type", Field: "compliances.type"},
 	{Header: "Completed", Field: "completed"},
 	{Header: "Applicable", Field: "applicable"},
 	{Header: "Title", Field: "title"},
@@ -6515,9 +6515,9 @@ var hiresColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -6880,9 +6880,9 @@ var hiresAttributeRecruiterToColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -6972,9 +6972,9 @@ var hiresAttributeSupplierToColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7054,9 +7054,9 @@ var hiresCancelColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7131,9 +7131,9 @@ var hiresCreateDraftColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7276,9 +7276,9 @@ var hiresRejectColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7353,9 +7353,9 @@ var hiresRemoveRecruiterFromColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7425,9 +7425,9 @@ var hiresShareColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -7502,9 +7502,9 @@ var hiresTerminateColumns = []output.Column{
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
-	{Header: "Latest Contract Status", Field: "latestContract.status"},
+	{Header: "Latest Contract Location Preference", Field: "latestContract.locationPreference"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
-	{Header: "Active Contract Status", Field: "activeContract.status"},
+	{Header: "Active Contract Location Preference", Field: "activeContract.locationPreference"},
 	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
@@ -16225,6 +16225,7 @@ func timesheetsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]
 var timesheetsCreateCustomColumns = []output.Column{
 	{Header: "Provided Registrations", Field: "providedRegistrations"},
 	{Header: "Successful Registrations", Field: "successfulRegistrations"},
+	{Header: "Rejected Registrations Reason", Field: "rejectedRegistrations.reason"},
 }
 
 func newTimesheetsCreateCustomCmd() *cobra.Command {
