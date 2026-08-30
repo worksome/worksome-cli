@@ -18,6 +18,17 @@
 
 set -euo pipefail
 
+# check_json_flags parses the --dry-run variables with jq. Without it every
+# JSON-flag check fails and the run exits 1 blaming the CLI for a missing tool,
+# so refuse to start rather than report 41 false bugs.
+# Run it rather than just looking for it on PATH: a jq that exists but errors
+# fails the same way as a missing one, and both are indistinguishable from real
+# bugs once the checks start.
+if ! echo '{}' | jq -e . >/dev/null 2>&1; then
+    echo "Error: a working jq is required (used to inspect --dry-run variables)" >&2
+    exit 2
+fi
+
 WORKSOME="${1:-$(go env GOPATH)/bin/worksome}"
 DUMMY_ID="00000000-0000-0000-0000-000000000000"
 PROFILE_ARGS=()
@@ -54,6 +65,7 @@ other=0
 skipped=0
 server=0
 jsonflag=0
+jsonchecked=0
 total=0
 
 declare -a validation_cmds=()
@@ -84,6 +96,9 @@ run_cmd() {
         printf "              → %s\n" "$msg"
         validation=$((validation + 1))
         validation_cmds+=("$label|$msg")
+    # Caveat: this cannot tell "the probe did not supply it" from "codegen made
+    # the flag required when it should not be". A regression of the latter kind
+    # lands here as expected noise. Narrow the pattern if that ever bites.
     elif echo "$output" | grep -qi -E "no input provided|required flag\(s\)"; then
         printf "${CYAN}  SKIPPED${NC}     %s\n" "$label"
         skipped=$((skipped + 1))
@@ -130,6 +145,7 @@ check_json_flags() {
     for flag in $flags; do
         varname=$(kebab_to_camel "${flag#--}")
         total=$((total + 1))
+        jsonchecked=$((jsonchecked + 1))
         local label="$res $sub $flag (json)"
 
         if ! out=$("$WORKSOME" "$res" "$sub" ${PROFILE_ARGS[@]+"${PROFILE_ARGS[@]}"} "$flag" '{}' --dry-run 2>&1); then
@@ -142,7 +158,9 @@ check_json_flags() {
 
         # Drop the "[dry-run] query Name" header; the rest is the variables object.
         vars=$(echo "$out" | tail -n +2)
-        if echo "$vars" | jq -e --arg v "$varname" 'has($v) and (.[$v] | type) != "string"' >/dev/null 2>&1; then
+        # "{}" went in, so an object must come out. Asserting the exact type
+        # rather than "not a string" also catches a null or a number.
+        if echo "$vars" | jq -e --arg v "$varname" '(.[$v] | type) == "object"' >/dev/null 2>&1; then
             printf "${GREEN}  OK${NC}          %s\n" "$label"
             ok=$((ok + 1))
             ok_cmds+=("$label")
@@ -150,7 +168,7 @@ check_json_flags() {
             local got
             got=$(echo "$vars" | jq -r --arg v "$varname" 'if has($v) then (.[$v] | type) else "absent" end' 2>/dev/null || echo "unparseable")
             printf "${RED}  JSONFLAG${NC}    %s\n" "$label"
-            printf "              → %s serialised as %s, want object/array\n" "$varname" "$got"
+            printf "              → %s serialised as %s, want object\n" "$varname" "$got"
             jsonflag=$((jsonflag + 1))
             jsonflag_cmds+=("$label|serialised as $got")
         fi
@@ -205,7 +223,7 @@ printf "  ${YELLOW}Permission:${NC} %d  (expected)\n" "$perm"
 printf "  ${CYAN}Skipped:${NC}    %d  (expected — incomplete probe)\n" "$skipped"
 printf "  ${YELLOW}Server 5xx:${NC} %d  <- platform bugs, not CLI\n" "$server"
 printf "  ${RED}Validation:${NC} %d  <- BUGS to fix\n" "$validation"
-printf "  ${RED}JSON flags:${NC} %d  <- BUGS to fix\n" "$jsonflag"
+printf "  ${RED}JSON flags:${NC} %d of %d exercised  <- BUGS to fix\n" "$jsonflag" "$jsonchecked"
 printf "  ${RED}Other:${NC}      %d  <- read these\n" "$other"
 
 if [ ${#validation_cmds[@]} -gt 0 ]; then
@@ -254,6 +272,18 @@ if [ ${#perm_cmds[@]} -gt 0 ]; then
     for cmd in "${perm_cmds[@]}"; do
         echo "  - $cmd"
     done
+fi
+
+# A guard that stops guarding must fail, not pass quietly. check_json_flags
+# discovers flags from the "(JSON for X)" help text; if that wording changes it
+# finds nothing, exercises nothing, and "JSON flags: 0" would read as success.
+# The schema always has at least one input-object flag, so zero means broken
+# discovery rather than a clean run.
+if [ "$jsonchecked" -eq 0 ]; then
+    echo ""
+    printf "${RED}FAILED${NC}: no input-object flags discovered — the '(JSON for' help text\n"
+    printf "        this check greps for has probably changed. Fix check_json_flags.\n"
+    exit 1
 fi
 
 # Exit status, not a count: `exit $validation` wrapped to 0 at 256 failures.
