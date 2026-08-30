@@ -796,16 +796,14 @@ func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 			if nestedCount >= 2 || len(columns) >= maxColumns {
 				break
 			}
-			nfType := unwrapType(nf.Type)
-			// Same allowlist the selection set uses — a column for a field the
-			// query never asks for renders blank, which reads as "no data".
-			if (knownScalars[nfType] || p.enums[nfType]) && safeNestedFields[nf.Name] {
-				columns = append(columns, TableColumn{
-					Header: toTitleCase(f.Name) + " " + toTitleCase(nf.Name),
-					Field:  f.Name + "." + nf.Name,
-				})
-				nestedCount++
+			if !p.nestedFieldSelected(nf) {
+				continue
 			}
+			columns = append(columns, TableColumn{
+				Header: toTitleCase(f.Name) + " " + toTitleCase(nf.Name),
+				Field:  f.Name + "." + nf.Name,
+			})
+			nestedCount++
 		}
 	}
 
@@ -1253,18 +1251,24 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 func (p *parser) selectSafeFields(def *ast.Definition) string {
 	var fields []string
 	for _, f := range def.Fields {
-		if f.Name == "__typename" {
-			continue
-		}
-		if hasRequiredArgs(f) {
-			continue
-		}
-		innerType := unwrapType(f.Type)
-		if (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name] {
+		if p.nestedFieldSelected(f) {
 			fields = append(fields, f.Name)
 		}
 	}
 	return strings.Join(fields, " ")
+}
+
+// nestedFieldSelected reports whether a nested selection will include f.
+// buildTableColumnsForType asks the same question, so both must ask it here:
+// a column for a field the query never selects renders blank, and a field the
+// query does fetch deserves its column. Widening what nested selections
+// include must widen the columns with it.
+func (p *parser) nestedFieldSelected(f *ast.FieldDefinition) bool {
+	if f.Name == "__typename" || hasRequiredArgs(f) {
+		return false
+	}
+	innerType := unwrapType(f.Type)
+	return (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name]
 }
 
 func (p *parser) isSingularGet(f *ast.FieldDefinition) bool {
