@@ -1133,7 +1133,7 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		}
 
 		dataFields := p.selectScalarFields(innerDef, 1)
-		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
+		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + typenamePrefix(innerDef) + dataFields + " } }"
 	}
 
 	// Check if it's a union type
@@ -1146,15 +1146,27 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		return "{ __typename " + unionFields + " }"
 	}
 
-	// For known object types, select scalar fields.
-	if def == nil || def.Kind != ast.Object {
+	// For known object and interface types, select scalar fields. Interfaces
+	// need a selection set just like objects — the server rejects a bare field.
+	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
 		return ""
 	}
 	fields := p.selectScalarFields(def, depth)
 	if fields == "" {
 		return "{ id }"
 	}
-	return "{ " + fields + " }"
+	return "{ " + typenamePrefix(def) + fields + " }"
+}
+
+// typenamePrefix returns "__typename " for interface types. An interface
+// selection is the fields every implementor shares, so without it a list of
+// accounts gives no way to tell a Worker from a Company. Unions already do
+// this; interfaces are the same problem.
+func typenamePrefix(def *ast.Definition) string {
+	if def != nil && def.Kind == ast.Interface {
+		return "__typename "
+	}
+	return ""
 }
 
 // buildUnionSelectionFields generates the inline fragment portion of a selection
@@ -1223,10 +1235,10 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 
 		// Nested object — include only safe identifying fields to avoid access-control errors
 		if depth > 0 {
-			if nestedDef, ok := p.doc.Types[innerType]; ok && nestedDef.Kind == ast.Object {
+			if nestedDef, ok := p.doc.Types[innerType]; ok && (nestedDef.Kind == ast.Object || nestedDef.Kind == ast.Interface) {
 				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
-					fields = append(fields, f.Name+" { "+nestedFields+" }")
+					fields = append(fields, f.Name+" { "+typenamePrefix(nestedDef)+nestedFields+" }")
 				}
 			}
 		}
