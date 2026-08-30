@@ -822,3 +822,68 @@ func TestFilterFields_deepNesting(t *testing.T) {
 		t.Error("a.b.d should have been filtered out")
 	}
 }
+
+// A nested path through a list-valued field (e.g. hires' `owners: [User!]!`)
+// must filter each element, not drop the field. Dropping it silently produced
+// a report that was quietly wrong rather than one that failed.
+func TestFilterFields_nestedPathThroughList(t *testing.T) {
+	data := map[string]any{
+		"id": "h1",
+		"owners": []any{
+			map[string]any{"id": "u1", "name": "Alice", "email": "alice@example.com"},
+			map[string]any{"id": "u2", "name": "Bob", "email": "bob@example.com"},
+		},
+	}
+
+	result := FilterFields(data, []string{"id", "owners.name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+
+	if m["id"] != "h1" {
+		t.Errorf("expected id=h1, got %v", m["id"])
+	}
+
+	owners, ok := m["owners"].([]any)
+	if !ok {
+		t.Fatalf("owners should be a filtered list, got %T (%v)", m["owners"], m["owners"])
+	}
+	if len(owners) != 2 {
+		t.Fatalf("expected 2 owners, got %d", len(owners))
+	}
+
+	for i, want := range []string{"Alice", "Bob"} {
+		owner, ok := owners[i].(map[string]any)
+		if !ok {
+			t.Fatalf("owner %d should be map[string]any, got %T", i, owners[i])
+		}
+		if owner["name"] != want {
+			t.Errorf("expected owners[%d].name=%s, got %v", i, want, owner["name"])
+		}
+		if _, ok := owner["email"]; ok {
+			t.Errorf("owners[%d].email should have been filtered out", i)
+		}
+		if _, ok := owner["id"]; ok {
+			t.Errorf("owners[%d].id should have been filtered out", i)
+		}
+	}
+}
+
+// A nested path through a list of scalars has no subfields to select. Keep the
+// value rather than dropping it silently.
+func TestFilterFields_nestedPathThroughScalarList(t *testing.T) {
+	data := map[string]any{
+		"id":   "h1",
+		"tags": []any{"a", "b"},
+	}
+
+	result := FilterFields(data, []string{"id", "tags.name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+	if _, ok := m["tags"]; !ok {
+		t.Error("tags should not be silently dropped when the path has no subfields")
+	}
+}

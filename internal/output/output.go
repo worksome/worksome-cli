@@ -328,62 +328,69 @@ func FilterFields(data any, fields []string) any {
 		trimmed[i] = strings.TrimSpace(f)
 	}
 
-	switch v := data.(type) {
-	case map[string]any:
-		return filterMap(v, trimmed)
-	case []any:
-		result := make([]any, len(v))
-		for i, item := range v {
-			if m, ok := item.(map[string]any); ok {
-				result[i] = filterMap(m, trimmed)
-			} else {
-				result[i] = item
-			}
-		}
-		return result
-	case []map[string]any:
-		result := make([]any, len(v))
-		for i, m := range v {
-			result[i] = filterMap(m, trimmed)
-		}
-		return result
-	default:
-		return data
-	}
+	return filterValue(data, trimmed)
 }
 
 // filterMap returns a new map containing only the keys/paths listed in fields.
 func filterMap(m map[string]any, fields []string) map[string]any {
-	out := make(map[string]any)
+	// Group subpaths by their leading key so "owners.name,owners.email" is
+	// applied in a single pass rather than merged after the fact.
+	var order []string
+	seen := make(map[string]bool)
+	leaf := make(map[string]bool)
+	subpaths := make(map[string][]string)
+
 	for _, path := range fields {
 		parts := strings.SplitN(path, ".", 2)
 		key := parts[0]
+		if !seen[key] {
+			seen[key] = true
+			order = append(order, key)
+		}
+		if len(parts) == 1 {
+			leaf[key] = true
+			continue
+		}
+		subpaths[key] = append(subpaths[key], parts[1])
+	}
 
+	out := make(map[string]any)
+	for _, key := range order {
 		val, ok := m[key]
 		if !ok {
 			continue
 		}
-
-		if len(parts) == 1 {
-			// Leaf field — copy the value directly.
+		// Selecting the key itself wins over any subpath for it.
+		if leaf[key] {
 			out[key] = val
-		} else {
-			// Nested path — recurse into child map.
-			child, ok := val.(map[string]any)
-			if !ok {
-				continue
-			}
-			// Merge with any previously filtered content for this key.
-			existing, _ := out[key].(map[string]any)
-			if existing == nil {
-				existing = make(map[string]any)
-			}
-			filtered := filterMap(child, []string{parts[1]})
-			for k, v := range filtered {
-				existing[k] = v
-			}
-			out[key] = existing
+			continue
 		}
+		out[key] = filterValue(val, subpaths[key])
 	}
 	return out
+}
+
+// filterValue applies nested field paths to a value, descending into maps and
+// through lists. A value with no sub-structure to filter is returned unchanged
+// rather than dropped — a silently missing field yields a report that is
+// quietly wrong instead of one that fails.
+func filterValue(val any, fields []string) any {
+	switch v := val.(type) {
+	case map[string]any:
+		return filterMap(v, fields)
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = filterValue(item, fields)
+		}
+		return out
+	case []map[string]any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = filterMap(item, fields)
+		}
+		return out
+	default:
+		return val
+	}
 }
