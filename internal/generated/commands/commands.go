@@ -105,6 +105,18 @@ func jsonArg(flag, gqlType, raw string) (any, error) {
 	if err := json.Unmarshal([]byte(raw), &v); err != nil {
 		return nil, fmt.Errorf("--%s expects JSON for %s, got %q: %w", flag, gqlType, raw, err)
 	}
+	// Well-formed JSON of the wrong shape ("42", "\"2026-07-01\"") parses fine and
+	// would only fail server-side. gqlType starts with "[" exactly when a list is
+	// wanted; a lone object is legal there, since GraphQL coerces it to one item.
+	switch v.(type) {
+	case nil, map[string]any:
+	case []any:
+		if !strings.HasPrefix(gqlType, "[") {
+			return nil, fmt.Errorf("--%s expects a JSON object for %s, got a list: %s", flag, gqlType, raw)
+		}
+	default:
+		return nil, fmt.Errorf("--%s expects a JSON object for %s, got %s", flag, gqlType, raw)
+	}
 	return v, nil
 }
 
