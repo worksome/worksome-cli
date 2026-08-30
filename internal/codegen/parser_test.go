@@ -1330,3 +1330,65 @@ func TestVendoredOverridesKeepCompanyAlias(t *testing.T) {
 	}
 	t.Fatal("companies resource not found in the vendored schema")
 }
+
+func TestInterfaceReturnTypeGetsSelectionSet(t *testing.T) {
+	// A query returning an interface type must still get a selection set —
+	// the server rejects a bare field with no subfield selection.
+	schema := `
+type Query {
+	accounts: [Account!]!
+}
+
+interface Account {
+	id: ID!
+	name: String!
+	avatar: String
+}
+
+type Company implements Account {
+	id: ID!
+	name: String!
+	avatar: String
+	market: String!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var accounts *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "accounts" {
+			accounts = &parsed.Resources[i]
+			break
+		}
+	}
+	if accounts == nil {
+		t.Fatal("expected an 'accounts' resource")
+	}
+
+	op := accounts.ListQuery
+	if op == nil {
+		op = accounts.GetQuery
+	}
+	if op == nil {
+		t.Fatal("expected a query operation for accounts")
+	}
+
+	sel := op.SelectionSet
+	if strings.TrimSpace(sel) == "" {
+		t.Fatal("interface return type produced an empty selection set; the server rejects this")
+	}
+	for _, want := range []string{"id", "name", "avatar"} {
+		if !strings.Contains(sel, want) {
+			t.Errorf("selection set should include interface field %q, got: %s", want, sel)
+		}
+	}
+}

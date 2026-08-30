@@ -1146,8 +1146,9 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 		return "{ __typename " + unionFields + " }"
 	}
 
-	// For known object types, select scalar fields.
-	if def == nil || def.Kind != ast.Object {
+	// For known object and interface types, select scalar fields. Interfaces
+	// need a selection set just like objects — the server rejects a bare field.
+	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
 		return ""
 	}
 	fields := p.selectScalarFields(def, depth)
@@ -1223,7 +1224,7 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 
 		// Nested object — include only safe identifying fields to avoid access-control errors
 		if depth > 0 {
-			if nestedDef, ok := p.doc.Types[innerType]; ok && nestedDef.Kind == ast.Object {
+			if nestedDef, ok := p.doc.Types[innerType]; ok && (nestedDef.Kind == ast.Object || nestedDef.Kind == ast.Interface) {
 				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
 					fields = append(fields, f.Name+" { "+nestedFields+" }")
