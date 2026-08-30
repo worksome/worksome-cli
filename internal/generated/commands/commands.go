@@ -97,6 +97,29 @@ func requireInput(vars map[string]any) error {
 	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
 }
 
+// jsonArg decodes a flag whose GraphQL type is an input object (or a list of
+// them) from JSON. Sending the raw string would be rejected by the server as a
+// type mismatch, so a bad value is reported here with the type it needs.
+func jsonArg(flag, gqlType, raw string) (any, error) {
+	var v any
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		return nil, fmt.Errorf("--%s expects JSON for %s, got %q: %w", flag, gqlType, raw, err)
+	}
+	// Well-formed JSON of the wrong shape ("42", "\"2026-07-01\"") parses fine and
+	// would only fail server-side. gqlType starts with "[" exactly when a list is
+	// wanted; a lone object is legal there, since GraphQL coerces it to one item.
+	switch v.(type) {
+	case nil, map[string]any:
+	case []any:
+		if !strings.HasPrefix(gqlType, "[") {
+			return nil, fmt.Errorf("--%s expects a JSON object for %s, got a list: %s", flag, gqlType, raw)
+		}
+	default:
+		return nil, fmt.Errorf("--%s expects a JSON object for %s, got %s", flag, gqlType, raw)
+	}
+	return v, nil
+}
+
 var acceptbidHoistedColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Number", Field: "number"},
@@ -271,7 +294,7 @@ func NewAcceptBidCmd() *cobra.Command {
 		return []string{"END_OF_MONTH", "NET"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("payment-term-days", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"EIGHT", "FOURTEEN", "TWENTY_ONE", "THIRTY", "FORTY_FIVE", "...", "SIXTY", "SEVENTY_FIVE", "NINETY"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"EIGHT", "FOURTEEN", "TWENTY_ONE", "THIRTY", "FORTY_FIVE", "FIFTY_THREE", "SIXTY", "SEVENTY_FIVE", "NINETY"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -454,7 +477,11 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				vars["approvalRules"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[ApprovalApprovablesOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -530,7 +557,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("approvals", nil, "Filter by the parent approval flows.")
 	cmd.Flags().String("approvable", "", "Filter by the item being approved (e.g. a specific hire).")
 	cmd.Flags().StringSlice("approval-rules", nil, "Filter by specific approval rules.")
-	cmd.Flags().String("order-by", "", "Order the results by the given field and direction.")
+	cmd.Flags().String("order-by", "", "Order the results by the given field and direction. (JSON for [ApprovalApprovablesOrderByClauseInput!])")
 
 	return cmd
 }
@@ -652,7 +679,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "The action to take: `APPROVED`, `REJECTED`, or `NEEDS_CHANGE`. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
 	cmd.Flags().String("reason", "", "An optional message explaining the decision (required when rejecting or requesting changes).")
 	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "..."}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -2418,7 +2445,7 @@ func newBatchesCreateCmd() *cobra.Command {
 	cmd.Flags().String("account", "", "The account that the batch is for.")
 	cmd.Flags().String("type", "", "The type of batch to create. [PARTNER_PAYMENT_REQUESTS, INVOICES_FOR_INTEGRATIONS_SERVICE, CUSTOMER_INVOICES, SELF_BILL_JOURNAL, ACCRUALS_JOURNAL, ...]")
 	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"PARTNER_PAYMENT_REQUESTS", "INVOICES_FOR_INTEGRATIONS_SERVICE", "CUSTOMER_INVOICES", "SELF_BILL_JOURNAL", "ACCRUALS_JOURNAL", "..."}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"PARTNER_PAYMENT_REQUESTS", "INVOICES_FOR_INTEGRATIONS_SERVICE", "CUSTOMER_INVOICES", "SELF_BILL_JOURNAL", "ACCRUALS_JOURNAL", "PAYMENT_JOURNAL"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -2534,7 +2561,11 @@ func newBidsListCmd() *cobra.Command {
 				vars["companies"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[BidOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -2608,7 +2639,7 @@ func newBidsListCmd() *cobra.Command {
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().StringSlice("accounts", nil, "Filter the bid based on one or more accounts.")
 	cmd.Flags().StringSlice("companies", nil, "Filter the bids based on one or more companies.")
-	cmd.Flags().String("order-by", "", "Order the bids by the specified field and direction.")
+	cmd.Flags().String("order-by", "", "Order the bids by the specified field and direction. (JSON for [BidOrderByClauseInput!])")
 
 	return cmd
 }
@@ -3411,11 +3442,19 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["markets"] = v
 			}
 			if cmd.Flags().Changed("recruiter-regions") {
-				v, _ := cmd.Flags().GetString("recruiter-regions")
+				raw, _ := cmd.Flags().GetString("recruiter-regions")
+				v, err := jsonArg("recruiter-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["recruiterRegions"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[RecruiterOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
@@ -3423,11 +3462,19 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
-				v, _ := cmd.Flags().GetString("custom-fields")
+				raw, _ := cmd.Flags().GetString("custom-fields")
+				v, err := jsonArg("custom-fields", "[CustomFieldTypeValueInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["customFields"] = v
 			}
 			if cmd.Flags().Changed("verified-recruiter-review") {
-				v, _ := cmd.Flags().GetString("verified-recruiter-review")
+				raw, _ := cmd.Flags().GetString("verified-recruiter-review")
+				v, err := jsonArg("verified-recruiter-review", "VerifiedRecruiterReviewFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["verifiedRecruiterReview"] = v
 			}
 
@@ -3502,11 +3549,11 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter recruiters by. [ACTIVE, INVITED]")
 	cmd.Flags().StringSlice("tags", nil, "Supply a list of tags to filter recruiters by.")
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets to filter recruiters by.")
-	cmd.Flags().String("recruiter-regions", "", "Filter recruiters by market and optionally narrow by specific regions.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
+	cmd.Flags().String("recruiter-regions", "", "Filter recruiters by market and optionally narrow by specific regions. (JSON for MarketRegionInput)")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [RecruiterOrderByClauseInput!])")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show company recruiters with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters.")
-	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state.")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!])")
+	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state. (JSON for VerifiedRecruiterReviewFilterInput)")
 
 	return cmd
 }
@@ -5617,15 +5664,27 @@ func newEmploymentsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[EmploymentsOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("start-date-range") {
-				v, _ := cmd.Flags().GetString("start-date-range")
+				raw, _ := cmd.Flags().GetString("start-date-range")
+				v, err := jsonArg("start-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["startDateRange"] = v
 			}
 			if cmd.Flags().Changed("end-date-range") {
-				v, _ := cmd.Flags().GetString("end-date-range")
+				raw, _ := cmd.Flags().GetString("end-date-range")
+				v, err := jsonArg("end-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["endDateRange"] = v
 			}
 			if cmd.Flags().Changed("contract-type") {
@@ -5723,9 +5782,9 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("status", nil, "Filter employments by employment status. [DRAFT, ACTIVE, ENDED]")
 	cmd.Flags().StringSlice("employer-record-status", nil, "Filter employments by employer record status. [INCOMPLETE, CHANGES_REQUESTED, PROCESSING, COMPLETE]")
 	cmd.Flags().String("search", "", "Filter by search term against worker name, job title, etc.")
-	cmd.Flags().String("order-by", "", "Order by clause.")
-	cmd.Flags().String("start-date-range", "", "Filter by start date range.")
-	cmd.Flags().String("end-date-range", "", "Filter by end date range.")
+	cmd.Flags().String("order-by", "", "Order by clause. (JSON for [EmploymentsOrderByClauseInput!])")
+	cmd.Flags().String("start-date-range", "", "Filter by start date range. (JSON for DateRangeInput)")
+	cmd.Flags().String("end-date-range", "", "Filter by end date range. (JSON for DateRangeInput)")
 	cmd.Flags().StringSlice("contract-type", nil, "Filter by contract types. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
 	cmd.Flags().StringSlice("locations", nil, "Filter by locations.")
 	cmd.Flags().StringSlice("companies", nil, "Filter by companies.")
@@ -6445,7 +6504,7 @@ func newGateGetCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("gate")
 
 	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "...", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "RECRUITER_DE_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_INSURANCE", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_KVK_REGISTRATION", "NL_BTW_IDENTIFICATION", "BUSINESS_ENTITY_TYPE_VALIDITY", "BUSINESS_ENTITY_TYPE_UPDATE", "NL_G_ACCOUNT", "NL_BSN", "FREELANCER_NL_KVK_CERTIFICATE", "RECRUITER_NL_KVK_CERTIFICATE", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION_REVIEW", "VERIFIED_WORKER_COMPLIANCE", "WORKER_ONBOARDING", "IDENTIFICATION", "VERIFIED_RECRUITER_COMPLIANCE", "RECRUITER_ONBOARDING", "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT", "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT", "SUPPLIER_HIRE_PREPARED"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "RECRUITER_DE_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_INSURANCE", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_KVK_REGISTRATION", "NL_BTW_IDENTIFICATION", "BUSINESS_ENTITY_TYPE_VALIDITY", "BUSINESS_ENTITY_TYPE_UPDATE", "NL_G_ACCOUNT", "NL_BSN", "FREELANCER_NL_KVK_CERTIFICATE", "RECRUITER_NL_KVK_CERTIFICATE", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION_REVIEW", "VERIFIED_WORKER_COMPLIANCE", "WORKER_ONBOARDING", "IDENTIFICATION", "VERIFIED_RECRUITER_COMPLIANCE", "RECRUITER_ONBOARDING", "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT", "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT", "SUPPLIER_HIRE_PREPARED"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
 	return cmd
@@ -6566,7 +6625,11 @@ func newHiresListCmd() *cobra.Command {
 				vars["status"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[HiresOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("recruiter-ownership-is-expired") {
@@ -6586,11 +6649,19 @@ func newHiresListCmd() *cobra.Command {
 				vars["recruiters"] = v
 			}
 			if cmd.Flags().Changed("start-date-range") {
-				v, _ := cmd.Flags().GetString("start-date-range")
+				raw, _ := cmd.Flags().GetString("start-date-range")
+				v, err := jsonArg("start-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["startDateRange"] = v
 			}
 			if cmd.Flags().Changed("end-date-range") {
-				v, _ := cmd.Flags().GetString("end-date-range")
+				raw, _ := cmd.Flags().GetString("end-date-range")
+				v, err := jsonArg("end-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["endDateRange"] = v
 			}
 			if cmd.Flags().Changed("starts-after") {
@@ -6602,7 +6673,11 @@ func newHiresListCmd() *cobra.Command {
 				vars["endsAfter"] = v
 			}
 			if cmd.Flags().Changed("created-at-date-range") {
-				v, _ := cmd.Flags().GetString("created-at-date-range")
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["createdAtDateRange"] = v
 			}
 			if cmd.Flags().Changed("external-identifiers") {
@@ -6642,7 +6717,11 @@ func newHiresListCmd() *cobra.Command {
 				vars["hasPaymentRequests"] = v
 			}
 			if cmd.Flags().Changed("missing-payment-request-date-range") {
-				v, _ := cmd.Flags().GetString("missing-payment-request-date-range")
+				raw, _ := cmd.Flags().GetString("missing-payment-request-date-range")
+				v, err := jsonArg("missing-payment-request-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["missingPaymentRequestDateRange"] = v
 			}
 			if cmd.Flags().Changed("has-recruiter-attribution") {
@@ -6731,16 +6810,16 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("accounts", nil, "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
 	cmd.Flags().StringSlice("status", nil, "Filter hires by hire status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
-	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
+	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [HiresOrderByClauseInput!])")
 	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter hires by company ids.")
 	cmd.Flags().StringSlice("workers", nil, "Filter hires by worker ids.")
 	cmd.Flags().StringSlice("recruiters", nil, "Filter hires by recruiter ids.")
-	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date.")
-	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date.")
+	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date. (JSON for DateRangeInput)")
+	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date. (JSON for DateRangeInput)")
 	cmd.Flags().String("starts-after", "", "Filter hires that start after the specified date.")
 	cmd.Flags().String("ends-after", "", "Filter hires that end after the specified date.")
-	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created.")
+	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created. (JSON for DateRangeInput)")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show hires with the specified external identifier.")
 	cmd.Flags().StringSlice("contract-status", nil, "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
 	cmd.Flags().StringSlice("contract-type", nil, "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, ...]")
@@ -6750,7 +6829,7 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("active-status", nil, "Filter hires by active status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, ...]")
 	cmd.Flags().StringSlice("owners", nil, "Filter hires by owner.")
 	cmd.Flags().Bool("has-payment-requests", false, "Filter hires by if there are associated payment requests.")
-	cmd.Flags().String("missing-payment-request-date-range", "", "Only show hires with no payment request submitted within the given date range, including hires that have never submitted one at all.")
+	cmd.Flags().String("missing-payment-request-date-range", "", "Only show hires with no payment request submitted within the given date range, including hires that have never submitted one at all. (JSON for DateRangeInput)")
 	cmd.Flags().Bool("has-recruiter-attribution", false, "Filter hires by if there are recruiter attribution or not.")
 	cmd.Flags().Bool("eligible-for-payment-requests", false, "Only show hires that can be selected when creating a payment request.")
 	cmd.Flags().StringSlice("jobs", nil, "Only show hires that belong to one or more specific jobs.")
@@ -7187,7 +7266,7 @@ func newHiresCreateDraftCmd() *cobra.Command {
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the hire from an external system.")
 	cmd.Flags().String("hire-description", "", "The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.")
 	cmd.RegisterFlagCompletionFunc("rate-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"HOURLY", "DAILY", "WEEKLY", "MONTHLY", "FIXED", "..."}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"HOURLY", "DAILY", "WEEKLY", "MONTHLY", "FIXED", "UNKNOWN"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -7508,7 +7587,7 @@ func newHiresTerminateCmd() *cobra.Command {
 	cmd.Flags().String("date", "", "The date that the termination should take effect.")
 	cmd.Flags().String("message", "", "An optional message to the worker.")
 	cmd.RegisterFlagCompletionFunc("reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"WORKER_UNAVAILABILITY", "PROJECT_COMPLETED_EARLY", "MUTUAL_AGREEMENT_TO_TERMINATE", "BUDGET_CONSTRAINTS", "CHANGE_IN_PROJECT_SCOPE", "...", "COMMUNICATION_ISSUES", "PERSONAL_REASONS", "LEGAL_OR_COMPLIANCE_ISSUES", "VIOLATION_OF_CONTRACT_TERMS", "UNFORESEEN_CIRCUMSTANCES", "DISSATISFACTION_WITH_QUALITY_OF_WORK", "CONFLICT_OF_INTEREST", "OTHER"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"WORKER_UNAVAILABILITY", "PROJECT_COMPLETED_EARLY", "MUTUAL_AGREEMENT_TO_TERMINATE", "BUDGET_CONSTRAINTS", "CHANGE_IN_PROJECT_SCOPE", "PERFORMANCE_ISSUES", "COMMUNICATION_ISSUES", "PERSONAL_REASONS", "LEGAL_OR_COMPLIANCE_ISSUES", "VIOLATION_OF_CONTRACT_TERMS", "UNFORESEEN_CIRCUMSTANCES", "DISSATISFACTION_WITH_QUALITY_OF_WORK", "CONFLICT_OF_INTEREST", "OTHER"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -7573,7 +7652,11 @@ func newIncomingJobsListCmd() *cobra.Command {
 				vars["search"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[JobsOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -7644,7 +7727,7 @@ func newIncomingJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Search job posts by title or description.")
-	cmd.Flags().String("order-by", "", "Order the results.")
+	cmd.Flags().String("order-by", "", "Order the results. (JSON for [JobsOrderByClauseInput!])")
 
 	return cmd
 }
@@ -8400,7 +8483,11 @@ func newInvoicesListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[QueryInvoicesOrderByOrderByClause!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -8477,7 +8564,7 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
 	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, ...]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show invoices with the specified external identifiers.")
-	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date.")
+	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!])")
 
 	return cmd
 }
@@ -8721,7 +8808,7 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 		return []string{"ELIGIBLE", "NON_ELIGIBLE", "DUPLICATE"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("status-reason", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SKILLS_OR_EXPERIENCE", "SPECIFIC_JOB_CRITERIA", "AVAILABILITY", "MARKET_ELIGIBILITY", "BUDGET", "...", "OTHER_CANDIDATE_ACCEPTED", "ADDED_BY_MISTAKE", "EXISTING_APPLICATION_THROUGH_OTHER_CHANNELS"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"SKILLS_OR_EXPERIENCE", "SPECIFIC_JOB_CRITERIA", "AVAILABILITY", "MARKET_ELIGIBILITY", "BUDGET", "ACCEPTED_OTHER_JOB", "OTHER_CANDIDATE_ACCEPTED", "ADDED_BY_MISTAKE", "EXISTING_APPLICATION_THROUGH_OTHER_CHANNELS"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -8817,7 +8904,7 @@ func newJobCandidateStepUpdateCmd() *cobra.Command {
 	cmd.Flags().String("job-candidate", "", "The job candidate to update.")
 	cmd.Flags().String("step", "", "The step to set for the job candidate. Only manual steps are accepted. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING, SELECTION_SUBMITTED, ...]")
 	cmd.RegisterFlagCompletionFunc("step", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SHORTLISTED", "INVITED_TO_APPLY", "APPLIED", "HIRING", "SELECTION_SUBMITTED", "...", "SELECTION_SHORTLISTED", "SELECTION_DECLINED_BY_MSP", "SELECTION_WITHDRAWN", "SELECTION_PRESENTED_TO_CLIENT", "INTERVIEW_SELECTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "INTERVIEW_WITHDRAWN", "INTERVIEW_SHORTLISTED", "COMPLETION_REJECTED_BY_CLIENT", "COMPLETION_DECLINED_BY_MSP", "COMPLETION_WITHDRAWN", "COMPLETION_OFFER_EXTENDED", "COMPLETION_CANDIDATE_ONBOARDING", "COMPLETION_BACKGROUND_CHECK", "COMPLETION_HIRED", "COMPLETION_ON_HOLD", "COMPLETION_TALENTPOOL"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"SHORTLISTED", "INVITED_TO_APPLY", "APPLIED", "HIRING", "SELECTION_SUBMITTED", "SELECTION_UNDER_REVIEW", "SELECTION_SHORTLISTED", "SELECTION_DECLINED_BY_MSP", "SELECTION_WITHDRAWN", "SELECTION_PRESENTED_TO_CLIENT", "INTERVIEW_SELECTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "INTERVIEW_WITHDRAWN", "INTERVIEW_SHORTLISTED", "COMPLETION_REJECTED_BY_CLIENT", "COMPLETION_DECLINED_BY_MSP", "COMPLETION_WITHDRAWN", "COMPLETION_OFFER_EXTENDED", "COMPLETION_CANDIDATE_ONBOARDING", "COMPLETION_BACKGROUND_CHECK", "COMPLETION_HIRED", "COMPLETION_ON_HOLD", "COMPLETION_TALENTPOOL"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -8934,7 +9021,11 @@ func newJobCandidatesListCmd() *cobra.Command {
 				vars["preferred"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[JobCandidateOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -9008,7 +9099,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("statuses", nil, "Only return job candidates for the specified statuses. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
 	cmd.Flags().StringSlice("steps", nil, "Only return job candidates for the specified hiring steps. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING, SELECTION_SUBMITTED, ...]")
 	cmd.Flags().Bool("preferred", false, "Only return job candidates which are preferred or not.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [JobCandidateOrderByClauseInput!])")
 
 	return cmd
 }
@@ -9201,7 +9292,11 @@ func newJobSharesListCmd() *cobra.Command {
 				vars["companies"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[JobShareOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -9275,7 +9370,7 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("account-types", nil, "Only show job shares for specific accounts. [WORKER, COMPANY, RECRUITER, ORGANISATION, PARTNER]")
 	cmd.Flags().Bool("is-active", false, "Whether the job share is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter the job shares based on one or more companies.")
-	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction.")
+	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction. (JSON for [JobShareOrderByClauseInput!])")
 
 	return cmd
 }
@@ -9616,11 +9711,19 @@ func newJobsListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[JobsOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("created-at-date-range") {
-				v, _ := cmd.Flags().GetString("created-at-date-range")
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["createdAtDateRange"] = v
 			}
 			if cmd.Flags().Changed("unfilled") {
@@ -9628,15 +9731,27 @@ func newJobsListCmd() *cobra.Command {
 				vars["unfilled"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
-				v, _ := cmd.Flags().GetString("custom-fields")
+				raw, _ := cmd.Flags().GetString("custom-fields")
+				v, err := jsonArg("custom-fields", "[CustomFieldTypeValueInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["customFields"] = v
 			}
 			if cmd.Flags().Changed("start-date-range") {
-				v, _ := cmd.Flags().GetString("start-date-range")
+				raw, _ := cmd.Flags().GetString("start-date-range")
+				v, err := jsonArg("start-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["startDateRange"] = v
 			}
 			if cmd.Flags().Changed("end-date-range") {
-				v, _ := cmd.Flags().GetString("end-date-range")
+				raw, _ := cmd.Flags().GetString("end-date-range")
+				v, err := jsonArg("end-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["endDateRange"] = v
 			}
 			if cmd.Flags().Changed("is-job-post") {
@@ -9732,12 +9847,12 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-hire", false, "Filter for jobs with or without hires.")
 	cmd.Flags().Bool("has-bids", false, "Filter for jobs with or without bids.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show jobs with the specified external identifier.")
-	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name.")
-	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created.")
+	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!])")
+	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created. (JSON for DateRangeInput)")
 	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
-	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values.")
-	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range.")
-	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range.")
+	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!])")
+	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range. (JSON for DateRangeInput)")
+	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range. (JSON for DateRangeInput)")
 	cmd.Flags().Bool("is-job-post", false, "Only show jobs that are job posts.")
 	cmd.Flags().StringSlice("statuses", nil, "Filter the jobs by their status [DRAFT, ACTIVE, COMPLETED, REMOVED]")
 
@@ -12014,7 +12129,11 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["states"] = v
 			}
 			if cmd.Flags().Changed("invited-by-users") {
-				v, _ := cmd.Flags().GetString("invited-by-users")
+				raw, _ := cmd.Flags().GetString("invited-by-users")
+				v, err := jsonArg("invited-by-users", "InvitedByInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["invitedByUsers"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
@@ -12034,11 +12153,19 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["managedStatus"] = v
 			}
 			if cmd.Flags().Changed("hire-history") {
-				v, _ := cmd.Flags().GetString("hire-history")
+				raw, _ := cmd.Flags().GetString("hire-history")
+				v, err := jsonArg("hire-history", "HireHistoryFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["hireHistory"] = v
 			}
 			if cmd.Flags().Changed("hire-status") {
-				v, _ := cmd.Flags().GetString("hire-status")
+				raw, _ := cmd.Flags().GetString("hire-status")
+				v, err := jsonArg("hire-status", "HireStatusFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["hireStatus"] = v
 			}
 			if cmd.Flags().Changed("business-setup") {
@@ -12050,11 +12177,19 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
-				v, _ := cmd.Flags().GetString("custom-fields")
+				raw, _ := cmd.Flags().GetString("custom-fields")
+				v, err := jsonArg("custom-fields", "[CustomFieldTypeValueInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["customFields"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[TrustedContactOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -12131,17 +12266,17 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
-	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
+	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput)")
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
-	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
-	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
+	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput)")
+	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!])")
 
 	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
@@ -12645,7 +12780,11 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["isPayrolled"] = v
 			}
 			if cmd.Flags().Changed("timesheet-period") {
-				v, _ := cmd.Flags().GetString("timesheet-period")
+				raw, _ := cmd.Flags().GetString("timesheet-period")
+				v, err := jsonArg("timesheet-period", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["timesheetPeriod"] = v
 			}
 			if cmd.Flags().Changed("rate-types") {
@@ -12653,15 +12792,27 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["rateTypes"] = v
 			}
 			if cmd.Flags().Changed("requested-date-range") {
-				v, _ := cmd.Flags().GetString("requested-date-range")
+				raw, _ := cmd.Flags().GetString("requested-date-range")
+				v, err := jsonArg("requested-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["requestedDateRange"] = v
 			}
 			if cmd.Flags().Changed("billing-start-date-range") {
-				v, _ := cmd.Flags().GetString("billing-start-date-range")
+				raw, _ := cmd.Flags().GetString("billing-start-date-range")
+				v, err := jsonArg("billing-start-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["billingStartDateRange"] = v
 			}
 			if cmd.Flags().Changed("billing-end-date-range") {
-				v, _ := cmd.Flags().GetString("billing-end-date-range")
+				raw, _ := cmd.Flags().GetString("billing-end-date-range")
+				v, err := jsonArg("billing-end-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["billingEndDateRange"] = v
 			}
 			if cmd.Flags().Changed("has-expenses") {
@@ -12681,7 +12832,11 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[PaymentRequestOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("viewer-role") {
@@ -12769,16 +12924,16 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("worker-statuses", nil, "Only show payment requests that have the specified worker statuses. [DRAFT, REJECTED, CANCELLED, PROCESSING, COMPLETED, ...]")
 	cmd.Flags().StringSlice("worker-payout-statuses", nil, "Only show payment requests that have the specified worker payout statuses. [PAID, PREPAID, DUE, OVERDUE, UNPAID]")
 	cmd.Flags().Bool("is-payrolled", false, "Only show payment requests by that were processed through payroll (true) or not through payroll (false). This may include payment requests that were paid outside of payroll.")
-	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range.")
+	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range. (JSON for DateRangeInput)")
 	cmd.Flags().StringSlice("rate-types", nil, "Only show payment requests that have the specified rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
-	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range.")
-	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range.")
-	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range.")
+	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range. (JSON for DateRangeInput)")
+	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range. (JSON for DateRangeInput)")
+	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range. (JSON for DateRangeInput)")
 	cmd.Flags().Bool("has-expenses", false, "Only show payment requests that have expenses (true) or do not have expenses (false).")
 	cmd.Flags().Bool("has-batch", false, "Only show payment requests that have a batch (true) or don't have a batch (false).")
 	cmd.Flags().StringSlice("batch-ids", nil, "Only show payment requests that belong to the specified batches.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show payment requests with the specified external identifiers.")
-	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields.")
+	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields. (JSON for [PaymentRequestOrderByClauseInput!])")
 	cmd.Flags().String("viewer-role", "", "Which side of the payment request the viewer is on. Defaults to ANY. Pass PAYER on client-side tables to exclude requests the viewer raised as a supplier. PAYEE is reserved for the supplier-side view. Only filters within the account scope set by the `accounts` arg — without `accounts` there's nothing for this filter to act on. [PAYER, PAYEE, ANY]")
 
 	cmd.RegisterFlagCompletionFunc("viewer-role", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -14787,7 +14942,11 @@ func newSkillsListCmd() *cobra.Command {
 				vars["skillableType"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[SkillOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 
@@ -14859,7 +15018,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
 	cmd.Flags().StringSlice("skillable-type", nil, "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [SkillOrderByClauseInput!])")
 
 	return cmd
 }
@@ -16508,7 +16667,11 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["states"] = v
 			}
 			if cmd.Flags().Changed("invited-by-users") {
-				v, _ := cmd.Flags().GetString("invited-by-users")
+				raw, _ := cmd.Flags().GetString("invited-by-users")
+				v, err := jsonArg("invited-by-users", "InvitedByInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["invitedByUsers"] = v
 			}
 			if cmd.Flags().Changed("statuses") {
@@ -16528,11 +16691,19 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["managedStatus"] = v
 			}
 			if cmd.Flags().Changed("hire-history") {
-				v, _ := cmd.Flags().GetString("hire-history")
+				raw, _ := cmd.Flags().GetString("hire-history")
+				v, err := jsonArg("hire-history", "HireHistoryFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["hireHistory"] = v
 			}
 			if cmd.Flags().Changed("hire-status") {
-				v, _ := cmd.Flags().GetString("hire-status")
+				raw, _ := cmd.Flags().GetString("hire-status")
+				v, err := jsonArg("hire-status", "HireStatusFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["hireStatus"] = v
 			}
 			if cmd.Flags().Changed("business-setup") {
@@ -16544,19 +16715,35 @@ func newTrustedContactsListCmd() *cobra.Command {
 				vars["externalIdentifiers"] = v
 			}
 			if cmd.Flags().Changed("custom-fields") {
-				v, _ := cmd.Flags().GetString("custom-fields")
+				raw, _ := cmd.Flags().GetString("custom-fields")
+				v, err := jsonArg("custom-fields", "[CustomFieldTypeValueInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["customFields"] = v
 			}
 			if cmd.Flags().Changed("order-by") {
-				v, _ := cmd.Flags().GetString("order-by")
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[TrustedContactOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
 				vars["orderBy"] = v
 			}
 			if cmd.Flags().Changed("created-at-date-range") {
-				v, _ := cmd.Flags().GetString("created-at-date-range")
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["createdAtDateRange"] = v
 			}
 			if cmd.Flags().Changed("verified-worker-review") {
-				v, _ := cmd.Flags().GetString("verified-worker-review")
+				raw, _ := cmd.Flags().GetString("verified-worker-review")
+				v, err := jsonArg("verified-worker-review", "VerifiedWorkerReviewFilterInput", raw)
+				if err != nil {
+					return err
+				}
 				vars["verifiedWorkerReview"] = v
 			}
 
@@ -16633,19 +16820,19 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, ...]")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
-	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company.")
+	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput)")
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited. [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
-	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not.")
-	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not.")
+	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput)")
+	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, ...]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.")
-	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created.")
-	cmd.Flags().String("verified-worker-review", "", "Filter contacts by their VerifiedWorkerCompliance review state.")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!])")
+	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created. (JSON for DateRangeInput)")
+	cmd.Flags().String("verified-worker-review", "", "Filter contacts by their VerifiedWorkerCompliance review state. (JSON for VerifiedWorkerReviewFilterInput)")
 
 	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
@@ -16897,7 +17084,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("origin-channel", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"EXISTING_SETUP", "DIRECT_INVITE", "PERSONAL_INVITE", "CANDIDATE_SUBMISSION", "MARKETPLACE_HIRE", "...", "ORGANISATION_HIRE"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"EXISTING_SETUP", "DIRECT_INVITE", "PERSONAL_INVITE", "CANDIDATE_SUBMISSION", "MARKETPLACE_HIRE", "EXTERNAL_LINK", "ORGANISATION_HIRE"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
