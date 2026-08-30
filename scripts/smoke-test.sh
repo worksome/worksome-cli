@@ -12,9 +12,9 @@
 #   VALIDATION  — GraphQL validation error (BUG in our generated queries)
 #   OTHER       — anything else (BUG, or a genuinely new failure worth reading)
 #
-# Exits non-zero when VALIDATION or OTHER is non-empty, so it can gate CI.
-# PERMISSION and NOTFOUND are expected against a real account and do not fail
-# the run.
+# Exits non-zero when VALIDATION, OTHER or JSONFLAG is non-empty, so it can gate
+# CI. PERMISSION, SKIPPED and SERVER are expected against a real account and do
+# not fail the run.
 
 set -euo pipefail
 
@@ -287,7 +287,9 @@ if [ "$jsonchecked" -eq 0 ]; then
 fi
 
 # Exit status, not a count: `exit $validation` wrapped to 0 at 256 failures.
-# PERMISSION and NOTFOUND are expected against a real account; the rest are not.
+# PERMISSION, SKIPPED and SERVER are expected against a real account and are
+# deliberately left out of the sum; VALIDATION, OTHER and JSONFLAG are the ones
+# that mean a bug in this repo.
 failures=$((validation + jsonflag + other))
 if [ "$failures" -gt 0 ]; then
     echo ""
