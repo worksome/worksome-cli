@@ -60,7 +60,7 @@ The CLI is designed to be driven programmatically:
 - **Exit codes over stderr parsing.** `0` on success, non-zero for any failure (auth, validation, GraphQL, network). Branch on the exit code rather than matching on message text, which is not a stable interface.
 - **Partial responses still succeed.** GraphQL can fail individual fields while resolving the rest. When that happens the data is written to stdout and the exit code stays `0`; the failed fields are reported on stderr with their response path (`hires.data[0].triggersApproval: ...`). Only a wholly unresolved request is an error. A field that failed still appears in the data as `null`, so stderr is the only way to tell it apart from a legitimately null value — read it if that distinction matters.
 - **No update notices in non-interactive use.** The daily release check only runs when both stdout and stderr are terminals, so nothing is ever injected into piped or redirected output. An agent driving the CLI from an interactive session could still see it; `WORKSOME_NO_UPDATE_CHECK=1` disables it outright.
-- **`viewer get` is a cheap preflight** to confirm a token works and see which account and permissions it carries before attempting real work.
+- **`viewer get` is a cheap preflight** to confirm a token works and identify the user it belongs to (id, name, email, and verification flags). It does **not** report the account or the permissions the token carries — the API exposes no role or permission fields — so it cannot tell you whether a given call will be allowed. Treat it as a liveness and identity check only, and discover permissions the way the point above describes: attempt the action and read the permission error as an answer.
 
 ### Running in a container
 
