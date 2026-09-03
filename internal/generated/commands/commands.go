@@ -97,6 +97,34 @@ func requireInput(vars map[string]any) error {
 	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
 }
 
+// requiredField pairs an input field's GraphQL name with the flag that sets it.
+type requiredField struct {
+	name, flag string
+}
+
+// requireFields errors when the merged input lacks a field the schema declares
+// non-null with no default. Checking after flags and --input are combined
+// catches a forgotten flag and an incomplete file alike, and names every
+// missing field at once rather than one server round-trip each.
+func requireFields(input map[string]any, required []requiredField) error {
+	var names, flags []string
+	for _, f := range required {
+		if _, ok := input[f.name]; !ok {
+			names = append(names, f.name)
+			flags = append(flags, "--"+f.flag)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	noun, pronoun := "field", "it"
+	if len(names) > 1 {
+		noun, pronoun = "fields", "them"
+	}
+	return fmt.Errorf("missing required input %s: %s (set %s, or include %s in --input)",
+		noun, strings.Join(names, ", "), strings.Join(flags, ", "), pronoun)
+}
+
 // jsonArg decodes a flag whose GraphQL type is an input object (or a list of
 // them) from JSON. Sending the raw string would be rejected by the server as a
 // type mismatch, so a bad value is reported here with the type it needs.
@@ -249,6 +277,11 @@ func NewAcceptBidCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"bid", "bid"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -657,6 +690,11 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ActionApprovalApprovable", vars)
@@ -940,6 +978,11 @@ func newApprovalRulesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"approval", "approval"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -1422,6 +1465,11 @@ func newApprovalsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"name", "name"}, {"status", "status"}, {"trigger", "trigger"}, {"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateApproval", vars)
@@ -1518,6 +1566,11 @@ func newApprovalsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -1824,6 +1877,11 @@ func newApproversCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"approvalRule", "approval-rule"}, {"userGroup", "user-group"}, {"position", "position"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateApprover", vars)
@@ -1904,6 +1962,11 @@ func newApproversUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -2024,6 +2087,11 @@ func newBankDetailsStoreCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"accountId", "account-id"}, {"bankAddress", "bank-address"}, {"bankCountry", "bank-country"}, {"bankName", "bank-name"}, {"beneficiaryName", "beneficiary-name"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "StoreBankDetails", vars)
@@ -2123,6 +2191,11 @@ func newBatchActionRunCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"batch", "batch"}, {"action", "action"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -2422,6 +2495,11 @@ func newBatchesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"account", "account"}, {"type", "type"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -2736,6 +2814,11 @@ func NewBlockTrustedContactCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"account", "account"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "BlockTrustedContact", vars)
@@ -2823,6 +2906,11 @@ func newCandidateToOnboardInviteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -3673,6 +3761,11 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}, {"name", "name"}, {"email", "email"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCompanyRecruiter", vars)
@@ -3750,6 +3843,11 @@ func newCompanyRecruitersDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -3844,6 +3942,11 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "InviteCompanyRecruiter", vars)
@@ -3935,6 +4038,11 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -5060,6 +5168,11 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"account", "account"}, {"appliesTo", "applies-to"}, {"title", "title"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCustomField", vars)
@@ -5152,6 +5265,11 @@ func newCustomFieldsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"customField", "custom-field"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -5274,6 +5392,11 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"customField", "custom-field"}, {"title", "title"}, {"visibility", "visibility"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateCustomField", vars)
@@ -5383,6 +5506,11 @@ func newEmailChangeCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"email", "email"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -5528,6 +5656,11 @@ func newEmploymentChangesApproveCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"employment", "employment"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -5882,6 +6015,11 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"employment", "employment"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "OnboardEmployment", vars)
@@ -5982,6 +6120,11 @@ func newExportCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"userId", "user-id"}, {"accountId", "account-id"}, {"accountType", "account-type"}, {"type", "type"}, {"generatorType", "generator-type"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -6405,6 +6548,11 @@ func NewForwardCandidateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"sourceCandidate", "source-candidate"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -6941,6 +7089,11 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}, {"recruiter", "recruiter"}, {"ownershipStartDate", "ownership-start-date"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttributeRecruiterToHire", vars)
@@ -7025,6 +7178,11 @@ func newHiresAttributeSupplierToCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}, {"supplier", "supplier"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttributeSupplierToHire", vars)
@@ -7101,6 +7259,11 @@ func newHiresCancelCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}, {"message", "message"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -7232,6 +7395,11 @@ func newHiresCreateDraftCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateDraftHire", vars)
@@ -7325,6 +7493,11 @@ func newHiresRejectCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"account", "account"}, {"hire", "hire"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RejectHire", vars)
@@ -7396,6 +7569,11 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -7472,6 +7650,11 @@ func newHiresShareCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -7561,6 +7744,11 @@ func newHiresTerminateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"hire", "hire"}, {"reason", "reason"}, {"date", "date"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -8210,6 +8398,11 @@ func newInviteLinkGenerateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "GenerateInviteLink", vars)
@@ -8269,6 +8462,11 @@ func newInviteLinkGeneratePersonalCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -8676,6 +8874,11 @@ func newJobCandidatePreferredUpdateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}, {"isPreferred", "is-preferred"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateJobCandidatePreferred", vars)
@@ -8781,6 +8984,11 @@ func newJobCandidateStatusUpdateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}, {"status", "status"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateJobCandidateStatus", vars)
@@ -8881,6 +9089,11 @@ func newJobCandidateStepUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}, {"step", "step"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -9195,6 +9408,11 @@ func newJobCandidatesCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"job", "job"}, {"sourcingChannel", "sourcing-channel"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateJobCandidate", vars)
@@ -9457,6 +9675,11 @@ func newJobSharesCreateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"job", "job"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -9954,6 +10177,11 @@ func newJobsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}, {"name", "name"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateJob", vars)
@@ -10030,6 +10258,11 @@ func newJobsDuplicateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -10109,6 +10342,11 @@ func newJobsEndCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"accountId", "account-id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "EndJob", vars)
@@ -10184,6 +10422,11 @@ func newJobsSetInternalBudgetOnCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"job", "job"}, {"amount", "amount"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -10341,6 +10584,11 @@ func newJobsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11199,6 +11447,11 @@ func newMultiFactorsRemoveCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveMultiFactor", vars)
@@ -11273,6 +11526,11 @@ func newMultiFactorsVerifySmsCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"code", "code"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11350,6 +11608,11 @@ func newMultiFactorsVerifyTotpCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"code", "code"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11455,6 +11718,11 @@ func newNoteCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"body", "body"}, {"accountId", "account-id"}, {"notableId", "notable-id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateNote", vars)
@@ -11528,6 +11796,11 @@ func newNoteDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11608,6 +11881,11 @@ func newNoteUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11703,6 +11981,11 @@ func newOnboardingDocumentsManageCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ManageOnboardingDocuments", vars)
@@ -11773,6 +12056,11 @@ func newOnboardingDocumentsManageRecruiterCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -11847,6 +12135,11 @@ func newOnboardingDocumentsRemoveCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RemoveOnboardingDocuments", vars)
@@ -11917,6 +12210,11 @@ func newOnboardingDocumentsRemoveRecruiterCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -12518,6 +12816,11 @@ func newPasswordCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"password", "password"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreatePassword", vars)
@@ -12596,6 +12899,11 @@ func newPasswordUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"currentPassword", "current-password"}, {"password", "password"}, {"passwordConfirmation", "password-confirmation"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -13066,6 +13374,11 @@ func newPaymentRequestsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"worker", "worker"}, {"job", "job"}, {"company", "company"}, {"hire", "hire"}, {"startDate", "start-date"}, {"comments", "comments"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreatePaymentRequest", vars)
@@ -13146,6 +13459,11 @@ func newPaymentRequestsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -13250,6 +13568,11 @@ func newPaymentRequestsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -13566,6 +13889,11 @@ func newProjectsAttachJobsToCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"project", "project"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttachJobsToProject", vars)
@@ -13654,6 +13982,11 @@ func newProjectsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"name", "name"}, {"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateProject", vars)
@@ -13728,6 +14061,11 @@ func newProjectsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -13806,6 +14144,11 @@ func newProjectsDetachJobFromCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"job", "job"}, {"project", "project"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DetachJobFromProject", vars)
@@ -13879,6 +14222,11 @@ func newProjectsEndCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "EndProject", vars)
@@ -13949,6 +14297,11 @@ func newProjectsOpenCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -14037,6 +14390,11 @@ func newProjectsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -14388,6 +14746,11 @@ func newRecruiterCandidatesCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"recruiter", "recruiter"}, {"firstName", "first-name"}, {"lastName", "last-name"}, {"email", "email"}, {"currency", "currency"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateRecruiterCandidate", vars)
@@ -14469,6 +14832,11 @@ func newRecruiterCandidatesDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -14569,6 +14937,11 @@ func newRecruiterCandidatesUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -14856,6 +15229,11 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -15431,6 +15809,11 @@ func newSupplierCandidatesCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"supplier", "supplier"}, {"firstName", "first-name"}, {"lastName", "last-name"}, {"email", "email"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateSupplierCandidate", vars)
@@ -15512,6 +15895,11 @@ func newSupplierCandidatesDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -15604,6 +15992,11 @@ func newSupplierCandidatesUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -15874,6 +16267,11 @@ func newTimesheetRegistrationDeleteCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteTimesheetRegistration", vars)
@@ -15976,6 +16374,11 @@ func newTimesheetRegistrationUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -16270,6 +16673,11 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"schema", "schema"}, {"data", "data"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateCustomTimesheet", vars)
@@ -16355,6 +16763,11 @@ func newTimesheetsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"worker", "worker"}, {"hire", "hire"}, {"startDate", "start-date"}, {"endDate", "end-date"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateTimesheet", vars)
@@ -16428,6 +16841,11 @@ func newTimesheetsDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -16508,6 +16926,11 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -16928,6 +17351,11 @@ func newTrustedContactsApproveCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "ApproveTrustedContact", vars)
@@ -17044,6 +17472,11 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"company", "company"}, {"firstName", "first-name"}, {"lastName", "last-name"}, {"email", "email"}, {"origin", "origin"}, {"originChannel", "origin-channel"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateTrustedContact", vars)
@@ -17137,6 +17570,11 @@ func newTrustedContactsDeleteCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"account", "account"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteTrustedContact", vars)
@@ -17212,6 +17650,11 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -17510,6 +17953,11 @@ func newUserGroupsAttachUsersToCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"userGroup", "user-group"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "AttachUsersToUserGroup", vars)
@@ -17592,6 +18040,11 @@ func newUserGroupsCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"name", "name"}, {"status", "status"}, {"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateUserGroup", vars)
@@ -17668,6 +18121,11 @@ func newUserGroupsDeleteCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteUserGroup", vars)
@@ -17736,6 +18194,11 @@ func newUserGroupsDetachUsersFromCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"userGroup", "user-group"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -17818,6 +18281,11 @@ func newUserGroupsUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -18347,6 +18815,11 @@ func newWebhookEventsRetryCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "RetryWebhookEvent", vars)
@@ -18657,6 +19130,11 @@ func newWebhooksCreateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"title", "title"}, {"url", "url"}, {"company", "company"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "CreateWebhook", vars)
@@ -18734,6 +19212,11 @@ func newWebhooksDeleteCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -18836,6 +19319,11 @@ func newWebhooksUpdateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"title", "title"}, {"url", "url"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWebhook", vars)
@@ -18916,6 +19404,11 @@ func NewWithdrawForwardedCandidateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "WithdrawForwardedCandidate", vars)
@@ -18987,6 +19480,11 @@ func NewWithdrawJobCandidateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"jobCandidate", "job-candidate"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -19143,6 +19641,11 @@ func newWorkerUpdateCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "UpdateWorker", vars)
@@ -19226,6 +19729,11 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"appliesTo", "applies-to"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -19332,6 +19840,11 @@ func newWorkerIdentificationUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"dateOfBirth", "date-of-birth"}, {"nationality", "nationality"}, {"documentType", "document-type"}, {"documentNumber", "document-number"}, {"documentExpiresAt", "document-expires-at"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -19838,6 +20351,11 @@ func newWorkflowsDeleteCmd() *cobra.Command {
 			if err := requireInput(vars); err != nil {
 				return err
 			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
 				return printDryRun(cmd, "mutation", "DeleteWorkflow", vars)
@@ -19967,6 +20485,11 @@ func newWorksomeIntelligenceConsentUpdateCmd() *cobra.Command {
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"consent", "consent"}}); err != nil {
 				return err
 			}
 			dryRun, _ := cmd.Flags().GetBool("dry-run")

@@ -407,6 +407,34 @@ func requireInput(vars map[string]any) error {
 	return fmt.Errorf("no input provided: pass --input or set flags (see --help)")
 }
 
+// requiredField pairs an input field's GraphQL name with the flag that sets it.
+type requiredField struct {
+	name, flag string
+}
+
+// requireFields errors when the merged input lacks a field the schema declares
+// non-null with no default. Checking after flags and --input are combined
+// catches a forgotten flag and an incomplete file alike, and names every
+// missing field at once rather than one server round-trip each.
+func requireFields(input map[string]any, required []requiredField) error {
+	var names, flags []string
+	for _, f := range required {
+		if _, ok := input[f.name]; !ok {
+			names = append(names, f.name)
+			flags = append(flags, "--"+f.flag)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	noun, pronoun := "field", "it"
+	if len(names) > 1 {
+		noun, pronoun = "fields", "them"
+	}
+	return fmt.Errorf("missing required input %s: %s (set %s, or include %s in --input)",
+		noun, strings.Join(names, ", "), strings.Join(flags, ", "), pronoun)
+}
+
 // jsonArg decodes a flag whose GraphQL type is an input object (or a list of
 // them) from JSON. Sending the raw string would be rejected by the server as a
 // type mismatch, so a bad value is reported here with the type it needs.
@@ -517,6 +545,13 @@ func New{{$res.GoName}}Cmd() *cobra.Command {
 			{{if $mut.InputFieldCount -}}
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
+				return err
+			}
+			{{end -}}
+			{{with requiredInputFields $mut.InputFields -}}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, {{.}}); err != nil {
 				return err
 			}
 			{{end -}}
@@ -962,6 +997,13 @@ func new{{$res.GoName}}{{pascal $mut.CLIName}}Cmd() *cobra.Command {
 				return err
 			}
 			{{end -}}
+			{{with requiredInputFields $mut.InputFields -}}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, {{.}}); err != nil {
+				return err
+			}
+			{{end -}}
 
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			if dryRun {
@@ -1049,6 +1091,7 @@ func init() {
 	templateFuncs["gqlTypeName"] = gqlTypeName
 	templateFuncs["shortDesc"] = shortDesc
 	templateFuncs["enumValuesLiteral"] = enumValuesLiteral
+	templateFuncs["requiredInputFields"] = requiredInputFields
 	templateFuncs["inputExampleBlock"] = inputExampleBlock
 	templateFuncs["inputExampleBlockHoisted"] = inputExampleBlockHoisted
 }
@@ -1322,6 +1365,23 @@ func shortDesc(s string) string {
 		return s[:i] + "..."
 	}
 	return s[:97] + "..."
+}
+
+// requiredInputFields renders the input fields that must be present — non-null
+// in the schema and without a default — as a []requiredField literal for the
+// generated requireFields call. It returns "" when there are none, so the
+// template's {{with}} emits no check at all.
+func requiredInputFields(fields []Argument) string {
+	var parts []string
+	for _, f := range fields {
+		if f.Type.IsRequired && f.DefaultValue == "" {
+			parts = append(parts, fmt.Sprintf("{%q, %q}", f.Name, f.CLIFlag))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "[]requiredField{" + strings.Join(parts, ", ") + "}"
 }
 
 // enumValuesLiteral returns a Go string slice literal for template use,
