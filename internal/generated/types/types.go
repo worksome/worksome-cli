@@ -87,7 +87,7 @@ type Address struct {
 	FormattedAddress *string `json:"formattedAddress,omitempty"`
 }
 
-// Approval — An approval flow that defines a review process triggered by specific events on hires. Approvals are configured by companies to require sign-off before certain actions take effect. Currently, approval flows can only be applied to **hires**. The supported automatic triggers are: - `HIRE_CREATED` — require approval when a new hire is created (e.g. rate exceeds a budget threshold). - `HIRE_CHANGED` — require approval when an existing hire's contract is modified (e.g. rate or end date changes). - `CLASSIFICATION_CREATED` — require approval when a worker classification (e.g. IR35, US worker classification)  is completed on a hire. A trigger of `NONE` means the approval flow will not be automatically evaluated. Approval flows cannot currently be applied to jobs, payment requests, or other entities. Each approval has a trigger (the event that starts the flow), one or more rules (conditions that determine when approval is needed), and approvers (user groups who must review and approve). When a matching event occurs, an approval request is created and the action is blocked until all required approvers have acted. The outcome of rejection depends on the trigger: for `HIRE_CREATED`, the hire is cancelled; for `HIRE_CHANGED`, the pending contract change is reverted; for `CLASSIFICATION_CREATED`, the classification result is discarded. Use the `Workflow` type and its mutations (`createWorkflow`, `updateWorkflow`) to manage approvals as a complete tree structure (root + rules + approvers) in a single operation.
+// Approval — An approval flow that defines a review process triggered by specific events on hires. Approvals are configured by companies to require sign-off before certain actions take effect. Currently, approval flows can only be applied to **hires**. The supported automatic triggers are: - 'HIRE_CREATED' — require approval when a new hire is created (e.g. rate exceeds a budget threshold). - 'HIRE_CHANGED' — require approval when an existing hire's contract is modified (e.g. rate or end date changes). - 'CLASSIFICATION_CREATED' — require approval when a worker classification (e.g. IR35, US worker classification)  is completed on a hire. A trigger of 'NONE' means the approval flow will not be automatically evaluated. Approval flows cannot currently be applied to jobs, payment requests, or other entities. Each approval has a trigger (the event that starts the flow), one or more rules (conditions that determine when approval is needed), and approvers (user groups who must review and approve). When a matching event occurs, an approval request is created and the action is blocked until all required approvers have acted. The outcome of rejection depends on the trigger: for 'HIRE_CREATED', the hire is cancelled; for 'HIRE_CHANGED', the pending contract change is reverted; for 'CLASSIFICATION_CREATED', the classification result is discarded. Use the 'Workflow' type and its mutations ('createWorkflow', 'updateWorkflow') to manage approvals as a complete tree structure (root + rules + approvers) in a single operation.
 type Approval struct {
 	// The ID of the approval flow.
 	Id string `json:"id"`
@@ -95,9 +95,9 @@ type Approval struct {
 	Name string `json:"name"`
 	// The version number. Each update to an approval creates a new version.
 	Version int `json:"version"`
-	// Whether this approval flow is currently active, inactive, or archived. Only `ACTIVE` approvals are evaluated when triggering events occur.
+	// Whether this approval flow is currently active, inactive, or archived. Only 'ACTIVE' approvals are evaluated when triggering events occur.
 	Status ApprovalStatus `json:"status"`
-	// The event that triggers this approval flow. All triggers currently apply to hires only. Possible values: - `HIRE_CREATED` — evaluated when a new hire is created. - `HIRE_CHANGED` — evaluated when a hire's contract terms are modified. - `CLASSIFICATION_CREATED` — evaluated when a worker classification completes on a hire. Approval flows for jobs, payment requests, or other entities are not currently supported.
+	// The event that triggers this approval flow. All triggers currently apply to hires only. Possible values: - 'HIRE_CREATED' — evaluated when a new hire is created. - 'HIRE_CHANGED' — evaluated when a hire's contract terms are modified. - 'CLASSIFICATION_CREATED' — evaluated when a worker classification completes on a hire. Approval flows for jobs, payment requests, or other entities are not currently supported.
 	Trigger ApprovalTrigger `json:"trigger"`
 	// A human-readable description of the approval flow's purpose.
 	Description *string `json:"description,omitempty"`
@@ -113,7 +113,7 @@ type Approval struct {
 	LatestVersionId string `json:"latestVersionId"`
 }
 
-// ApprovalApprovable — An approval request — a runtime instance created when a triggering event on a hire matches an approval rule. Approval requests are currently only created for **hires**. The supported triggering events are: - A hire is created (`HIRE_CREATED`) - A hire's contract is changed (`HIRE_CHANGED`) - A worker classification is completed on a hire (`CLASSIFICATION_CREATED`) Jobs, payment requests, and other entities do not go through approval workflows. When a trigger fires and an active approval rule's conditions match, the system creates an `ApprovalApprovable` linking the hire to the matched rule. The outcome of rejection depends on the trigger: for `HIRE_CREATED`, the hire is cancelled; for `HIRE_CHANGED`, the pending contract change is reverted; for `CLASSIFICATION_CREATED`, the classification result is discarded. Each approval request tracks its history of actions through `approvalStates` — showing who approved, rejected, or requested changes and when.
+// ApprovalApprovable — An approval request — a runtime instance created when a triggering event on a hire matches an approval rule. Approval requests are currently only created for **hires**. The supported triggering events are: - A hire is created ('HIRE_CREATED') - A hire's contract is changed ('HIRE_CHANGED') - A worker classification is completed on a hire ('CLASSIFICATION_CREATED') Jobs, payment requests, and other entities do not go through approval workflows. When a trigger fires and an active approval rule's conditions match, the system creates an 'ApprovalApprovable' linking the hire to the matched rule. The outcome of rejection depends on the trigger: for 'HIRE_CREATED', the hire is cancelled; for 'HIRE_CHANGED', the pending contract change is reverted; for 'CLASSIFICATION_CREATED', the classification result is discarded. Each approval request tracks its history of actions through 'approvalStates' — showing who approved, rejected, or requested changes and when.
 type ApprovalApprovable struct {
 	// The ID of the approval request.
 	Id string `json:"id"`
@@ -125,7 +125,7 @@ type ApprovalApprovable struct {
 	ApprovalStates []*ApprovalState `json:"approvalStates"`
 	// The item that requires approval (e.g. a hire).
 	Approvable *Approvable `json:"approvable,omitempty"`
-	// Whether the authenticated user can take action on this approval request. Returns `true` when the user is a member of the next approver group in the sequence and the request is still pending their review.
+	// Whether the authenticated user can take action on this approval request. Returns 'true' when the user is a member of the next approver group in the sequence and the request is still pending their review.
 	ViewerCanAction bool `json:"viewerCanAction"`
 }
 
@@ -145,7 +145,7 @@ type ApprovalPaginator struct {
 	Data []*Approval `json:"data"`
 }
 
-// ApprovalRule — A rule within an approval flow that defines when approval is required and who must approve. Each rule belongs to an approval and contains two key parts: 1. **Conditions** (`rules`): Variable comparisons that determine whether this rule applies.  For example, "hourly rate > 100" or "budget >= 50000". Conditions use workflow variables  (system fields like rate/budget, or custom fields configured on the company). 2. **Approvers**: An ordered sequence of user groups who must review and approve items that  match this rule's conditions. Approvers are processed in `position` order. When a triggering event occurs (e.g. a hire is created), the system evaluates each active rule's conditions against the item. If a rule matches, approval requests are sent to its approvers.
+// ApprovalRule — A rule within an approval flow that defines when approval is required and who must approve. Each rule belongs to an approval and contains two key parts: 1. **Conditions** ('rules'): Variable comparisons that determine whether this rule applies.  For example, "hourly rate > 100" or "budget >= 50000". Conditions use workflow variables  (system fields like rate/budget, or custom fields configured on the company). 2. **Approvers**: An ordered sequence of user groups who must review and approve items that  match this rule's conditions. Approvers are processed in 'position' order. When a triggering event occurs (e.g. a hire is created), the system evaluates each active rule's conditions against the item. If a rule matches, approval requests are sent to its approvers.
 type ApprovalRule struct {
 	// The ID of the approval rule.
 	Id string `json:"id"`
@@ -173,17 +173,17 @@ type ApprovalRulePaginator struct {
 	Data []*ApprovalRule `json:"data"`
 }
 
-// ApprovalState — A recorded action on an approval request — an entry in the approval audit trail. Each time an approver acts on an approval request (approves, rejects, or requests changes), an `ApprovalState` is created to record the decision, the user who made it, and any message. The system also creates states when an approval is automatically cancelled (e.g. the hire was cancelled or the job was closed).
+// ApprovalState — A recorded action on an approval request — an entry in the approval audit trail. Each time an approver acts on an approval request (approves, rejects, or requests changes), an 'ApprovalState' is created to record the decision, the user who made it, and any message. The system also creates states when an approval is automatically cancelled (e.g. the hire was cancelled or the job was closed).
 type ApprovalState struct {
 	// The ID of this approval action record.
 	Id string `json:"id"`
-	// The action that was taken: `REQUESTED`, `APPROVED`, `REJECTED`, `NEEDS_CHANGE`, or `CANCELLED`.
+	// The action that was taken: 'REQUESTED', 'APPROVED', 'REJECTED', 'NEEDS_CHANGE', or 'CANCELLED'.
 	State ApprovalApprovableState `json:"state"`
 	// The user who took this action.
 	ActionedBy *User `json:"actionedBy"`
 	// An optional message provided by the reviewer explaining their decision.
 	Message *string `json:"message,omitempty"`
-	// The reason the approval was automatically cancelled, if applicable. Only present when `state` is `CANCELLED`. For example, the hire may have been cancelled or the associated job closed before the approval was completed.
+	// The reason the approval was automatically cancelled, if applicable. Only present when 'state' is 'CANCELLED'. For example, the hire may have been cancelled or the associated job closed before the approval was completed.
 	CancellationReason *ApprovalCancellationReason `json:"cancellationReason,omitempty"`
 	// The approver group that this action was taken on behalf of.
 	Approver *Approver `json:"approver"`
@@ -201,7 +201,7 @@ type ApprovalStatePaginator struct {
 	Data []*ApprovalState `json:"data"`
 }
 
-// Approver — An approver assignment — a user group assigned to review items that match an approval rule. Approvers are ordered by `position` within a rule. When an approval request is created, the system notifies the first approver group (position 1). Once they approve, the next group (position 2) is notified, and so on. All approvers in the sequence must approve for the overall request to be approved.
+// Approver — An approver assignment — a user group assigned to review items that match an approval rule. Approvers are ordered by 'position' within a rule. When an approval request is created, the system notifies the first approver group (position 1). Once they approve, the next group (position 2) is notified, and so on. All approvers in the sequence must approve for the overall request to be approved.
 type Approver struct {
 	// The ID of the approver assignment.
 	Id string `json:"id"`
@@ -627,7 +627,7 @@ type CompanyRecruiter struct {
 	InvitedAt string `json:"invitedAt"`
 	// The fees associated with this staffing agency relationship.
 	Fees []*Fee `json:"fees"`
-	// Compliance requirements for this staffing agency as seen by the pivot's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When `names` is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
+	// Compliance requirements for this staffing agency as seen by the pivot's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When 'names' is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
 	Compliances []*Compliance `json:"compliances"`
 	// Notes added to the recruiter releationship by the company.
 	Notes NotePaginator `json:"notes"`
@@ -727,7 +727,7 @@ type ComplianceClassificationQuestion struct {
 	Answer *ComplianceClassificationAnswer `json:"answer,omitempty"`
 }
 
-// ComplianceDataAddress — An address associated with a compliance (residential address, work location, etc.). Wraps the existing `Address` type so the frontend can query any field.
+// ComplianceDataAddress — An address associated with a compliance (residential address, work location, etc.). Wraps the existing 'Address' type so the frontend can query any field.
 type ComplianceDataAddress struct {
 	// Optional heading rendered above the address, e.g. 'Residential address'.
 	Title *string `json:"title,omitempty"`
@@ -735,7 +735,7 @@ type ComplianceDataAddress struct {
 	Address *Address `json:"address"`
 }
 
-// ComplianceDataBankDetail — Bank account details associated with a compliance. Wraps the existing `BankDetail` type so the same fragment can be reused across owner-facing and reviewer-facing flows. The wrapper always resolves so the frontend can render "Bank details on file" rows; `bankDetail` is null for viewers who aren't authorised to read the underlying fields (everyone except the account owner and companies on external payments with visibility to the worker), avoiding the `@passes` field guards bubbling up and nulling out the entire compliance row.
+// ComplianceDataBankDetail — Bank account details associated with a compliance. Wraps the existing 'BankDetail' type so the same fragment can be reused across owner-facing and reviewer-facing flows. The wrapper always resolves so the frontend can render "Bank details on file" rows; 'bankDetail' is null for viewers who aren't authorised to read the underlying fields (everyone except the account owner and companies on external payments with visibility to the worker), avoiding the '@passes' field guards bubbling up and nulling out the entire compliance row.
 type ComplianceDataBankDetail struct {
 	// Optional heading, e.g. 'Primary bank account'.
 	Title *string `json:"title,omitempty"`
@@ -745,7 +745,7 @@ type ComplianceDataBankDetail struct {
 
 // ComplianceDataBusinessEntity — A business entity associated with a compliance, typically the freelancer's primary business entity (company details, tax numbers, etc.).
 type ComplianceDataBusinessEntity struct {
-	// The business entity record. Reuses the existing `BusinessEntity` type so any field on it can be queried.
+	// The business entity record. Reuses the existing 'BusinessEntity' type so any field on it can be queried.
 	BusinessEntity *BusinessEntity `json:"businessEntity"`
 }
 
@@ -755,7 +755,7 @@ type ComplianceDataClassification struct {
 	Questions []*ComplianceClassificationQuestion `json:"questions"`
 }
 
-// ComplianceDataField — A single label/value pair. Null `value` is preserved so the UI can render semantically-empty fields (e.g. "Not subject to VAT") rather than hiding them.
+// ComplianceDataField — A single label/value pair. Null 'value' is preserved so the UI can render semantically-empty fields (e.g. "Not subject to VAT") rather than hiding them.
 type ComplianceDataField struct {
 	// The field label (e.g. a question or attribute name).
 	Label string `json:"label"`
@@ -771,7 +771,7 @@ type ComplianceDataFile struct {
 	File *File `json:"file"`
 }
 
-// ComplianceDataGroup — Titled collection of label/value fields. Use when a compliance emits multiple semantically-distinct groups (e.g. "Primary contact" + "Emergency contact"). For a single flat list of fields, skip the wrapper and emit top-level `ComplianceDataField` entries instead.
+// ComplianceDataGroup — Titled collection of label/value fields. Use when a compliance emits multiple semantically-distinct groups (e.g. "Primary contact" + "Emergency contact"). For a single flat list of fields, skip the wrapper and emit top-level 'ComplianceDataField' entries instead.
 type ComplianceDataGroup struct {
 	// Optional heading rendered above the fields.
 	Title *string `json:"title,omitempty"`
@@ -779,7 +779,7 @@ type ComplianceDataGroup struct {
 	Fields []*ComplianceDataField `json:"fields"`
 }
 
-// ComplianceDataUser — A user associated with a compliance, typically an attribution such as 'Reviewed by'. Wraps the existing `User` type so the frontend can query avatar, name, etc.
+// ComplianceDataUser — A user associated with a compliance, typically an attribution such as 'Reviewed by'. Wraps the existing 'User' type so the frontend can query avatar, name, etc.
 type ComplianceDataUser struct {
 	// Optional label describing the user's relation to the compliance.
 	Title *string `json:"title,omitempty"`
@@ -795,7 +795,7 @@ type ComplianceValidationDetails struct {
 	Issues []string `json:"issues"`
 }
 
-// Contract — A legal agreement between a company and a worker within a hire. A hire may have multiple contracts over its lifetime (e.g. an initial draft, an active contract, and amended versions). The `activeContract` on a hire is the currently accepted agreement between the parties.
+// Contract — A legal agreement between a company and a worker within a hire. A hire may have multiple contracts over its lifetime (e.g. an initial draft, an active contract, and amended versions). The 'activeContract' on a hire is the currently accepted agreement between the parties.
 type Contract struct {
 	// The ID of the contract.
 	Id string `json:"id"`
@@ -829,7 +829,7 @@ type Contract struct {
 	PdfUrl *string `json:"pdfUrl,omitempty"`
 	// The method of payment over the specified term.
 	PaymentTermMethod PaymentTermMethod `json:"paymentTermMethod"`
-	// The term that the payment will be made within, in days. Example `paymentTerm: 10` means Worksome will pay the worker's approved payment requests within 10 days.
+	// The term that the payment will be made within, in days. Example 'paymentTerm: 10' means Worksome will pay the worker's approved payment requests within 10 days.
 	PaymentTerm int `json:"paymentTerm"`
 	// Whether the contract's terms have been accepted.
 	TermsAccepted bool `json:"termsAccepted"`
@@ -897,7 +897,7 @@ type Conversation struct {
 	LatestMessage *Message `json:"latestMessage,omitempty"`
 	// The URL for the conversation.
 	Url string `json:"url"`
-	// Whether the authenticated user's active account can open this conversation. Mirrors the check behind `url`, so do not render a link to `url` when this is `false` — the viewer would land on a "No access" page.
+	// Whether the authenticated user's active account can open this conversation. Mirrors the check behind 'url', so do not render a link to 'url' when this is 'false' — the viewer would land on a "No access" page.
 	ViewerCanAccess bool `json:"viewerCanAccess"`
 	// The date that the conversation was created.
 	CreatedAt string `json:"createdAt"`
@@ -1033,7 +1033,7 @@ type CustomFieldSettings struct {
 	Validation []CustomFieldValidationRules `json:"validation"`
 }
 
-// CustomFieldValue — A custom field value. Those represents the custom fields value filled for an entity supporting custom fields. e.g: You've defined a free-text "sector" custom field applying to `Job` entities. Say you have a job which is in the "IT" sector. You'd need to create a custom field value with `field_id = <sector field id>`, and `content = "IT"`.
+// CustomFieldValue — A custom field value. Those represents the custom fields value filled for an entity supporting custom fields. e.g: You've defined a free-text "sector" custom field applying to 'Job' entities. Say you have a job which is in the "IT" sector. You'd need to create a custom field value with 'field_id = <sector field id>', and 'content = "IT"'.
 type CustomFieldValue struct {
 	// The ID of the field value.
 	Id string `json:"id"`
@@ -1049,9 +1049,9 @@ type CustomFieldValue struct {
 	CustomFieldOption *CustomFieldOption `json:"customFieldOption,omitempty"`
 	// The content of the custom field value in the case of a custom field not using custom field options. This will be present for a free-text field type.
 	Content *string `json:"content,omitempty"`
-	// A representation of the value for easier display. This gives a "human" representation of the custom field value no matter the field type. For example, this will return `content` for a free-text value, will return the custom field option `value` for a single-select value, or the file `name` for a file-upload value.
+	// A representation of the value for easier display. This gives a "human" representation of the custom field value no matter the field type. For example, this will return 'content' for a free-text value, will return the custom field option 'value' for a single-select value, or the file 'name' for a file-upload value.
 	DisplayValue *string `json:"displayValue,omitempty"`
-	// The uploaded file referenced by the field value. Present for `FILE_UPLOAD` field-values; null for every other field type.
+	// The uploaded file referenced by the field value. Present for 'FILE_UPLOAD' field-values; null for every other field type.
 	File *File `json:"file,omitempty"`
 }
 
@@ -1215,7 +1215,7 @@ type File struct {
 	Title *string `json:"title,omitempty"`
 	// The size of the file in bytes.
 	Size int `json:"size"`
-	// A human-readable representation of the file size (e.g. `1.2 MB`).
+	// A human-readable representation of the file size (e.g. '1.2 MB').
 	HumanReadableSize string `json:"humanReadableSize"`
 	// The IANA MIME type of the file.
 	MimeType string `json:"mimeType"`
@@ -1257,7 +1257,7 @@ type Gate struct {
 	Description string `json:"description"`
 }
 
-// Hire — A representation of an engagement between a company and a worker on a job. A hire tracks the agreement between parties to work together. It is not itself a legal document — the contracts attached to the hire (`Hire.contracts`, `Hire.activeContract`) are the legal agreements. A hire progresses through a lifecycle: `DRAFT` → `OFFERED` → `READY` → `ACTIVE` → `ENDED`. It may also be `CANCELLED` (before activation) or `TERMINATED` (ended early by the company).
+// Hire — A representation of an engagement between a company and a worker on a job. A hire tracks the agreement between parties to work together. It is not itself a legal document — the contracts attached to the hire ('Hire.contracts', 'Hire.activeContract') are the legal agreements. A hire progresses through a lifecycle: 'DRAFT' → 'OFFERED' → 'READY' → 'ACTIVE' → 'ENDED'. It may also be 'CANCELLED' (before activation) or 'TERMINATED' (ended early by the company).
 type Hire struct {
 	// The ID of the hire.
 	Id string `json:"id"`
@@ -1265,7 +1265,7 @@ type Hire struct {
 	Number string `json:"number"`
 	// The date the worker last submitted a payment request for this hire. Null if no payment request has ever been submitted.
 	LastPaymentRequestDate *string `json:"lastPaymentRequestDate,omitempty"`
-	// The latest contract, not necessarily the active one. The latest contract could for example be a draft, if one of the parties wanted to make changes to the currently active contract. see `hire.activeContract` for the current active one.
+	// The latest contract, not necessarily the active one. The latest contract could for example be a draft, if one of the parties wanted to make changes to the currently active contract. see 'hire.activeContract' for the current active one.
 	LatestContract *Contract `json:"latestContract"`
 	// The currently active contract. This has been accepted by all parties and is the active legal document between them.
 	ActiveContract *Contract `json:"activeContract,omitempty"`
@@ -1341,7 +1341,7 @@ type Hire struct {
 	Rate *float64 `json:"rate,omitempty"`
 	// The rate type for the hire.
 	RateType *string `json:"rateType,omitempty"`
-	// The current lifecycle status of the hire. See `activeStatus` for the same value. Possible values: `DRAFT`, `OFFERED`, `READY`, `ACTIVE`, `ENDED`, `CANCELLED`, `TERMINATED`.
+	// The current lifecycle status of the hire. See 'activeStatus' for the same value. Possible values: 'DRAFT', 'OFFERED', 'READY', 'ACTIVE', 'ENDED', 'CANCELLED', 'TERMINATED'.
 	Status HireActiveStatus `json:"status"`
 	// The date that the hire became active.
 	OfferedAt *string `json:"offeredAt,omitempty"`
@@ -1349,7 +1349,7 @@ type Hire struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// The assigned Purchase Order (PO) number, if one has been added.
 	PurchaseOrderNumber *string `json:"purchaseOrderNumber,omitempty"`
-	// Compliance rows for this hire. Pass `names` to filter.
+	// Compliance rows for this hire. Pass 'names' to filter.
 	Compliances []*Compliance `json:"compliances"`
 	// Whether the staffing agency (recruiter or company-as-supplier) manages workers on this hire.
 	RecruiterManagesWorkers *bool `json:"recruiterManagesWorkers,omitempty"`
@@ -1361,7 +1361,7 @@ type Hire struct {
 	CanRemindWorkerForBilling bool `json:"canRemindWorkerForBilling"`
 	// The user who created the Hire.
 	User *User `json:"user,omitempty"`
-	// The current lifecycle status of the hire. Possible values: `DRAFT`, `OFFERED`, `READY`, `ACTIVE`, `ENDED`, `CANCELLED`, `TERMINATED`.
+	// The current lifecycle status of the hire. Possible values: 'DRAFT', 'OFFERED', 'READY', 'ACTIVE', 'ENDED', 'CANCELLED', 'TERMINATED'.
 	ActiveStatus HireActiveStatus `json:"activeStatus"`
 	// The date an early termination takes effect, or null when the hire has not been terminated.
 	TerminationDate *string `json:"terminationDate,omitempty"`
@@ -1391,7 +1391,7 @@ type Hire struct {
 	SourceHire *Hire `json:"sourceHire,omitempty"`
 	// The supplier-side hire derived from this source hire.
 	SupplierHire *Hire `json:"supplierHire,omitempty"`
-	// True when the `sourceHire` has pending contract changes that haven't yet been reflected here. Always false on hires without a `sourceHire`.
+	// True when the 'sourceHire' has pending contract changes that haven't yet been reflected here. Always false on hires without a 'sourceHire'.
 	HasUnactedClientChanges bool `json:"hasUnactedClientChanges"`
 	// Checks if the current viewer has the correct permissions to be able to accept the contract and that all blocking actions have been completed.
 	ViewerCanAcceptContract bool `json:"viewerCanAcceptContract"`
@@ -1515,7 +1515,7 @@ type InvoiceRowPaginator struct {
 	Data []*InvoiceRow `json:"data"`
 }
 
-// Job — A job posting created by a company on Worksome. Jobs start in `DRAFT` status after creation via `createJob`, then move to `ACTIVE` once published via `updateJob`. A job can be shared with the marketplace, trusted contacts, or staffing agencies depending on its visibility settings. Workers can submit bids on published jobs, and the company can hire from those bids or directly hire a trusted contact.
+// Job — A job posting created by a company on Worksome. Jobs start in 'DRAFT' status after creation via 'createJob', then move to 'ACTIVE' once published via 'updateJob'. A job can be shared with the marketplace, trusted contacts, or staffing agencies depending on its visibility settings. Workers can submit bids on published jobs, and the company can hire from those bids or directly hire a trusted contact.
 type Job struct {
 	// The ID of the job.
 	Id string `json:"id"`
@@ -2124,7 +2124,7 @@ type PaymentRequest struct {
 	RateTypeName string `json:"rateTypeName"`
 	// The abbreviated human friendly rate type required for this payment request.
 	RatetypeNameSlash *string `json:"ratetypeNameSlash,omitempty"`
-	// The quantity of the selected rate type for the payment request. The rate type can be seen by looking at `PaymentRequest.rateType` and the rate can be seen by looking at `PaymentRequest.rate`.
+	// The quantity of the selected rate type for the payment request. The rate type can be seen by looking at 'PaymentRequest.rateType' and the rate can be seen by looking at 'PaymentRequest.rate'.
 	RateQuantity float64 `json:"rateQuantity"`
 	// The fee for using the Worksome Platform. This will change depending on who is viewing the api.
 	ServiceAmount float64 `json:"serviceAmount"`
@@ -2250,7 +2250,7 @@ type Project struct {
 	AllocatedBudget float64 `json:"allocatedBudget"`
 	// The amount that is spent out of the internal budget for the project. Spent for the project budget is registered when a bill is approved on an associated job.
 	Spent float64 `json:"spent"`
-	// The date that the project ended. If this is set to `null`, we will assume that the project is not yet ended but active.
+	// The date that the project ended. If this is set to 'null', we will assume that the project is not yet ended but active.
 	EndDate *string `json:"endDate,omitempty"`
 	// The owners of the project.
 	Owners []*User `json:"owners"`
@@ -2564,7 +2564,7 @@ type TotpCreateMultiFactorPayload struct {
 	MultiFactor *TotpMultiFactor `json:"multiFactor"`
 	// The secret for the newly-created TOTP multi factor.
 	Secret string `json:"secret"`
-	// A URL for the QR Code containing the secret. This is not the QR Code itself, but the URL that the QR code should contain. The URL is in `otpauth` format.
+	// A URL for the QR Code containing the secret. This is not the QR Code itself, but the URL that the QR code should contain. The URL is in 'otpauth' format.
 	QrCode string `json:"qrCode"`
 }
 
@@ -2596,7 +2596,7 @@ type TrustedContact struct {
 	Worker *Worker `json:"worker"`
 	// The trusted contact company.
 	Company *Company `json:"company"`
-	// The user who invited the worker as trusted contact of the company. A `null` value here means the trusted contact was automatically added by a process.
+	// The user who invited the worker as trusted contact of the company. A 'null' value here means the trusted contact was automatically added by a process.
 	InvitedByUser *User `json:"invitedByUser,omitempty"`
 	// Whether the viewer is able to approve the trusted contact.
 	ViewerCanApprove bool `json:"viewerCanApprove"`
@@ -2636,7 +2636,7 @@ type TrustedContact struct {
 	OnboardingStatus *TrustedContactOnboardingStatus `json:"onboardingStatus,omitempty"`
 	// The onboarding documents associated with the trusted contact.
 	OnboardingDocuments []*OnboardingDocument `json:"onboardingDocuments"`
-	// Compliance requirements for this worker as seen by the trusted contact's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When `names` is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
+	// Compliance requirements for this worker as seen by the trusted contact's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When 'names' is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
 	Compliances []*Compliance `json:"compliances"`
 	// The date that the trusted contact was created.
 	CreatedAt string `json:"createdAt"`
@@ -2674,7 +2674,7 @@ type User struct {
 	Avatar *string `json:"avatar,omitempty"`
 	// Whether the user has consented to use Worksome Intelligence.
 	HasConsentedToWorksomeIntelligence bool `json:"hasConsentedToWorksomeIntelligence"`
-	// Whether the user is allowed to create a password for their account. The user might not be allowed if they already have a password, in which case they should use `updatePassword` or if they have SAML on their account.
+	// Whether the user is allowed to create a password for their account. The user might not be allowed if they already have a password, in which case they should use 'updatePassword' or if they have SAML on their account.
 	CanCreatePassword bool `json:"canCreatePassword"`
 	// Whether the user has any way of authenticating into the system. This will check that the user has no password, social, SAML etc. way of authenticating into their account.
 	MissingAuthentication bool `json:"missingAuthentication"`
@@ -2784,9 +2784,9 @@ type WebhookEvent struct {
 	WebhookId string `json:"webhookId"`
 	// The webhook event identifer. Refer to the [webhook event documentation](https://docs.worksome.com/webhooks/reference/) for more information about which event values Worksome uses here.
 	Event string `json:"event"`
-	// The webhook event description (human readable version of the `event` field).
+	// The webhook event description (human readable version of the 'event' field).
 	Description string `json:"description"`
-	// The latest status of the webhook sending attempts: - `pending`: The webhook has not yet been sent. - `success`: The webhook was sent successfully. - `failed-N`: The webhook sending attempt failed for the N'th time. - `failed-finally`: The webhook sending attempt failed and will not be retried automatically.
+	// The latest status of the webhook sending attempts: - 'pending': The webhook has not yet been sent. - 'success': The webhook was sent successfully. - 'failed-N': The webhook sending attempt failed for the N'th time. - 'failed-finally': The webhook sending attempt failed and will not be retried automatically.
 	Status string `json:"status"`
 	// The webhook event payload.
 	Payload map[string]any `json:"payload"`
@@ -2804,7 +2804,7 @@ type WebhookEventLog struct {
 	Id string `json:"id"`
 	// The unique key of the webhook event.
 	Key string `json:"key"`
-	// The result of the webhook sending attempt: - `success`: The webhook was sent successfully. - `failed-N`: The webhook sending attempt failed for the N'th time. - `failed-finally`: The webhook sending attempt failed and will not be retried automatically.
+	// The result of the webhook sending attempt: - 'success': The webhook was sent successfully. - 'failed-N': The webhook sending attempt failed for the N'th time. - 'failed-finally': The webhook sending attempt failed and will not be retried automatically.
 	Result string `json:"result"`
 	// The HTTP status code of the the webhook sending attempt.
 	StatusCode *int `json:"statusCode,omitempty"`
@@ -2884,7 +2884,7 @@ type Worker struct {
 	RtwVerifiedAt *string `json:"rtwVerifiedAt,omitempty"`
 	// Right to work verification and background checks for this worker will expire by this date. If the expire date is in the future the verification is still valid.
 	RtwExpiresAt *string `json:"rtwExpiresAt,omitempty"`
-	// Recruiter-attributed hires the viewer can see, as client, recruiter, or supplier. Workers get nothing; use `hires` instead. Includes drafts.
+	// Recruiter-attributed hires the viewer can see, as client, recruiter, or supplier. Workers get nothing; use 'hires' instead. Includes drafts.
 	HiresWithAttribution []*Hire `json:"hiresWithAttribution"`
 	// The business entity that the worker uses.
 	PrimaryBusinessEntity *BusinessEntity `json:"primaryBusinessEntity,omitempty"`
@@ -2946,7 +2946,7 @@ type WorkerInsurance struct {
 	Files []*File `json:"files"`
 }
 
-// Workflow — A workflow — an alternative tree-structured view of an approval flow for hires. A `Workflow` is backed by the same data as an `Approval`, but exposes the structure as a tree of nodes (rules with their approvers). Use the `workflow`/`workflows` queries to read the tree structure, and `createWorkflow`/`updateWorkflow` to manage the entire approval flow as a single operation. Workflows currently apply only to hires — they cannot be used for jobs, payment requests, or other entities. See the `Approval` type for supported trigger events.
+// Workflow — A workflow — an alternative tree-structured view of an approval flow for hires. A 'Workflow' is backed by the same data as an 'Approval', but exposes the structure as a tree of nodes (rules with their approvers). Use the 'workflow'/'workflows' queries to read the tree structure, and 'createWorkflow'/'updateWorkflow' to manage the entire approval flow as a single operation. Workflows currently apply only to hires — they cannot be used for jobs, payment requests, or other entities. See the 'Approval' type for supported trigger events.
 type Workflow struct {
 	// The ID of the workflow (same as the underlying approval ID).
 	Id string `json:"id"`
@@ -2996,7 +2996,7 @@ type WorkflowVariablePaginator struct {
 	Data []*WorkflowVariable `json:"data"`
 }
 
-// WorkflowVariableRule — A condition on an approval rule — compares a workflow variable against a threshold value. For example, a rule might have a condition: "hourly rate greater than 100". The `variable` field identifies what is being compared, `operator` defines the comparison type, and `value` is the threshold.
+// WorkflowVariableRule — A condition on an approval rule — compares a workflow variable against a threshold value. For example, a rule might have a condition: "hourly rate greater than 100". The 'variable' field identifies what is being compared, 'operator' defines the comparison type, and 'value' is the threshold.
 type WorkflowVariableRule struct {
 	// The ID of the condition.
 	Id string `json:"id"`

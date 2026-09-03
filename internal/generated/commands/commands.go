@@ -552,7 +552,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Filter by the accounts that own the parent approval flows.")
-	cmd.Flags().Bool("requires-action", false, "When `true`, only return approval requests that still need action from any approver.")
+	cmd.Flags().Bool("requires-action", false, "When 'true', only return approval requests that still need action from any approver.")
 	cmd.Flags().StringSlice("requires-action-users", nil, "Only return approval requests that need action from specific users.")
 	cmd.Flags().StringSlice("approvals", nil, "Filter by the parent approval flows.")
 	cmd.Flags().String("approvable", "", "Filter by the item being approved (e.g. a specific hire).")
@@ -613,7 +613,7 @@ var approvalapprovablesActionColumns = []output.Column{
 func newApprovalApprovablesActionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "action",
-		Short:   "Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action (`viewerCanAction` must be `true`).",
+		Short:   "Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action ('viewerCanAction' must be 'true').",
 		Example: "  # Using a JSON input file:\n  worksome approval-approvables action --input payload.json\n\n  # Using flags:\n  worksome approval-approvables action --id \\\"value\\\" --status \\\"value\\\" --reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"reason\": \"...\",\n    \"status\": \"UNKNOWN\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -676,7 +676,7 @@ func newApprovalApprovablesActionCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the approval request to act on.")
-	cmd.Flags().String("status", "", "The action to take: `APPROVED`, `REJECTED`, or `NEEDS_CHANGE`. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
+	cmd.Flags().String("status", "", "The action to take: 'APPROVED', 'REJECTED', or 'NEEDS_CHANGE'. [UNKNOWN, REQUESTED, APPROVED, REJECTED, NEEDS_CHANGE, ...]")
 	cmd.Flags().String("reason", "", "An optional message explaining the decision (required when rejecting or requesting changes).")
 	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED"}, cobra.ShellCompDirectiveNoFileComp
@@ -906,7 +906,7 @@ var approvalrulesCreateColumns = []output.Column{
 func newApprovalRulesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Add a rule to an approval flow. A rule defines the conditions under which an approval is required. Each rule contains one or more variable conditions (e.g. \"hourly rate > 100\") that are evaluated when the trigger event fires. After creating the rule, use `createApprover` to assign user groups who will review matching items.",
+		Short:   "Add a rule to an approval flow. A rule defines the conditions under which an approval is required. Each rule contains one or more variable conditions (e.g. \"hourly rate > 100\") that are evaluated when the trigger event fires. After creating the rule, use 'createApprover' to assign user groups who will review matching items.",
 		Example: "  # Using a JSON input file:\n  worksome approval-rules create --input payload.json\n\n  # Using flags:\n  worksome approval-rules create --approval \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approval\": \"<id>\",\n    \"rules\": [\n      {\n        \"id\": \"...\",\n        \"rule\": {\n          \"operator\": \"LESS\",\n          \"value\": \"...\"\n        }\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -1175,7 +1175,7 @@ func NewApprovalsCmd() *cobra.Command {
 func newApprovalsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get <id>",
-		Short:   "Get a specific approval flow by ID. Requires the `manage-approvals` team permission on the owning company.",
+		Short:   "Get a specific approval flow by ID. Requires the 'manage-approvals' team permission on the owning company.",
 		Example: "  worksome approvals get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1213,7 +1213,7 @@ func newApprovalsGetCmd() *cobra.Command {
 func newApprovalsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "List all approval flows accessible to the authenticated user. Requires the `manage-approvals` team permission.",
+		Short:   "List all approval flows accessible to the authenticated user. Requires the 'manage-approvals' team permission.",
 		Example: "  worksome approvals list -n 20\n  worksome approvals list --all\n  worksome approvals list --watch\n  worksome approvals list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
@@ -1441,7 +1441,7 @@ func newApprovalsCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("name", "", "The display name for the approval flow.")
-	cmd.Flags().String("status", "", "Whether the approval should be active immediately. Only `ACTIVE` approvals are evaluated when triggering events occur. [ACTIVE, INACTIVE, ARCHIVED]")
+	cmd.Flags().String("status", "", "Whether the approval should be active immediately. Only 'ACTIVE' approvals are evaluated when triggering events occur. [ACTIVE, INACTIVE, ARCHIVED]")
 	cmd.Flags().String("trigger", "", "The event that triggers this approval flow (e.g. hire created, contract changed). [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 	cmd.Flags().String("description", "", "A human-readable description of the approval flow's purpose.")
 	cmd.Flags().String("company", "", "The company that the approval flow belongs to.")
@@ -1540,7 +1540,7 @@ func newApprovalsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the approval flow to update.")
 	cmd.Flags().String("name", "", "The updated display name.")
-	cmd.Flags().String("status", "", "The updated status. Set to `INACTIVE` to pause the approval without deleting it. [ACTIVE, INACTIVE, ARCHIVED]")
+	cmd.Flags().String("status", "", "The updated status. Set to 'INACTIVE' to pause the approval without deleting it. [ACTIVE, INACTIVE, ARCHIVED]")
 	cmd.Flags().String("trigger", "", "The updated trigger event. [NONE, HIRE_CREATED, HIRE_CHANGED, CLASSIFICATION_CREATED]")
 	cmd.Flags().String("description", "", "The updated description.")
 	cmd.RegisterFlagCompletionFunc("status", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1780,7 +1780,7 @@ var approversCreateColumns = []output.Column{
 func newApproversCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Assign a user group as an approver on an approval rule. Approvers are processed in `position` order — position 1 is asked to approve first, then position 2, and so on. Each approver is a user group whose members can act on the approval request.",
+		Short:   "Assign a user group as an approver on an approval rule. Approvers are processed in 'position' order — position 1 is asked to approve first, then position 2, and so on. Each approver is a user group whose members can act on the approval request.",
 		Example: "  # Using a JSON input file:\n  worksome approvers create --input payload.json\n\n  # Using flags:\n  worksome approvers create --approval-rule \\\"value\\\" --user-group \\\"value\\\" --position \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approvalRule\": \"<id>\",\n    \"position\": 0,\n    \"userGroup\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -4242,7 +4242,7 @@ func newComplianceGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringSlice("names", nil, "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
-	cmd.Flags().Bool("cached", false, "Read strategy for `applicable` / `completed`. Defaults to live computation. Pass `true` to read the persisted compliance status row (falling back to live when no row exists yet). Intended for verification dashboards during the persisted-status rollout; the default will remain live until the persisted rows are proven correct in production.")
+	cmd.Flags().Bool("cached", false, "Read strategy for 'applicable' / 'completed'. Defaults to live computation. Pass 'true' to read the persisted compliance status row (falling back to live when no row exists yet). Intended for verification dashboards during the persisted-status rollout; the default will remain live until the persisted rows are proven correct in production.")
 
 	return cmd
 }
@@ -5403,7 +5403,7 @@ func newEmailChangeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.")
+	cmd.Flags().String("user", "", "The ID of the user whose email address should be updated. If this is 'null' or excluded, the currently authenticated user's email will be changed.")
 	cmd.Flags().String("email", "", "The new email for the user.")
 	return cmd
 }
@@ -6500,7 +6500,7 @@ func newGateGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ...]")
-	cmd.Flags().Bool("cached", false, "Read strategy for `applicable` / `completed` on the gate and its compliances. Defaults to live; pass `true` to read the persisted status rows with a live fallback.")
+	cmd.Flags().Bool("cached", false, "Read strategy for 'applicable' / 'completed' on the gate and its compliances. Defaults to live; pass 'true' to read the persisted status rows with a live fallback.")
 	_ = cmd.MarkFlagRequired("gate")
 
 	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -6961,7 +6961,7 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("hire", "", "The ID of the hire.")
 	cmd.Flags().String("recruiter", "", "The ID of the recruiter.")
-	cmd.Flags().Float64("fee", 0, "The fee the recruiter is taking as a percentage. Prefer `feeRate`, which also supports a fixed amount per unit of time.")
+	cmd.Flags().Float64("fee", 0, "The fee the recruiter is taking as a percentage. Prefer 'feeRate', which also supports a fixed amount per unit of time.")
 	cmd.Flags().Int("ownership-days", 0, "The amount of days the recruiters ownership period exist in. A null value indicates the staffing agency's ownership never expires.")
 	cmd.Flags().String("ownership-start-date", "", "The date that the ownership starts.")
 	return cmd
@@ -7140,7 +7140,7 @@ var hiresCreateDraftColumns = []output.Column{
 func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-draft",
-		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. The worker must already be a trusted contact of the hiring company. A job is optional — if omitted, one will be created automatically from the provided details. Draft hires must be completed in the Worksome UI before they become active, such as applicable compliance checks. The hire will start in `DRAFT` status and progress through the lifecycle once all required steps are finished.",
+		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. The worker must already be a trusted contact of the hiring company. A job is optional — if omitted, one will be created automatically from the provided details. Draft hires must be completed in the Worksome UI before they become active, such as applicable compliance checks. The hire will start in 'DRAFT' status and progress through the lifecycle once all required steps are finished.",
 		Example: "  # Using a JSON input file:\n  worksome hires create-draft --input payload.json\n\n  # Using flags:\n  worksome hires create-draft --trusted-contact \\\"value\\\" --job \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"conversation\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"hireDescription\": \"...\",\n    \"includeStandardContract\": false,\n    \"job\": \"<id>\",\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"rateType\": \"HOURLY\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"trustedContact\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -7250,10 +7250,10 @@ func newHiresCreateDraftCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly. The worker must already exist as a trusted contact of the hiring company. Use `createTrustedContact` first if the worker is not yet in the company's Talent Pool.")
-	cmd.Flags().String("job", "", "The ID of an existing job to associate with this hire. Optional — if omitted, a new job will be created automatically from the `name`, `description`, and other job-related fields provided in this input.")
-	cmd.Flags().String("name", "", "The title for the auto-created job. Only used when `job` is not provided.")
-	cmd.Flags().String("description", "", "The description for the auto-created job. Only used when `job` is not provided.")
+	cmd.Flags().String("trusted-contact", "", "The trusted contact to hire directly. The worker must already exist as a trusted contact of the hiring company. Use 'createTrustedContact' first if the worker is not yet in the company's Talent Pool.")
+	cmd.Flags().String("job", "", "The ID of an existing job to associate with this hire. Optional — if omitted, a new job will be created automatically from the 'name', 'description', and other job-related fields provided in this input.")
+	cmd.Flags().String("name", "", "The title for the auto-created job. Only used when 'job' is not provided.")
+	cmd.Flags().String("description", "", "The description for the auto-created job. Only used when 'job' is not provided.")
 	cmd.Flags().String("message", "", "The message to send the trusted contact.")
 	cmd.Flags().String("rate-type", "", "The rate type that is due. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, ...]")
 	cmd.Flags().Float64("rate", 0, "The rate that is due.")
@@ -9910,7 +9910,7 @@ var jobsCreateColumns = []output.Column{
 func newJobsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create a job with minimal required fields. Only companies can create jobs. The job is created in `DRAFT` status with just a title, skills, and owner. Use `updateJob` to set the full details (description, rates, dates, location, etc.) and to publish the job.",
+		Short:   "Create a job with minimal required fields. Only companies can create jobs. The job is created in 'DRAFT' status with just a title, skills, and owner. Use 'updateJob' to set the full details (description, rates, dates, location, etc.) and to publish the job.",
 		Example: "  # Using a JSON input file:\n  worksome jobs create --input payload.json\n\n  # Using flags:\n  worksome jobs create --company \\\"value\\\" --name \\\"value\\\" --is-brief \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"isBrief\": false,\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -10223,7 +10223,7 @@ var jobsUpdateColumns = []output.Column{
 func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
-		Short:   "Update a job's details. Only companies can update jobs. This is the follow-up to `createJob` — use it to set the full role details (description, rates, dates, location, visibility) and to publish the job when ready. All fields are optional; only the fields you provide will be updated.",
+		Short:   "Update a job's details. Only companies can update jobs. This is the follow-up to 'createJob' — use it to set the full role details (description, rates, dates, location, visibility) and to publish the job when ready. All fields are optional; only the fields you provide will be updated.",
 		Example: "  # Using a JSON input file:\n  worksome jobs update --input payload.json\n\n  # Using flags:\n  worksome jobs update --id \\\"value\\\" --locale \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"association\": \"SMALL_TASK\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"contactEmail\": \"...\",\n    \"contactName\": \"...\",\n    \"contactPhone\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"endDateTimeframe\": \"ONE_MONTH\",\n    \"evaluationPeriod\": \"MONTH\",\n    \"expectedExperienceLevel\": [\n      \"STUDENT\"\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"industries\": [\n      \"<id>\"\n    ],\n    \"isExtensionAvailable\": false,\n    \"languages\": [\n      {\n        \"experience\": \"GOOD\",\n        \"name\": \"ARABIC\"\n      }\n    ],\n    \"locale\": \"ENGLISH\",\n    \"location\": {\n      \"address\": \"...\",\n      \"city\": \"...\",\n      \"country\": \"...\",\n      \"postCode\": \"...\",\n      \"state\": \"...\"\n    },\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"published\": false,\n    \"rateType\": {\n      \"range\": {\n        \"maximum\": 0,\n        \"minimum\": 0\n      },\n      \"rate\": 0,\n      \"type\": \"HOURLY\"\n    },\n    \"removed\": false,\n    \"removedCause\": \"...\",\n    \"requiredWorkers\": 0,\n    \"skills\": [\n      \"...\"\n    ],\n    \"sourcingDeadlineChoice\": \"USE_DEFAULT\",\n    \"sourcingEndDate\": \"2024-01-01T00:00:00Z\",\n    \"sourcingEndDateLocal\": \"...\",\n    \"startDate\": \"2024-01-01\",\n    \"startDateTimeframe\": \"ASAP\",\n    \"visibility\": [\n      \"VISIBLE_FOR_TRUSTED_CONTACTS\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -10366,8 +10366,8 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "The name of the job.")
 	cmd.Flags().String("description", "", "The description required for the job.")
 	cmd.Flags().String("association", "", "The project type of the job. [SMALL_TASK, PROJECT, BIG_PROJECT, PART_TIME, FULL_TIME]")
-	cmd.Flags().String("start-date", "", "The start date of the job. If this is set to `null`, we will assume that the job should start as soon as possible.")
-	cmd.Flags().String("end-date", "", "The end date of the job. If this is set to `null`, we will assume that the job's end date is undetermined.")
+	cmd.Flags().String("start-date", "", "The start date of the job. If this is set to 'null', we will assume that the job should start as soon as possible.")
+	cmd.Flags().String("end-date", "", "The end date of the job. If this is set to 'null', we will assume that the job's end date is undetermined.")
 	cmd.Flags().String("start-date-timeframe", "", "The timeframe of the job start. [ASAP, NEXT_MONTH, ON_DATE]")
 	cmd.Flags().String("end-date-timeframe", "", "The timeframe of the job end. [ONE_MONTH, THREE_MONTHS, SIX_MONTHS, ON_DATE, OPEN]")
 	cmd.Flags().Bool("is-extension-available", false, "If the job will extend.")
@@ -12482,7 +12482,7 @@ var passwordCreateColumns = []output.Column{
 func newPasswordCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.",
+		Short:   "Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see 'updatePassword' operation instead.",
 		Example: "  # Using a JSON input file:\n  worksome password create --input payload.json\n\n  # Using flags:\n  worksome password create --password \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"password\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -12930,7 +12930,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("batch-ids", nil, "Only show payment requests that belong to the specified batches.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show payment requests with the specified external identifiers.")
 	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields. (JSON for [PaymentRequestOrderByClauseInput!])")
-	cmd.Flags().String("viewer-role", "", "Which side of the payment request the viewer is on. Defaults to ANY. Pass PAYER on client-side tables to exclude requests the viewer raised as a supplier. PAYEE is reserved for the supplier-side view. Only filters within the account scope set by the `accounts` arg — without `accounts` there's nothing for this filter to act on. [PAYER, PAYEE, ANY]")
+	cmd.Flags().String("viewer-role", "", "Which side of the payment request the viewer is on. Defaults to ANY. Pass PAYER on client-side tables to exclude requests the viewer raised as a supplier. PAYEE is reserved for the supplier-side view. Only filters within the account scope set by the 'accounts' arg — without 'accounts' there's nothing for this filter to act on. [PAYER, PAYEE, ANY]")
 
 	cmd.RegisterFlagCompletionFunc("viewer-role", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"PAYER", "PAYEE", "ANY"}, cobra.ShellCompDirectiveNoFileComp
@@ -13915,7 +13915,7 @@ var projectsOpenColumns = []output.Column{
 func newProjectsOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "open",
-		Short:   "Open a project. This is used to set the end date on the project to `null` to make it open again.",
+		Short:   "Open a project. This is used to set the end date on the project to 'null' to make it open again.",
 		Example: "  # Using a JSON input file:\n  worksome projects open --input payload.json\n\n  # Using flags:\n  worksome projects open --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -15012,7 +15012,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three `name`, `name_en`, `name_da`.")
+	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three 'name', 'name_en', 'name_da'.")
 	cmd.Flags().StringSlice("skillable-type", nil, "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [SkillOrderByClauseInput!])")
 
@@ -19192,7 +19192,7 @@ var workercustomfieldvaluesUpdateColumns = []output.Column{
 func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
-		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.",
+		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with 'workerInputAllowed: true' can be updated. Partial updates are supported - fields not included are ignored.",
 		Example: "  # Using a JSON input file:\n  worksome worker-custom-field-values update --input payload.json\n\n  # Using flags:\n  worksome worker-custom-field-values update --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"appliesTo\": \"<id>\",\n    \"values\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -19390,7 +19390,7 @@ func NewWorkflowVariablesCmd() *cobra.Command {
 func newWorkflowVariablesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "List the available variables that can be used in approval rule conditions. Variables represent the fields you can evaluate in conditions — for example, hourly rate, budget, or company-defined custom fields. The available variables depend on the trigger type: hire-related triggers expose rate and budget variables, while classification triggers expose the classification result. Requires the `manage-approvals` team permission.",
+		Short:   "List the available variables that can be used in approval rule conditions. Variables represent the fields you can evaluate in conditions — for example, hourly rate, budget, or company-defined custom fields. The available variables depend on the trigger type: hire-related triggers expose rate and budget variables, while classification triggers expose the classification result. Requires the 'manage-approvals' team permission.",
 		Example: "  worksome workflow-variables list -n 20\n  worksome workflow-variables list --all\n  worksome workflow-variables list --watch\n  worksome workflow-variables list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
@@ -19565,7 +19565,7 @@ func NewWorkflowsCmd() *cobra.Command {
 func newWorkflowsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get <id>",
-		Short:   "Get a specific workflow by ID. Requires the `manage-approvals` team permission on the owning company.",
+		Short:   "Get a specific workflow by ID. Requires the 'manage-approvals' team permission on the owning company.",
 		Example: "  worksome workflows get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -19603,7 +19603,7 @@ func newWorkflowsGetCmd() *cobra.Command {
 func newWorkflowsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "List all workflows accessible to the authenticated user. Requires the `manage-approvals` team permission.",
+		Short:   "List all workflows accessible to the authenticated user. Requires the 'manage-approvals' team permission.",
 		Example: "  worksome workflows list -n 20\n  worksome workflows list --all\n  worksome workflows list --watch\n  worksome workflows list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
@@ -19748,7 +19748,7 @@ var workflowsCreateColumns = []output.Column{
 func newWorkflowsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create an approval workflow as a complete tree in a single operation. Only companies can create workflows. This is the recommended way to set up an approval flow — it creates the approval (root), its rules (conditions), and approvers (user groups) all at once, rather than calling `createApproval`, `createApprovalRule`, and `createApprover` separately. The input is structured as a tree: a root node (the approval definition), rule nodes (conditions), and approver nodes (user groups). Nodes reference each other via temporary `id` and `parent`/`children` fields.",
+		Short:   "Create an approval workflow as a complete tree in a single operation. Only companies can create workflows. This is the recommended way to set up an approval flow — it creates the approval (root), its rules (conditions), and approvers (user groups) all at once, rather than calling 'createApproval', 'createApprovalRule', and 'createApprover' separately. The input is structured as a tree: a root node (the approval definition), rule nodes (conditions), and approver nodes (user groups). Nodes reference each other via temporary 'id' and 'parent'/'children' fields.",
 		Example: "  # Using a JSON input file:\n  worksome workflows create --input payload.json\n\n  # Example payload.json:\n  {\n    \"approvers\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          \"<id>\"\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ],\n    \"root\": {\n      \"children\": [\n        \"<id>\"\n      ],\n      \"data\": {\n        \"company\": \"<id>\",\n        \"description\": \"...\",\n        \"name\": \"...\",\n        \"status\": \"ACTIVE\",\n        \"trigger\": \"NONE\"\n      },\n      \"id\": \"<id>\"\n    },\n    \"rules\": [\n      {\n        \"children\": [\n          \"<id>\"\n        ],\n        \"data\": [\n          {\n            \"id\": \"...\",\n            \"rule\": {}\n          }\n        ],\n        \"id\": \"<id>\",\n        \"parent\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format

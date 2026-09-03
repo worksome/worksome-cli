@@ -17,7 +17,7 @@ func NewQuerier(c *client.Client) *Querier {
 	return &Querier{Client: c}
 }
 
-// AcceptBid — Hire a worker for a job by accepting their bid. Only companies can make hires. The worker must have submitted a bid on the job before this mutation can be used. Once a hire is created, a draft contract is automatically generated (`Hire.latestContract`) and is pending acceptance from the other party (usually the worker).
+// AcceptBid — Hire a worker for a job by accepting their bid. Only companies can make hires. The worker must have submitted a bid on the job before this mutation can be used. Once a hire is created, a draft contract is automatically generated ('Hire.latestContract') and is pending acceptance from the other party (usually the worker).
 func (q *Querier) AcceptBid(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation AcceptBid($input: AcceptBidInput!) {
 	acceptBid(input: $input) { id number lastPaymentRequestDate latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } draftContract { id status startDate endDate currency } pendingContractChanges hasScheduledChanges hasSignedScheduledChange company { id name currency market avatar } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } recruiter { id name initials avatar } supplier { __typename id name avatar } viewerIsSupplier contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title createdAt updatedAt } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber compliances { actor name applicable completed completedAt type title description } recruiterManagesWorkers supplierSignatureWaived canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus terminationDate canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state cancellationReason createdAt } hasPendingApproval owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } hasUnactedClientChanges viewerCanAcceptContract viewerCanCreatePaymentRequest fees { id currency } markupFee { id currency } }
@@ -84,7 +84,7 @@ func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) 
 	return result, nil
 }
 
-// ActionApprovalApprovable — Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action (`viewerCanAction` must be `true`).
+// ActionApprovalApprovable — Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action ('viewerCanAction' must be 'true').
 func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ActionApprovalApprovable($input: ActionApprovalApprovableInput!) {
 	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } viewerCanAction }
@@ -133,7 +133,7 @@ func (q *Querier) ApprovalRules(ctx context.Context, vars map[string]any) (map[s
 	return result, nil
 }
 
-// CreateApprovalRule — Add a rule to an approval flow. A rule defines the conditions under which an approval is required. Each rule contains one or more variable conditions (e.g. "hourly rate > 100") that are evaluated when the trigger event fires. After creating the rule, use `createApprover` to assign user groups who will review matching items.
+// CreateApprovalRule — Add a rule to an approval flow. A rule defines the conditions under which an approval is required. Each rule contains one or more variable conditions (e.g. "hourly rate > 100") that are evaluated when the trigger event fires. After creating the rule, use 'createApprover' to assign user groups who will review matching items.
 func (q *Querier) CreateApprovalRule(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateApprovalRule($input: CreateApprovalRuleInput!) {
 	createApprovalRule(input: $input) { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt }
@@ -164,7 +164,7 @@ func (q *Querier) ApprovalStates(ctx context.Context, vars map[string]any) (map[
 	return result, nil
 }
 
-// Approval — Get a specific approval flow by ID. Requires the `manage-approvals` team permission on the owning company.
+// Approval — Get a specific approval flow by ID. Requires the 'manage-approvals' team permission on the owning company.
 func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approval($id: ID!) {
 	approval(id: $id) { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId }
@@ -182,7 +182,7 @@ func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string
 	return result, nil
 }
 
-// Approvals — List all approval flows accessible to the authenticated user. Requires the `manage-approvals` team permission.
+// Approvals — List all approval flows accessible to the authenticated user. Requires the 'manage-approvals' team permission.
 func (q *Querier) Approvals(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Approvals($accounts: [ID!], $search: String, $first: Int! = 10, $page: Int) {
 	approvals(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId } }
@@ -262,7 +262,7 @@ func (q *Querier) Approvers(ctx context.Context, vars map[string]any) (map[strin
 	return result, nil
 }
 
-// CreateApprover — Assign a user group as an approver on an approval rule. Approvers are processed in `position` order — position 1 is asked to approve first, then position 2, and so on. Each approver is a user group whose members can act on the approval request.
+// CreateApprover — Assign a user group as an approver on an approval rule. Approvers are processed in 'position' order — position 1 is asked to approve first, then position 2, and so on. Each approver is a user group whose members can act on the approval request.
 func (q *Querier) CreateApprover(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateApprover($input: CreateApproverInput!) {
 	createApprover(input: $input) { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
@@ -1156,7 +1156,7 @@ func (q *Querier) CancelHire(ctx context.Context, vars map[string]any) (map[stri
 	return result, nil
 }
 
-// CreateDraftHire — Create a draft hire for a trusted contact. Only companies can make hires. The worker must already be a trusted contact of the hiring company. A job is optional — if omitted, one will be created automatically from the provided details. Draft hires must be completed in the Worksome UI before they become active, such as applicable compliance checks. The hire will start in `DRAFT` status and progress through the lifecycle once all required steps are finished.
+// CreateDraftHire — Create a draft hire for a trusted contact. Only companies can make hires. The worker must already be a trusted contact of the hiring company. A job is optional — if omitted, one will be created automatically from the provided details. Draft hires must be completed in the Worksome UI before they become active, such as applicable compliance checks. The hire will start in 'DRAFT' status and progress through the lifecycle once all required steps are finished.
 func (q *Querier) CreateDraftHire(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateDraftHire($input: HireInput!) {
 	createDraftHire(input: $input) { id number lastPaymentRequestDate latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } draftContract { id status startDate endDate currency } pendingContractChanges hasScheduledChanges hasSignedScheduledChange company { id name currency market avatar } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } recruiter { id name initials avatar } supplier { __typename id name avatar } viewerIsSupplier contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title createdAt updatedAt } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber compliances { actor name applicable completed completedAt type title description } recruiterManagesWorkers supplierSignatureWaived canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus terminationDate canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state cancellationReason createdAt } hasPendingApproval owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } hasUnactedClientChanges viewerCanAcceptContract viewerCanCreatePaymentRequest fees { id currency } markupFee { id currency } }
@@ -1571,7 +1571,7 @@ func (q *Querier) Jobs(ctx context.Context, vars map[string]any) (map[string]any
 	return result, nil
 }
 
-// CreateJob — Create a job with minimal required fields. Only companies can create jobs. The job is created in `DRAFT` status with just a title, skills, and owner. Use `updateJob` to set the full details (description, rates, dates, location, etc.) and to publish the job.
+// CreateJob — Create a job with minimal required fields. Only companies can create jobs. The job is created in 'DRAFT' status with just a title, skills, and owner. Use 'updateJob' to set the full details (description, rates, dates, location, etc.) and to publish the job.
 func (q *Querier) CreateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateJob($input: CreateJobInput!) {
 	createJob(input: $input) { id number name contactName contactEmail contactPhone skills { id name } description market status address location { state } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url createdAt updatedAt } isExtensionAvailable evaluationPeriod sourcingEndDate sourcingDeadlineChoice sourcingEndDateLocal languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isBrief isAvailable sourceJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
@@ -1643,7 +1643,7 @@ func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]an
 	return result, nil
 }
 
-// UpdateJob — Update a job's details. Only companies can update jobs. This is the follow-up to `createJob` — use it to set the full role details (description, rates, dates, location, visibility) and to publish the job when ready. All fields are optional; only the fields you provide will be updated.
+// UpdateJob — Update a job's details. Only companies can update jobs. This is the follow-up to 'createJob' — use it to set the full role details (description, rates, dates, location, visibility) and to publish the job when ready. All fields are optional; only the fields you provide will be updated.
 func (q *Querier) UpdateJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateJob($input: UpdateJobInput!) {
 	updateJob(input: $input) { id number name contactName contactEmail contactPhone skills { id name } description market status address location { state } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url createdAt updatedAt } isExtensionAvailable evaluationPeriod sourcingEndDate sourcingDeadlineChoice sourcingEndDateLocal languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isBrief isAvailable sourceJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
@@ -2078,7 +2078,7 @@ func (q *Querier) ShareCandidatesWithPartner(ctx context.Context, vars map[strin
 	return result, nil
 }
 
-// CreatePassword — Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see `updatePassword` operation instead.
+// CreatePassword — Create a password for the authenticated user. This operation is only allowed if the user currently does not have a password for changing the password see 'updatePassword' operation instead.
 func (q *Querier) CreatePassword(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreatePassword($input: CreatePasswordInput!) {
 	createPassword(input: $input) { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
@@ -2320,7 +2320,7 @@ func (q *Querier) EndProject(ctx context.Context, vars map[string]any) (map[stri
 	return result, nil
 }
 
-// OpenProject — Open a project. This is used to set the end date on the project to `null` to make it open again.
+// OpenProject — Open a project. This is used to set the end date on the project to 'null' to make it open again.
 func (q *Querier) OpenProject(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation OpenProject($input: OpenProjectInput!) {
 	openProject(input: $input) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
@@ -2503,7 +2503,7 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 	return result, nil
 }
 
-// SubmitCompliance — Submit information for a compliance — e.g. a company reviewing a worker, or a worker filling in form data. Set exactly one field on the `input` to choose the action; the acting company/user comes from your authenticated session. Returns the updated `Compliance`.
+// SubmitCompliance — Submit information for a compliance — e.g. a company reviewing a worker, or a worker filling in form data. Set exactly one field on the 'input' to choose the action; the acting company/user comes from your authenticated session. Returns the updated 'Compliance'.
 func (q *Querier) SubmitCompliance(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation SubmitCompliance($input: SubmitComplianceInput!) {
 	submitCompliance(input: $input) { actor name applicable completed completedAt type title description action { title description } }
@@ -3219,7 +3219,7 @@ func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[st
 	return result, nil
 }
 
-// UpdateWorkerCustomFieldValues — Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.
+// UpdateWorkerCustomFieldValues — Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with 'workerInputAllowed: true' can be updated. Partial updates are supported - fields not included are ignored.
 func (q *Querier) UpdateWorkerCustomFieldValues(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorkerCustomFieldValues($input: UpdateWorkerCustomFieldValuesInput!) {
 	updateWorkerCustomFieldValues(input: $input) { customFieldValues { id } }
@@ -3255,7 +3255,7 @@ func (q *Querier) UpdateWorkerIdentification(ctx context.Context, vars map[strin
 	return result, nil
 }
 
-// WorkflowVariables — List the available variables that can be used in approval rule conditions. Variables represent the fields you can evaluate in conditions — for example, hourly rate, budget, or company-defined custom fields. The available variables depend on the trigger type: hire-related triggers expose rate and budget variables, while classification triggers expose the classification result. Requires the `manage-approvals` team permission.
+// WorkflowVariables — List the available variables that can be used in approval rule conditions. Variables represent the fields you can evaluate in conditions — for example, hourly rate, budget, or company-defined custom fields. The available variables depend on the trigger type: hire-related triggers expose rate and budget variables, while classification triggers expose the classification result. Requires the 'manage-approvals' team permission.
 func (q *Querier) WorkflowVariables(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query WorkflowVariables($accounts: [ID!], $appliesTo: ApprovalTrigger!, $first: Int! = 10, $page: Int) {
 	workflowVariables(accounts: $accounts, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename id title description operators } }
@@ -3268,7 +3268,7 @@ func (q *Querier) WorkflowVariables(ctx context.Context, vars map[string]any) (m
 	return result, nil
 }
 
-// Workflow — Get a specific workflow by ID. Requires the `manage-approvals` team permission on the owning company.
+// Workflow — Get a specific workflow by ID. Requires the 'manage-approvals' team permission on the owning company.
 func (q *Querier) Workflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Workflow($id: ID!) {
 	workflow(id: $id) { id }
@@ -3286,7 +3286,7 @@ func (q *Querier) Workflow(ctx context.Context, vars map[string]any) (map[string
 	return result, nil
 }
 
-// Workflows — List all workflows accessible to the authenticated user. Requires the `manage-approvals` team permission.
+// Workflows — List all workflows accessible to the authenticated user. Requires the 'manage-approvals' team permission.
 func (q *Querier) Workflows(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Workflows($accounts: [ID!], $first: Int! = 10, $page: Int) {
 	workflows(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id } }
@@ -3299,7 +3299,7 @@ func (q *Querier) Workflows(ctx context.Context, vars map[string]any) (map[strin
 	return result, nil
 }
 
-// CreateWorkflow — Create an approval workflow as a complete tree in a single operation. Only companies can create workflows. This is the recommended way to set up an approval flow — it creates the approval (root), its rules (conditions), and approvers (user groups) all at once, rather than calling `createApproval`, `createApprovalRule`, and `createApprover` separately. The input is structured as a tree: a root node (the approval definition), rule nodes (conditions), and approver nodes (user groups). Nodes reference each other via temporary `id` and `parent`/`children` fields.
+// CreateWorkflow — Create an approval workflow as a complete tree in a single operation. Only companies can create workflows. This is the recommended way to set up an approval flow — it creates the approval (root), its rules (conditions), and approvers (user groups) all at once, rather than calling 'createApproval', 'createApprovalRule', and 'createApprover' separately. The input is structured as a tree: a root node (the approval definition), rule nodes (conditions), and approver nodes (user groups). Nodes reference each other via temporary 'id' and 'parent'/'children' fields.
 func (q *Querier) CreateWorkflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateWorkflow($input: CreateWorkflowInput!) {
 	createWorkflow(input: $input) { id }
