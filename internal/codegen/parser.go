@@ -1236,8 +1236,8 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 		if f.Name == "__typename" {
 			continue
 		}
-		// Skip fields that have required arguments — we can't provide them in auto-generated selection sets
-		if hasRequiredArgs(f) {
+		// Skip fields the auto-generated selection set cannot call correctly.
+		if p.needsArgument(f) {
 			continue
 		}
 		innerType := unwrapType(f.Type)
@@ -1279,7 +1279,7 @@ func (p *parser) selectSafeFields(def *ast.Definition) string {
 // query does fetch deserves its column. Widening what nested selections
 // include must widen the columns with it.
 func (p *parser) nestedFieldSelected(f *ast.FieldDefinition) bool {
-	if f.Name == "__typename" || hasRequiredArgs(f) {
+	if f.Name == "__typename" || p.needsArgument(f) {
 		return false
 	}
 	innerType := unwrapType(f.Type)
@@ -1451,6 +1451,30 @@ func stripResourceSuffix(words, resWords, resSingWords []string) string {
 }
 
 // Helper functions
+
+// needsArgument reports whether a field cannot be selected without an argument
+// the generated query does not supply. That is any required argument — and
+// also a nullable, non-list enum or input-object argument with no default.
+// Such an argument is a choice the resolver expects the caller to make:
+// `triggersApproval(trigger: ApprovalTrigger): Boolean` is valid GraphQL
+// without it, but the resolver has nothing to evaluate and fails at runtime.
+// Optional list arguments ("names to filter by; omit for all") and arguments
+// with defaults are genuinely optional and stay selectable.
+func (p *parser) needsArgument(f *ast.FieldDefinition) bool {
+	if hasRequiredArgs(f) {
+		return true
+	}
+	for _, arg := range f.Arguments {
+		if arg.DefaultValue != nil || arg.Type.Elem != nil {
+			continue
+		}
+		name := arg.Type.NamedType
+		if p.enums[name] || p.inputs[name] {
+			return true
+		}
+	}
+	return false
+}
 
 // hasRequiredArgs returns true if a field has any required (non-null) arguments.
 func hasRequiredArgs(f *ast.FieldDefinition) bool {

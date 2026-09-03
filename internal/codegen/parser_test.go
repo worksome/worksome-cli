@@ -1586,3 +1586,83 @@ func TestCleanDescriptionNeutralisesBackticks(t *testing.T) {
 		t.Errorf("cleanDescription() left a backtick in %q", got)
 	}
 }
+
+// A field with a nullable enum argument and no default is valid to select
+// bare, but the resolver has nothing to evaluate: `hire { triggersApproval }`
+// came back "Internal server error" on every hires get/list that did not
+// narrow --fields. Fields whose optional argument is a list, or has a default,
+// are genuinely optional and must stay in the selection.
+func TestSelectionSkipsFieldsWhoseOptionalArgumentIsAChoice(t *testing.T) {
+	schema := `
+type Query {
+	"Get a hire."
+	hire(id: ID!): Hire
+	"List hires."
+	hires(first: Int! = 10, page: Int): HirePaginator!
+}
+
+enum Trigger { CREATED UPDATED }
+input Window { from: String to: String }
+
+type Hire {
+	id: ID!
+	"Choice with no default: skipped."
+	triggersApproval(trigger: Trigger): Boolean
+	"Input object with no default: skipped."
+	spendIn(window: Window): Float
+	"Optional list: kept."
+	compliances(names: [Trigger!]): [String!]!
+	"Choice with a default: kept."
+	stateFor(trigger: Trigger = CREATED): String
+	"Optional scalar: kept."
+	label(short: Boolean): String
+	"No arguments: kept."
+	hasPendingApproval: Boolean!
+}
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var hires *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "hires" {
+			hires = &parsed.Resources[i]
+		}
+	}
+	if hires == nil || hires.ListQuery == nil {
+		t.Fatalf("expected a hires resource with a list query, got %+v", parsed.Resources)
+	}
+	sel := hires.ListQuery.SelectionSet
+
+	for _, kept := range []string{"compliances", "stateFor", "label", "hasPendingApproval", "id"} {
+		if !strings.Contains(sel, kept) {
+			t.Errorf("selection should keep %q: %s", kept, sel)
+		}
+	}
+	for _, skipped := range []string{"triggersApproval", "spendIn"} {
+		if strings.Contains(sel, skipped) {
+			t.Errorf("selection must not include %q, its argument is a choice the CLI cannot make: %s", skipped, sel)
+		}
+	}
+}
