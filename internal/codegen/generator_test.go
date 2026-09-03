@@ -446,3 +446,74 @@ func TestFlagHintDoesNotMutateEnumValues(t *testing.T) {
 		}
 	}
 }
+
+// Mutation input fields declared non-null with no default must be checked
+// before the request is sent. `hires terminate` without --date reached the
+// server and came back as a 400 naming one field; the CLI knew from the schema
+// that it was required and said nothing.
+func TestGenerateRequiredInputFieldsCheck(t *testing.T) {
+	schema := `
+type Mutation {
+	"Terminate a hire."
+	terminateHire(input: TerminateHireInput!): Hire!
+	"Update a job."
+	updateJob(input: UpdateJobInput!): Job!
+}
+
+input TerminateHireInput {
+	hire: ID!
+	reason: String!
+	comments: String
+	date: String!
+	notify: Boolean! = true
+}
+
+input UpdateJobInput {
+	title: String
+	description: String
+}
+
+type Hire {
+	id: ID!
+}
+
+type Job {
+	id: ID!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	outputDir := t.TempDir()
+	if err := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli").Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	cmdsBytes, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmds := string(cmdsBytes)
+
+	// hire, reason and date are required; comments is nullable and notify has
+	// a default, so neither may be demanded.
+	want := `requireFields(inputObj, []requiredField{{"hire", "hire"}, {"reason", "reason"}, {"date", "date"}})`
+	if !strings.Contains(cmds, want) {
+		t.Errorf("generated commands should contain %s", want)
+	}
+	for _, forbidden := range []string{`{"comments"`, `{"notify"`} {
+		if strings.Contains(cmds, forbidden) {
+			t.Errorf("generated commands must not require %s", forbidden)
+		}
+	}
+
+	// A mutation with no required fields emits no check at all.
+	if n := strings.Count(cmds, "requireFields(inputObj"); n != 1 {
+		t.Errorf("expected exactly one requireFields call (terminateHire only), found %d", n)
+	}
+}
