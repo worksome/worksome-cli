@@ -82,6 +82,20 @@ Two things that catch people out:
 
 ## Install
 
+### One line (macOS, Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/worksome/worksome-cli/main/scripts/install.sh | bash
+```
+
+The script downloads the release for your OS and architecture, verifies it
+against the release's `checksums.txt`, and puts the binary in the first
+writable directory of `/usr/local/bin`, `~/.local/bin`, `~/bin`. It is
+idempotent, and it falls back to `go install` if no prebuilt binary fits. Pin a
+version with `WORKSOME_VERSION=v0.6.2`, choose the directory with
+`WORKSOME_INSTALL_DIR`, or reinstall over an existing binary with
+`WORKSOME_FORCE=1`. It is 130 lines of plain bash; [read it first](scripts/install.sh).
+
 ### Homebrew (macOS, Linux)
 
 ```bash
