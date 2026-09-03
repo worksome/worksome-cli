@@ -404,6 +404,17 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		contentType := resp.Header.Get("Content-Type")
 		bodyStr := string(body)
+		// A 401 demanding Basic auth is a gateway in front of the endpoint, not
+		// a bad token: the Bearer token occupies the Authorization header, so
+		// the CLI cannot satisfy it. Typically the UI hostname was used where
+		// the API hostname was meant. Say so, instead of "check the URL".
+		if resp.StatusCode == http.StatusUnauthorized &&
+			strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("WWW-Authenticate"))), "basic") {
+			return nil, &httpError{
+				StatusCode: resp.StatusCode,
+				Body:       "this endpoint is behind HTTP Basic authentication, which the CLI cannot pass — you may be using the UI hostname instead of the API hostname",
+			}
+		}
 		// Detect non-JSON responses (HTML error pages, etc.) and show a clean message
 		if !strings.Contains(contentType, "json") || strings.HasPrefix(strings.TrimSpace(bodyStr), "<") {
 			return nil, &httpError{

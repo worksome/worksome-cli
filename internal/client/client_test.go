@@ -718,3 +718,67 @@ func TestWrapOperationPreservesErrorIdentity(t *testing.T) {
 		t.Error("a passed-through GraphQL error should keep its type")
 	}
 }
+
+// A gateway in front of the endpoint that demands HTTP Basic auth used to be
+// reported as "endpoint returned text/html (expected JSON). Check that the
+// endpoint URL is correct." — true but useless. The Bearer token occupies the
+// Authorization header, so Basic auth cannot be satisfied; the user has almost
+// always reached for the UI hostname instead of the API hostname.
+func TestExecute_BasicAuthGatewayIsNamed(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		authenticate string
+		contentType  string
+		body         string
+		wantContains string
+		wantAbsent   string
+	}{
+		{
+			"basic auth challenge with HTML body",
+			http.StatusUnauthorized, `Basic realm="staging"`, "text/html; charset=utf-8", "<html>Unauthorized</html>",
+			"HTTP Basic authentication", "expected JSON",
+		},
+		{
+			"basic auth challenge, odd casing",
+			http.StatusUnauthorized, `basic realm="x"`, "text/plain", "nope",
+			"UI hostname", "",
+		},
+		{
+			"401 from the API itself keeps the ordinary path",
+			http.StatusUnauthorized, "", "application/json", `{"errors":[{"message":"Unauthenticated."}]}`,
+			"Unauthenticated", "Basic authentication",
+		},
+		{
+			"Bearer challenge is not Basic",
+			http.StatusUnauthorized, `Bearer realm="api"`, "text/html", "<html/>",
+			"expected JSON", "Basic authentication",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.authenticate != "" {
+					w.Header().Set("WWW-Authenticate", tt.authenticate)
+				}
+				w.Header().Set("Content-Type", tt.contentType)
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			c := New(srv.URL, "token")
+			var out map[string]any
+			err := c.Execute(context.Background(), "{ viewer { id } }", nil, &out)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if !strings.Contains(err.Error(), tt.wantContains) {
+				t.Errorf("error = %q, want it to mention %q", err.Error(), tt.wantContains)
+			}
+			if tt.wantAbsent != "" && strings.Contains(err.Error(), tt.wantAbsent) {
+				t.Errorf("error = %q, must not mention %q", err.Error(), tt.wantAbsent)
+			}
+		})
+	}
+}
