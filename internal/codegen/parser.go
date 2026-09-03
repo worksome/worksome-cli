@@ -959,6 +959,9 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 
 	// Build selection set from return type
 	op.SelectionSet = p.buildSelectionSet(f.Type, 1)
+	if opType == OperationQuery {
+		op.Optional = p.optionalSelections(f.Type)
+	}
 
 	// For mutations with a single input argument, resolve the input type's fields as CLI flags
 	if opType == OperationMutation {
@@ -1250,15 +1253,132 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 
 		// Nested object — include only safe identifying fields to avoid access-control errors
 		if depth > 0 {
-			if nestedDef, ok := p.doc.Types[innerType]; ok && (nestedDef.Kind == ast.Object || nestedDef.Kind == ast.Interface) {
+			nestedDef, ok := p.doc.Types[innerType]
+			if !ok {
+				continue
+			}
+			if _, isPaginator := p.paginators[innerType]; isPaginator {
+				// One server query per row; offered on request instead.
+				// See optionalSelections.
+				continue
+			}
+			switch nestedDef.Kind {
+			case ast.Object, ast.Interface:
 				nestedFields := p.selectSafeFields(nestedDef)
 				if nestedFields != "" {
 					fields = append(fields, f.Name+" { "+typenamePrefix(nestedDef)+nestedFields+" }")
+				}
+			case ast.Union:
+				// A single object behind a union (e.g. Approvable = Hire) is as
+				// cheap as any nested object; without it a pending approval
+				// could not say what it was for.
+				if frags := p.unionSafeFields(nestedDef); frags != "" {
+					fields = append(fields, f.Name+" { __typename "+frags+" }")
 				}
 			}
 		}
 	}
 	return strings.Join(fields, " ")
+}
+
+// unionSafeFields renders the safe identifying fields of a nested union: one
+// fragment on a shared interface when the members have one, otherwise one
+// fragment per member. GraphQL rejects a document that selects the same
+// field name with different types across fragments — Note.notable's members
+// declare status as JobStatus, ContactStatus! and ContractStatus! — so the
+// per-member path keeps only fields whose type agrees across every member
+// that has them. Empty when nothing safe survives.
+func (p *parser) unionSafeFields(def *ast.Definition) string {
+	if iface := p.findSharedInterface(def); iface != nil {
+		if fields := p.selectSafeFields(iface); fields != "" {
+			return "... on " + iface.Name + " { " + fields + " }"
+		}
+	}
+
+	// Field name -> the set of types it is declared with across members.
+	types := make(map[string]map[string]bool)
+	for _, member := range def.Types {
+		memberDef := p.doc.Types[member]
+		if memberDef == nil {
+			continue
+		}
+		for _, f := range memberDef.Fields {
+			if !p.nestedFieldSelected(f) {
+				continue
+			}
+			if types[f.Name] == nil {
+				types[f.Name] = make(map[string]bool)
+			}
+			types[f.Name][f.Type.String()] = true
+		}
+	}
+
+	var parts []string
+	for _, member := range def.Types {
+		memberDef := p.doc.Types[member]
+		if memberDef == nil {
+			continue
+		}
+		var fields []string
+		for _, f := range memberDef.Fields {
+			if p.nestedFieldSelected(f) && len(types[f.Name]) == 1 {
+				fields = append(fields, f.Name)
+			}
+		}
+		if len(fields) > 0 {
+			parts = append(parts, "... on "+member+" { "+strings.Join(fields, " ")+" }")
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// optionalSelections returns the paginated relations of an operation's return
+// type — the items of a paginated result, or the object itself — as ready
+// selections keyed by field name. They are left out of the default query,
+// because each is a separate server query per row (a hire has eight), and
+// added only when --fields asks for one. Relying on the relation's `first`
+// default keeps them argument-free.
+func (p *parser) optionalSelections(t *ast.Type) map[string]string {
+	typeName := unwrapType(t)
+	if inner, ok := p.paginators[typeName]; ok {
+		typeName = inner
+	}
+	def := p.doc.Types[typeName]
+	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
+		return nil
+	}
+
+	optional := make(map[string]string)
+	for _, f := range def.Fields {
+		if hasRequiredArgs(f) {
+			continue
+		}
+		itemName, isPaginator := p.paginators[unwrapType(f.Type)]
+		if !isPaginator {
+			continue
+		}
+		itemDef := p.doc.Types[itemName]
+		if itemDef == nil {
+			continue
+		}
+		var items string
+		switch itemDef.Kind {
+		case ast.Union:
+			if frags := p.unionSafeFields(itemDef); frags != "" {
+				items = "__typename " + frags
+			}
+		default:
+			items = typenamePrefix(itemDef) + p.selectSafeFields(itemDef)
+		}
+		if strings.TrimSpace(items) == "" {
+			continue
+		}
+		optional[f.Name] = f.Name + " { paginatorInfo { total } data { " + items + " } }"
+	}
+	if len(optional) == 0 {
+		return nil
+	}
+	return optional
 }
 
 // selectSafeFields returns only safe identifying/display fields for a nested object.

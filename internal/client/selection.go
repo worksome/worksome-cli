@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -96,6 +97,52 @@ func pruneQuery(query string, fields []string) (string, error) {
 		narrowed = &selection{head: root.head, children: children}
 	}
 	return query[:open] + "{ " + narrowed.render() + " }" + query[end:], nil
+}
+
+// AddOptionalSelections appends the given selections to the object the CLI
+// prints. Exported so the codegen schema guard can validate the documents the
+// client actually sends when --fields names an on-request relation.
+//
+// It targets — the items of a paginated result, or the root object — so that a
+// following pruneQuery can keep the ones --fields names and drop the rest.
+// Selections already present are left alone. Queries whose shape cannot be
+// parsed are returned unchanged, matching pruneQuery.
+func AddOptionalSelections(query string, optional map[string]string) string {
+	open := operationSelectionStart(query)
+	if open < 0 {
+		return query
+	}
+	roots, end, err := parseSelectionSet(query, open)
+	if err != nil || len(roots) != 1 || len(roots[0].children) == 0 {
+		return query
+	}
+	root := roots[0]
+	target := root
+	for _, c := range root.children {
+		if c.key == "data" && len(c.children) > 0 {
+			target = c
+		}
+	}
+
+	present := make(map[string]bool, len(target.children))
+	for _, c := range target.children {
+		present[c.key] = true
+	}
+	names := make([]string, 0, len(optional))
+	for name := range optional {
+		if !present[name] {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		nodes, _, err := parseSelectionSet("{ "+optional[name]+" }", 0)
+		if err != nil {
+			continue
+		}
+		target.children = append(target.children, nodes...)
+	}
+	return query[:open] + "{ " + root.render() + " }" + query[end:]
 }
 
 // pruneSelections keeps only the selections matching paths. prefix is the dotted

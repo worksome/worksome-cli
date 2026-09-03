@@ -3,13 +3,23 @@ package codegen
 import (
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator/rules"
+	"github.com/worksome/worksome-cli/internal/client"
 )
+
+// optionalCallLiteral matches the on-request selections a generated querier hands
+// to ExecuteWithOptional, so the guard can validate the expanded documents the
+// client sends when --fields names one — not only the lean default.
+var optionalCallLiteral = regexp.MustCompile(`ExecuteWithOptional\(ctx, query, (nil|map\[string\]string\{.*?\}), vars, &result\)`)
+
+// optionalEntry matches one `"key": "value"` pair inside that literal.
+var optionalEntry = regexp.MustCompile(`("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*")`)
 
 // queryLiteral matches the backtick-quoted GraphQL documents emitted into the
 // generated queries file.
@@ -57,6 +67,14 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 		t.Fatal("no GraphQL documents found in generated queries")
 	}
 
+	optionals := optionalCallLiteral.FindAllStringSubmatch(string(src), -1)
+	declaredOptional := strings.Count(string(src), "ExecuteWithOptional(")
+	if len(optionals) != declaredOptional {
+		t.Fatalf("matched %d ExecuteWithOptional calls but the file declares %d — optionalCallLiteral is out of date",
+			len(optionals), declaredOptional)
+	}
+
+	expanded := 0
 	for _, m := range matches {
 		doc := m[1] + m[2]
 		name := operationName(doc)
@@ -64,9 +82,52 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 		if _, errs := gqlparser.LoadQueryWithRules(schema, doc, rules.NewDefaultRules()); errs != nil {
 			t.Errorf("generated query %s is invalid against the schema:\n%v\n\n%s", name, errs, doc)
 		}
+
+		// Queries with on-request relations must also be valid with every
+		// relation added, which is what goes over the wire under --fields.
+		if optional := optionalFor(t, string(src), doc); len(optional) > 0 {
+			full := client.AddOptionalSelections(doc, optional)
+			if _, errs := gqlparser.LoadQueryWithRules(schema, full, rules.NewDefaultRules()); errs != nil {
+				t.Errorf("generated query %s is invalid once its on-request relations are added:\n%v\n\n%s", name, errs, full)
+			}
+			expanded++
+		}
 	}
 
-	t.Logf("validated %d generated GraphQL documents", len(matches))
+	t.Logf("validated %d generated GraphQL documents (%d also with on-request relations)", len(matches), expanded)
+}
+
+// optionalFor returns the on-request selections the querier passes for the
+// operation whose document is doc, by reading the ExecuteWithOptional call that
+// follows the document in the generated source.
+func optionalFor(t *testing.T, src, doc string) map[string]string {
+	t.Helper()
+	idx := strings.Index(src, doc)
+	if idx < 0 {
+		return nil
+	}
+	rest := src[idx+len(doc):]
+	end := strings.Index(rest, "\nfunc ")
+	if end < 0 {
+		end = len(rest)
+	}
+	m := optionalCallLiteral.FindStringSubmatch(rest[:end])
+	if m == nil || m[1] == "nil" {
+		return nil
+	}
+	out := make(map[string]string)
+	for _, e := range optionalEntry.FindAllStringSubmatch(m[1], -1) {
+		k, err := strconv.Unquote(e[1])
+		if err != nil {
+			t.Fatalf("unquoting optional key %s: %v", e[1], err)
+		}
+		v, err := strconv.Unquote(e[2])
+		if err != nil {
+			t.Fatalf("unquoting optional selection %s: %v", e[2], err)
+		}
+		out[k] = v
+	}
+	return out
 }
 
 // operationName extracts the operation name from a GraphQL document for test output.

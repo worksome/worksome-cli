@@ -41,7 +41,7 @@ func (q *Querier) Accounts(ctx context.Context, vars map[string]any) (map[string
 	accounts { __typename id name avatar }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("accounts", err)
 	}
@@ -56,10 +56,10 @@ func (q *Querier) Accounts(ctx context.Context, vars map[string]any) (map[string
 // ApprovalApprovable — Get a specific approval request by ID.
 func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovable($id: ID!) {
-	approvalApprovable(id: $id) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } viewerCanAction }
+	approvalApprovable(id: $id) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number createdAt startDate endDate currency status } } viewerCanAction }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvalApprovable", err)
 	}
@@ -74,10 +74,10 @@ func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (
 // ApprovalApprovables — List approval requests — the runtime instances created when a trigger fires. Use filters to find requests that need action, belong to specific approvals, or relate to specific items (e.g. a particular hire).
 func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovables($accounts: [ID!], $requiresAction: Boolean, $requiresActionUsers: [ID!], $approvals: [ID!], $approvable: ID, $approvalRules: [ID!], $orderBy: [ApprovalApprovablesOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } viewerCanAction } }
+	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number createdAt startDate endDate currency status } } viewerCanAction } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvalApprovables", err)
 	}
@@ -87,7 +87,7 @@ func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) 
 // ActionApprovalApprovable — Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action (`viewerCanAction` must be `true`).
 func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ActionApprovalApprovable($input: ActionApprovalApprovableInput!) {
-	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } viewerCanAction }
+	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number createdAt startDate endDate currency status } } viewerCanAction }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -108,7 +108,7 @@ func (q *Querier) ApprovalRule(ctx context.Context, vars map[string]any) (map[st
 	approvalRule(id: $id) { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvalRule", err)
 	}
@@ -126,7 +126,7 @@ func (q *Querier) ApprovalRules(ctx context.Context, vars map[string]any) (map[s
 	approvalRules(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } fields { id title slug description createdAt updatedAt } rules { id createdAt updatedAt } approvers { id createdAt updatedAt } approverCount createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvalRules", err)
 	}
@@ -157,7 +157,7 @@ func (q *Querier) ApprovalStates(ctx context.Context, vars map[string]any) (map[
 	approvalStates(accounts: $accounts, status: $status, users: $users, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id state actionedBy { id name email avatar createdAt updatedAt } message cancellationReason approver { id createdAt updatedAt } approvalApprovable { id } createdAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvalStates", err)
 	}
@@ -170,7 +170,7 @@ func (q *Querier) Approval(ctx context.Context, vars map[string]any) (map[string
 	approval(id: $id) { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approval", err)
 	}
@@ -188,7 +188,7 @@ func (q *Querier) Approvals(ctx context.Context, vars map[string]any) (map[strin
 	approvals(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name version status trigger description company { id name currency market avatar } approvalRules { id createdAt updatedAt } createdAt updatedAt latestVersionId } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvals", err)
 	}
@@ -237,7 +237,7 @@ func (q *Querier) Approver(ctx context.Context, vars map[string]any) (map[string
 	approver(id: $id) { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approver", err)
 	}
@@ -255,7 +255,7 @@ func (q *Querier) Approvers(ctx context.Context, vars map[string]any) (map[strin
 	approvers(accounts: $accounts, approvalRule: $approvalRule, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approvalRule { id createdAt updatedAt } userGroup { id name description status } position createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("approvers", err)
 	}
@@ -340,7 +340,7 @@ func (q *Querier) Batch(ctx context.Context, vars map[string]any) (map[string]an
 	batch(id: $id) { id name type account { __typename id name avatar } createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"items": "items { paginatorInfo { total } data { __typename ... on PaymentRequest { id startDate endDate currency completedAt status } ... on Invoice { id currency } } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("batch", err)
 	}
@@ -358,7 +358,7 @@ func (q *Querier) Batches(ctx context.Context, vars map[string]any) (map[string]
 	batches(accounts: $accounts, types: $types, containsItemsWithStatus: $containsItemsWithStatus, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name type account { __typename id name avatar } createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"items": "items { paginatorInfo { total } data { __typename ... on PaymentRequest { id startDate endDate currency completedAt status } ... on Invoice { id currency } } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("batches", err)
 	}
@@ -389,7 +389,7 @@ func (q *Querier) Bid(ctx context.Context, vars map[string]any) (map[string]any,
 	bid(id: $id) { id status job { id number name description market status currency startDate endDate completed url createdAt updatedAt } conversation { id subject url createdAt } message { id url } worker { id name firstName lastName middleName email phone avatar initials currency } supplier { __typename id name avatar } rate rateType currency brief links files { id name title url createdAt updatedAt } fees { id currency } workerType }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("bid", err)
 	}
@@ -407,7 +407,7 @@ func (q *Querier) Bids(ctx context.Context, vars map[string]any) (map[string]any
 	bids(statuses: $statuses, job: $job, accounts: $accounts, companies: $companies, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id status job { id number name description market status currency startDate endDate completed url createdAt updatedAt } conversation { id subject url createdAt } message { id url } worker { id name firstName lastName middleName email phone avatar initials currency } supplier { __typename id name avatar } rate rateType currency brief links files { id name title url createdAt updatedAt } fees { id currency } workerType } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("bids", err)
 	}
@@ -456,7 +456,7 @@ func (q *Querier) Classification(ctx context.Context, vars map[string]any) (map[
 	classification(id: $id) { id user { id name email avatar createdAt updatedAt } hire { id number createdAt startDate endDate currency status } company { id name currency market avatar } freelancer { id name firstName lastName middleName email phone avatar initials currency } type description complianceName status acceptedStatus result { label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar createdAt updatedAt } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id state cancellationReason createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired endClientInputComplete createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("classification", err)
 	}
@@ -474,7 +474,7 @@ func (q *Querier) Classifications(ctx context.Context, vars map[string]any) (map
 	classifications(hire: $hire, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } hire { id number createdAt startDate endDate currency status } company { id name currency market avatar } freelancer { id name firstName lastName middleName email phone avatar initials currency } type description complianceName status acceptedStatus result { label title } pdfUrl overridesAnother overrideReason overrideUser { id name email avatar createdAt updatedAt } disputesAnother hasUnknownAnswers hasUpdatedAnswers hasWorkerCompletedAnswers canChange canOverride hasHireBlockingCondition currentApprovalState { id state cancellationReason createdAt } hasPendingApproval title wcrTerm hasUpdatedHire isReclassificationRequired isClassificationActionRequired endClientInputComplete createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("classifications", err)
 	}
@@ -487,7 +487,7 @@ func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]
 	company(id: $id) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"customFields": "customFields { paginatorInfo { total } data { id title slug description createdAt updatedAt } }", "organisations": "organisations { paginatorInfo { total } data { id name market avatar } }", "staffingAgencies": "staffingAgencies { paginatorInfo { total } data { id email status } }", "teamMembers": "teamMembers { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "teamMembersAndOwners": "teamMembersAndOwners { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "trustedContacts": "trustedContacts { paginatorInfo { total } data { id status createdAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("company", err)
 	}
@@ -505,7 +505,7 @@ func (q *Querier) Companies(ctx context.Context, vars map[string]any) (map[strin
 	companies(externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"customFields": "customFields { paginatorInfo { total } data { id title slug description createdAt updatedAt } }", "organisations": "organisations { paginatorInfo { total } data { id name market avatar } }", "staffingAgencies": "staffingAgencies { paginatorInfo { total } data { id email status } }", "teamMembers": "teamMembers { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "teamMembersAndOwners": "teamMembersAndOwners { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "trustedContacts": "trustedContacts { paginatorInfo { total } data { id status createdAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companies", err)
 	}
@@ -518,7 +518,7 @@ func (q *Querier) CompanyRecruiterRegions(ctx context.Context, vars map[string]a
 	companyRecruiterRegions { code name regionLabel regions { id name } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companyRecruiterRegions", err)
 	}
@@ -536,7 +536,7 @@ func (q *Querier) CompanyRecruiter(ctx context.Context, vars map[string]any) (ma
 	companyRecruiter(id: $id) { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier customFieldValues { id } requiresOnboarding requiredCustomFieldsComplete onboardingDocuments { id } onboardingStatus invitedAt fees { id currency } compliances { actor name applicable completed completedAt type title description } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companyRecruiter", err)
 	}
@@ -554,7 +554,7 @@ func (q *Querier) CompanyRecruiters(ctx context.Context, vars map[string]any) (m
 	companyRecruiters(accounts: $accounts, search: $search, statuses: $statuses, tags: $tags, markets: $markets, recruiterRegions: $recruiterRegions, orderBy: $orderBy, externalIdentifiers: $externalIdentifiers, customFields: $customFields, verifiedRecruiterReview: $verifiedRecruiterReview, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id email status token message recruiterFee recruiterOwnershipDays recruiterOwnershipDaysLeft recruiterManagesWorkers hasHires recruiter { id name initials avatar } company { id name currency market avatar } tags { id name } externalIdentifier customFieldValues { id } requiresOnboarding requiredCustomFieldsComplete onboardingDocuments { id } onboardingStatus invitedAt fees { id currency } compliances { actor name applicable completed completedAt type title description } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companyRecruiters", err)
 	}
@@ -639,7 +639,7 @@ func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map
 	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companySupplier", err)
 	}
@@ -657,7 +657,7 @@ func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (ma
 	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("companySuppliers", err)
 	}
@@ -667,10 +667,10 @@ func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (ma
 // Compliance — Get compliance requirements for a specific hire. Returns all compliance requirements that apply to the given hire, or only the specified compliances if the names argument is provided.
 func (q *Querier) Compliance(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Compliance($id: ID!, $names: [ComplianceName!], $cached: Boolean = false) {
-	compliance(id: $id, names: $names, cached: $cached) { actor name applicable completed completedAt type title description action { title description } }
+	compliance(id: $id, names: $names, cached: $cached) { actor name applicable completed completedAt type title description action { title description } data { __typename ... on ComplianceDataField { label } ... on ComplianceDataGroup { title } ... on ComplianceDataFile { title } ... on ComplianceDataAddress { title } ... on ComplianceDataUser { title } ... on ComplianceDataBankDetail { title } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("compliance", err)
 	}
@@ -688,7 +688,7 @@ func (q *Querier) Contract(ctx context.Context, vars map[string]any) (map[string
 	contract(id: $id) { id jobName jobDescription locationPreference status startDate endDate location { state } address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt effectiveAt workerSignature job { id number name description market status currency startDate endDate completed url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } companyContact { id name email avatar createdAt updatedAt } businessEntity { id type name } companyName companyLocation { state } files { id name title url createdAt updatedAt } contractDocuments { id createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"milestoneDetails": "milestoneDetails { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("contract", err)
 	}
@@ -706,7 +706,7 @@ func (q *Querier) Contracts(ctx context.Context, vars map[string]any) (map[strin
 	contracts(accounts: $accounts, currencies: $currencies, statuses: $statuses, locationPreferences: $locationPreferences, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id jobName jobDescription locationPreference status startDate endDate location { state } address currency rateType rate purchaseOrderNumber companyCvr pdfUrl paymentTermMethod paymentTerm termsAccepted termsAcceptedAt workerAcceptedAt effectiveAt workerSignature job { id number name description market status currency startDate endDate completed url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } companyContact { id name email avatar createdAt updatedAt } businessEntity { id type name } companyName companyLocation { state } files { id name title url createdAt updatedAt } contractDocuments { id createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"milestoneDetails": "milestoneDetails { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("contracts", err)
 	}
@@ -719,7 +719,7 @@ func (q *Querier) Conversation(ctx context.Context, vars map[string]any) (map[st
 	conversation(id: $id) { id subject job { id number name description market status currency startDate endDate completed url createdAt updatedAt } latestMessage { id url } url viewerCanAccess createdAt isClosed isUnread closedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"messages": "messages { paginatorInfo { total } data { id url } }", "participants": "participants { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("conversation", err)
 	}
@@ -737,7 +737,7 @@ func (q *Querier) Conversations(ctx context.Context, vars map[string]any) (map[s
 	conversations(accounts: $accounts, isOpen: $isOpen, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id subject job { id number name description market status currency startDate endDate completed url createdAt updatedAt } latestMessage { id url } url viewerCanAccess createdAt isClosed isUnread closedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"messages": "messages { paginatorInfo { total } data { id url } }", "participants": "participants { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("conversations", err)
 	}
@@ -750,7 +750,7 @@ func (q *Querier) Countries(ctx context.Context, vars map[string]any) (map[strin
 	countries { isoCode name }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("countries", err)
 	}
@@ -768,7 +768,7 @@ func (q *Querier) CustomField(ctx context.Context, vars map[string]any) (map[str
 	customField(id: $id) { id user { id name email avatar createdAt updatedAt } account { __typename id name avatar } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate viewerOwnsField apiOnly workerInputAllowed recruiterInputAllowed showOnInvoice sharedWithClients sharedWithStaffingAgencies createdAt updatedAt deletedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("customField", err)
 	}
@@ -786,7 +786,7 @@ func (q *Querier) CustomFields(ctx context.Context, vars map[string]any) (map[st
 	customFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } account { __typename id name avatar } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate viewerOwnsField apiOnly workerInputAllowed recruiterInputAllowed showOnInvoice sharedWithClients sharedWithStaffingAgencies createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("customFields", err)
 	}
@@ -907,7 +907,7 @@ func (q *Querier) Employment(ctx context.Context, vars map[string]any) (map[stri
 	employment(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } employerOfRecord { __typename id name avatar } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"employmentCosts": "employmentCosts { paginatorInfo { total } data { id type currency createdAt updatedAt } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("employment", err)
 	}
@@ -925,7 +925,7 @@ func (q *Querier) Employments(ctx context.Context, vars map[string]any) (map[str
 	employments(accounts: $accounts, status: $status, employerRecordStatus: $employerRecordStatus, search: $search, orderBy: $orderBy, startDateRange: $startDateRange, endDateRange: $endDateRange, contractType: $contractType, locations: $locations, companies: $companies, hiringManagers: $hiringManagers, rateTypes: $rateTypes, previouslyHired: $previouslyHired, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } employerOfRecord { __typename id name avatar } hiringManagers { id name email avatar createdAt updatedAt } status onboardingStatus startDate endDate firstPayrolledAt previouslyHired createdAt updatedAt isOnboarded onboardedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"employmentCosts": "employmentCosts { paginatorInfo { total } data { id type currency createdAt updatedAt } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("employments", err)
 	}
@@ -974,7 +974,7 @@ func (q *Querier) File(ctx context.Context, vars map[string]any) (map[string]any
 	file(id: $id) { id name title size humanReadableSize mimeType owner { __typename id name avatar } url createdAt updatedAt tags { id name } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("file", err)
 	}
@@ -992,7 +992,7 @@ func (q *Querier) Files(ctx context.Context, vars map[string]any) (map[string]an
 	files(accounts: $accounts, mimeTypes: $mimeTypes, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name title size humanReadableSize mimeType owner { __typename id name avatar } url createdAt updatedAt tags { id name } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("files", err)
 	}
@@ -1059,7 +1059,7 @@ func (q *Querier) Gate(ctx context.Context, vars map[string]any) (map[string]any
 	gate(id: $id, gate: $gate, cached: $cached) { actor name compliances { actor name applicable completed completedAt type title description } completed applicable title description }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("gate", err)
 	}
@@ -1077,7 +1077,7 @@ func (q *Querier) Hire(ctx context.Context, vars map[string]any) (map[string]any
 	hire(id: $id) { id number lastPaymentRequestDate latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } draftContract { id status startDate endDate currency } pendingContractChanges hasScheduledChanges hasSignedScheduledChange company { id name currency market avatar } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } recruiter { id name initials avatar } supplier { __typename id name avatar } viewerIsSupplier contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title createdAt updatedAt } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber compliances { actor name applicable completed completedAt type title description } recruiterManagesWorkers supplierSignatureWaived canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus terminationDate canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state cancellationReason createdAt } hasPendingApproval owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } hasUnactedClientChanges viewerCanAcceptContract viewerCanCreatePaymentRequest fees { id currency } markupFee { id currency } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"approvals": "approvals { paginatorInfo { total } data { id name status description createdAt updatedAt } }", "contracts": "contracts { paginatorInfo { total } data { id status startDate endDate currency } }", "milestones": "milestones { paginatorInfo { total } data { id name status } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("hire", err)
 	}
@@ -1095,7 +1095,7 @@ func (q *Querier) Hires(ctx context.Context, vars map[string]any) (map[string]an
 	hires(accounts: $accounts, search: $search, status: $status, orderBy: $orderBy, recruiterOwnershipIsExpired: $recruiterOwnershipIsExpired, companies: $companies, workers: $workers, recruiters: $recruiters, startDateRange: $startDateRange, endDateRange: $endDateRange, startsAfter: $startsAfter, endsAfter: $endsAfter, createdAtDateRange: $createdAtDateRange, externalIdentifiers: $externalIdentifiers, contractStatus: $contractStatus, contractType: $contractType, engagementType: $engagementType, engagementTypeSetup: $engagementTypeSetup, usesClassification: $usesClassification, activeStatus: $activeStatus, owners: $owners, hasPaymentRequests: $hasPaymentRequests, missingPaymentRequestDateRange: $missingPaymentRequestDateRange, hasRecruiterAttribution: $hasRecruiterAttribution, eligibleForPaymentRequests: $eligibleForPaymentRequests, jobs: $jobs, supplierAccounts: $supplierAccounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number lastPaymentRequestDate latestContract { id status startDate endDate currency } activeContract { id status startDate endDate currency } draftContract { id status startDate endDate currency } pendingContractChanges hasScheduledChanges hasSignedScheduledChange company { id name currency market avatar } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } recruiter { id name initials avatar } supplier { __typename id name avatar } viewerIsSupplier contractType engagementType engagementTypeLabel engagementTypeSetup engagementTypeSetupLabel contractTypeShort contractTypeLabel usesClassification wcr { id } classification { id type description status title createdAt updatedAt } classificationResult classificationLabel classificationPdfUrl worker { id name firstName lastName middleName email phone avatar initials currency } conversation { id subject url createdAt } employment { id status startDate endDate createdAt updatedAt } createdAt startDate endDate recruiterOwnershipStartDate recruiterFee recruiterOwnershipDays recruiterOwnershipIsExpired recruiterOwnershipDaysLeft currency rate rateType status offeredAt externalIdentifier purchaseOrderNumber compliances { actor name applicable completed completedAt type title description } recruiterManagesWorkers supplierSignatureWaived canRemoveRecruiter canRemindWorkerForBilling user { id name email avatar createdAt updatedAt } activeStatus terminationDate canTerminateContract canCancelContract hasMilestones hasEmployment hasDraftContract triggersApproval currentApprovalState { id state cancellationReason createdAt } hasPendingApproval owners { id name email avatar createdAt updatedAt } endsWithinDays tenure sourceHire { id number createdAt startDate endDate currency status } supplierHire { id number createdAt startDate endDate currency status } hasUnactedClientChanges viewerCanAcceptContract viewerCanCreatePaymentRequest fees { id currency } markupFee { id currency } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"approvals": "approvals { paginatorInfo { total } data { id name status description createdAt updatedAt } }", "contracts": "contracts { paginatorInfo { total } data { id status startDate endDate currency } }", "milestones": "milestones { paginatorInfo { total } data { id name status } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("hires", err)
 	}
@@ -1252,7 +1252,7 @@ func (q *Querier) IncomingJobs(ctx context.Context, vars map[string]any) (map[st
 	incomingJobs(search: $search, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number name contactName contactEmail contactPhone skills { id name } description market status address location { state } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url createdAt updatedAt } isExtensionAvailable evaluationPeriod sourcingEndDate sourcingDeadlineChoice sourcingEndDateLocal languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isBrief isAvailable sourceJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"bids": "bids { paginatorInfo { total } data { id status currency } }", "conversations": "conversations { paginatorInfo { total } data { id subject url createdAt } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }", "jobCandidates": "jobCandidates { paginatorInfo { total } data { id status createdAt updatedAt } }", "notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }", "shares": "shares { paginatorInfo { total } data { id createdAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("incomingJobs", err)
 	}
@@ -1265,7 +1265,7 @@ func (q *Querier) Industry(ctx context.Context, vars map[string]any) (map[string
 	industry(id: $id) { id name }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("industry", err)
 	}
@@ -1283,7 +1283,7 @@ func (q *Querier) Industries(ctx context.Context, vars map[string]any) (map[stri
 	industries(first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("industries", err)
 	}
@@ -1296,7 +1296,7 @@ func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any
 	inheritedCustomFields(accounts: $accounts, approval: $approval, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } account { __typename id name avatar } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate viewerOwnsField apiOnly workerInputAllowed recruiterInputAllowed showOnInvoice sharedWithClients sharedWithStaffingAgencies createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("inheritedCustomFields", err)
 	}
@@ -1345,7 +1345,7 @@ func (q *Querier) InvoiceRow(ctx context.Context, vars map[string]any) (map[stri
 	invoiceRow(id: $id) { id paymentRequest { id number startDate endDate currency completedAt status } worker { id name firstName lastName middleName email phone avatar initials currency } customText }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("invoiceRow", err)
 	}
@@ -1363,7 +1363,7 @@ func (q *Querier) Invoice(ctx context.Context, vars map[string]any) (map[string]
 	invoice(number: $number) { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar } payerBusinessEntity { id type name } payeeBusinessEntity { id type name } payerDisplayName payeeDisplayName date isBatched transactionType isFullyCredited isOverDue creditNotes { id number currency } originalInvoice { id number currency } externalIdentifier }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"rows": "rows { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("invoice", err)
 	}
@@ -1381,7 +1381,7 @@ func (q *Querier) Invoices(ctx context.Context, vars map[string]any) (map[string
 	invoices(accounts: $accounts, status: $status, transactionTypes: $transactionTypes, search: $search, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, currency: $currency, externalIdentifiers: $externalIdentifiers, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number pdfUrl currency grossAmount grossOpenAmount taxAmount netAmount markedPaidAt dueDate company { id name currency market avatar } payerBusinessEntity { id type name } payeeBusinessEntity { id type name } payerDisplayName payeeDisplayName date isBatched transactionType isFullyCredited isOverDue creditNotes { id number currency } originalInvoice { id number currency } externalIdentifier } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"rows": "rows { paginatorInfo { total } data { id } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("invoices", err)
 	}
@@ -1448,7 +1448,7 @@ func (q *Querier) JobCandidate(ctx context.Context, vars map[string]any) (map[st
 	jobCandidate(id: $id) { id job { id number name description market status currency startDate endDate completed url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status currency } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel submissionType contactName contactEmail contactPhone owner { __typename id name avatar } step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred sourceCandidate { id status createdAt updatedAt } presentedCandidate { id status createdAt updatedAt } stageHistory { createdAt } viewerCanWithdrawForwardedCandidate viewerCanWithdraw viewerCanInviteToOnboard presentedToClient sourceAgencyName }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("jobCandidate", err)
 	}
@@ -1466,7 +1466,7 @@ func (q *Querier) JobCandidates(ctx context.Context, vars map[string]any) (map[s
 	jobCandidates(jobs: $jobs, statuses: $statuses, steps: $steps, preferred: $preferred, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id job { id number name description market status currency startDate endDate completed url createdAt updatedAt } worker { id name firstName lastName middleName email phone avatar initials currency } bid { id status currency } hire { id number createdAt startDate endDate currency status } jobShare { id createdAt } sourcingChannel submissionType contactName contactEmail contactPhone owner { __typename id name avatar } step status statusReason statusComment isPreferred statusSetByUser { id name email avatar createdAt updatedAt } stepSetByUser { id name email avatar createdAt updatedAt } createdAt createdByUser { id name email avatar createdAt updatedAt } updatedAt updatedByUser { id name email avatar createdAt updatedAt } viewerCanUpdateStatus viewerCanUpdatePreferred sourceCandidate { id status createdAt updatedAt } presentedCandidate { id status createdAt updatedAt } stageHistory { createdAt } viewerCanWithdrawForwardedCandidate viewerCanWithdraw viewerCanInviteToOnboard presentedToClient sourceAgencyName } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("jobCandidates", err)
 	}
@@ -1494,10 +1494,10 @@ func (q *Querier) CreateJobCandidate(ctx context.Context, vars map[string]any) (
 // JobShares — Get a list of job shares.
 func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query JobShares($jobs: [ID!], $accountTypes: [AccountType!], $isActive: Boolean, $companies: [ID!], $orderBy: [JobShareOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	jobShares(jobs: $jobs, accountTypes: $accountTypes, isActive: $isActive, companies: $companies, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } } }
+	jobShares(jobs: $jobs, accountTypes: $accountTypes, isActive: $isActive, companies: $companies, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id account { __typename ... on Account { id name avatar } } isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("jobShares", err)
 	}
@@ -1507,7 +1507,7 @@ func (q *Querier) JobShares(ctx context.Context, vars map[string]any) (map[strin
 // CreateJobShare — Create a job share.
 func (q *Querier) CreateJobShare(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateJobShare($input: CreateJobShareInput!) {
-	createJobShare(input: $input) { id isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
+	createJobShare(input: $input) { id account { __typename ... on Account { id name avatar } } isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1525,7 +1525,7 @@ func (q *Querier) CreateJobShare(ctx context.Context, vars map[string]any) (map[
 // RemoveJobShare — Remove a job share.
 func (q *Querier) RemoveJobShare(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveJobShare($input: RemoveJobShareInput!) {
-	removeJobShare(input: $input) { id isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
+	removeJobShare(input: $input) { id account { __typename ... on Account { id name avatar } } isActive createdAt job { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1546,7 +1546,7 @@ func (q *Querier) Job(ctx context.Context, vars map[string]any) (map[string]any,
 	job(id: $id) { id number name contactName contactEmail contactPhone skills { id name } description market status address location { state } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url createdAt updatedAt } isExtensionAvailable evaluationPeriod sourcingEndDate sourcingDeadlineChoice sourcingEndDateLocal languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isBrief isAvailable sourceJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"bids": "bids { paginatorInfo { total } data { id status currency } }", "conversations": "conversations { paginatorInfo { total } data { id subject url createdAt } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }", "jobCandidates": "jobCandidates { paginatorInfo { total } data { id status createdAt updatedAt } }", "notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }", "shares": "shares { paginatorInfo { total } data { id createdAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("job", err)
 	}
@@ -1564,7 +1564,7 @@ func (q *Querier) Jobs(ctx context.Context, vars map[string]any) (map[string]any
 	jobs(accounts: $accounts, owners: $owners, markets: $markets, search: $search, currencies: $currencies, rateTypes: $rateTypes, skills: $skills, experienceLevel: $experienceLevel, associations: $associations, locationPreferences: $locationPreferences, available: $available, published: $published, completed: $completed, removed: $removed, hasProject: $hasProject, hasHire: $hasHire, hasBids: $hasBids, externalIdentifiers: $externalIdentifiers, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, unfilled: $unfilled, customFields: $customFields, startDateRange: $startDateRange, endDateRange: $endDateRange, isJobPost: $isJobPost, statuses: $statuses, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id number name contactName contactEmail contactPhone skills { id name } description market status address location { state } currency rateType rate minimumRate maximumRate paymentScheme companyFee workerFee association project { id name description currency endDate } internalBudget spent expectedExperienceLevel locationPreference startDate startDateTimeframe endDateTimeframe endDate attachments { id name title url createdAt updatedAt } isExtensionAvailable evaluationPeriod sourcingEndDate sourcingDeadlineChoice sourcingEndDateLocal languages { name } industries { id name } requiredWorkers owners { id name email avatar createdAt updatedAt } customFieldValues { id } visibility approved available paused completed published draft removed removedCause publishedAt company { id name currency market avatar } region url viewerCanDelete viewerCanEdit viewerCanShare viewerCanCreateJobCandidate viewerCanCreateHire createdAt updatedAt isForContacts isForRecruiters isForMarketplace externalIdentifier canBePublished isJobPost isBrief isAvailable sourceJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } supplierJob { id number name description market status currency startDate endDate completed url createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"bids": "bids { paginatorInfo { total } data { id status currency } }", "conversations": "conversations { paginatorInfo { total } data { id subject url createdAt } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }", "jobCandidates": "jobCandidates { paginatorInfo { total } data { id status createdAt updatedAt } }", "notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }", "shares": "shares { paginatorInfo { total } data { id createdAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("jobs", err)
 	}
@@ -1667,7 +1667,7 @@ func (q *Querier) Milestone(ctx context.Context, vars map[string]any) (map[strin
 	milestone(id: $id) { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("milestone", err)
 	}
@@ -1685,7 +1685,7 @@ func (q *Querier) Milestones(ctx context.Context, vars map[string]any) (map[stri
 	milestones(accounts: $accounts, hires: $hires, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name purchaseOrderNumber status details { id } hire { id number createdAt startDate endDate currency status } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("milestones", err)
 	}
@@ -1752,7 +1752,7 @@ func (q *Querier) MultiFactor(ctx context.Context, vars map[string]any) (map[str
 	multiFactor(id: $id) { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("multiFactor", err)
 	}
@@ -1770,7 +1770,7 @@ func (q *Querier) MultiFactors(ctx context.Context, vars map[string]any) (map[st
 	multiFactors(statuses: $statuses, channels: $channels, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename ... on HasMultiFactorMetadata { id name status owner { id name email avatar createdAt updatedAt } verifiedAt createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("multiFactors", err)
 	}
@@ -1870,7 +1870,7 @@ func (q *Querier) VerifyTotpMultiFactor(ctx context.Context, vars map[string]any
 // CreateNote — Create a note.
 func (q *Querier) CreateNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateNote($input: CreateNoteInput!) {
-	createNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	createNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } notable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on TrustedContact { id } ... on CompanyRecruiter { id email } } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1888,7 +1888,7 @@ func (q *Querier) CreateNote(ctx context.Context, vars map[string]any) (map[stri
 // DeleteNote — Delete a note.
 func (q *Querier) DeleteNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteNote($input: DeleteNoteInput!) {
-	deleteNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	deleteNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } notable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on TrustedContact { id } ... on CompanyRecruiter { id email } } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1906,7 +1906,7 @@ func (q *Querier) DeleteNote(ctx context.Context, vars map[string]any) (map[stri
 // UpdateNote — Update a note.
 func (q *Querier) UpdateNote(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateNote($input: UpdateNoteInput!) {
-	updateNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
+	updateNote(input: $input) { id title body author { id name email avatar createdAt updatedAt } notable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on TrustedContact { id } ... on CompanyRecruiter { id email } } account { __typename id name avatar } createdAt updatedAt viewerCanUpdate viewerCanDelete }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1999,7 +1999,7 @@ func (q *Querier) Organisation(ctx context.Context, vars map[string]any) (map[st
 	organisation(id: $id) { id name market avatar }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"divisions": "divisions { paginatorInfo { total } data { id name currency market avatar } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("organisation", err)
 	}
@@ -2017,7 +2017,7 @@ func (q *Querier) OrganisationTrustedContact(ctx context.Context, vars map[strin
 	organisationTrustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url createdAt updatedAt } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } requiredCustomFieldsComplete onboardingStatus onboardingDocuments { id } compliances { actor name applicable completed completedAt type title description } createdAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "tags": "tags { paginatorInfo { total } data { id name } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("organisationTrustedContact", err)
 	}
@@ -2035,7 +2035,7 @@ func (q *Querier) OrganisationTrustedContacts(ctx context.Context, vars map[stri
 	organisationTrustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url createdAt updatedAt } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } requiredCustomFieldsComplete onboardingStatus onboardingDocuments { id } compliances { actor name applicable completed completedAt type title description } createdAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "tags": "tags { paginatorInfo { total } data { id name } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("organisationTrustedContacts", err)
 	}
@@ -2048,7 +2048,7 @@ func (q *Querier) Partner(ctx context.Context, vars map[string]any) (map[string]
 	partner(id: $id) { id name slug currency market avatar address { state } primaryBusinessEntity { id type name } primaryProfile { id url } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("partner", err)
 	}
@@ -2120,7 +2120,7 @@ func (q *Querier) PaymentRequest(ctx context.Context, vars map[string]any) (map[
 	paymentRequest(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } externalIdentifier sourcePaymentRequest { id number startDate endDate currency completedAt status } clientPaymentRequest { id number startDate endDate currency completedAt status } fees { id currency } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"batches": "batches { paginatorInfo { total } data { id name type createdAt updatedAt } }", "expenseReports": "expenseReports { paginatorInfo { total } data { id title description createdAt } }", "files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }", "milestones": "milestones { paginatorInfo { total } data { id name status } }", "overtimes": "overtimes { paginatorInfo { total } data { id type createdAt updatedAt } }", "supplierInvoices": "supplierInvoices { paginatorInfo { total } data { id number } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("paymentRequest", err)
 	}
@@ -2138,7 +2138,7 @@ func (q *Querier) PaymentRequests(ctx context.Context, vars map[string]any) (map
 	paymentRequests(accounts: $accounts, currencies: $currencies, hasPurchaseOrderNumber: $hasPurchaseOrderNumber, hasTimesheet: $hasTimesheet, jobs: $jobs, hires: $hires, hireOwners: $hireOwners, clients: $clients, search: $search, statuses: $statuses, requestTypes: $requestTypes, workerStatuses: $workerStatuses, workerPayoutStatuses: $workerPayoutStatuses, isPayrolled: $isPayrolled, timesheetPeriod: $timesheetPeriod, rateTypes: $rateTypes, requestedDateRange: $requestedDateRange, billingStartDateRange: $billingStartDateRange, billingEndDateRange: $billingEndDateRange, hasExpenses: $hasExpenses, hasBatch: $hasBatch, batchIds: $batchIds, externalIdentifiers: $externalIdentifiers, orderBy: $orderBy, viewerRole: $viewerRole, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } recruiter { id name initials avatar } company { id name currency market avatar } number purchaseOrderNumber startDate endDate currency rate rateType rateTypeName ratetypeNameSlash rateQuantity expensesAmount invoice { id number currency } recruiterFeeAmount employmentCostAmount billedAmount billedAmountWithExpenses date manuallyApprovedAt approvedBy { id name email avatar createdAt updatedAt } autoApprovedAt rejectedAt prepaidAt issuedAt cancelledAt paidAt payrolledAt dueAt completedAt processedAt hire { id number createdAt startDate endDate currency status } job { id number name description market status currency startDate endDate completed url createdAt updatedAt } message { id url } comments workerStatus workerPayoutStatus status timesheet { id startDate endDate createdAt } externalIdentifier sourcePaymentRequest { id number startDate endDate currency completedAt status } clientPaymentRequest { id number startDate endDate currency completedAt status } fees { id currency } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"batches": "batches { paginatorInfo { total } data { id name type createdAt updatedAt } }", "expenseReports": "expenseReports { paginatorInfo { total } data { id title description createdAt } }", "files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }", "milestones": "milestones { paginatorInfo { total } data { id name status } }", "overtimes": "overtimes { paginatorInfo { total } data { id type createdAt updatedAt } }", "supplierInvoices": "supplierInvoices { paginatorInfo { total } data { id number } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("paymentRequests", err)
 	}
@@ -2205,7 +2205,7 @@ func (q *Querier) Project(ctx context.Context, vars map[string]any) (map[string]
 	project(id: $id) { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"jobs": "jobs { paginatorInfo { total } data { id number name description market status currency startDate endDate completed url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("project", err)
 	}
@@ -2223,7 +2223,7 @@ func (q *Querier) Projects(ctx context.Context, vars map[string]any) (map[string
 	projects(accounts: $accounts, search: $search, status: $status, owners: $owners, externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description currency creator { id name email avatar createdAt updatedAt } company { id name currency market avatar } internalBudget allocatedBudget spent endDate owners { id name email avatar createdAt updatedAt } externalIdentifier } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"jobs": "jobs { paginatorInfo { total } data { id number name description market status currency startDate endDate completed url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("projects", err)
 	}
@@ -2362,7 +2362,7 @@ func (q *Querier) RecruiterCandidate(ctx context.Context, vars map[string]any) (
 	recruiterCandidate(id: $id) { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle country state links tags { id name } relationshipLabel }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("recruiterCandidate", err)
 	}
@@ -2380,7 +2380,7 @@ func (q *Querier) RecruiterCandidates(ctx context.Context, vars map[string]any) 
 	recruiterCandidates(accounts: $accounts, status: $status, search: $search, hasPendingActions: $hasPendingActions, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id recruiter { id name initials avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle country state links tags { id name } relationshipLabel } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("recruiterCandidates", err)
 	}
@@ -2447,7 +2447,7 @@ func (q *Querier) Recruiter(ctx context.Context, vars map[string]any) (map[strin
 	recruiter(id: $id) { id name market { code name } initials avatar owner { id name email avatar createdAt updatedAt } clients { id email status } candidates { id email status state } insurances { type title updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("recruiter", err)
 	}
@@ -2465,7 +2465,7 @@ func (q *Querier) Recruiters(ctx context.Context, vars map[string]any) (map[stri
 	recruiters(search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name market { code name } initials avatar owner { id name email avatar createdAt updatedAt } clients { id email status } candidates { id email status state } insurances { type title updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("recruiters", err)
 	}
@@ -2496,7 +2496,7 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 	skills(search: $search, skillableType: $skillableType, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("skills", err)
 	}
@@ -2506,7 +2506,7 @@ func (q *Querier) Skills(ctx context.Context, vars map[string]any) (map[string]a
 // SubmitCompliance — Submit information for a compliance — e.g. a company reviewing a worker, or a worker filling in form data. Set exactly one field on the `input` to choose the action; the acting company/user comes from your authenticated session. Returns the updated `Compliance`.
 func (q *Querier) SubmitCompliance(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation SubmitCompliance($input: SubmitComplianceInput!) {
-	submitCompliance(input: $input) { actor name applicable completed completedAt type title description action { title description } }
+	submitCompliance(input: $input) { actor name applicable completed completedAt type title description action { title description } data { __typename ... on ComplianceDataField { label } ... on ComplianceDataGroup { title } ... on ComplianceDataFile { title } ... on ComplianceDataAddress { title } ... on ComplianceDataUser { title } ... on ComplianceDataBankDetail { title } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -2527,7 +2527,7 @@ func (q *Querier) SupplierCandidate(ctx context.Context, vars map[string]any) (m
 	supplierCandidate(id: $id) { id supplier { __typename id name avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("supplierCandidate", err)
 	}
@@ -2545,7 +2545,7 @@ func (q *Querier) SupplierCandidates(ctx context.Context, vars map[string]any) (
 	supplierCandidates(status: $status, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id supplier { __typename id name avatar } worker { id name firstName lastName middleName email phone avatar initials currency } email status token rate jobTitle links tags { id name } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("supplierCandidates", err)
 	}
@@ -2612,7 +2612,7 @@ func (q *Querier) SupplierSharedCustomFields(ctx context.Context, vars map[strin
 	supplierSharedCustomFields(supplier: $supplier, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id user { id name email avatar createdAt updatedAt } account { __typename id name avatar } title slug description fieldType appliesTo customFieldOptions { id } visibility customFieldValues { id } isUsedInFieldValues rule { id createdAt updatedAt } approval viewerCanUpdate viewerOwnsField apiOnly workerInputAllowed recruiterInputAllowed showOnInvoice sharedWithClients sharedWithStaffingAgencies createdAt updatedAt deletedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("supplierSharedCustomFields", err)
 	}
@@ -2661,7 +2661,7 @@ func (q *Querier) Timesheet(ctx context.Context, vars map[string]any) (map[strin
 	timesheet(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }", "overtimes": "overtimes { paginatorInfo { total } data { id type createdAt updatedAt } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }", "registrations": "registrations { paginatorInfo { total } data { id type } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("timesheet", err)
 	}
@@ -2679,7 +2679,7 @@ func (q *Querier) Timesheets(ctx context.Context, vars map[string]any) (map[stri
 	timesheets(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } hire { id number createdAt startDate endDate currency status } startDate endDate createdAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"files": "files { paginatorInfo { total } data { id name title url createdAt updatedAt } }", "overtimes": "overtimes { paginatorInfo { total } data { id type createdAt updatedAt } }", "paymentRequests": "paymentRequests { paginatorInfo { total } data { id number startDate endDate currency completedAt status } }", "registrations": "registrations { paginatorInfo { total } data { id type } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("timesheets", err)
 	}
@@ -2764,7 +2764,7 @@ func (q *Querier) TrustedContact(ctx context.Context, vars map[string]any) (map[
 	trustedContact(id: $id) { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url createdAt updatedAt } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } requiredCustomFieldsComplete onboardingStatus onboardingDocuments { id } compliances { actor name applicable completed completedAt type title description } createdAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "tags": "tags { paginatorInfo { total } data { id name } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("trustedContact", err)
 	}
@@ -2782,7 +2782,7 @@ func (q *Querier) TrustedContacts(ctx context.Context, vars map[string]any) (map
 	trustedContacts(accounts: $accounts, workers: $workers, search: $search, skills: $skills, markets: $markets, countries: $countries, states: $states, invitedByUsers: $invitedByUsers, statuses: $statuses, origin: $origin, staffingAgencyStatus: $staffingAgencyStatus, managedStatus: $managedStatus, hireHistory: $hireHistory, hireStatus: $hireStatus, businessSetup: $businessSetup, externalIdentifiers: $externalIdentifiers, customFields: $customFields, orderBy: $orderBy, createdAtDateRange: $createdAtDateRange, verifiedWorkerReview: $verifiedWorkerReview, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id worker { id name firstName lastName middleName email phone avatar initials currency } company { id name currency market avatar } invitedByUser { id name email avatar createdAt updatedAt } links attachments { id name title url createdAt updatedAt } skills { id name } managedStatus status statusUpdatedAt invitedAt approvedByUser { id name email avatar createdAt updatedAt } externalIdentifier origin originChannel customFieldValues { id } requiredCustomFieldsComplete onboardingStatus onboardingDocuments { id } compliances { actor name applicable completed completedAt type title description } createdAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"notes": "notes { paginatorInfo { total } data { id title createdAt updatedAt } }", "tags": "tags { paginatorInfo { total } data { id name } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("trustedContacts", err)
 	}
@@ -2867,7 +2867,7 @@ func (q *Querier) UserGroup(ctx context.Context, vars map[string]any) (map[strin
 	userGroup(id: $id) { id name description company { id name currency market avatar } status }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"users": "users { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("userGroup", err)
 	}
@@ -2885,7 +2885,7 @@ func (q *Querier) UserGroups(ctx context.Context, vars map[string]any) (map[stri
 	userGroups(accounts: $accounts, search: $search, users: $users, status: $status, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name description company { id name currency market avatar } status } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"users": "users { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("userGroups", err)
 	}
@@ -2988,7 +2988,7 @@ func (q *Querier) Profile(ctx context.Context, vars map[string]any) (map[string]
 	profile { id name email avatar hasConsentedToWorksomeIntelligence canCreatePassword missingAuthentication hasVerifiedEmail emailVerifiedAt createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("profile", err)
 	}
@@ -3006,7 +3006,7 @@ func (q *Querier) WebhookEventLogs(ctx context.Context, vars map[string]any) (ma
 	webhookEventLogs(webhookId: $webhookId, webhookEventId: $webhookEventId, accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key result statusCode webhook { id title description url createdAt updatedAt } webhookEvent { id description status createdAt updatedAt } request response createdAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("webhookEventLogs", err)
 	}
@@ -3019,7 +3019,7 @@ func (q *Querier) WebhookEvent(ctx context.Context, vars map[string]any) (map[st
 	webhookEvent(id: $id) { id key webhookId event description status payload logs { id createdAt } createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("webhookEvent", err)
 	}
@@ -3037,7 +3037,7 @@ func (q *Querier) WebhookEvents(ctx context.Context, vars map[string]any) (map[s
 	webhookEvents(webhookId: $webhookId, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id key webhookId event description status payload logs { id createdAt } createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("webhookEvents", err)
 	}
@@ -3068,7 +3068,7 @@ func (q *Querier) Webhook(ctx context.Context, vars map[string]any) (map[string]
 	webhook(id: $id) { id title description owner url secret isActive clientId clientSecret clientUrl subscribedEvents createdAt updatedAt }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("webhook", err)
 	}
@@ -3086,7 +3086,7 @@ func (q *Querier) Webhooks(ctx context.Context, vars map[string]any) (map[string
 	webhooks(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id title description owner url secret isActive clientId clientSecret clientUrl subscribedEvents createdAt updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("webhooks", err)
 	}
@@ -3189,7 +3189,7 @@ func (q *Querier) Worker(ctx context.Context, vars map[string]any) (map[string]a
 	worker(id: $id) { id name firstName lastName middleName email phone avatar address { state } market { code name } skills { id name } profile { id url } jobTitle initials viewerCanEdit currency dayRate rtwVerifiedAt rtwExpiresAt hiresWithAttribution { id number createdAt startDate endDate currency status } primaryBusinessEntity { id type name } clients { id status } insurances { type title updatedAt } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"businessEntities": "businessEntities { paginatorInfo { total } data { id type name } }", "hires": "hires { paginatorInfo { total } data { id number createdAt startDate endDate currency status } }"}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("worker", err)
 	}
@@ -3222,7 +3222,7 @@ func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[st
 // UpdateWorkerCustomFieldValues — Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with `workerInputAllowed: true` can be updated. Partial updates are supported - fields not included are ignored.
 func (q *Querier) UpdateWorkerCustomFieldValues(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorkerCustomFieldValues($input: UpdateWorkerCustomFieldValuesInput!) {
-	updateWorkerCustomFieldValues(input: $input) { customFieldValues { id } }
+	updateWorkerCustomFieldValues(input: $input) { fieldable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on Contract { id startDate endDate currency } ... on TrustedContact { id } ... on CompanyRecruiter { id email } } customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -3261,7 +3261,7 @@ func (q *Querier) WorkflowVariables(ctx context.Context, vars map[string]any) (m
 	workflowVariables(accounts: $accounts, appliesTo: $appliesTo, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename id title description operators } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("workflowVariables", err)
 	}
@@ -3271,10 +3271,10 @@ func (q *Querier) WorkflowVariables(ctx context.Context, vars map[string]any) (m
 // Workflow — Get a specific workflow by ID. Requires the `manage-approvals` team permission on the owning company.
 func (q *Querier) Workflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Workflow($id: ID!) {
-	workflow(id: $id) { id }
+	workflow(id: $id) { id nodes { __typename ... on ApprovalRule { id createdAt updatedAt } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("workflow", err)
 	}
@@ -3289,10 +3289,10 @@ func (q *Querier) Workflow(ctx context.Context, vars map[string]any) (map[string
 // Workflows — List all workflows accessible to the authenticated user. Requires the `manage-approvals` team permission.
 func (q *Querier) Workflows(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Workflows($accounts: [ID!], $first: Int! = 10, $page: Int) {
-	workflows(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id } }
+	workflows(accounts: $accounts, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id nodes { __typename ... on ApprovalRule { id createdAt updatedAt } } } }
 }`
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("workflows", err)
 	}
@@ -3302,7 +3302,7 @@ func (q *Querier) Workflows(ctx context.Context, vars map[string]any) (map[strin
 // CreateWorkflow — Create an approval workflow as a complete tree in a single operation. Only companies can create workflows. This is the recommended way to set up an approval flow — it creates the approval (root), its rules (conditions), and approvers (user groups) all at once, rather than calling `createApproval`, `createApprovalRule`, and `createApprover` separately. The input is structured as a tree: a root node (the approval definition), rule nodes (conditions), and approver nodes (user groups). Nodes reference each other via temporary `id` and `parent`/`children` fields.
 func (q *Querier) CreateWorkflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation CreateWorkflow($input: CreateWorkflowInput!) {
-	createWorkflow(input: $input) { id }
+	createWorkflow(input: $input) { id nodes { __typename ... on ApprovalRule { id createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -3320,7 +3320,7 @@ func (q *Querier) CreateWorkflow(ctx context.Context, vars map[string]any) (map[
 // DeleteWorkflow — Delete an approval workflow. Only companies can delete workflows. If the workflow has no existing approval requests, it is permanently removed along with its rules and approvers. If it has existing approval requests, the workflow is archived instead — its rules and approvers are preserved, but it will no longer evaluate new events.
 func (q *Querier) DeleteWorkflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation DeleteWorkflow($input: DeleteWorkflowInput!) {
-	deleteWorkflow(input: $input) { id }
+	deleteWorkflow(input: $input) { id nodes { __typename ... on ApprovalRule { id createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -3338,7 +3338,7 @@ func (q *Querier) DeleteWorkflow(ctx context.Context, vars map[string]any) (map[
 // UpdateWorkflow — Update an existing approval workflow as a complete tree. Only companies can update workflows. Replaces the entire workflow structure (root, rules, and approvers) with the provided tree. Creates a new version of the underlying approval.
 func (q *Querier) UpdateWorkflow(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
-	updateWorkflow(input: $input) { id }
+	updateWorkflow(input: $input) { id nodes { __typename ... on ApprovalRule { id createdAt updatedAt } } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)

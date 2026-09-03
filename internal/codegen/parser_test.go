@@ -1571,3 +1571,140 @@ type PaginatorInfo {
 		}
 	}
 }
+
+// Paginated relations are offered on request rather than selected by default
+// (one server query per row each); union-typed nested fields are selected by
+// default, since they are a single object. Neither was reachable before.
+func TestPaginatedRelationsAreOptionalAndUnionsSelected(t *testing.T) {
+	schema := `
+type Query {
+	"List user groups."
+	userGroups(first: Int! = 10, page: Int): UserGroupPaginator!
+	"Get a user group."
+	userGroup(id: ID!): UserGroup
+	"List approval requests."
+	approvalApprovables(first: Int! = 10, page: Int): ApprovalApprovablePaginator!
+}
+
+type UserGroup {
+	id: ID!
+	name: String!
+	"Paginated relation with a defaulted first: on request."
+	users(first: Int! = 10, page: Int): UserPaginator!
+	"Paginated relation with a required argument: never."
+	audits(since: String!, first: Int! = 10): UserPaginator!
+}
+
+type User { id: ID! name: String! email: String secret: String }
+
+type ApprovalApprovable {
+	id: ID!
+	"Union: selected by default."
+	approvable: Approvable
+}
+
+union Approvable = Hire
+type Hire { id: ID! number: String! status: String! }
+
+type UserPaginator { paginatorInfo: PaginatorInfo! data: [User!]! }
+type UserGroupPaginator { paginatorInfo: PaginatorInfo! data: [UserGroup!]! }
+type ApprovalApprovablePaginator { paginatorInfo: PaginatorInfo! data: [ApprovalApprovable!]! }
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	byName := map[string]*Resource{}
+	for i := range parsed.Resources {
+		byName[parsed.Resources[i].Name] = &parsed.Resources[i]
+	}
+
+	groups := byName["user-groups"]
+	if groups == nil || groups.ListQuery == nil || groups.GetQuery == nil {
+		t.Fatalf("expected a user-groups resource with list and get, got %v", byName)
+	}
+	for _, op := range []*Operation{groups.ListQuery, groups.GetQuery} {
+		if strings.Contains(op.SelectionSet, "users") {
+			t.Errorf("%s: the default selection must not include the paginated relation: %s", op.Name, op.SelectionSet)
+		}
+		want := "users { paginatorInfo { total } data { id name email } }"
+		if got := op.Optional["users"]; got != want {
+			t.Errorf("%s: Optional[users] = %q, want %q", op.Name, got, want)
+		}
+		if _, ok := op.Optional["audits"]; ok {
+			t.Errorf("%s: a relation with a required argument cannot be offered", op.Name)
+		}
+	}
+
+	approvals := byName["approval-approvables"]
+	if approvals == nil || approvals.ListQuery == nil {
+		t.Fatalf("expected an approval-approvables resource, got %v", byName)
+	}
+	if want := "approvable { __typename ... on Hire { id number status } }"; !strings.Contains(approvals.ListQuery.SelectionSet, want) {
+		t.Errorf("union field should be selected by default; selection = %s", approvals.ListQuery.SelectionSet)
+	}
+	if approvals.ListQuery.Optional != nil {
+		t.Errorf("no paginated relations on ApprovalApprovable, Optional should be nil, got %v", approvals.ListQuery.Optional)
+	}
+}
+
+// Members of a nested union may declare the same field with different types
+// (Note.notable: Job.status is JobStatus, TrustedContact.status is
+// ContactStatus!). GraphQL rejects a document that selects both, so the
+// fallback fragments keep only fields whose type agrees across members.
+func TestNestedUnionFragmentsAvoidConflictingFields(t *testing.T) {
+	schema := `
+type Query {
+	"List notes."
+	notes(first: Int! = 10, page: Int): NotePaginator!
+}
+type Note { id: ID! body: String! notable: Notable }
+union Notable = Job | Contact
+enum JobStatus { OPEN CLOSED }
+enum ContactStatus { ACTIVE BLOCKED }
+type Job { id: ID! name: String! status: JobStatus createdAt: DateTime! }
+type Contact { id: ID! email: String status: ContactStatus! createdAt: Date! }
+scalar DateTime
+scalar Date
+type NotePaginator { paginatorInfo: PaginatorInfo! data: [Note!]! }
+type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPage: Int! perPage: Int! total: Int! }
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	var sel string
+	for _, r := range parsed.Resources {
+		if r.Name == "notes" && r.ListQuery != nil {
+			sel = r.ListQuery.SelectionSet
+		}
+	}
+	want := "notable { __typename ... on Job { id name } ... on Contact { id email } }"
+	if !strings.Contains(sel, want) {
+		t.Errorf("selection = %s\nwant it to contain %s", sel, want)
+	}
+	for _, conflicting := range []string{"status", "createdAt"} {
+		if strings.Contains(sel, conflicting) {
+			t.Errorf("selection must not include %q, its type differs between members: %s", conflicting, sel)
+		}
+	}
+}

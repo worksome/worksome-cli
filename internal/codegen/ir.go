@@ -44,6 +44,10 @@ type Operation struct {
 	Arguments        []Argument
 	ReturnType       TypeRef
 	SelectionSet     string // Pre-computed GraphQL selection set for the return type
+	// Optional holds sub-selections the default query leaves out and offers on
+	// request through --fields: paginated relations, which cost the server one
+	// query per row. Keyed by field name; the value is the full selection.
+	Optional map[string]string
 	Deprecated       bool
 	DeprecatedReason string
 	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"

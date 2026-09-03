@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -212,4 +213,99 @@ func TestWithFields_ClonesInput(t *testing.T) {
 	if c.fields[0] != "id" {
 		t.Errorf("client.fields[0] = %q, want %q", c.fields[0], "id")
 	}
+}
+
+const groupsQuery = `query UserGroups($first: Int! = 10, $page: Int) {
+	userGroups(first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name status } }
+}`
+
+var groupsOptional = map[string]string{
+	"users": "users { paginatorInfo { total } data { id name email } }",
+}
+
+// Paginated relations are left out of the generated query and added on
+// request, before pruning, so `--fields users.data.name` reaches them.
+func TestAddOptionalSelections_IntoPaginatedData(t *testing.T) {
+	got := AddOptionalSelections(groupsQuery, groupsOptional)
+	want := "data { id name status users { paginatorInfo { total } data { id name email } } }"
+	if !strings.Contains(got, want) {
+		t.Errorf("AddOptionalSelections() = %s\nwant it to contain %s", got, want)
+	}
+
+	pruned, err := pruneQuery(got, []string{"id", "users.data.name"})
+	if err != nil {
+		t.Fatalf("pruneQuery() error = %v", err)
+	}
+	if want := "data { id users { data { name } } }"; !strings.Contains(pruned, want) {
+		t.Errorf("pruneQuery() after adding = %s\nwant it to contain %s", pruned, want)
+	}
+}
+
+func TestAddOptionalSelections_IntoSingleObject(t *testing.T) {
+	got := AddOptionalSelections(singleQuery, map[string]string{
+		"approvals": "approvals { paginatorInfo { total } data { id status } }",
+	})
+	if !strings.Contains(got, "triggersApproval approvals { paginatorInfo { total } data { id status } } }") {
+		t.Errorf("AddOptionalSelections() = %s, want approvals appended to the root object", got)
+	}
+}
+
+func TestAddOptionalSelections_SkipsPresentAndUnparseable(t *testing.T) {
+	// Already selected: not duplicated.
+	got := AddOptionalSelections(groupsQuery, map[string]string{"name": "name"})
+	if strings.Count(got, " name ") != 1 {
+		t.Errorf("AddOptionalSelections() duplicated an existing field: %s", got)
+	}
+	// Unparseable query: returned as is.
+	if got := AddOptionalSelections("not graphql", groupsOptional); got != "not graphql" {
+		t.Errorf("AddOptionalSelections() rewrote an unparseable query: %q", got)
+	}
+}
+
+// Naming an on-request field that does not exist still errors, and the error
+// lists the on-request ones alongside the rest.
+func TestAddOptionalSelections_UnknownFieldListsOptional(t *testing.T) {
+	_, err := pruneQuery(AddOptionalSelections(groupsQuery, groupsOptional), []string{"members"})
+	if err == nil || !strings.Contains(err.Error(), "users") {
+		t.Errorf("expected an unknown-field error naming users, got %v", err)
+	}
+}
+
+// Over the wire: the relation is sent only when --fields names it.
+func TestExecuteWithOptional_AddsOnlyWhenRequested(t *testing.T) {
+	var wire []string
+	srv := newCapturingServer(t, &wire)
+	defer srv.Close()
+
+	c := New(srv.URL, "token", WithFields([]string{"id", "users.data.name"}))
+	if err := c.ExecuteWithOptional(context.Background(), groupsQuery, groupsOptional, nil, nil); err != nil {
+		t.Fatalf("ExecuteWithOptional() error = %v", err)
+	}
+	if !strings.Contains(wire[0], "users { data { name } }") {
+		t.Errorf("wire query should select users when --fields names it: %s", wire[0])
+	}
+
+	wire = nil
+	c = New(srv.URL, "token")
+	if err := c.ExecuteWithOptional(context.Background(), groupsQuery, groupsOptional, nil, nil); err != nil {
+		t.Fatalf("ExecuteWithOptional() error = %v", err)
+	}
+	if strings.Contains(wire[0], "users") {
+		t.Errorf("wire query must stay lean without --fields: %s", wire[0])
+	}
+}
+
+func newCapturingServer(t *testing.T, wire *[]string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decoding request: %v", err)
+		}
+		*wire = append(*wire, req.Query)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{}}`))
+	}))
 }
