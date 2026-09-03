@@ -4,6 +4,8 @@
 
 This is a Go CLI that wraps the Worksome GraphQL API. Most code is **generated** from a vendored GraphQL schema via a codegen pipeline. Understanding what is generated vs hand-written is critical before making changes.
 
+When creating issues or pull requests **redact any sensitive information**, such as company, hire or worker IDs. Replace them by placeholders. 
+
 ## Key Concept: Generated vs Hand-Written
 
 ### Generated (DO NOT edit directly)
