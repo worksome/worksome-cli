@@ -1,0 +1,22 @@
+{
+  "name": "worksome-cli",
+  "version": "0.3.0",
+  "description": "Query and operate the Worksome platform from any agent session via the worksome CLI: installs the binary on demand, authenticates with a Personal Access Token, and drives the GraphQL API efficiently.",
+  "author": {
+    "name": "Worksome",
+    "url": "https://www.worksome.com"
+  },
+  "homepage": "https://github.com/worksome/worksome-cli",
+  "repository": "https://github.com/worksome/worksome-cli",
+  "license": "MIT",
+  "keywords": [
+    "worksome",
+    "cli",
+    "graphql",
+    "hires",
+    "timesheets",
+    "invoices",
+    "contractors",
+    "fms"
+  ]
+}

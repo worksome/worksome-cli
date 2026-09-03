@@ -49,6 +49,37 @@ company ──creates──▶ job ──receives──▶ bid
 
 ## Notes for AI agents
 
+### The skill
+
+[`skills/worksome-cli/`](skills/worksome-cli/) is a ready-made skill: a `SKILL.md`
+that teaches an agent to install the CLI, authenticate it, and drive the API
+without wasting requests, plus two references — the hiring-lifecycle domain
+model and worked recipes for the questions that come up most (active hires,
+unapproved timesheets, invoice totals, classification status, approval
+bottlenecks). It is what an agent needs to go from "there is a binary" to
+answering "how many contractors do we have right now" correctly.
+
+**Claude Code.** This repository is a plugin. From a checkout:
+
+```bash
+claude plugin install --plugin-dir /path/to/worksome-cli
+```
+
+The skill loads on demand when a conversation touches hires, timesheets,
+payment requests, invoices, classifications and so on; it installs the binary
+the first time it is actually needed, not at session start.
+
+**Any other agent** (Cursor, Codex, a shell agent). Copy `skills/worksome-cli/`
+into wherever your agent reads skills or rules from, or point it at
+`SKILL.md` directly. Everything the skill relies on is a shell command.
+
+The one thing no skill can supply is a credential. Create a Personal Access
+Token at <https://use.worksome.com/integrations/api-tokens> and either export
+it as `WORKSOME_API_TOKEN` or run `worksome auth login --token <token>` once;
+tokens last six months and one token works on any number of machines.
+
+### Driving the CLI
+
 The CLI is designed to be driven programmatically:
 
 - **Discovery is built in.** `worksome --help` lists all 82 resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
