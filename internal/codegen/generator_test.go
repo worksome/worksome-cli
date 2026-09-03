@@ -446,3 +446,84 @@ func TestFlagHintDoesNotMutateEnumValues(t *testing.T) {
 		}
 	}
 }
+
+// A back-quoted word in a flag's usage string is read by pflag as the value
+// placeholder, so a schema description containing `accounts` turned
+// `--viewer-role string` into `--viewer-role accounts`. No generated usage
+// string may carry a backtick.
+func TestGeneratedFlagUsageHasNoBackticks(t *testing.T) {
+	schema := `
+type Query {
+	"List payment requests."
+	paymentRequests(first: Int! = 10, page: Int, viewerRole: String, "Only filters within the scope set by the ` + "`accounts`" + ` arg." accounts: [ID!]): PaymentRequestPaginator!
+}
+
+type Mutation {
+	"Create a job."
+	createJob(input: CreateJobInput!): Job!
+}
+
+input CreateJobInput {
+	"Use ` + "`DRAFT`" + ` to keep the job unpublished."
+	status: String
+	title: String!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type PaymentRequest {
+	id: ID!
+}
+
+type PaymentRequestPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [PaymentRequest!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	outputDir := t.TempDir()
+	if err := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli").Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	cmds, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var usages int
+	for _, line := range strings.Split(string(cmds), "\n") {
+		if !strings.Contains(line, "cmd.Flags().") {
+			continue
+		}
+		usages++
+		if strings.Contains(line, "`") {
+			t.Errorf("flag usage string carries a backtick, pflag will read it as a placeholder:\n%s", strings.TrimSpace(line))
+		}
+	}
+	if usages == 0 {
+		t.Fatal("no flag definitions found in generated commands; the check tested nothing")
+	}
+	if !strings.Contains(string(cmds), "'accounts'") || !strings.Contains(string(cmds), "'DRAFT'") {
+		t.Error("expected the backticked words to survive as quoted text")
+	}
+}

@@ -55,7 +55,7 @@ type AcceptBidInput struct {
 type ActionApprovalApprovableInput struct {
 	// The ID of the approval request to act on.
 	Id string `json:"id"`
-	// The action to take: `APPROVED`, `REJECTED`, or `NEEDS_CHANGE`.
+	// The action to take: 'APPROVED', 'REJECTED', or 'NEEDS_CHANGE'.
 	Status *ApprovalApprovableState `json:"status,omitempty"`
 	// An optional message explaining the decision (required when rejecting or requesting changes).
 	Reason *string `json:"reason,omitempty"`
@@ -129,9 +129,9 @@ type AttributeRecruiterToHireInput struct {
 	Hire string `json:"hire"`
 	// The ID of the recruiter.
 	Recruiter string `json:"recruiter"`
-	// The fee the recruiter is taking as a percentage. Prefer `feeRate`, which also supports a fixed amount per unit of time.
+	// The fee the recruiter is taking as a percentage. Prefer 'feeRate', which also supports a fixed amount per unit of time.
 	Fee *float64 `json:"fee,omitempty"`
-	// The recruiter's fee as a rate and basis. Supports a percentage or a fixed amount per unit (hourly, daily, weekly, monthly). Takes precedence over `fee` when both are provided. The currency is taken from the hire.
+	// The recruiter's fee as a rate and basis. Supports a percentage or a fixed amount per unit (hourly, daily, weekly, monthly). Takes precedence over 'fee' when both are provided. The currency is taken from the hire.
 	FeeRate *FeeInput `json:"feeRate,omitempty"`
 	// The amount of days the recruiters ownership period exist in. A null value indicates the staffing agency's ownership never expires.
 	OwnershipDays *int `json:"ownershipDays,omitempty"`
@@ -215,17 +215,17 @@ type CancelHireInput struct {
 
 // ChangeEmailInput — The details required for changing the email.
 type ChangeEmailInput struct {
-	// The ID of the user whose email address should be updated. If this is `null` or excluded, the currently authenticated user's email will be changed.
+	// The ID of the user whose email address should be updated. If this is 'null' or excluded, the currently authenticated user's email will be changed.
 	User *string `json:"user,omitempty"`
 	// The new email for the user.
 	Email string `json:"email"`
 }
 
-// CreateApprovalInput — The input for creating a new approval flow. After creating the approval, use `createApprovalRule` to add conditions and then `createApprover` to assign user groups who will review matching items. Alternatively, use `createWorkflow` to create the entire approval flow (root, rules, and approvers) in a single operation.
+// CreateApprovalInput — The input for creating a new approval flow. After creating the approval, use 'createApprovalRule' to add conditions and then 'createApprover' to assign user groups who will review matching items. Alternatively, use 'createWorkflow' to create the entire approval flow (root, rules, and approvers) in a single operation.
 type CreateApprovalInput struct {
 	// The display name for the approval flow.
 	Name string `json:"name"`
-	// Whether the approval should be active immediately. Only `ACTIVE` approvals are evaluated when triggering events occur.
+	// Whether the approval should be active immediately. Only 'ACTIVE' approvals are evaluated when triggering events occur.
 	Status ApprovalStatus `json:"status"`
 	// The event that triggers this approval flow (e.g. hire created, contract changed).
 	Trigger ApprovalTrigger `json:"trigger"`
@@ -319,7 +319,7 @@ type CreateCustomFieldInput struct {
 	SharedWithClients *bool `json:"sharedWithClients,omitempty"`
 	// Configures the field's values to be visible to staffing agencies the company shares the job with.
 	SharedWithStaffingAgencies *bool `json:"sharedWithStaffingAgencies,omitempty"`
-	// The list of options which will be available for custom field values. Only applies to some custom field types (e.g. `SINGLE_SELECT`)
+	// The list of options which will be available for custom field values. Only applies to some custom field types (e.g. 'SINGLE_SELECT')
 	Options []CustomFieldCustomFieldOptionInput `json:"options,omitempty"`
 }
 
@@ -361,7 +361,7 @@ type CreateJobCandidateInput struct {
 	SourcingChannel SourcingChannel `json:"sourcingChannel"`
 }
 
-// CreateJobInput — The input for creating a new job. `createJob` is a minimal first step that creates the job in `DRAFT` status with only the required fields. Use `updateJob` afterwards to set the full job details (description, rates, dates, location, visibility, etc.) and to publish the job when it is ready.
+// CreateJobInput — The input for creating a new job. 'createJob' is a minimal first step that creates the job in 'DRAFT' status with only the required fields. Use 'updateJob' afterwards to set the full job details (description, rates, dates, location, visibility, etc.) and to publish the job when it is ready.
 type CreateJobInput struct {
 	// The company that the job is for.
 	Company string `json:"company"`
@@ -647,19 +647,19 @@ type CreateWorkflowApproverInput struct {
 	Data []string `json:"data"`
 }
 
-// CreateWorkflowInput — The input for creating a complete workflow tree (approval + rules + approvers) in one operation. The tree is structured using temporary node IDs: each node has an `id` that its children reference via `parent`, and the node references its children via `children`. This allows the entire approval structure to be submitted as a flat list of connected nodes.
+// CreateWorkflowInput — The input for creating a complete workflow tree (approval + rules + approvers) in one operation. The tree is structured using temporary node IDs: each node has an 'id' that its children reference via 'parent', and the node references its children via 'children'. This allows the entire approval structure to be submitted as a flat list of connected nodes.
 type CreateWorkflowInput struct {
 	// The root node — defines the approval flow (name, trigger, status).
 	Root CreateWorkflowRootInput `json:"root"`
-	// The rule nodes — each defines conditions that determine when approval is needed. Connected to the root via `parent`.
+	// The rule nodes — each defines conditions that determine when approval is needed. Connected to the root via 'parent'.
 	Rules []CreateWorkflowRuleInput `json:"rules,omitempty"`
-	// The approver nodes — each assigns user groups to review matching items. Connected to rules via `parent`.
+	// The approver nodes — each assigns user groups to review matching items. Connected to rules via 'parent'.
 	Approvers []CreateWorkflowApproverInput `json:"approvers,omitempty"`
 }
 
 // CreateWorkflowRootInput — The root node of a workflow tree — contains the approval flow definition.
 type CreateWorkflowRootInput struct {
-	// A temporary ID for this node, used by child nodes to reference it via `parent`.
+	// A temporary ID for this node, used by child nodes to reference it via 'parent'.
 	Id *string `json:"id,omitempty"`
 	// The temporary IDs of rule nodes that are direct children of this root.
 	Children []string `json:"children,omitempty"`
@@ -669,7 +669,7 @@ type CreateWorkflowRootInput struct {
 
 // CreateWorkflowRuleInput — A rule node in the workflow tree — defines conditions for when approval is required.
 type CreateWorkflowRuleInput struct {
-	// A temporary ID for this node, used by child nodes to reference it via `parent`.
+	// A temporary ID for this node, used by child nodes to reference it via 'parent'.
 	Id *string `json:"id,omitempty"`
 	// The temporary ID of the parent node (the root or another rule).
 	Parent *string `json:"parent,omitempty"`
@@ -679,9 +679,9 @@ type CreateWorkflowRuleInput struct {
 	Data []CreateWorkflowVariableFieldInput `json:"data,omitempty"`
 }
 
-// CreateWorkflowVariableFieldInput — A condition to add to an approval rule, pairing a variable with a comparison. Use the `workflowVariables` query to discover available variables for a given trigger type.
+// CreateWorkflowVariableFieldInput — A condition to add to an approval rule, pairing a variable with a comparison. Use the 'workflowVariables' query to discover available variables for a given trigger type.
 type CreateWorkflowVariableFieldInput struct {
-	// The identifier of the workflow variable or custom field to evaluate. Use the `workflowVariables` query to find valid identifiers for the approval's trigger type.
+	// The identifier of the workflow variable or custom field to evaluate. Use the 'workflowVariables' query to find valid identifiers for the approval's trigger type.
 	Id string `json:"id"`
 	// The comparison operator and threshold value for this condition.
 	Rule WorkflowVariableFieldRuleInput `json:"rule"`
@@ -705,13 +705,13 @@ type CustomFieldSettingsInput struct {
 
 // CustomFieldTypeValueInput — An input representing a custom field value, tailored to the field type. All input fields are mutually exclusive.
 type CustomFieldTypeValueInput struct {
-	// The input custom field values representation of the `SINGLE_SELECT` field type.
+	// The input custom field values representation of the 'SINGLE_SELECT' field type.
 	SingleSelect *SingleSelectCustomFieldValueInput `json:"singleSelect,omitempty"`
-	// The input custom field values representation of the `FREE_TEXT` field type.
+	// The input custom field values representation of the 'FREE_TEXT' field type.
 	FreeText *FreeTextCustomFieldValueInput `json:"freeText,omitempty"`
-	// The input custom field values representation of the `MULTI_SELECT` field type.
+	// The input custom field values representation of the 'MULTI_SELECT' field type.
 	MultiSelect *MultiSelectCustomFieldValueInput `json:"multiSelect,omitempty"`
-	// The input custom field values representation of the `FILE_UPLOAD` field type.
+	// The input custom field values representation of the 'FILE_UPLOAD' field type.
 	FileUpload *FileUploadCustomFieldValueInput `json:"fileUpload,omitempty"`
 }
 
@@ -887,15 +887,15 @@ type FeeInput struct {
 	Basis FeeBasis `json:"basis"`
 }
 
-// FileUploadCustomFieldValueInput — An input for a file-upload custom field. Two shapes are accepted; the input must use exactly one:  - `fileId: ID` (single file) — kept for backward compatibility with clients   generated against the original schema.  - `fileIds: [ID!]` (zero or more files) — preferred shape for new clients.   An empty array deletes all attached files. Sending both `fileId` and `fileIds` is rejected by the validator.
+// FileUploadCustomFieldValueInput — An input for a file-upload custom field. Two shapes are accepted; the input must use exactly one:  - 'fileId: ID' (single file) — kept for backward compatibility with clients   generated against the original schema.  - 'fileIds: [ID!]' (zero or more files) — preferred shape for new clients.   An empty array deletes all attached files. Sending both 'fileId' and 'fileIds' is rejected by the validator.
 type FileUploadCustomFieldValueInput struct {
 	// The ID of the field to attach files to.
 	Id *string `json:"id,omitempty"`
 	// A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.
 	Slug *string `json:"slug,omitempty"`
-	// The ID of the previously-uploaded file (see the `uploadFiles` mutation) to attach. Singular form. A null value indicates that the field value will be deleted. Mutually exclusive with `fileIds`.
+	// The ID of the previously-uploaded file (see the 'uploadFiles' mutation) to attach. Singular form. A null value indicates that the field value will be deleted. Mutually exclusive with 'fileIds'.
 	FileId *string `json:"fileId,omitempty"`
-	// The IDs of the previously-uploaded files (see the `uploadFiles` mutation) to attach. Plural form. An empty array deletes all attached files. Mutually exclusive with `fileId`.
+	// The IDs of the previously-uploaded files (see the 'uploadFiles' mutation) to attach. Plural form. An empty array deletes all attached files. Mutually exclusive with 'fileId'.
 	FileIds []string `json:"fileIds,omitempty"`
 }
 
@@ -935,7 +935,7 @@ type GeneratePersonalInviteLinkInput struct {
 	Company string `json:"company"`
 }
 
-// GenericComplianceInput — Catch-all compliance input — matches the legacy `updateCompliance` shape.
+// GenericComplianceInput — Catch-all compliance input — matches the legacy 'updateCompliance' shape.
 type GenericComplianceInput struct {
 	// The compliance to update.
 	Name ComplianceName `json:"name"`
@@ -951,15 +951,15 @@ type HireHistoryFilterInput struct {
 	Accounts []string `json:"accounts,omitempty"`
 }
 
-// HireInput — The input used for direct hires (hiring a worker without a bid). Direct hires require the worker to be a trusted contact of the hiring company. If `job` is omitted, a new job will be created automatically using the provided `name`, `description`, and related fields. If `job` is provided, the hire will be associated with that existing job.
+// HireInput — The input used for direct hires (hiring a worker without a bid). Direct hires require the worker to be a trusted contact of the hiring company. If 'job' is omitted, a new job will be created automatically using the provided 'name', 'description', and related fields. If 'job' is provided, the hire will be associated with that existing job.
 type HireInput struct {
-	// The trusted contact to hire directly. The worker must already exist as a trusted contact of the hiring company. Use `createTrustedContact` first if the worker is not yet in the company's Talent Pool.
+	// The trusted contact to hire directly. The worker must already exist as a trusted contact of the hiring company. Use 'createTrustedContact' first if the worker is not yet in the company's Talent Pool.
 	TrustedContact *string `json:"trustedContact,omitempty"`
-	// The ID of an existing job to associate with this hire. Optional — if omitted, a new job will be created automatically from the `name`, `description`, and other job-related fields provided in this input.
+	// The ID of an existing job to associate with this hire. Optional — if omitted, a new job will be created automatically from the 'name', 'description', and other job-related fields provided in this input.
 	Job *string `json:"job,omitempty"`
-	// The title for the auto-created job. Only used when `job` is not provided.
+	// The title for the auto-created job. Only used when 'job' is not provided.
 	Name *string `json:"name,omitempty"`
-	// The description for the auto-created job. Only used when `job` is not provided.
+	// The description for the auto-created job. Only used when 'job' is not provided.
 	Description *string `json:"description,omitempty"`
 	// The message to send the trusted contact.
 	Message *string `json:"message,omitempty"`
@@ -981,7 +981,7 @@ type HireInput struct {
 	Conversation *string `json:"conversation,omitempty"`
 	// The recruiter that the hire should be attributed to.
 	Recruiter *RecruiterInput `json:"recruiter,omitempty"`
-	// Additional custom fields for the direct hire. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team. Note: Passing an empty array `[]` will skip custom field syncing entirely. If you have required custom fields configured, you must provide values for them or validation will fail.
+	// Additional custom fields for the direct hire. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team. Note: Passing an empty array '[]' will skip custom field syncing entirely. If you have required custom fields configured, you must provide values for them or validation will fail.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 	// The company that the direct hire is for.
 	Company string `json:"company"`
@@ -1033,7 +1033,7 @@ type InviteCompanyRecruiterInput struct {
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
 }
 
-// InvitedByInput — Trusted contact invited by users filter input. If `null`, all trusted contacts will be returned.
+// InvitedByInput — Trusted contact invited by users filter input. If 'null', all trusted contacts will be returned.
 type InvitedByInput struct {
 	// User IDs by which to filter by.
 	Users []string `json:"users"`
@@ -1077,7 +1077,7 @@ type LanguageInput struct {
 type LocationPreferenceInput struct {
 	// The location preference.
 	Preference LocationPreference `json:"preference"`
-	// The address for the job. This is not required when `location` is set to `REMOTE_ONLY`.
+	// The address for the job. This is not required when 'location' is set to 'REMOTE_ONLY'.
 	Address *string `json:"address,omitempty"`
 }
 
@@ -1355,7 +1355,7 @@ type SubmitComplianceInput struct {
 	ReviewWorker *ReviewWorkerInput `json:"reviewWorker,omitempty"`
 	// Record the authenticated company's compliance review of a staffing agency.
 	ReviewRecruiter *ReviewRecruiterInput `json:"reviewRecruiter,omitempty"`
-	// Catch-all for compliances without a dedicated typed input shape. The `data` JSON must match the compliance's expected form structure.
+	// Catch-all for compliances without a dedicated typed input shape. The 'data' JSON must match the compliance's expected form structure.
 	Generic *GenericComplianceInput `json:"generic,omitempty"`
 }
 
@@ -1419,7 +1419,7 @@ type TrustedContactOrderByClauseInput struct {
 type UpdateApprovalDataInput struct {
 	// The updated display name.
 	Name *string `json:"name,omitempty"`
-	// The updated status (`ACTIVE`, `INACTIVE`, or `ARCHIVED`).
+	// The updated status ('ACTIVE', 'INACTIVE', or 'ARCHIVED').
 	Status *ApprovalStatus `json:"status,omitempty"`
 	// The updated trigger event.
 	Trigger *ApprovalTrigger `json:"trigger,omitempty"`
@@ -1427,13 +1427,13 @@ type UpdateApprovalDataInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// UpdateApprovalInput — The input for updating an existing approval flow. All fields except `id` are optional — only provided fields are updated. Updates create a new version of the approval.
+// UpdateApprovalInput — The input for updating an existing approval flow. All fields except 'id' are optional — only provided fields are updated. Updates create a new version of the approval.
 type UpdateApprovalInput struct {
 	// The ID of the approval flow to update.
 	Id string `json:"id"`
 	// The updated display name.
 	Name *string `json:"name,omitempty"`
-	// The updated status. Set to `INACTIVE` to pause the approval without deleting it.
+	// The updated status. Set to 'INACTIVE' to pause the approval without deleting it.
 	Status *ApprovalStatus `json:"status,omitempty"`
 	// The updated trigger event.
 	Trigger *ApprovalTrigger `json:"trigger,omitempty"`
@@ -1509,7 +1509,7 @@ type UpdateCustomFieldInput struct {
 	SharedWithClients *bool `json:"sharedWithClients,omitempty"`
 	// Configures the field's values to be visible to staffing agencies the company shares the job with.
 	SharedWithStaffingAgencies *bool `json:"sharedWithStaffingAgencies,omitempty"`
-	// The list of options which will be available for custom field values. Only applies to some field types (e.g. `SINGLE_SELECT`).
+	// The list of options which will be available for custom field values. Only applies to some field types (e.g. 'SINGLE_SELECT').
 	Options []CustomFieldCustomFieldOptionInput `json:"options,omitempty"`
 }
 
@@ -1543,7 +1543,7 @@ type UpdateJobCandidateStepInput struct {
 	Step JobCandidateHiringStep `json:"step"`
 }
 
-// UpdateJobInput — The input for updating an existing job. Use this after `createJob` to set the complete job details — description, rates, dates, location, visibility, and more. All fields are optional; only provided fields are updated. Setting `published` to `true` publishes the job and makes it visible according to its `visibility` settings. Publication cannot be undone.
+// UpdateJobInput — The input for updating an existing job. Use this after 'createJob' to set the complete job details — description, rates, dates, location, visibility, and more. All fields are optional; only provided fields are updated. Setting 'published' to 'true' publishes the job and makes it visible according to its 'visibility' settings. Publication cannot be undone.
 type UpdateJobInput struct {
 	// The ID of the job.
 	Id string `json:"id"`
@@ -1567,9 +1567,9 @@ type UpdateJobInput struct {
 	Location *AddressInput `json:"location,omitempty"`
 	// The rate unit, amount, and range for the job.
 	RateType *RateInput `json:"rateType,omitempty"`
-	// The start date of the job. If this is set to `null`, we will assume that the job should start as soon as possible.
+	// The start date of the job. If this is set to 'null', we will assume that the job should start as soon as possible.
 	StartDate *string `json:"startDate,omitempty"`
-	// The end date of the job. If this is set to `null`, we will assume that the job's end date is undetermined.
+	// The end date of the job. If this is set to 'null', we will assume that the job's end date is undetermined.
 	EndDate *string `json:"endDate,omitempty"`
 	// The timeframe of the job start.
 	StartDateTimeframe *JobStartTimeframe `json:"startDateTimeframe,omitempty"`
@@ -1987,7 +1987,7 @@ type WithdrawJobCandidateInput struct {
 	JobCandidate string `json:"jobCandidate"`
 }
 
-// WorkflowVariableFieldRuleInput — A condition definition specifying a variable, comparison operator, and threshold value. For example, to create a condition "hourly rate greater than 100", set `id` to the hourly rate variable identifier, `operator` to `GREATER_THAN`, and `value` to `"100"`.
+// WorkflowVariableFieldRuleInput — A condition definition specifying a variable, comparison operator, and threshold value. For example, to create a condition "hourly rate greater than 100", set 'id' to the hourly rate variable identifier, 'operator' to 'GREATER_THAN', and 'value' to '"100"'.
 type WorkflowVariableFieldRuleInput struct {
 	// The threshold value to compare against (as a string).
 	Value string `json:"value"`

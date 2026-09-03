@@ -1571,3 +1571,18 @@ type PaginatorInfo {
 		}
 	}
 }
+
+// pflag treats a back-quoted word in a usage string as the flag's value
+// placeholder. Schema descriptions use backticks as code spans, so a flag whose
+// description read "the `accounts` arg" rendered as `--viewer-role accounts`
+// instead of `--viewer-role string`, with the quotes stripped from the text.
+func TestCleanDescriptionNeutralisesBackticks(t *testing.T) {
+	got := cleanDescription("Only filters within the scope set by the `accounts` arg.")
+	want := "Only filters within the scope set by the 'accounts' arg."
+	if got != want {
+		t.Errorf("cleanDescription() = %q, want %q", got, want)
+	}
+	if strings.Contains(got, "`") {
+		t.Errorf("cleanDescription() left a backtick in %q", got)
+	}
+}

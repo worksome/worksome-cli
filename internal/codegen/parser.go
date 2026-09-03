@@ -1488,6 +1488,12 @@ func cleanDescription(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "  ", " ")
+	// pflag reads a back-quoted word in a flag's usage string as the value
+	// placeholder: "set by the `accounts` arg" renders the flag as
+	// `--viewer-role accounts` and strips the quotes. Schema descriptions use
+	// backticks as code spans, so swap them for plain quotes before they can
+	// reach a usage string.
+	s = strings.ReplaceAll(s, "`", "'")
 	return s
 }
 
