@@ -1,6 +1,6 @@
 # worksome-cli
 
-A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — 82 resource groups, 199 operations. Designed for both human users and AI agents.
+A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — <!-- resources -->77<!-- /resources --> resource groups, <!-- operations -->198<!-- /operations --> operations. Designed for both human users and AI agents.
 
 ## What is Worksome?
 
@@ -51,7 +51,7 @@ company ──creates──▶ job ──receives──▶ bid
 
 The CLI is designed to be driven programmatically:
 
-- **Discovery is built in.** `worksome --help` lists all 82 resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
+- **Discovery is built in.** `worksome --help` lists all <!-- resources -->77<!-- /resources --> resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
 - **Permissions are documented per action.** Many operations are restricted to one party — company, worker, or recruiter — and the help text says so (e.g. "Only companies can cancel their hires"). A permission error is usually a correct answer about the token's role, not a bug to work around.
 - **JSON without asking.** Output is JSON whenever stdout is not a TTY, so pipelines need no `--output json`. Pass it explicitly if you can't be sure of the environment.
 - **Keep responses small.** `--fields id,worker.name` narrows the GraphQL selection set itself — the server is only asked for those fields — and `--filter status=ACTIVE` narrows results. Useful when a full page of objects would be more than you need. A field name that does not exist is an error, not an empty result — except on the few operations whose shape can't be narrowed, where it is still dropped silently.
@@ -323,7 +323,7 @@ internal/
   codegen/          Schema parser + code generator
   config/           Profile and token management
   generated/        Generated code (committed, reviewed)
-    commands/       Cobra commands (82 resource groups)
+    commands/       Cobra commands (<!-- resources -->77<!-- /resources --> resource groups)
     queries/        GraphQL query/mutation functions
     types/          Go types, enums, input objects
   output/           JSON/table formatter with TTY detection
