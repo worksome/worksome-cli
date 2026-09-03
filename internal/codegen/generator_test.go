@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -431,7 +432,10 @@ func TestFlagHintJSONDescription(t *testing.T) {
 // the slice aliases the shared IR, and enumValuesLiteral renders the same values
 // into shell completions afterwards.
 func TestFlagHintDoesNotMutateEnumValues(t *testing.T) {
-	original := []string{"UNKNOWN", "REQUESTED", "APPROVED", "REJECTED", "NEEDS_CHANGE", "CANCELLED", "EXPIRED"}
+	original := make([]string, maxEnumHint+3)
+	for i := range original {
+		original[i] = fmt.Sprintf("VALUE_%02d", i)
+	}
 	values := append([]string{}, original...)
 	typ := TypeRef{Name: "ApprovalApprovableState", IsEnum: true, EnumValues: values}
 
@@ -525,5 +529,41 @@ type PaginatorInfo {
 	}
 	if !strings.Contains(string(cmds), "'accounts'") || !strings.Contains(string(cmds), "'DRAFT'") {
 		t.Error("expected the backticked words to survive as quoted text")
+	}
+}
+
+// Every value of an enum up to the cap is listed. ContractTerminationReason has
+// 14 values; showing five and "..." left the other nine undiscoverable from
+// --help — the only way to learn them was a rejected request.
+func TestFlagHintListsWholeEnumUpToCap(t *testing.T) {
+	values := make([]string, maxEnumHint)
+	for i := range values {
+		values[i] = fmt.Sprintf("REASON_%02d", i)
+	}
+	hint := flagHint("The reason.", TypeRef{Name: "Reason", IsEnum: true, EnumValues: values})
+	for _, v := range values {
+		if !strings.Contains(hint, v) {
+			t.Errorf("hint is missing %s: %q", v, hint)
+		}
+	}
+	if strings.Contains(hint, "...") {
+		t.Errorf("an enum at the cap must not be truncated: %q", hint)
+	}
+
+	// One past the cap is truncated, and says how many values are hidden.
+	over := append(append([]string{}, values...), "REASON_EXTRA")
+	hint = flagHint("The reason.", TypeRef{Name: "Reason", IsEnum: true, EnumValues: over})
+	want := fmt.Sprintf("... and %d more", len(over)-enumHintPreview)
+	if !strings.Contains(hint, want) {
+		t.Errorf("hint = %q, want it to end with %q", hint, want)
+	}
+	if strings.Contains(hint, "REASON_10") {
+		t.Errorf("a truncated hint should show only the first %d values: %q", enumHintPreview, hint)
+	}
+
+	// Lists of enums (`--statuses`) take the same path.
+	hint = flagHint("Statuses.", TypeRef{Name: "Reason", IsList: true, ListItem: &TypeRef{Name: "Reason", IsEnum: true, EnumValues: values}})
+	if !strings.Contains(hint, "REASON_24") {
+		t.Errorf("list-of-enum hint is truncated: %q", hint)
 	}
 }

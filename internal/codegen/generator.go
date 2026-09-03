@@ -1291,13 +1291,24 @@ func flagHint(desc string, t TypeRef) string {
 		return desc
 	}
 	display := values
-	if len(display) > 5 {
-		// Copy first: appending into values[:5] would overwrite values[5] in the
+	if len(display) > maxEnumHint {
+		// Copy first: appending into values[:n] would overwrite values[n] in the
 		// shared IR, and shell completions render the same slice afterwards.
-		display = append(append([]string{}, values[:5]...), "...")
+		hidden := len(values) - enumHintPreview
+		display = append(append([]string{}, values[:enumHintPreview]...), fmt.Sprintf("... and %d more", hidden))
 	}
 	return desc + " [" + strings.Join(display, ", ") + "]"
 }
+
+// maxEnumHint is the largest enum whose values --help lists in full. Two enums
+// in the schema run to 88 and 249 values (ComplianceName, CountryCode) and would
+// swamp the help text; every other one fits. Below the cap, hiding values behind
+// "..." left a reader with no way to discover PROJECT_COMPLETED_EARLY short of
+// guessing until the server accepted it.
+const maxEnumHint = 25
+
+// enumHintPreview is how many values are shown for an enum over the cap.
+const enumHintPreview = 5
 
 // shortDesc truncates a description to the first sentence for Short fields.
 func shortDesc(s string) string {
