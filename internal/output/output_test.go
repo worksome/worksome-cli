@@ -946,3 +946,101 @@ func TestFilterFields_nestedPathThroughScalarList(t *testing.T) {
 		t.Error("tags should not be silently dropped when the path has no subfields")
 	}
 }
+
+// Operations whose root field is a plain (unpaginated) list, such as
+// `accounts get`, reach FilterFields as the response envelope. --fields must
+// resolve against the items, not match nothing against the envelope and
+// print {} — the wrapper key stays so existing `.accounts[]` pipes keep working.
+func TestFilterFields_unwrapsSingleKeyListEnvelope(t *testing.T) {
+	data := map[string]any{
+		"accounts": []any{
+			map[string]any{"id": "1", "name": "Worksome", "avatar": "a.jpg"},
+			map[string]any{"id": "2", "name": "Worksome UK", "avatar": nil},
+		},
+	}
+
+	result := FilterFields(data, []string{"id", "name"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", result)
+	}
+	list, ok := m["accounts"].([]any)
+	if !ok {
+		t.Fatalf("expected the accounts wrapper to survive, got %v", m)
+	}
+	if len(list) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(list))
+	}
+	first, _ := list[0].(map[string]any)
+	if len(first) != 2 || first["id"] != "1" || first["name"] != "Worksome" {
+		t.Errorf("item 0 = %v, want only id and name", first)
+	}
+	if _, ok := first["avatar"]; ok {
+		t.Error("avatar should have been filtered out")
+	}
+}
+
+// A path that names the wrapper key itself addresses the envelope, and must
+// not be redirected at the items.
+func TestFilterFields_envelopeKeyStillSelectable(t *testing.T) {
+	data := map[string]any{
+		"accounts": []any{
+			map[string]any{"id": "1", "name": "Worksome"},
+		},
+	}
+
+	result := FilterFields(data, []string{"accounts.id"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", result)
+	}
+	list, ok := m["accounts"].([]any)
+	if !ok || len(list) != 1 {
+		t.Fatalf("expected one account, got %v", m["accounts"])
+	}
+	item, _ := list[0].(map[string]any)
+	if len(item) != 1 || item["id"] != "1" {
+		t.Errorf("item = %v, want only id", item)
+	}
+}
+
+// A single-key envelope around an object (not a list) is left to the normal
+// path: {"worker": {...}} filtered by "worker.name" already works and must
+// keep working.
+func TestFilterFields_singleKeyObjectNotUnwrapped(t *testing.T) {
+	data := map[string]any{
+		"worker": map[string]any{"id": "w1", "name": "Bob"},
+	}
+
+	result := FilterFields(data, []string{"worker.name"})
+	m, _ := result.(map[string]any)
+	worker, ok := m["worker"].(map[string]any)
+	if !ok || len(worker) != 1 || worker["name"] != "Bob" {
+		t.Errorf("result = %v, want {worker:{name:Bob}}", result)
+	}
+}
+
+// filterValue accepts []map[string]any as well as []any; the envelope unwrap
+// must too, or a Go-built list would fall back to matching against the
+// wrapper and return {}.
+func TestFilterFields_unwrapsTypedMapSliceEnvelope(t *testing.T) {
+	data := map[string]any{
+		"accounts": []map[string]any{
+			{"id": "1", "name": "Acme", "avatar": "a.jpg"},
+		},
+	}
+
+	result := FilterFields(data, []string{"id"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", result)
+	}
+	list, ok := m["accounts"].([]any)
+	if !ok || len(list) != 1 {
+		t.Fatalf("expected the accounts wrapper with one item, got %v", m)
+	}
+	item, _ := list[0].(map[string]any)
+	if len(item) != 1 || item["id"] != "1" {
+		t.Errorf("item = %v, want only id", item)
+	}
+}

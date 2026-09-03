@@ -343,7 +343,43 @@ func FilterFields(data any, fields []string) any {
 		trimmed[i] = strings.TrimSpace(f)
 	}
 
+	// Operations whose root field is a plain list arrive as the response
+	// envelope — {"accounts": [...]} — because only single objects and
+	// paginated "data" are unwrapped upstream. Resolving the paths against
+	// that envelope matches nothing and prints {}. Resolve them against the
+	// list instead, as ExtractFields does for tables, but keep the wrapper so
+	// the JSON shape callers already pipe into (`.accounts[]`) is unchanged.
+	if m, ok := data.(map[string]any); ok && len(m) == 1 {
+		for key, val := range m {
+			if isList(val) && !selectsKey(trimmed, key) {
+				return map[string]any{key: filterValue(val, trimmed)}
+			}
+		}
+	}
+
 	return filterValue(data, trimmed)
+}
+
+// isList reports whether val is one of the list shapes filterValue descends
+// into. JSON decoding yields []any; callers building data in Go may hand over
+// []map[string]any, and both must take the envelope path.
+func isList(val any) bool {
+	switch val.(type) {
+	case []any, []map[string]any:
+		return true
+	}
+	return false
+}
+
+// selectsKey reports whether any field path starts at key — in which case the
+// envelope itself is what the caller means to filter.
+func selectsKey(fields []string, key string) bool {
+	for _, f := range fields {
+		if head, _, _ := strings.Cut(f, "."); head == key {
+			return true
+		}
+	}
+	return false
 }
 
 // filterMap returns a new map containing only the keys/paths listed in fields.
