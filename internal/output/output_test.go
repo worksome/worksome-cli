@@ -1019,3 +1019,28 @@ func TestFilterFields_singleKeyObjectNotUnwrapped(t *testing.T) {
 		t.Errorf("result = %v, want {worker:{name:Bob}}", result)
 	}
 }
+
+// filterValue accepts []map[string]any as well as []any; the envelope unwrap
+// must too, or a Go-built list would fall back to matching against the
+// wrapper and return {}.
+func TestFilterFields_unwrapsTypedMapSliceEnvelope(t *testing.T) {
+	data := map[string]any{
+		"accounts": []map[string]any{
+			{"id": "1", "name": "Acme", "avatar": "a.jpg"},
+		},
+	}
+
+	result := FilterFields(data, []string{"id"})
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", result)
+	}
+	list, ok := m["accounts"].([]any)
+	if !ok || len(list) != 1 {
+		t.Fatalf("expected the accounts wrapper with one item, got %v", m)
+	}
+	item, _ := list[0].(map[string]any)
+	if len(item) != 1 || item["id"] != "1" {
+		t.Errorf("item = %v, want only id", item)
+	}
+}

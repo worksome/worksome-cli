@@ -351,13 +351,24 @@ func FilterFields(data any, fields []string) any {
 	// the JSON shape callers already pipe into (`.accounts[]`) is unchanged.
 	if m, ok := data.(map[string]any); ok && len(m) == 1 {
 		for key, val := range m {
-			if list, ok := val.([]any); ok && !selectsKey(trimmed, key) {
-				return map[string]any{key: filterValue(list, trimmed)}
+			if isList(val) && !selectsKey(trimmed, key) {
+				return map[string]any{key: filterValue(val, trimmed)}
 			}
 		}
 	}
 
 	return filterValue(data, trimmed)
+}
+
+// isList reports whether val is one of the list shapes filterValue descends
+// into. JSON decoding yields []any; callers building data in Go may hand over
+// []map[string]any, and both must take the envelope path.
+func isList(val any) bool {
+	switch val.(type) {
+	case []any, []map[string]any:
+		return true
+	}
+	return false
 }
 
 // selectsKey reports whether any field path starts at key — in which case the
