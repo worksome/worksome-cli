@@ -356,9 +356,10 @@ type PaginatorInfo {
 		t.Error("--search is a String, it must not be JSON-decoded")
 	}
 
-	// Help text should tell the user JSON is expected.
-	if !strings.Contains(cmds, "(JSON for DateRangeInput)") {
-		t.Error("expected the flag description to advertise JSON and name the type")
+	// Help text should tell the user JSON is expected, name the type, and show
+	// the shape.
+	if !strings.Contains(cmds, "(JSON for DateRangeInput, e.g. {") {
+		t.Error("expected the flag description to advertise JSON, name the type and give an example")
 	}
 }
 
@@ -682,5 +683,105 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 	}
 	if !strings.Contains(q, "q.Client.Execute(ctx, query, vars, &result)") {
 		t.Error("mutations should keep the plain Execute")
+	}
+}
+
+// A JSON flag's help used to name only the input type. The example and the
+// enum values are what a caller actually needs to construct the value.
+func TestJSONFlagHelpShowsShapeAndEnumValues(t *testing.T) {
+	schema := `
+type Query {
+	"List hires."
+	hires(first: Int! = 10, page: Int, orderBy: [OrderClause!], window: DateRange): HirePaginator!
+}
+
+enum SortColumn { START_DATE END_DATE WORKER_NAME }
+enum SortOrder { ASC DESC }
+
+"How to sort."
+input OrderClause {
+	field: SortColumn
+	order: SortOrder
+}
+
+input DateRange {
+	from: String
+	to: String
+}
+
+type Hire { id: ID! }
+
+type HirePaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Hire!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	// Parser level: the TypeRef carries the example and the enum values.
+	var orderBy, window *Argument
+	for i := range parsed.Resources {
+		if q := parsed.Resources[i].ListQuery; q != nil {
+			for j := range q.Arguments {
+				switch q.Arguments[j].Name {
+				case "orderBy":
+					orderBy = &q.Arguments[j]
+				case "window":
+					window = &q.Arguments[j]
+				}
+			}
+		}
+	}
+	if orderBy == nil || window == nil {
+		t.Fatal("expected orderBy and window arguments on the list query")
+	}
+	if got, want := orderBy.Type.ListItem.InputExample, `{"field":"START_DATE","order":"ASC"}`; got != want {
+		t.Errorf("orderBy example = %q, want %q", got, want)
+	}
+	if got, want := orderBy.Type.ListItem.InputEnumHint, "field: START_DATE | END_DATE | WORKER_NAME; order: ASC | DESC"; got != want {
+		t.Errorf("orderBy enum hint = %q, want %q", got, want)
+	}
+	if window.Type.InputEnumHint != "" {
+		t.Errorf("an input with no enum fields must have no enum hint, got %q", window.Type.InputEnumHint)
+	}
+
+	// Rendering: a list argument wraps the example; a plain one does not.
+	if got, want := flagHint("Sort.", orderBy.Type), `Sort. (JSON for [OrderClause!], e.g. [{"field":"START_DATE","order":"ASC"}]; field: START_DATE | END_DATE | WORKER_NAME; order: ASC | DESC)`; got != want {
+		t.Errorf("flagHint(orderBy) = %q, want %q", got, want)
+	}
+	if got, want := flagHint("", window.Type), `(JSON for DateRange, e.g. {"from":"...","to":"..."})`; got != want {
+		t.Errorf("flagHint(window) = %q, want %q", got, want)
+	}
+
+	// End to end: the usage string reaches the generated command.
+	outputDir := t.TempDir()
+	if err := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli").Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	cmds, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`e.g. [{`, `START_DATE`, `order: ASC | DESC`} {
+		if !strings.Contains(string(cmds), want) {
+			t.Errorf("generated commands should contain %q", want)
+		}
 	}
 }

@@ -404,6 +404,7 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 	// Check input
 	if p.inputs[t.NamedType] {
 		ref.IsInput = true
+		ref.InputExample, ref.InputEnumHint = p.inputHint(t.NamedType)
 		if ref.IsRequired {
 			ref.GoType = t.NamedType
 		} else {
@@ -1010,6 +1011,50 @@ func (p *parser) resolveInputFields(op *Operation) {
 
 	// Build a JSON example showing the full input structure (including nested types)
 	op.InputExample = p.buildInputExample(arg.Type.Name)
+}
+
+// maxInputEnumHint caps how many values an enum field lists in a JSON flag's
+// help. The whole hint sits on one flag line, so this is tighter than the cap
+// for flags that are themselves enums.
+const maxInputEnumHint = 12
+
+// inputHint returns what a JSON flag for the input object should look like: a
+// compact example, and the allowed values of any enum fields. The type name
+// alone — "(JSON for [HiresOrderByClauseInput!])" — sent a reader to the
+// schema to learn that the key is "field" (not "column"), and to a second
+// file for the sort columns; both belong in --help.
+func (p *parser) inputHint(inputName string) (example, enums string) {
+	def := p.doc.Types[inputName]
+	if def == nil || def.Kind != ast.InputObject {
+		return "", ""
+	}
+	value := p.buildInputExampleValue(inputName, 0)
+	if value == nil {
+		return "", ""
+	}
+	// json.Marshal sorts map keys, so the generated help is stable.
+	b, err := json.Marshal(value)
+	if err != nil {
+		return "", ""
+	}
+
+	var parts []string
+	for _, f := range def.Fields {
+		enumDef := p.doc.Types[unwrapType(f.Type)]
+		if enumDef == nil || enumDef.Kind != ast.Enum {
+			continue
+		}
+		names := make([]string, 0, len(enumDef.EnumValues))
+		for _, v := range enumDef.EnumValues {
+			names = append(names, v.Name)
+		}
+		if len(names) > maxInputEnumHint {
+			hidden := len(names) - maxInputEnumHint
+			names = append(names[:maxInputEnumHint:maxInputEnumHint], fmt.Sprintf("... and %d more", hidden))
+		}
+		parts = append(parts, f.Name+": "+strings.Join(names, " | "))
+	}
+	return string(b), strings.Join(parts, "; ")
 }
 
 // buildInputExample recursively builds a JSON example string for a GraphQL input type.

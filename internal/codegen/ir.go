@@ -84,6 +84,11 @@ type TypeRef struct {
 	ListItem      *TypeRef // For list types, the element type
 	IsEnum        bool
 	EnumValues    []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
+	// InputExample is a compact JSON example of an input object, and
+	// InputEnumHint the allowed values of its enum fields — both rendered into
+	// the help of flags that take this type as JSON. Empty for non-inputs.
+	InputExample  string
+	InputEnumHint string
 	IsInput       bool
 	IsScalar      bool
 	IsPaginator   bool
