@@ -125,6 +125,40 @@ func requireFields(input map[string]any, required []requiredField) error {
 		noun, strings.Join(names, ", "), strings.Join(flags, ", "), pronoun)
 }
 
+// printPageInfo reports where a list result sits in its pagination —
+// "page 1 of 72 (715 total)" — so someone at a terminal can tell whether the
+// page they got is the whole set without fetching the rest. The API returns
+// paginatorInfo on every list and the CLI has always discarded it.
+//
+// It writes only when stderr is a terminal. A default "worksome jobs list" is
+// the shape that ends up in cron jobs and CI steps, many of which treat any
+// stderr output as failure, and there is no flag to silence it; the existing
+// stderr chrome (--all, --watch) is opt-in for the same reason.
+func printPageInfo(paginator map[string]any) {
+	if !output.IsTTYFile(os.Stderr) {
+		return
+	}
+	writePageInfo(os.Stderr, paginator)
+}
+
+func writePageInfo(w io.Writer, paginator map[string]any) {
+	info, ok := paginator["paginatorInfo"].(map[string]any)
+	if !ok {
+		return
+	}
+	num := func(key string) (int, bool) {
+		f, ok := info[key].(float64) // JSON numbers decode as float64
+		return int(f), ok
+	}
+	page, ok1 := num("currentPage")
+	last, ok2 := num("lastPage")
+	total, ok3 := num("total")
+	if !ok1 || !ok2 || !ok3 {
+		return
+	}
+	fmt.Fprintf(w, "page %d of %d (%d total)\n", page, last, total)
+}
+
 // jsonArg decodes a flag whose GraphQL type is an input object (or a list of
 // them) from JSON. Sending the raw string would be rejected by the server as a
 // type mismatch, so a bad value is reported here with the type it needs.
@@ -553,6 +587,9 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["approvalApprovables"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -857,6 +894,9 @@ func newApprovalRulesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["approvalRules"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["approvalRules"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -1110,6 +1150,9 @@ func newApprovalStatesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["approvalStates"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["approvalStates"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -1324,6 +1367,9 @@ func newApprovalsListCmd() *cobra.Command {
 				result, err := q.Approvals(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["approvals"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["approvals"].(map[string]any); ok {
@@ -1744,6 +1790,9 @@ func newApproversListCmd() *cobra.Command {
 				result, err := q.Approvers(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["approvers"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["approvers"].(map[string]any); ok {
@@ -2368,6 +2417,9 @@ func newBatchesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["batches"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["batches"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -2681,6 +2733,9 @@ func newBidsListCmd() *cobra.Command {
 				result, err := q.Bids(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["bids"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["bids"].(map[string]any); ok {
@@ -3069,6 +3124,9 @@ func newClassificationsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["classifications"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["classifications"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -3277,6 +3335,9 @@ func newCompaniesListCmd() *cobra.Command {
 				result, err := q.Companies(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["companies"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["companies"].(map[string]any); ok {
@@ -3600,6 +3661,9 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				result, err := q.CompanyRecruiters(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["companyRecruiters"].(map[string]any); ok {
@@ -4206,6 +4270,9 @@ func newCompanySuppliersListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["companySuppliers"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["companySuppliers"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -4501,6 +4568,9 @@ func newContractsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["contracts"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["contracts"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -4714,6 +4784,9 @@ func newConversationsListCmd() *cobra.Command {
 				result, err := q.Conversations(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["conversations"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["conversations"].(map[string]any); ok {
@@ -4990,6 +5063,9 @@ func newCustomFieldsListCmd() *cobra.Command {
 				result, err := q.CustomFields(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["customFields"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["customFields"].(map[string]any); ok {
@@ -5880,6 +5956,9 @@ func newEmploymentsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["employments"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["employments"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -6292,6 +6371,9 @@ func newFilesListCmd() *cobra.Command {
 				result, err := q.Files(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["files"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["files"].(map[string]any); ok {
@@ -6923,6 +7005,9 @@ func newHiresListCmd() *cobra.Command {
 				result, err := q.Hires(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["hires"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["hires"].(map[string]any); ok {
@@ -7883,6 +7968,9 @@ func newIncomingJobsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["incomingJobs"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["incomingJobs"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -8081,6 +8169,9 @@ func newIndustriesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["industries"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["industries"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -8255,6 +8346,9 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				result, err := q.InheritedCustomFields(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["inheritedCustomFields"].(map[string]any); ok {
@@ -8723,6 +8817,9 @@ func newInvoicesListCmd() *cobra.Command {
 				result, err := q.Invoices(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["invoices"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["invoices"].(map[string]any); ok {
@@ -9277,6 +9374,9 @@ func newJobCandidatesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["jobCandidates"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["jobCandidates"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -9552,6 +9652,9 @@ func newJobSharesListCmd() *cobra.Command {
 				result, err := q.JobShares(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["jobShares"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["jobShares"].(map[string]any); ok {
@@ -10020,6 +10123,9 @@ func newJobsListCmd() *cobra.Command {
 				result, err := q.Jobs(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["jobs"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["jobs"].(map[string]any); ok {
@@ -10792,6 +10898,9 @@ func newMilestonesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["milestones"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["milestones"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -11188,6 +11297,9 @@ func newMultiFactorsListCmd() *cobra.Command {
 				result, err := q.MultiFactors(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["multiFactors"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["multiFactors"].(map[string]any); ok {
@@ -12522,6 +12634,9 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["organisationTrustedContacts"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -13183,6 +13298,9 @@ func newPaymentRequestsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["paymentRequests"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["paymentRequests"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -13761,6 +13879,9 @@ func newProjectsListCmd() *cobra.Command {
 				result, err := q.Projects(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["projects"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["projects"].(map[string]any); ok {
@@ -14572,6 +14693,9 @@ func newRecruiterCandidatesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["recruiterCandidates"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -15107,6 +15231,9 @@ func newRecruitersListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["recruiters"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["recruiters"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -15358,6 +15485,9 @@ func newSkillsListCmd() *cobra.Command {
 				result, err := q.Skills(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["skills"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["skills"].(map[string]any); ok {
@@ -15636,6 +15766,9 @@ func newSupplierCandidatesListCmd() *cobra.Command {
 				result, err := q.SupplierCandidates(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["supplierCandidates"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["supplierCandidates"].(map[string]any); ok {
@@ -16125,6 +16258,9 @@ func newSupplierSharedCustomFieldsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["supplierSharedCustomFields"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["supplierSharedCustomFields"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -16551,6 +16687,9 @@ func newTimesheetsListCmd() *cobra.Command {
 				result, err := q.Timesheets(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["timesheets"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["timesheets"].(map[string]any); ok {
@@ -17199,6 +17338,9 @@ func newTrustedContactsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["trustedContacts"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["trustedContacts"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -17828,6 +17970,9 @@ func newUserGroupsListCmd() *cobra.Command {
 				result, err := q.UserGroups(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["userGroups"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["userGroups"].(map[string]any); ok {
@@ -18482,6 +18627,9 @@ func newWebhookEventLogsListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["webhookEventLogs"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -18691,6 +18839,9 @@ func newWebhookEventsListCmd() *cobra.Command {
 				result, err := q.WebhookEvents(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["webhookEvents"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["webhookEvents"].(map[string]any); ok {
@@ -18978,6 +19129,9 @@ func newWebhooksListCmd() *cobra.Command {
 				result, err := q.Webhooks(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["webhooks"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["webhooks"].(map[string]any); ok {
@@ -19972,6 +20126,9 @@ func newWorkflowVariablesListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if paginator, ok := result["workflowVariables"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["workflowVariables"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
@@ -20180,6 +20337,9 @@ func newWorkflowsListCmd() *cobra.Command {
 				result, err := q.Workflows(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["workflows"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
 				if paginator, ok := result["workflows"].(map[string]any); ok {
