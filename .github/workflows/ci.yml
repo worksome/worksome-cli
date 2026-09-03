@@ -24,6 +24,8 @@ jobs:
           go-version-file: go.mod
       - name: Build
         run: go build ./...
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
       - name: Test
         run: go test ./... -race -coverprofile=coverage.out
       - name: Verify generated code
