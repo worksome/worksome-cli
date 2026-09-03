@@ -718,3 +718,53 @@ func TestWrapOperationPreservesErrorIdentity(t *testing.T) {
 		t.Error("a passed-through GraphQL error should keep its type")
 	}
 }
+
+// The API classifies every error it can with extensions.code, and a server-side
+// handler may attach a trace id. Both used to be decoded and then dropped, so a
+// failed mutation read as a bare "Internal server error" with nothing to hand
+// to whoever has the logs.
+func TestGraphQLError_ErrorRendersCodeAndTrace(t *testing.T) {
+	tests := []struct {
+		name string
+		err  GraphQLError
+		want string
+	}{
+		{
+			"code only",
+			GraphQLError{Message: `Field "date" of required type "Date!" was not provided.`, Extensions: map[string]any{"code": "BAD_USER_INPUT"}},
+			`Field "date" of required type "Date!" was not provided. [BAD_USER_INPUT]`,
+		},
+		{
+			"path, code and trace",
+			GraphQLError{Message: "Internal server error", Path: []any{"terminateHire"}, Extensions: map[string]any{"code": "INTERNAL", "trace_id": "8f2c1a"}},
+			"terminateHire: Internal server error [INTERNAL, trace 8f2c1a]",
+		},
+		{
+			"trace under a camelCase key",
+			GraphQLError{Message: "boom", Extensions: map[string]any{"requestId": "req-42"}},
+			"boom [trace req-42]",
+		},
+		{
+			"only the first trace key is used",
+			GraphQLError{Message: "boom", Extensions: map[string]any{"trace_id": "a", "requestId": "b"}},
+			"boom [trace a]",
+		},
+		{
+			"non-string and empty values are ignored",
+			GraphQLError{Message: "boom", Extensions: map[string]any{"code": 42, "trace_id": ""}},
+			"boom",
+		},
+		{
+			"no extensions renders as before",
+			GraphQLError{Message: "boom", Path: []any{"hires", float64(0), "field"}},
+			"hires[0].field: boom",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.want {
+				t.Errorf("Error() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

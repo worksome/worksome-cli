@@ -138,12 +138,40 @@ type GraphQLError struct {
 
 // Error implements the error interface. The response path is included when the
 // API reports one, since a bare "Internal server error" repeated once per field
-// says nothing about which field failed.
+// says nothing about which field failed. The extensions code and any trace id
+// follow in brackets, so a failure can be classified and looked up in the
+// server's logs without re-running under --verbose.
 func (e GraphQLError) Error() string {
+	msg := e.Message
 	if loc := e.Location(); loc != "" {
-		return loc + ": " + e.Message
+		msg = loc + ": " + msg
 	}
-	return e.Message
+	if tag := e.tag(); tag != "" {
+		msg += " [" + tag + "]"
+	}
+	return msg
+}
+
+// traceKeys are the extension keys under which GraphQL servers commonly report
+// an id that can be found in their logs. Lighthouse sets none by default; a
+// platform-side error handler may add one, and it should reach the user when
+// it does.
+var traceKeys = []string{"trace_id", "traceId", "request_id", "requestId", "event_id", "eventId", "correlationId"}
+
+// tag renders the machine-readable parts of an error's extensions: the code
+// (BAD_USER_INPUT, FORBIDDEN, ...) and the first trace id present.
+func (e GraphQLError) tag() string {
+	var parts []string
+	if code, ok := e.Extensions["code"].(string); ok && code != "" {
+		parts = append(parts, code)
+	}
+	for _, k := range traceKeys {
+		if id, ok := e.Extensions[k].(string); ok && id != "" {
+			parts = append(parts, "trace "+id)
+			break
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Location renders the error's response path in dotted form, e.g.
