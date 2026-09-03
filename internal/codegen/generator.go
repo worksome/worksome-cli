@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 )
@@ -124,13 +125,13 @@ func (g *Generator) writeTemplate(tmpl *template.Template, path string, data any
 }
 
 var templateFuncs = template.FuncMap{
-	"lower":     strings.ToLower,
-	"kebab":     toKebabCase,
-	"pascal":    toPascalCase,
-	"hasPrefix": strings.HasPrefix,
-	"hasSuffix": strings.HasSuffix,
+	"lower":      strings.ToLower,
+	"kebab":      toKebabCase,
+	"pascal":     toPascalCase,
+	"hasPrefix":  strings.HasPrefix,
+	"hasSuffix":  strings.HasSuffix,
 	"trimPrefix": strings.TrimPrefix,
-	"join":      strings.Join,
+	"join":       strings.Join,
 	"jsonTag": func(name string, omitempty bool) string {
 		if omitempty {
 			return fmt.Sprintf("`json:\"%s,omitempty\"`", name)
@@ -258,7 +259,7 @@ func (q *Querier) {{.GetQuery.GoName}}(ctx context.Context, vars map[string]any)
 	{{.GetQuery.Name}}{{buildQueryCallArgs .GetQuery.Arguments}} {{.GetQuery.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, {{optionalLiteral .GetQuery.Optional}}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("{{.GetQuery.Name}}", err)
 	}
@@ -278,7 +279,7 @@ func (q *Querier) {{.ListQuery.GoName}}(ctx context.Context, vars map[string]any
 	{{.ListQuery.Name}}{{buildQueryCallArgs .ListQuery.Arguments}} {{.ListQuery.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteWithOptional(ctx, query, {{optionalLiteral .ListQuery.Optional}}, vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("{{.ListQuery.Name}}", err)
 	}
@@ -1092,6 +1093,7 @@ func init() {
 	templateFuncs["shortDesc"] = shortDesc
 	templateFuncs["enumValuesLiteral"] = enumValuesLiteral
 	templateFuncs["requiredInputFields"] = requiredInputFields
+	templateFuncs["optionalLiteral"] = optionalLiteral
 	templateFuncs["inputExampleBlock"] = inputExampleBlock
 	templateFuncs["inputExampleBlockHoisted"] = inputExampleBlockHoisted
 }
@@ -1382,6 +1384,25 @@ func requiredInputFields(fields []Argument) string {
 		return ""
 	}
 	return "[]requiredField{" + strings.Join(parts, ", ") + "}"
+}
+
+// optionalLiteral renders an operation's on-request selections as a Go map
+// literal for the generated querier, or "nil" when there are none. Keys are
+// sorted so regeneration is stable.
+func optionalLiteral(optional map[string]string) string {
+	if len(optional) == 0 {
+		return "nil"
+	}
+	keys := make([]string, 0, len(optional))
+	for k := range optional {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = fmt.Sprintf("%q: %q", k, optional[k])
+	}
+	return "map[string]string{" + strings.Join(parts, ", ") + "}"
 }
 
 // enumValuesLiteral returns a Go string slice literal for template use,

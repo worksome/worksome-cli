@@ -281,6 +281,18 @@ func isQuery(query string) bool {
 	return strings.HasPrefix(q, "query") || strings.HasPrefix(q, "{")
 }
 
+// ExecuteWithOptional is Execute for an operation whose generated query leaves
+// some selections out and offers them on request — paginated relations, which
+// cost the server one query per row. When --fields is in use they are added
+// to the query before it is narrowed, so naming one selects it and naming
+// nothing else leaves the query as lean as it was generated.
+func (c *Client) ExecuteWithOptional(ctx context.Context, query string, optional map[string]string, variables map[string]any, result any) error {
+	if len(c.fields) > 0 && len(optional) > 0 {
+		query = AddOptionalSelections(query, optional)
+	}
+	return c.Execute(ctx, query, variables, result)
+}
+
 // Execute sends a GraphQL query and unmarshals the response data into result.
 // It retries on transient network errors with exponential backoff (1s, 2s, 4s).
 // When a Cache is configured via WithCache, read queries are served from the

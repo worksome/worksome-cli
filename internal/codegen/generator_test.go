@@ -638,3 +638,49 @@ type Job {
 		t.Errorf("expected exactly one requireFields call (terminateHire only), found %d", n)
 	}
 }
+
+// The querier passes each query's on-request selections to the client, and
+// mutations keep the plain Execute.
+func TestGeneratedQuerierPassesOptionalSelections(t *testing.T) {
+	schema := `
+type Query {
+	"List user groups."
+	userGroups(first: Int! = 10, page: Int): UserGroupPaginator!
+}
+type Mutation {
+	"Create a group."
+	createUserGroup(input: CreateUserGroupInput!): UserGroup!
+}
+input CreateUserGroupInput { name: String! }
+type UserGroup { id: ID! name: String! users(first: Int! = 10, page: Int): UserPaginator! }
+type User { id: ID! name: String! }
+type UserPaginator { paginatorInfo: PaginatorInfo! data: [User!]! }
+type UserGroupPaginator { paginatorInfo: PaginatorInfo! data: [UserGroup!]! }
+type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPage: Int! perPage: Int! total: Int! }
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	outputDir := t.TempDir()
+	if err := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli").Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	queries, err := os.ReadFile(filepath.Join(outputDir, "queries", "queries.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := string(queries)
+	want := `q.Client.ExecuteWithOptional(ctx, query, map[string]string{"users": "users { paginatorInfo { total } data { id name } }"}, vars, &result)`
+	if !strings.Contains(q, want) {
+		t.Errorf("generated querier should pass the on-request selection:\n%s", want)
+	}
+	if !strings.Contains(q, "q.Client.Execute(ctx, query, vars, &result)") {
+		t.Error("mutations should keep the plain Execute")
+	}
+}

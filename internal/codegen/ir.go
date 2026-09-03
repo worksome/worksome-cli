@@ -36,14 +36,18 @@ type TableColumn struct {
 
 // Operation represents a single GraphQL query or mutation.
 type Operation struct {
-	Name             string // GraphQL name, e.g., "createJob"
-	GoName           string // PascalCase, e.g., "CreateJob"
-	CLIName          string // kebab-case CLI action, e.g., "create"
-	Description      string
-	Type             OperationType
-	Arguments        []Argument
-	ReturnType       TypeRef
-	SelectionSet     string // Pre-computed GraphQL selection set for the return type
+	Name         string // GraphQL name, e.g., "createJob"
+	GoName       string // PascalCase, e.g., "CreateJob"
+	CLIName      string // kebab-case CLI action, e.g., "create"
+	Description  string
+	Type         OperationType
+	Arguments    []Argument
+	ReturnType   TypeRef
+	SelectionSet string // Pre-computed GraphQL selection set for the return type
+	// Optional holds sub-selections the default query leaves out and offers on
+	// request through --fields: paginated relations, which cost the server one
+	// query per row. Keyed by field name; the value is the full selection.
+	Optional         map[string]string
 	Deprecated       bool
 	DeprecatedReason string
 	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
@@ -73,16 +77,16 @@ type Argument struct {
 
 // TypeRef represents a reference to a GraphQL type, with nullability and list info.
 type TypeRef struct {
-	Name       string // Base type name, e.g., "String", "Hire", "HirePaginator"
-	GoType     string // Go type, e.g., "string", "*string", "[]Hire"
-	IsRequired bool
-	IsList     bool
-	ListItem   *TypeRef // For list types, the element type
-	IsEnum     bool
-	EnumValues []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
-	IsInput    bool
-	IsScalar   bool
-	IsPaginator bool
+	Name          string // Base type name, e.g., "String", "Hire", "HirePaginator"
+	GoType        string // Go type, e.g., "string", "*string", "[]Hire"
+	IsRequired    bool
+	IsList        bool
+	ListItem      *TypeRef // For list types, the element type
+	IsEnum        bool
+	EnumValues    []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
+	IsInput       bool
+	IsScalar      bool
+	IsPaginator   bool
 	PaginatedType string // For paginator types, the inner data type, e.g., "Hire"
 }
 
@@ -131,10 +135,10 @@ type InputObject struct {
 
 // Interface represents a GraphQL interface type.
 type Interface struct {
-	Name        string
-	GoName      string
-	Description string
-	Fields      []Field
+	Name         string
+	GoName       string
+	Description  string
+	Fields       []Field
 	Implementors []string
 }
 
