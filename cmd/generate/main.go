@@ -15,6 +15,7 @@ func main() {
 	overridesPath := flag.String("overrides", "schema/overrides.yaml", "Path to overrides YAML file")
 	outputDir := flag.String("output", "internal/generated", "Output directory for generated code")
 	modulePath := flag.String("module", "github.com/worksome/worksome-cli", "Go module path")
+	readmePath := flag.String("readme", "README.md", "README whose marked counts are rewritten from the schema (\"\" to skip)")
 	flag.Parse()
 
 	fmt.Fprintf(os.Stderr, "Parsing schema: %s\n", *schemaPath)
@@ -32,6 +33,21 @@ func main() {
 	if err := gen.Generate(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating code: %v\n", err)
 		os.Exit(1)
+	}
+
+	// The README quotes how much of the API the CLI covers. Those numbers are
+	// rewritten here so they are as generated as the code they describe.
+	if *readmePath != "" {
+		if _, statErr := os.Stat(*readmePath); statErr == nil {
+			changed, err := codegen.UpdateReadmeCounts(*readmePath, schema)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error updating README counts: %v\n", err)
+				os.Exit(1)
+			}
+			if changed {
+				fmt.Fprintf(os.Stderr, "Updated counts in %s\n", *readmePath)
+			}
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "Done!\n")

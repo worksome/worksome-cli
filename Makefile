@@ -63,11 +63,11 @@ sync: sync-schema generate
 
 ## verify-generated: Verify generated code is up to date
 verify-generated: generate
-	@if git diff --quiet $(GENERATED_DIR); then \
+	@if git diff --quiet $(GENERATED_DIR) README.md; then \
 		echo "Generated code is up to date."; \
 	else \
 		echo "ERROR: Generated code is out of date. Run 'make generate' and commit."; \
-		git diff --stat $(GENERATED_DIR); \
+		git diff --stat $(GENERATED_DIR) README.md; \
 		exit 1; \
 	fi
 
