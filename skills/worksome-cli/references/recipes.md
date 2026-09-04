@@ -126,3 +126,27 @@ echo -n 'Sm9iOjI1'     | base64 -d     # -> Job:25
 
 Do this before passing an ID to a mutation — a mistyped base64 string can still
 be valid base64 for a different record.
+
+## Two ledgers: what we paid workers vs what we owe Worksome
+
+```bash
+# Worker payouts settled this year (cash out), per currency — sum client-side
+worksome payment-requests list --all --requested-date-range '{"from":"2025-09-01","to":"2026-12-31"}' \
+  --fields id,paidAt,currency,billedAmountWithExpenses,status \
+  | jq '[.[] | select(.paidAt != null and (.paidAt|startswith("2026")) and .status != "CANCELLED")]
+        | group_by(.currency) | map({currency: .[0].currency, paid: (map(.billedAmountWithExpenses)|add)})'
+
+# What is genuinely outstanding to Worksome (ignore isOverDue)
+worksome invoices list --all --fields id,number,currency,grossOpenAmount,dueDate,markedPaidAt \
+  | jq '[.[] | select(.grossOpenAmount > 0)]'
+```
+
+## Classification result for a hire
+
+```bash
+# Which hires use classification at all (server-side filter)
+worksome hires list --uses-classification USING --fields id,worker.name,usesClassification
+
+# The result lives one level down and only per hire
+worksome classifications list --hire <hire-id> --fields id,type,status,acceptedStatus,result
+```
