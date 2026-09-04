@@ -1334,6 +1334,29 @@ func isJSONArg(t TypeRef) bool {
 	return t.IsInput
 }
 
+// jsonShapeHint renders the example and enum values for a JSON flag, after the
+// type name: `, e.g. [{"field":"START_DATE","order":"ASC"}]; field: START_DATE | ...`.
+// A list argument wraps the example in brackets. Empty when the parser has no
+// example for the type, so the hint degrades to the bare type name.
+func jsonShapeHint(t TypeRef) string {
+	item := t
+	if t.IsList && t.ListItem != nil {
+		item = *t.ListItem
+	}
+	if item.InputExample == "" {
+		return ""
+	}
+	example := item.InputExample
+	if t.IsList {
+		example = "[" + example + "]"
+	}
+	hint := ", e.g. " + example
+	if item.InputEnumHint != "" {
+		hint += "; " + item.InputEnumHint
+	}
+	return hint
+}
+
 // gqlTypeName renders a GraphQL type for display in flag help and error text,
 // e.g. "DateRangeInput" or "[OrderByClauseInput!]".
 func gqlTypeName(t TypeRef) string {
@@ -1355,7 +1378,7 @@ func gqlTypeName(t TypeRef) string {
 func flagHint(desc string, t TypeRef) string {
 	// Input-object flags take JSON — say so, and name the type to look up.
 	if isJSONArg(t) {
-		hint := "(JSON for " + gqlTypeName(t) + ")"
+		hint := "(JSON for " + gqlTypeName(t) + jsonShapeHint(t) + ")"
 		// Schema arguments don't always carry a description.
 		if desc = strings.TrimSpace(desc); desc == "" {
 			return hint

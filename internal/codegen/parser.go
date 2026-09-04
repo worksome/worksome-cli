@@ -404,6 +404,7 @@ func (p *parser) resolveType(t *ast.Type) TypeRef {
 	// Check input
 	if p.inputs[t.NamedType] {
 		ref.IsInput = true
+		ref.InputExample, ref.InputEnumHint = p.inputHint(t.NamedType)
 		if ref.IsRequired {
 			ref.GoType = t.NamedType
 		} else {
@@ -1010,6 +1011,74 @@ func (p *parser) resolveInputFields(op *Operation) {
 
 	// Build a JSON example showing the full input structure (including nested types)
 	op.InputExample = p.buildInputExample(arg.Type.Name)
+}
+
+// maxInputEnumHint caps how many values an enum field lists in a JSON flag's
+// help. The whole hint sits on one flag line, so this is tighter than the cap
+// for flags that are themselves enums.
+const maxInputEnumHint = 12
+
+// inputHint returns what a JSON flag for the input object should look like: a
+// compact example, and the allowed values of any enum fields. The type name
+// alone — "(JSON for [HiresOrderByClauseInput!])" — sent a reader to the
+// schema to learn that the key is "field" (not "column"), and to a second
+// file for the sort columns; both belong in --help.
+// elidedInput stands in for a nested input object while the hint example is
+// encoded, and is replaced by {...} afterwards. Plain ASCII on purpose: the
+// encoder would turn control characters into \u escapes and the replacement
+// would never match.
+const elidedInput = "__elided_input__"
+
+func (p *parser) inputHint(inputName string) (example, enums string) {
+	def := p.doc.Types[inputName]
+	if def == nil || def.Kind != ast.InputObject {
+		return "", ""
+	}
+	value := p.buildInputExampleValue(inputName, 0)
+	if value == nil {
+		return "", ""
+	}
+	// The hint is one line of flag help, so nested input objects are elided to
+	// {...}; the full, pretty-printed example is in the --input block. Without
+	// this, an input that nests four sub-objects renders as ~800 characters.
+	for _, f := range def.Fields {
+		if !p.inputs[unwrapType(f.Type)] {
+			continue
+		}
+		if f.Type.Elem != nil {
+			value[f.Name] = []any{elidedInput}
+		} else {
+			value[f.Name] = elidedInput
+		}
+	}
+	// An Encoder with HTML escaping off, as buildInputExample uses: Marshal
+	// would turn the <id> placeholder into \u003cid\u003e in --help. Keys stay
+	// sorted either way, so the generated help is stable.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		return "", ""
+	}
+	b := []byte(strings.ReplaceAll(strings.TrimSpace(buf.String()), `"`+elidedInput+`"`, "{...}"))
+
+	var parts []string
+	for _, f := range def.Fields {
+		enumDef := p.doc.Types[unwrapType(f.Type)]
+		if enumDef == nil || enumDef.Kind != ast.Enum {
+			continue
+		}
+		names := make([]string, 0, len(enumDef.EnumValues))
+		for _, v := range enumDef.EnumValues {
+			names = append(names, v.Name)
+		}
+		if len(names) > maxInputEnumHint {
+			hidden := len(names) - maxInputEnumHint
+			names = append(names[:maxInputEnumHint:maxInputEnumHint], fmt.Sprintf("... and %d more", hidden))
+		}
+		parts = append(parts, f.Name+": "+strings.Join(names, " | "))
+	}
+	return string(b), strings.Join(parts, "; ")
 }
 
 // buildInputExample recursively builds a JSON example string for a GraphQL input type.

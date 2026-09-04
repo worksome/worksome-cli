@@ -627,7 +627,7 @@ func newApprovalApprovablesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("approvals", nil, "Filter by the parent approval flows.")
 	cmd.Flags().String("approvable", "", "Filter by the item being approved (e.g. a specific hire).")
 	cmd.Flags().StringSlice("approval-rules", nil, "Filter by specific approval rules.")
-	cmd.Flags().String("order-by", "", "Order the results by the given field and direction. (JSON for [ApprovalApprovablesOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the results by the given field and direction. (JSON for [ApprovalApprovablesOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -2772,7 +2772,7 @@ func newBidsListCmd() *cobra.Command {
 	cmd.Flags().String("job", "", "Filter the bids based on a job.")
 	cmd.Flags().StringSlice("accounts", nil, "Filter the bid based on one or more accounts.")
 	cmd.Flags().StringSlice("companies", nil, "Filter the bids based on one or more companies.")
-	cmd.Flags().String("order-by", "", "Order the bids by the specified field and direction. (JSON for [BidOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the bids by the specified field and direction. (JSON for [BidOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | STATUS; order: ASC | DESC)")
 
 	return cmd
 }
@@ -3701,11 +3701,11 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter recruiters by. [ACTIVE, INVITED]")
 	cmd.Flags().StringSlice("tags", nil, "Supply a list of tags to filter recruiters by.")
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets to filter recruiters by.")
-	cmd.Flags().String("recruiter-regions", "", "Filter recruiters by market and optionally narrow by specific regions. (JSON for MarketRegionInput)")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [RecruiterOrderByClauseInput!])")
+	cmd.Flags().String("recruiter-regions", "", "Filter recruiters by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [RecruiterOrderByClauseInput!], e.g. [{\"field\":\"RECRUITER_NAME\",\"order\":\"ASC\"}]; field: RECRUITER_NAME | RECRUITER_MARKET | RECRUITER_FEE | RECRUITER_OWNERSHIP_DAYS | RECRUITER_STATUS | RECRUITER_INVITED_AT | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show company recruiters with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!])")
-	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state. (JSON for VerifiedRecruiterReviewFilterInput)")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state. (JSON for VerifiedRecruiterReviewFilterInput, e.g. {\"status\":\"INCOMPLETE\",\"updatedBy\":[\"<id>\"]}; status: INCOMPLETE | READY_TO_REVIEW | CHANGES_REQUESTED | CLEARED)")
 
 	return cmd
 }
@@ -5994,9 +5994,9 @@ func newEmploymentsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("status", nil, "Filter employments by employment status. [DRAFT, ACTIVE, ENDED]")
 	cmd.Flags().StringSlice("employer-record-status", nil, "Filter employments by employer record status. [INCOMPLETE, CHANGES_REQUESTED, PROCESSING, COMPLETE]")
 	cmd.Flags().String("search", "", "Filter by search term against worker name, job title, etc.")
-	cmd.Flags().String("order-by", "", "Order by clause. (JSON for [EmploymentsOrderByClauseInput!])")
-	cmd.Flags().String("start-date-range", "", "Filter by start date range. (JSON for DateRangeInput)")
-	cmd.Flags().String("end-date-range", "", "Filter by end date range. (JSON for DateRangeInput)")
+	cmd.Flags().String("order-by", "", "Order by clause. (JSON for [EmploymentsOrderByClauseInput!], e.g. [{\"field\":\"START_DATE\",\"order\":\"ASC\"}]; field: START_DATE | END_DATE | WORKER_NAME | COMPANY_NAME | JOB_NAME; order: ASC | DESC)")
+	cmd.Flags().String("start-date-range", "", "Filter by start date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("end-date-range", "", "Filter by end date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().StringSlice("contract-type", nil, "Filter by contract types. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, CONTRACT_TYPE_UNKNOWN, CONTRACT_TYPE_UNDETERMINED, CONTRACT_TYPE_DEFAULT, CONTRACT_TYPE_WORKSOME_CLASSIFY, CONTRACT_TYPE_GLOBAL_PAYROLL, CONTRACT_TYPE_NL_PAYROLL]")
 	cmd.Flags().StringSlice("locations", nil, "Filter by locations.")
 	cmd.Flags().StringSlice("companies", nil, "Filter by companies.")
@@ -7043,16 +7043,16 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("accounts", nil, "Filter the hires based on one or more accounts.")
 	cmd.Flags().String("search", "", "Search hires.")
 	cmd.Flags().StringSlice("status", nil, "Filter hires by hire status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, CANCELLED, TERMINATED]")
-	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [HiresOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [HiresOrderByClauseInput!], e.g. [{\"field\":\"START_DATE\",\"order\":\"ASC\"}]; field: START_DATE | END_DATE | COMPANY_NAME | WORKER_NAME | JOB_NAME | HIRE_ID | CREATED_AT | ENGAGEMENT_TYPE | LAST_PAYMENT_REQUEST_DATE; order: ASC | DESC)")
 	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter hires by company ids.")
 	cmd.Flags().StringSlice("workers", nil, "Filter hires by worker ids.")
 	cmd.Flags().StringSlice("recruiters", nil, "Filter hires by recruiter ids.")
-	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date. (JSON for DateRangeInput)")
-	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date. (JSON for DateRangeInput)")
+	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("starts-after", "", "Filter hires that start after the specified date.")
 	cmd.Flags().String("ends-after", "", "Filter hires that end after the specified date.")
-	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created. (JSON for DateRangeInput)")
+	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show hires with the specified external identifier.")
 	cmd.Flags().StringSlice("contract-status", nil, "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
 	cmd.Flags().StringSlice("contract-type", nil, "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, CONTRACT_TYPE_UNKNOWN, CONTRACT_TYPE_UNDETERMINED, CONTRACT_TYPE_DEFAULT, CONTRACT_TYPE_WORKSOME_CLASSIFY, CONTRACT_TYPE_GLOBAL_PAYROLL, CONTRACT_TYPE_NL_PAYROLL]")
@@ -7062,7 +7062,7 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("active-status", nil, "Filter hires by active status. [DRAFT, OFFERED, READY, ACTIVE, ENDED, CANCELLED, TERMINATED]")
 	cmd.Flags().StringSlice("owners", nil, "Filter hires by owner.")
 	cmd.Flags().Bool("has-payment-requests", false, "Filter hires by if there are associated payment requests.")
-	cmd.Flags().String("missing-payment-request-date-range", "", "Only show hires with no payment request submitted within the given date range, including hires that have never submitted one at all. (JSON for DateRangeInput)")
+	cmd.Flags().String("missing-payment-request-date-range", "", "Only show hires with no payment request submitted within the given date range, including hires that have never submitted one at all. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("has-recruiter-attribution", false, "Filter hires by if there are recruiter attribution or not.")
 	cmd.Flags().Bool("eligible-for-payment-requests", false, "Only show hires that can be selected when creating a payment request.")
 	cmd.Flags().StringSlice("jobs", nil, "Only show hires that belong to one or more specific jobs.")
@@ -8003,7 +8003,7 @@ func newIncomingJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Search job posts by title or description.")
-	cmd.Flags().String("order-by", "", "Order the results. (JSON for [JobsOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the results. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES; order: ASC | DESC)")
 
 	return cmd
 }
@@ -8859,7 +8859,7 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
 	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show invoices with the specified external identifiers.")
-	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!])")
+	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!], e.g. [{\"column\":\"DATE\",\"order\":\"ASC\"}]; column: DATE | DUE_DATE | NUMBER | TOTAL_AMOUNT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -9412,7 +9412,7 @@ func newJobCandidatesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("statuses", nil, "Only return job candidates for the specified statuses. [ELIGIBLE, NON_ELIGIBLE, DUPLICATE]")
 	cmd.Flags().StringSlice("steps", nil, "Only return job candidates for the specified hiring steps. [SHORTLISTED, INVITED_TO_APPLY, APPLIED, HIRING, SELECTION_SUBMITTED, SELECTION_UNDER_REVIEW, SELECTION_SHORTLISTED, SELECTION_DECLINED_BY_MSP, SELECTION_WITHDRAWN, SELECTION_PRESENTED_TO_CLIENT, INTERVIEW_SELECTED, INTERVIEW_SCHEDULED, INTERVIEW_COMPLETED, INTERVIEW_WITHDRAWN, INTERVIEW_SHORTLISTED, COMPLETION_REJECTED_BY_CLIENT, COMPLETION_DECLINED_BY_MSP, COMPLETION_WITHDRAWN, COMPLETION_OFFER_EXTENDED, COMPLETION_CANDIDATE_ONBOARDING, COMPLETION_BACKGROUND_CHECK, COMPLETION_HIRED, COMPLETION_ON_HOLD, COMPLETION_TALENTPOOL]")
 	cmd.Flags().Bool("preferred", false, "Only return job candidates which are preferred or not.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [JobCandidateOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [JobCandidateOrderByClauseInput!], e.g. [{\"column\":\"WORKER_NAME\",\"order\":\"ASC\"}]; column: WORKER_NAME | HIRING_STEP | UPDATED_AT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -9691,7 +9691,7 @@ func newJobSharesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("account-types", nil, "Only show job shares for specific accounts. [WORKER, COMPANY, RECRUITER, ORGANISATION, PARTNER]")
 	cmd.Flags().Bool("is-active", false, "Whether the job share is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter the job shares based on one or more companies.")
-	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction. (JSON for [JobShareOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the job shares by the specified field and direction. (JSON for [JobShareOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -10176,12 +10176,12 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-hire", false, "Filter for jobs with or without hires.")
 	cmd.Flags().Bool("has-bids", false, "Filter for jobs with or without bids.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show jobs with the specified external identifier.")
-	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!])")
-	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created. (JSON for DateRangeInput)")
+	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES; order: ASC | DESC)")
+	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
-	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!])")
-	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range. (JSON for DateRangeInput)")
-	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range. (JSON for DateRangeInput)")
+	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("is-job-post", false, "Only show jobs that are job posts.")
 	cmd.Flags().StringSlice("statuses", nil, "Filter the jobs by their status [DRAFT, ACTIVE, COMPLETED, REMOVED]")
 
@@ -12675,17 +12675,17 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, FR, DE, DK, NO, SE, FI, LT, UAE, SG, AU, NL, WW]")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
-	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput)")
+	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput, e.g. {\"includeAutomation\":false,\"users\":[\"<id>\"]})")
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
-	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput)")
-	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput)")
+	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"PREVIOUSLY_HIRED\"}; status: PREVIOUSLY_HIRED | NOT_PREVIOUSLY_HIRED)")
+	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"CURRENTLY_HIRED\"}; status: CURRENTLY_HIRED | NOT_CURRENTLY_HIRED)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, DE_FREELANCER, DE_TRADESPERSON, DE_ENTREPRENEURIAL, DE_LTD, NL_LTD, NL_SOLE_TRADER, NL_GENERAL_PARTNERSHIP, NL_PROFESSIONAL_PARTNERSHIP, B_INCOME, FR_LTD, FR_SOLE_TRADER, IE_LTD, IE_SOLE_TRADER, SG_LTD, SG_SOLE_TRADER, LTD, SOLE_TRADER, UMBRELLA]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!])")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!])")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!], e.g. [{\"field\":\"WORKER_NAME\",\"order\":\"ASC\"}]; field: WORKER_NAME | WORKER_JOBS_COUNT | WORKER_MARKET | WORKER_COUNTRY | WORKER_BUSINESS_SETUP | WORKER_COMPANY_NAME | WORKER_DATE_ADDED | WORKER_STATUS_UPDATED | WORKER_RTW_VERIFICATION | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
 
 	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
@@ -13346,16 +13346,16 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("worker-statuses", nil, "Only show payment requests that have the specified worker statuses. [DRAFT, REJECTED, CANCELLED, PROCESSING, COMPLETED, REQUESTED, APPROVED]")
 	cmd.Flags().StringSlice("worker-payout-statuses", nil, "Only show payment requests that have the specified worker payout statuses. [PAID, PREPAID, DUE, OVERDUE, UNPAID]")
 	cmd.Flags().Bool("is-payrolled", false, "Only show payment requests by that were processed through payroll (true) or not through payroll (false). This may include payment requests that were paid outside of payroll.")
-	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range. (JSON for DateRangeInput)")
+	cmd.Flags().String("timesheet-period", "", "Only show payment requests that have a timesheet between the specified date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().StringSlice("rate-types", nil, "Only show payment requests that have the specified rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, UNKNOWN]")
-	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range. (JSON for DateRangeInput)")
-	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range. (JSON for DateRangeInput)")
-	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range. (JSON for DateRangeInput)")
+	cmd.Flags().String("requested-date-range", "", "Only show payment requests requested within the specified date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("billing-start-date-range", "", "Only show payment requests whose billing period start date falls within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("billing-end-date-range", "", "Only show payment requests whose billing period end date falls within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("has-expenses", false, "Only show payment requests that have expenses (true) or do not have expenses (false).")
 	cmd.Flags().Bool("has-batch", false, "Only show payment requests that have a batch (true) or don't have a batch (false).")
 	cmd.Flags().StringSlice("batch-ids", nil, "Only show payment requests that belong to the specified batches.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show payment requests with the specified external identifiers.")
-	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields. (JSON for [PaymentRequestOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Order the payment requests by the specified fields. (JSON for [PaymentRequestOrderByClauseInput!], e.g. [{\"field\":\"ISSUED_AT\",\"order\":\"ASC\"}]; field: ISSUED_AT | PRIORITY | WORKER | TOTAL_AMOUNT; order: ASC | DESC)")
 	cmd.Flags().String("viewer-role", "", "Which side of the payment request the viewer is on. Defaults to ANY. Pass PAYER on client-side tables to exclude requests the viewer raised as a supplier. PAYEE is reserved for the supplier-side view. Only filters within the account scope set by the 'accounts' arg — without 'accounts' there's nothing for this filter to act on. [PAYER, PAYEE, ANY]")
 
 	cmd.RegisterFlagCompletionFunc("viewer-role", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -15522,7 +15522,7 @@ func newSkillsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through. Search will be performed within all three 'name', 'name_en', 'name_da'.")
 	cmd.Flags().StringSlice("skillable-type", nil, "Supply a list of SkillableType to which skills should have been applied to. [WORKER, TRUSTED_CONTACT, JOB]")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [SkillOrderByClauseInput!])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [SkillOrderByClauseInput!], e.g. [{\"column\":\"NAME\",\"order\":\"ASC\"}]; column: NAME; order: ASC | DESC)")
 
 	return cmd
 }
@@ -17379,19 +17379,19 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, FR, DE, DK, NO, SE, FI, LT, UAE, SG, AU, NL, WW]")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
-	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput)")
+	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput, e.g. {\"includeAutomation\":false,\"users\":[\"<id>\"]})")
 	cmd.Flags().StringSlice("statuses", nil, "Supply a list of statuses to filter workers by. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("origin", "", "Filter the contacts by their origin. Have they been added or invited. [INVITED, ADDED]")
 	cmd.Flags().String("staffing-agency-status", "", "Filter contacts by whether they have staffing agency ownership or not. [HAS_OWNERSHIP, NO_OWNERSHIP]")
 	cmd.Flags().String("managed-status", "", "Filter contacts by their managed status (worker, staffing agency, or unmanaged). [STAFFING_AGENCY, WORKER, UNMANAGED]")
-	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput)")
-	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput)")
+	cmd.Flags().String("hire-history", "", "Filter contacts by whether they have been previously hired or not. (JSON for HireHistoryFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"PREVIOUSLY_HIRED\"}; status: PREVIOUSLY_HIRED | NOT_PREVIOUSLY_HIRED)")
+	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"CURRENTLY_HIRED\"}; status: CURRENTLY_HIRED | NOT_CURRENTLY_HIRED)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, DE_FREELANCER, DE_TRADESPERSON, DE_ENTREPRENEURIAL, DE_LTD, NL_LTD, NL_SOLE_TRADER, NL_GENERAL_PARTNERSHIP, NL_PROFESSIONAL_PARTNERSHIP, B_INCOME, FR_LTD, FR_SOLE_TRADER, IE_LTD, IE_SOLE_TRADER, SG_LTD, SG_SOLE_TRADER, LTD, SOLE_TRADER, UMBRELLA]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!])")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!])")
-	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created. (JSON for DateRangeInput)")
-	cmd.Flags().String("verified-worker-review", "", "Filter contacts by their VerifiedWorkerCompliance review state. (JSON for VerifiedWorkerReviewFilterInput)")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!], e.g. [{\"field\":\"WORKER_NAME\",\"order\":\"ASC\"}]; field: WORKER_NAME | WORKER_JOBS_COUNT | WORKER_MARKET | WORKER_COUNTRY | WORKER_BUSINESS_SETUP | WORKER_COMPANY_NAME | WORKER_DATE_ADDED | WORKER_STATUS_UPDATED | WORKER_RTW_VERIFICATION | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
+	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("verified-worker-review", "", "Filter contacts by their VerifiedWorkerCompliance review state. (JSON for VerifiedWorkerReviewFilterInput, e.g. {\"status\":\"INCOMPLETE\",\"updatedBy\":[\"<id>\"]}; status: INCOMPLETE | READY_TO_REVIEW | CHANGES_REQUESTED | CLEARED)")
 
 	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INVITED", "ADDED"}, cobra.ShellCompDirectiveNoFileComp
