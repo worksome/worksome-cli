@@ -424,8 +424,8 @@ func (e *httpError) Error() string {
 // into the Apollo client-awareness name and version, leaving the platform detail
 // to the User-Agent alone.
 func clientNameVersion(userAgent string) (name, version string) {
-	name, rest, _ := strings.Cut(userAgent, "/")
-	version, _, _ = strings.Cut(rest, " ")
+	product, _, _ := strings.Cut(userAgent, " ")
+	name, version, _ = strings.Cut(product, "/")
 	return name, version
 }
 
@@ -440,9 +440,8 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", c.userAgent)
 
-	// Apollo client awareness: the gateway tags spans with these and Apollo
-	// Studio segments operations by them, so CLI traffic stays attributable
-	// even though the gateway replaces the User-Agent before the API sees it.
+	// Apollo client awareness: the gateway tags its spans with these, and it
+	// replaces the User-Agent before the API sees it.
 	name, ver := clientNameVersion(c.userAgent)
 	req.Header.Set("apollographql-client-name", name)
 	if ver != "" {

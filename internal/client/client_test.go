@@ -899,6 +899,8 @@ func TestClientNameVersion(t *testing.T) {
 		{"worksome-cli/dev (windows/arm64)", "worksome-cli", "dev"},
 		{"worksome-cli/0.7.0", "worksome-cli", "0.7.0"},
 		{"worksome-cli", "worksome-cli", ""},
+		{"worksome-cli (darwin/arm64)", "worksome-cli", ""},
+		{"worksome-cli/ (darwin/arm64)", "worksome-cli", ""},
 		{"", "", ""},
 	}
 	for _, tt := range tests {
