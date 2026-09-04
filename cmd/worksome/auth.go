@@ -115,7 +115,7 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 
 			// Validate token by querying viewer
 			fmt.Fprint(os.Stderr, "Validating token... ")
-			c := client.New(endpoint, token)
+			c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(version)))
 			var result map[string]any
 			err = c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
 			if err != nil {
@@ -346,7 +346,7 @@ func newAuthListCmd() *cobra.Command {
 }
 
 func printViewerStatus(endpoint, token string) error {
-	c := client.New(endpoint, token)
+	c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(version)))
 	var result map[string]any
 	err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
 	if err != nil {

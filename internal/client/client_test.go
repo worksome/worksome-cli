@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -850,5 +851,109 @@ func TestAPIHostHint(t *testing.T) {
 		if got := apiHostHint(tt.endpoint); got != tt.want {
 			t.Errorf("apiHostHint(%q) = %q, want %q", tt.endpoint, got, tt.want)
 		}
+	}
+}
+
+// The gateway replaces the User-Agent before the API sees it, so User-Agent
+// alone cannot attribute CLI traffic past that hop. Apollo's client-awareness
+// headers survive it and the gateway already tags its spans with them.
+func TestExecute_SendsApolloClientAwarenessHeaders(t *testing.T) {
+	tests := []struct {
+		name              string
+		userAgent         string
+		wantName, wantVer string
+	}{
+		{"name and version", "worksome-cli/0.7.0", "worksome-cli", "0.7.0"},
+		{"no version", "worksome-cli", "worksome-cli", ""},
+		{"version containing a slash", "worksome-cli/1.0/rc1", "worksome-cli", "1.0/rc1"},
+		{"platform detail stays out of the version", "worksome-cli/0.7.0 (darwin/arm64)", "worksome-cli", "0.7.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Header.Get("apollographql-client-name"); got != tt.wantName {
+					t.Errorf("client-name = %q, want %q", got, tt.wantName)
+				}
+				if got := r.Header.Get("apollographql-client-version"); got != tt.wantVer {
+					t.Errorf("client-version = %q, want %q", got, tt.wantVer)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"data":{"hello":"world"}}`)
+			})
+			defer srv.Close()
+
+			c := New(srv.URL, "test-token", WithUserAgent(tt.userAgent))
+			if err := c.Execute(context.Background(), "query Accounts { accounts { id } }", nil, nil); err != nil {
+				t.Fatalf("Execute returned error: %v", err)
+			}
+		})
+	}
+}
+
+// The User-Agent names the platform so Datadog can break usage down by OS, but
+// the Apollo client-version header must stay a bare version.
+func TestClientNameVersion(t *testing.T) {
+	tests := []struct{ ua, wantName, wantVer string }{
+		{"worksome-cli/0.7.0 (darwin/arm64)", "worksome-cli", "0.7.0"},
+		{"worksome-cli/0.7.0 (linux/amd64)", "worksome-cli", "0.7.0"},
+		{"worksome-cli/dev (windows/arm64)", "worksome-cli", "dev"},
+		{"worksome-cli/0.7.0", "worksome-cli", "0.7.0"},
+		{"worksome-cli", "worksome-cli", ""},
+		{"worksome-cli (darwin/arm64)", "worksome-cli", ""},
+		{"worksome-cli/ (darwin/arm64)", "worksome-cli", ""},
+		{"", "", ""},
+	}
+	for _, tt := range tests {
+		name, ver := clientNameVersion(tt.ua)
+		if name != tt.wantName || ver != tt.wantVer {
+			t.Errorf("clientNameVersion(%q) = %q, %q; want %q, %q", tt.ua, name, ver, tt.wantName, tt.wantVer)
+		}
+	}
+}
+
+// auth login and auth status once built their own client with the default
+// agent, which carries no version — and an empty version drops the Apollo
+// client-version header, so those calls went out unattributed.
+func TestUserAgentCarriesVersionAndPlatform(t *testing.T) {
+	ua := UserAgent("0.7.0")
+
+	name, rest, ok := strings.Cut(ua, "/")
+	if !ok || name != "worksome-cli" {
+		t.Fatalf("UserAgent() = %q, want a worksome-cli/... prefix", ua)
+	}
+
+	ver, platform, ok := strings.Cut(rest, " ")
+	if ver != "0.7.0" {
+		t.Errorf("UserAgent() = %q, want version 0.7.0", ua)
+	}
+	if !ok || !strings.HasPrefix(platform, "(") || !strings.Contains(platform, runtime.GOOS) {
+		t.Errorf("UserAgent() = %q, want the platform named as (%s/%s)", ua, runtime.GOOS, runtime.GOARCH)
+	}
+
+	gotName, gotVer := clientNameVersion(ua)
+	if gotName != "worksome-cli" || gotVer != "0.7.0" {
+		t.Errorf("clientNameVersion(UserAgent(...)) = %q, %q; want worksome-cli, 0.7.0", gotName, gotVer)
+	}
+}
+
+// The guard is symmetric: a User-Agent that yields no name must not put an
+// empty apollographql-client-name on the wire.
+func TestExecute_OmitsEmptyClientAwarenessHeaders(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := r.Header["Apollographql-Client-Name"]; ok {
+			t.Errorf("client-name header sent for a nameless agent: %q", r.Header.Get("apollographql-client-name"))
+		}
+		if _, ok := r.Header["Apollographql-Client-Version"]; ok {
+			t.Errorf("client-version header sent for a versionless agent")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data":{"hello":"world"}}`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "test-token", WithUserAgent(" "))
+	if err := c.Execute(context.Background(), "query Accounts { accounts { id } }", nil, nil); err != nil {
+		t.Fatalf("Execute returned error: %v", err)
 	}
 }

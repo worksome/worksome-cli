@@ -146,7 +146,7 @@ func newRootCmd() *cobra.Command {
 
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
 		opts := []client.Option{}
-		opts = append(opts, client.WithUserAgent(fmt.Sprintf("worksome-cli/%s", version)))
+		opts = append(opts, client.WithUserAgent(client.UserAgent(version)))
 		if verbose {
 			opts = append(opts, client.WithVerbose(true))
 		}
