@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -446,14 +447,15 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 		bodyStr := string(body)
 		// A 401 demanding Basic auth is a gateway in front of the endpoint, not
 		// a bad token: the Bearer token occupies the Authorization header, so
-		// the CLI cannot satisfy it. Typically the UI hostname was used where
-		// the API hostname was meant. Say so, instead of "check the URL".
+		// the CLI cannot satisfy it. Only the UI hosts are gated this way, so
+		// name the API host rather than saying "check the URL".
 		if resp.StatusCode == http.StatusUnauthorized &&
 			strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("WWW-Authenticate"))), "basic") {
-			return nil, &httpError{
-				StatusCode: resp.StatusCode,
-				Body:       "this endpoint is behind HTTP Basic authentication, which the CLI cannot pass — you may be using the UI hostname instead of the API hostname",
+			body := "this endpoint is behind HTTP Basic authentication, which the CLI cannot pass — you may be using the UI hostname instead of the API hostname"
+			if hint := apiHostHint(c.endpoint); hint != "" {
+				body += ". Try " + hint
 			}
+			return nil, &httpError{StatusCode: resp.StatusCode, Body: body}
 		}
 		// Detect non-JSON responses (HTML error pages, etc.) and show a clean message
 		if !strings.Contains(contentType, "json") || strings.HasPrefix(strings.TrimSpace(bodyStr), "<") {
@@ -466,6 +468,27 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	}
 
 	return body, nil
+}
+
+// apiHostHint turns a Worksome UI endpoint into its API counterpart
+// ("demo.sand.aws…" -> "demo-api.sand.aws…"), or "" when there is nothing to
+// suggest.
+func apiHostHint(endpoint string) string {
+	u, err := url.Parse(endpoint)
+	// Hosts are case-insensitive, so match and rebuild on a lowered copy.
+	if err != nil || !strings.HasSuffix(strings.ToLower(u.Hostname()), ".worksome.com") {
+		return ""
+	}
+	label, rest, ok := strings.Cut(strings.ToLower(u.Host), ".")
+	if !ok || label == "api" || strings.HasSuffix(label, "-api") {
+		return ""
+	}
+	u.Host = label + "-api." + rest
+	// The endpoint may carry basic-auth credentials; the hint is shown to the user.
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
 }
 
 // hasData reports whether the response carries a usable data envelope. An

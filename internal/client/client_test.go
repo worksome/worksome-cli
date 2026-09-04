@@ -832,3 +832,23 @@ func TestExecute_BasicAuthGatewayIsNamed(t *testing.T) {
 		})
 	}
 }
+
+func TestAPIHostHint(t *testing.T) {
+	tests := []struct{ endpoint, want string }{
+		{"https://demo.sand.aws.worksome.com/graphql", "https://demo-api.sand.aws.worksome.com/graphql"},
+		{"https://demo-api.sand.aws.worksome.com/graphql", ""},
+		{"https://api.worksome.com/graphql", ""},
+		{"http://127.0.0.1:8099/graphql", ""},
+		{"not a url", ""},
+		{"https://worksome:secure@demo.sand.hz.worksome.com/graphql?a=1#f", "https://demo-api.sand.hz.worksome.com/graphql"},
+		{"https://demo.worksome.com:8443/graphql", "https://demo-api.worksome.com:8443/graphql"},
+		{"https://API.worksome.com/graphql", ""},
+		{"https://demo-API.sand.hz.worksome.com/graphql", ""},
+		{"https://DEMO.sand.hz.worksome.COM/graphql", "https://demo-api.sand.hz.worksome.com/graphql"},
+	}
+	for _, tt := range tests {
+		if got := apiHostHint(tt.endpoint); got != tt.want {
+			t.Errorf("apiHostHint(%q) = %q, want %q", tt.endpoint, got, tt.want)
+		}
+	}
+}
