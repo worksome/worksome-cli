@@ -165,7 +165,7 @@ Config file is written with `0600` permissions. Tokens are never printed in full
 ## Schema Sync
 
 ```bash
-make sync-schema    # Introspect the API (needs WORKSOME_API_TOKEN)
+make sync-schema    # Introspect the API (no credentials needed)
 make generate       # Parse schema → generate all Go code
 make sync           # Both in one step
 make verify-generated  # CI check: fail if generated code is stale
