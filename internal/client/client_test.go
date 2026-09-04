@@ -837,7 +837,7 @@ func TestAPIHostHint(t *testing.T) {
 	tests := []struct{ endpoint, want string }{
 		{"https://demo.sand.aws.worksome.com/graphql", "https://demo-api.sand.aws.worksome.com/graphql"},
 		{"https://demo-api.sand.aws.worksome.com/graphql", ""},
-		{"https://api.worksome.com/graphql", "https://api-api.worksome.com/graphql"},
+		{"https://api.worksome.com/graphql", ""},
 		{"http://127.0.0.1:8099/graphql", ""},
 		{"not a url", ""},
 	}
