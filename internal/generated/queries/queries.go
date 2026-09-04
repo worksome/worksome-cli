@@ -484,7 +484,7 @@ func (q *Querier) Classifications(ctx context.Context, vars map[string]any) (map
 // Company — Get a specific company.
 func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Company($id: ID!) {
-	company(id: $id) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	company(id: $id) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"customFields": "customFields { paginatorInfo { total } data { id title slug description createdAt updatedAt } }", "organisations": "organisations { paginatorInfo { total } data { id name market avatar } }", "staffingAgencies": "staffingAgencies { paginatorInfo { total } data { id email status } }", "teamMembers": "teamMembers { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "teamMembersAndOwners": "teamMembersAndOwners { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "trustedContacts": "trustedContacts { paginatorInfo { total } data { id status createdAt } }"}, vars, &result)
@@ -502,7 +502,7 @@ func (q *Querier) Company(ctx context.Context, vars map[string]any) (map[string]
 // Companies — Get a list of companies that the authenticated user has access to.
 func (q *Querier) Companies(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query Companies($externalIdentifiers: [String!], $first: Int! = 10, $page: Int) {
-	companies(externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode } }
+	companies(externalIdentifiers: $externalIdentifiers, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"customFields": "customFields { paginatorInfo { total } data { id title slug description createdAt updatedAt } }", "organisations": "organisations { paginatorInfo { total } data { id name market avatar } }", "staffingAgencies": "staffingAgencies { paginatorInfo { total } data { id email status } }", "teamMembers": "teamMembers { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "teamMembersAndOwners": "teamMembersAndOwners { paginatorInfo { total } data { id name email avatar createdAt updatedAt } }", "trustedContacts": "trustedContacts { paginatorInfo { total } data { id status createdAt } }"}, vars, &result)
@@ -1306,7 +1306,7 @@ func (q *Querier) InheritedCustomFields(ctx context.Context, vars map[string]any
 // GenerateInviteLink — Generate the company invite link token.
 func (q *Querier) GenerateInviteLink(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation GenerateInviteLink($input: GenerateInviteLinkInput!) {
-	generateInviteLink(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	generateInviteLink(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1924,7 +1924,7 @@ func (q *Querier) UpdateNote(ctx context.Context, vars map[string]any) (map[stri
 // ManageOnboardingDocuments — Manage Onboarding documents.
 func (q *Querier) ManageOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ManageOnboardingDocuments($input: ManageOnboardingDocumentsInput!) {
-	manageOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	manageOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1942,7 +1942,7 @@ func (q *Querier) ManageOnboardingDocuments(ctx context.Context, vars map[string
 // ManageRecruiterOnboardingDocuments — Manage staffing agency onboarding documents.
 func (q *Querier) ManageRecruiterOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ManageRecruiterOnboardingDocuments($input: ManageRecruiterOnboardingDocumentsInput!) {
-	manageRecruiterOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	manageRecruiterOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1960,7 +1960,7 @@ func (q *Querier) ManageRecruiterOnboardingDocuments(ctx context.Context, vars m
 // RemoveOnboardingDocuments — Remove Onboarding documents.
 func (q *Querier) RemoveOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveOnboardingDocuments($input: RemoveOnboardingDocumentsInput!) {
-	removeOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	removeOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -1978,7 +1978,7 @@ func (q *Querier) RemoveOnboardingDocuments(ctx context.Context, vars map[string
 // RemoveRecruiterOnboardingDocuments — Remove staffing agency onboarding documents.
 func (q *Querier) RemoveRecruiterOnboardingDocuments(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation RemoveRecruiterOnboardingDocuments($input: RemoveRecruiterOnboardingDocumentsInput!) {
-	removeRecruiterOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities usedEngagementTypeSetups externalIdentifier recruiterManagesMixedMode }
+	removeRecruiterOnboardingDocuments(input: $input) { id name currency market avatar profile { id url } contactInviteUrl personalInviteUrl address { state } hasActiveWebhooks hasMultipleBusinessEntities externalIdentifier recruiterManagesMixedMode }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)

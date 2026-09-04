@@ -26,7 +26,7 @@ To change generated code, modify the **templates** in `internal/codegen/generato
 - `internal/config/` — Profile management, token resolution
 - `internal/output/` — JSON/table formatting, TTY detection
 - `internal/codegen/` — Parser, generator, IR types (this produces the generated code)
-- `schema/overrides.yaml` — Manual resource grouping overrides
+- `schema/overrides.yaml` — Manual resource grouping and field exclusion overrides
 
 ## Codegen Pipeline
 
@@ -53,6 +53,12 @@ Edit `cmd/worksome/main.go` in `newRootCmd()`.
 
 ### Adding a new resource override
 Edit `schema/overrides.yaml` to map operations to specific resource groups. Then `make generate`.
+
+### Excluding a field from generated selection sets
+Add a `Type.field` entry to `ignore_fields` in `schema/overrides.yaml`, then `make generate`.
+Introspection does not return applied directives, so the vendored schema carries none of the
+API's field-level authorization — the generator selects guarded fields blind, and a guarded
+non-null field nulls its whole parent when the guard denies. Generation fails on a stale entry.
 
 ### Updating the API schema
 ```bash
