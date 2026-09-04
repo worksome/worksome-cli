@@ -420,6 +420,15 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected status %d: %s", e.StatusCode, e.Body)
 }
 
+// clientNameVersion splits a User-Agent such as "worksome-cli/0.7.0 (darwin/arm64)"
+// into the Apollo client-awareness name and version, leaving the platform detail
+// to the User-Agent alone.
+func clientNameVersion(userAgent string) (name, version string) {
+	name, rest, _ := strings.Cut(userAgent, "/")
+	version, _, _ = strings.Cut(rest, " ")
+	return name, version
+}
+
 // doRequest performs a single HTTP POST and returns the raw response body.
 func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(payload))
@@ -430,6 +439,15 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", c.userAgent)
+
+	// Apollo client awareness: the gateway tags spans with these and Apollo
+	// Studio segments operations by them, so CLI traffic stays attributable
+	// even though the gateway replaces the User-Agent before the API sees it.
+	name, ver := clientNameVersion(c.userAgent)
+	req.Header.Set("apollographql-client-name", name)
+	if ver != "" {
+		req.Header.Set("apollographql-client-version", ver)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
