@@ -840,6 +840,11 @@ func TestAPIHostHint(t *testing.T) {
 		{"https://api.worksome.com/graphql", ""},
 		{"http://127.0.0.1:8099/graphql", ""},
 		{"not a url", ""},
+		{"https://worksome:secure@demo.sand.hz.worksome.com/graphql?a=1#f", "https://demo-api.sand.hz.worksome.com/graphql"},
+		{"https://demo.worksome.com:8443/graphql", "https://demo-api.worksome.com:8443/graphql"},
+		{"https://API.worksome.com/graphql", ""},
+		{"https://demo-API.sand.hz.worksome.com/graphql", ""},
+		{"https://DEMO.sand.hz.worksome.COM/graphql", "https://demo-api.sand.hz.worksome.com/graphql"},
 	}
 	for _, tt := range tests {
 		if got := apiHostHint(tt.endpoint); got != tt.want {

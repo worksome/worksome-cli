@@ -475,14 +475,19 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 // suggest.
 func apiHostHint(endpoint string) string {
 	u, err := url.Parse(endpoint)
-	if err != nil || !strings.HasSuffix(u.Hostname(), ".worksome.com") {
+	// Hosts are case-insensitive, so match and rebuild on a lowered copy.
+	if err != nil || !strings.HasSuffix(strings.ToLower(u.Hostname()), ".worksome.com") {
 		return ""
 	}
-	label, rest, ok := strings.Cut(u.Host, ".")
-	if !ok || strings.HasSuffix(label, "-api") {
+	label, rest, ok := strings.Cut(strings.ToLower(u.Host), ".")
+	if !ok || label == "api" || strings.HasSuffix(label, "-api") {
 		return ""
 	}
 	u.Host = label + "-api." + rest
+	// The endpoint may carry basic-auth credentials; the hint is shown to the user.
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
 	return u.String()
 }
 
