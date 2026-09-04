@@ -29,6 +29,9 @@ company ──creates──▶ job ──receives──▶ bid
                                         └──grouped into──▶ batch  (bulk operations)
 ```
 
+> [!WARNING]
+> Worksome's API is powerful and allows potentially dangerous operations (for example terminating hires or approving payment requests). **Be cautious and oversee any operations performed by AI agents using `worksome-cli` or the API**; you are responsible for all API calls made on your account with your token.
+
 | Resource | What it is |
 |---|---|
 | `organisation`, `company` | The hiring side. An organisation can contain several companies. |
@@ -72,6 +75,9 @@ the first time it is actually needed, not at session start.
 **Any other agent** (Cursor, Codex, a shell agent). Copy `skills/worksome-cli/`
 into wherever your agent reads skills or rules from, or point it at
 `SKILL.md` directly. Everything the skill relies on is a shell command.
+
+> [!IMPORTANT]
+You need to be an account administrator to be able to create tokens. Tokens work as passwords, and should be maintained with the same level of security and confidentiality as them.
 
 The one thing no skill can supply is a credential. Create a Personal Access
 Token at <https://use.worksome.com/integrations/api-tokens> and either export
