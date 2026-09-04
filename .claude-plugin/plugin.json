@@ -1,6 +1,6 @@
 {
   "name": "worksome-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Query and operate the Worksome platform from any agent session via the worksome CLI: installs the binary on demand, authenticates with a Personal Access Token, and drives the GraphQL API efficiently.",
   "author": {
     "name": "Worksome",

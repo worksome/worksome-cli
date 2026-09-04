@@ -11,7 +11,7 @@ description: >
   worksome-cli binary, authenticating it with a Personal Access Token, and
   driving the GraphQL API without wasting tokens or requests.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # worksome-cli
@@ -176,10 +176,88 @@ see it anyway.
 saved profile; `--endpoint <url>` overrides for one call. If the user mentions
 staging or a sandbox, ask which endpoint rather than assuming.
 
+## Traps: fields that look right and are not
+
+Each of these produced a confidently wrong answer for an agent before it was
+written down. Read them before answering a question about money, approvals,
+classification or "how many".
+
+**`status: ACTIVE` does not mean anyone is working.** A hire stays ACTIVE until
+someone ends it, and nobody does. On one account 17 of 26 ACTIVE hires had no
+payment in over a year; one had never invoiced in seven. For "who is working
+for us", read `lastPaymentRequestDate` on each hire and set your own window
+(90 days is a reasonable "live"). There is no server-side filter for it yet.
+
+**Two ledgers, not one.** A *payment request* is what the worker is paid:
+`billedAmount`, `billedAmountWithExpenses`, settled on `paidAt`, state in
+`workerPayoutStatus`. An *invoice* is what the company pays Worksome:
+`grossAmount` = `netAmount` + `taxAmount`, outstanding in `grossOpenAmount`,
+settled on `markedPaidAt`. "What did we pay contractors" is payment requests.
+"What do we owe" is invoices. Do not add them together.
+
+**`isOverDue` on an invoice is computed from `dueDate` alone.** It is `true` on
+invoices that were paid early. For "what is actually overdue" use
+`grossOpenAmount > 0` and `dueDate` before today.
+
+**Never sum across currencies.** Payment requests and invoices carry a
+`currency`; a multi-entity account has several. The API has no exchange rate.
+Group by currency and say so, or ask which rate to use.
+
+**Bucket cash by `paidAt`, not `date`.** `date` is when the request was
+raised and `startDate`/`endDate` the period billed. Cash out the door is
+`paidAt`, which is null until settled.
+
+**Approval status is `hasPendingApproval`.** `triggersApproval` and
+`currentApprovalState` take a `trigger` argument the CLI cannot pass and are
+not selectable. `hasPendingApproval` is a plain Boolean on every hire. To find
+all hires awaiting approval, list hires with `--fields id,hasPendingApproval`
+and filter client-side; there is no server filter.
+
+**`--statuses UNAPPROVED` returns nothing.** The field and the filter disagree
+on the server: records report `status: UNAPPROVED` (drafts included) but the
+filter excludes drafts. `APPROVED`, `REJECTED` and `CANCELLED` filter fine.
+For unapproved ones, pull and filter on the `status` field yourself.
+
+**Classification is per hire.** `classifications list --hire <hire-id>` is the
+only way to read a result: it returns `type`, `status`, `acceptedStatus` and
+`result { label title }` (e.g. "W-2 (Employee)"). The `classification` object
+nested on a hire exposes only `id, type, status, title, description` —
+`classification.result` is an unknown field there. To find hires that use
+classification at all, `hires list --uses-classification USING` narrows
+server-side; then read each one.
+
+**Discover a type's fields with a bogus `--fields` value.** `--fields nope`
+fails before any request and the error lists what is available:
+
+```bash
+worksome invoices list -n 1 --fields nope
+# Error: invoices: --fields: unknown field "nope" (available: id, number, pdfUrl,
+#   currency, grossAmount, grossOpenAmount, taxAmount, netAmount, markedPaidAt, ... and 11 more)
+```
+
+It is the cheapest way to learn a shape: no tokens spent on a full object.
+The list caps at twelve names; the same error on a nested path
+(`--fields worker.nope`) lists that level. Filters are in `--help`.
+
+**A mutation that errors may still have happened.** `hires terminate` has
+returned "Internal server error" after persisting the termination. After any
+non-zero exit on a mutation, re-read the record before retrying; a retry can
+double-apply.
+
 ## Mutations
 
 This plugin runs mutations without a confirmation gate — that is the configured
 behaviour, and no operation is blocked.
+
+**Default posture is read-only.** `get` and `list` are always fine. Everything
+else changes state and runs only when the user has asked for that action on
+that record, in this conversation: `create`, `create-draft`, `update`,
+`delete`, `remove`, `end`, `terminate`, `cancel`, `reject`, `approve`, `mark`,
+`invite`, `share`, `onboard`, `duplicate`, `run`, `retry`, `store`, `upload`,
+`change`, `manage`, `generate`, and any action under `payment-requests`,
+`invoices`, `batches` or `approvals`. "Clean up the dormant hires" is not
+authority to terminate 17 contracts; it is a request for the list. (`auth
+login`, `logout` and `switch` only touch local config.)
 
 Competence still applies. Before any operation that changes or destroys state —
 `terminate`, `cancel`, `reject`, `delete`, `end`, `update`, `create`, anything
