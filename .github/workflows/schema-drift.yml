@@ -5,16 +5,28 @@ on:
     - cron: '17 6 * * *'
   workflow_dispatch:
 
-# Unlike ci.yml, this job pushes a branch, so it keeps its credentials.
 permissions:
   contents: write
   pull-requests: write
+
+# Two overlapping runs would force-push the same branch and clobber each
+# other's PR diff.
+concurrency:
+  group: schema-drift
+  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The drift PR targets main, so a manual run from another branch must
+          # not fold that branch's commits into it.
+          ref: main
+          # As in ci.yml: no token in .git/config for the generate and test
+          # steps to pick up. The push below authenticates itself.
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -36,7 +48,8 @@ jobs:
           git checkout -B chore/schema-sync
           git add -A -- schema internal/generated README.md
           git commit -m 'chore: sync schema with production API'
-          git push -f origin chore/schema-sync
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" \
+            HEAD:chore/schema-sync
           # Reuses one branch, so a second run updates the open PR instead of opening another.
           existing=$(gh pr list --head chore/schema-sync --state open --json number --jq '.[].number')
           if [ -n "$existing" ]; then
