@@ -325,7 +325,7 @@ worksome completion powershell | Out-String | Invoke-Expression
 The CLI is generated from a vendored GraphQL schema. When the API changes:
 
 ```bash
-make sync-schema    # Introspect the API (needs WORKSOME_API_TOKEN)
+make sync-schema    # Introspect the API (no credentials needed)
 make generate       # Regenerate Go code
 make sync           # Both in one step
 ```

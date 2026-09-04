@@ -1,0 +1,42 @@
+name: Schema drift
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+# Unlike ci.yml, this job pushes a branch, so it keeps its credentials.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Introspection is unauthenticated, so this needs no API credentials.
+      - name: Sync schema and regenerate
+        run: make sync
+      - name: Test
+        run: go test ./... -race
+      - name: Open or update the drift PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet; then
+            echo "Schema is up to date with the API."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B chore/schema-sync
+          git commit -am 'chore: sync schema with production API'
+          git push -f origin chore/schema-sync
+          # Reuses one branch, so a second run updates the open PR instead of opening another.
+          gh pr create --base main --title 'chore: sync schema with production API' \
+            --body 'Automated schema drift sync. Tests passed in the drift job (PRs from GITHUB_TOKEN do not trigger CI). Review the generated diff for renamed or removed commands before merging.' \
+            || echo 'PR already open; branch updated.'

@@ -37,20 +37,16 @@ on your PATH — CI runs it either way, so it's optional locally.
 ## Updating the schema
 
 ```bash
-# Prompt for the token instead of typing it inline, so it isn't recorded
-# in your shell history:
-read -rs WORKSOME_API_TOKEN && export WORKSOME_API_TOKEN
-
 make sync-schema   # introspects the API
 make generate
 make test
 ```
 
-`make sync-schema` reads the token from the environment and never passes it as
-a command-line argument, so it doesn't appear in the process list where any
-other user on the machine could read it. Your shell history is a separate
-concern and is up to you — hence the prompt above rather than an inline
-`export`.
+The API serves introspection unauthenticated, so this needs no token. The
+`Schema drift` workflow runs the same three commands nightly and opens a PR
+when the schema has moved, so you should rarely need to run them by hand. If
+introspection ever becomes authenticated, `make sync-schema` fails with an
+`HTTP 401` and honours `WORKSOME_API_TOKEN` again.
 
 If the API has introduced a scalar we don't know about, generation fails and
 tells you which:

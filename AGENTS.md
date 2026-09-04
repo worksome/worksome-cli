@@ -56,7 +56,7 @@ Edit `schema/overrides.yaml` to map operations to specific resource groups. Then
 
 ### Updating the API schema
 ```bash
-make sync-schema    # Introspects $INTROSPECT_ENDPOINT using $WORKSOME_API_TOKEN
+make sync-schema    # Introspects $INTROSPECT_ENDPOINT (unauthenticated)
                     # (SYNC_MODE=platform copies from a local platform checkout instead)
 make generate       # Regenerates all code
 make test           # Verify everything compiles and passes

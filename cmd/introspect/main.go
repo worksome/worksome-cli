@@ -202,16 +202,12 @@ var builtinDirectives = map[string]bool{
 
 func main() {
 	endpoint := flag.String("endpoint", "https://api.worksome.com/graphql", "GraphQL endpoint URL")
-	token := flag.String("token", "", "API bearer token (or set WORKSOME_API_TOKEN)")
+	token := flag.String("token", "", "API bearer token, only needed if introspection becomes authenticated (or set WORKSOME_API_TOKEN)")
 	flag.Parse()
 
 	apiToken := *token
 	if apiToken == "" {
 		apiToken = os.Getenv("WORKSOME_API_TOKEN")
-	}
-	if apiToken == "" {
-		fmt.Fprintln(os.Stderr, "Error: API token required. Set WORKSOME_API_TOKEN or pass --token")
-		os.Exit(1)
 	}
 
 	fmt.Fprintf(os.Stderr, "Fetching schema from %s...\n", *endpoint)
@@ -245,7 +241,10 @@ func fetchIntrospection(endpoint, token string) (*introspectionSchema, error) {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	// Introspection is unauthenticated today; only send a token if we have one.
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	resp, err := httpClient.Do(req)
