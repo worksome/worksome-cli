@@ -1023,6 +1023,12 @@ const maxInputEnumHint = 12
 // alone — "(JSON for [HiresOrderByClauseInput!])" — sent a reader to the
 // schema to learn that the key is "field" (not "column"), and to a second
 // file for the sort columns; both belong in --help.
+// elidedInput stands in for a nested input object while the hint example is
+// encoded, and is replaced by {...} afterwards. Plain ASCII on purpose: the
+// encoder would turn control characters into \u escapes and the replacement
+// would never match.
+const elidedInput = "__elided_input__"
+
 func (p *parser) inputHint(inputName string) (example, enums string) {
 	def := p.doc.Types[inputName]
 	if def == nil || def.Kind != ast.InputObject {
@@ -1032,11 +1038,29 @@ func (p *parser) inputHint(inputName string) (example, enums string) {
 	if value == nil {
 		return "", ""
 	}
-	// json.Marshal sorts map keys, so the generated help is stable.
-	b, err := json.Marshal(value)
-	if err != nil {
+	// The hint is one line of flag help, so nested input objects are elided to
+	// {...}; the full, pretty-printed example is in the --input block. Without
+	// this, an input that nests four sub-objects renders as ~800 characters.
+	for _, f := range def.Fields {
+		if !p.inputs[unwrapType(f.Type)] {
+			continue
+		}
+		if f.Type.Elem != nil {
+			value[f.Name] = []any{elidedInput}
+		} else {
+			value[f.Name] = elidedInput
+		}
+	}
+	// An Encoder with HTML escaping off, as buildInputExample uses: Marshal
+	// would turn the <id> placeholder into \u003cid\u003e in --help. Keys stay
+	// sorted either way, so the generated help is stable.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
 		return "", ""
 	}
+	b := []byte(strings.ReplaceAll(strings.TrimSpace(buf.String()), `"`+elidedInput+`"`, "{...}"))
 
 	var parts []string
 	for _, f := range def.Fields {

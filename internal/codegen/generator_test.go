@@ -785,3 +785,58 @@ type PaginatorInfo {
 		}
 	}
 }
+
+// Placeholders like <id> must reach --help as written: json.Marshal escapes
+// them to \u003cid\u003e, the Encoder path buildInputExample already uses does
+// not. And nested input objects are elided to {...} so the one-line hint stays
+// readable — the full example lives in the --input block.
+func TestJSONFlagHintIsUnescapedAndShallow(t *testing.T) {
+	schema := `
+type Query {
+	"List hires."
+	hires(filter: HireFilterInput, first: Int! = 10, page: Int): HirePaginator!
+}
+input HireFilterInput {
+	worker: ID
+	range: DateRangeInput
+	tags: [TagInput!]
+}
+input DateRangeInput { from: Date! to: Date! }
+input TagInput { name: String! }
+scalar Date
+type Hire { id: ID! }
+type HirePaginator { paginatorInfo: PaginatorInfo! data: [Hire!]! }
+type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPage: Int! perPage: Int! total: Int! }
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSchema(schemaPath, "")
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	outputDir := t.TempDir()
+	if err := NewGenerator(parsed, outputDir, "github.com/worksome/worksome-cli").Generate(); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	cmdsBytes, err := os.ReadFile(filepath.Join(outputDir, "commands", "commands.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmds := string(cmdsBytes)
+
+	if strings.Contains(cmds, `u003c`) || strings.Contains(cmds, `u003e`) {
+		t.Error("an HTML-escaped placeholder reached a usage string")
+	}
+	// Usage strings are Go string literals, so quotes arrive escaped.
+	for _, want := range []string{`\"worker\":\"<id>\"`, `\"range\":{...}`, `\"tags\":[{...}]`} {
+		if !strings.Contains(cmds, want) {
+			t.Errorf("expected the --filter hint to contain %s", want)
+		}
+	}
+	if strings.Contains(cmds, `\"from\"`) {
+		t.Error("nested input fields must be elided from the one-line hint")
+	}
+}
