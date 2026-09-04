@@ -27,16 +27,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git diff --quiet; then
+          if [ -z "$(git status --porcelain -- schema internal/generated README.md)" ]; then
             echo "Schema is up to date with the API."
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -B chore/schema-sync
-          git commit -am 'chore: sync schema with production API'
+          git add -A -- schema internal/generated README.md
+          git commit -m 'chore: sync schema with production API'
           git push -f origin chore/schema-sync
           # Reuses one branch, so a second run updates the open PR instead of opening another.
+          existing=$(gh pr list --head chore/schema-sync --state open --json number --jq '.[].number')
+          if [ -n "$existing" ]; then
+            echo 'PR already open; branch updated.'
+            exit 0
+          fi
           gh pr create --base main --title 'chore: sync schema with production API' \
-            --body 'Automated schema drift sync. Tests passed in the drift job (PRs from GITHUB_TOKEN do not trigger CI). Review the generated diff for renamed or removed commands before merging.' \
-            || echo 'PR already open; branch updated.'
+            --body 'Automated schema drift sync. Tests passed in the drift job (PRs from GITHUB_TOKEN do not trigger CI). Review the generated diff for renamed or removed commands before merging.'

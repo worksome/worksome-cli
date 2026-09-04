@@ -43,8 +43,9 @@ make test
 ```
 
 The API serves introspection unauthenticated, so this needs no token. The
-`Schema drift` workflow runs the same three commands nightly and opens a PR
-when the schema has moved, so you should rarely need to run them by hand. If
+`Schema drift` workflow does the equivalent nightly — `make sync`, then
+`go test ./... -race` — and opens a PR when the schema has moved, so you
+should rarely need to run this by hand. If
 introspection ever becomes authenticated, `make sync-schema` fails with an
 `HTTP 401` and honours `WORKSOME_API_TOKEN` again.
 
