@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -226,5 +227,25 @@ func TestAuthLoginShorthandFlags(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "token validation failed") {
 		t.Errorf("expected token validation failure, got: %v", err)
+	}
+}
+
+// auth login and auth status once built their own client with the default
+// agent, which carries no version — and an empty version silently drops the
+// Apollo client-version header, so those calls went out unattributed.
+func TestUserAgentCarriesVersionAndPlatform(t *testing.T) {
+	ua := userAgent()
+
+	name, rest, ok := strings.Cut(ua, "/")
+	if !ok || name != "worksome-cli" {
+		t.Fatalf("userAgent() = %q, want a worksome-cli/... prefix", ua)
+	}
+
+	ver, platform, ok := strings.Cut(rest, " ")
+	if ver == "" {
+		t.Errorf("userAgent() = %q, want a non-empty version", ua)
+	}
+	if !ok || !strings.HasPrefix(platform, "(") || !strings.Contains(platform, runtime.GOOS) {
+		t.Errorf("userAgent() = %q, want the platform named as (%s/%s)", ua, runtime.GOOS, runtime.GOARCH)
 	}
 }
