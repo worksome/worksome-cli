@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -420,6 +421,12 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected status %d: %s", e.StatusCode, e.Body)
 }
 
+// UserAgent identifies the CLI and its platform to the API. Every client.New
+// caller needs it: an unversioned agent also drops the Apollo client-version.
+func UserAgent(version string) string {
+	return fmt.Sprintf("worksome-cli/%s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+}
+
 // clientNameVersion splits a User-Agent such as "worksome-cli/0.7.0 (darwin/arm64)"
 // into the Apollo client-awareness name and version, leaving the platform detail
 // to the User-Agent alone.
@@ -443,7 +450,9 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 	// Apollo client awareness: the gateway tags its spans with these, and it
 	// replaces the User-Agent before the API sees it.
 	name, ver := clientNameVersion(c.userAgent)
-	req.Header.Set("apollographql-client-name", name)
+	if name != "" {
+		req.Header.Set("apollographql-client-name", name)
+	}
 	if ver != "" {
 		req.Header.Set("apollographql-client-version", ver)
 	}

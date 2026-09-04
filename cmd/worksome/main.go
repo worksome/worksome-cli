@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -80,12 +79,6 @@ func printUpdateNotice(latest <-chan string) {
 	}
 }
 
-// userAgent identifies the CLI and its platform to the API. Every client.New
-// call needs it: an unversioned agent also drops the Apollo client-version.
-func userAgent() string {
-	return fmt.Sprintf("worksome-cli/%s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
-}
-
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "worksome",
@@ -153,7 +146,7 @@ func newRootCmd() *cobra.Command {
 
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
 		opts := []client.Option{}
-		opts = append(opts, client.WithUserAgent(userAgent()))
+		opts = append(opts, client.WithUserAgent(client.UserAgent(version)))
 		if verbose {
 			opts = append(opts, client.WithVerbose(true))
 		}

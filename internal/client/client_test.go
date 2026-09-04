@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -908,5 +909,51 @@ func TestClientNameVersion(t *testing.T) {
 		if name != tt.wantName || ver != tt.wantVer {
 			t.Errorf("clientNameVersion(%q) = %q, %q; want %q, %q", tt.ua, name, ver, tt.wantName, tt.wantVer)
 		}
+	}
+}
+
+// auth login and auth status once built their own client with the default
+// agent, which carries no version — and an empty version drops the Apollo
+// client-version header, so those calls went out unattributed.
+func TestUserAgentCarriesVersionAndPlatform(t *testing.T) {
+	ua := UserAgent("0.7.0")
+
+	name, rest, ok := strings.Cut(ua, "/")
+	if !ok || name != "worksome-cli" {
+		t.Fatalf("UserAgent() = %q, want a worksome-cli/... prefix", ua)
+	}
+
+	ver, platform, ok := strings.Cut(rest, " ")
+	if ver != "0.7.0" {
+		t.Errorf("UserAgent() = %q, want version 0.7.0", ua)
+	}
+	if !ok || !strings.HasPrefix(platform, "(") || !strings.Contains(platform, runtime.GOOS) {
+		t.Errorf("UserAgent() = %q, want the platform named as (%s/%s)", ua, runtime.GOOS, runtime.GOARCH)
+	}
+
+	gotName, gotVer := clientNameVersion(ua)
+	if gotName != "worksome-cli" || gotVer != "0.7.0" {
+		t.Errorf("clientNameVersion(UserAgent(...)) = %q, %q; want worksome-cli, 0.7.0", gotName, gotVer)
+	}
+}
+
+// The guard is symmetric: a User-Agent that yields no name must not put an
+// empty apollographql-client-name on the wire.
+func TestExecute_OmitsEmptyClientAwarenessHeaders(t *testing.T) {
+	srv := newTestServer(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := r.Header["Apollographql-Client-Name"]; ok {
+			t.Errorf("client-name header sent for a nameless agent: %q", r.Header.Get("apollographql-client-name"))
+		}
+		if _, ok := r.Header["Apollographql-Client-Version"]; ok {
+			t.Errorf("client-version header sent for a versionless agent")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data":{"hello":"world"}}`)
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "test-token", WithUserAgent(" "))
+	if err := c.Execute(context.Background(), "query Accounts { accounts { id } }", nil, nil); err != nil {
+		t.Fatalf("Execute returned error: %v", err)
 	}
 }
