@@ -436,6 +436,40 @@ func requireFields(input map[string]any, required []requiredField) error {
 		noun, strings.Join(names, ", "), strings.Join(flags, ", "), pronoun)
 }
 
+// printPageInfo reports where a list result sits in its pagination —
+// "page 1 of 72 (715 total)" — so someone at a terminal can tell whether the
+// page they got is the whole set without fetching the rest. The API returns
+// paginatorInfo on every list and the CLI has always discarded it.
+//
+// It writes only when stderr is a terminal. A default "worksome jobs list" is
+// the shape that ends up in cron jobs and CI steps, many of which treat any
+// stderr output as failure, and there is no flag to silence it; the existing
+// stderr chrome (--all, --watch) is opt-in for the same reason.
+func printPageInfo(paginator map[string]any) {
+	if !output.IsTTYFile(os.Stderr) {
+		return
+	}
+	writePageInfo(os.Stderr, paginator)
+}
+
+func writePageInfo(w io.Writer, paginator map[string]any) {
+	info, ok := paginator["paginatorInfo"].(map[string]any)
+	if !ok {
+		return
+	}
+	num := func(key string) (int, bool) {
+		f, ok := info[key].(float64) // JSON numbers decode as float64
+		return int(f), ok
+	}
+	page, ok1 := num("currentPage")
+	last, ok2 := num("lastPage")
+	total, ok3 := num("total")
+	if !ok1 || !ok2 || !ok3 {
+		return
+	}
+	fmt.Fprintf(w, "page %d of %d (%d total)\n", page, last, total)
+}
+
 // jsonArg decodes a flag whose GraphQL type is an input object (or a list of
 // them) from JSON. Sending the raw string would be rejected by the server as a
 // type mismatch, so a bad value is reported here with the type it needs.
@@ -817,6 +851,9 @@ func new{{$res.GoName}}ListCmd() *cobra.Command {
 				result, err := q.{{$res.ListQuery.GoName}}(context.Background(), vars)
 				if err != nil {
 					return err
+				}
+				if paginator, ok := result["{{$res.ListQuery.Name}}"].(map[string]any); ok {
+					printPageInfo(paginator)
 				}
 				{{- if $res.TableColumns}}
 				// Extract data array from paginator response for table output
