@@ -30,9 +30,7 @@ company ──creates──▶ job ──receives──▶ bid
 ```
 
 > [!WARNING]
-Worksome's API is powerful and allow for potentially dangerous operations, such as terminating hires or operating with payment requests. **Be cautious and oversee the operations done by AI agents using `worksome-cli` or the API**: you are responsible for any API calls made to Worksome to your account using your token.
-
-
+> Worksome's API is powerful and allows potentially dangerous operations (for example terminating hires or approving payment requests). **Be cautious and oversee any operations performed by AI agents using `worksome-cli` or the API**; you are responsible for all API calls made on your account with your token.
 
 | Resource | What it is |
 |---|---|
