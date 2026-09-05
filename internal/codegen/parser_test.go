@@ -1930,3 +1930,60 @@ func TestIgnoreFieldsRejectsStaleEntry(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreFieldsRejectsMalformedEntry(t *testing.T) {
+	for name, entry := range map[string]string{
+		"nested path": "Company.owner.name",
+		"empty type":  ".name",
+		"empty field": "Company.",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseWithOverrides(t, ignoreFieldsSchema, "ignore_fields:\n  - \""+entry+"\"\n")
+			if err == nil {
+				t.Fatalf("expected a malformed ignore_fields entry %q to fail generation", entry)
+			}
+			if !strings.Contains(err.Error(), "not in Type.field form") {
+				t.Errorf("a malformed key should be reported as malformed, not as a missing field, got: %v", err)
+			}
+		})
+	}
+}
+
+// Ignoring every selectable field is a mistake, but it must not produce a
+// document that either re-adds the ignored field or is invalid GraphQL.
+func TestIgnoreFieldsLeavingNothingSelectable(t *testing.T) {
+	parsed, err := parseWithOverrides(t, ignoreFieldsSchema, `
+ignore_fields:
+  - "Company.id"
+  - "Company.name"
+  - "Company.usedEngagementTypeSetups"
+  - "Company.owner"
+  - "Company.contact"
+`)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+
+	var companies *Resource
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "companies" {
+			companies = &parsed.Resources[i]
+			break
+		}
+	}
+	if companies == nil || companies.GetQuery == nil || companies.ListQuery == nil {
+		t.Fatal("expected a companies resource with both a get and a list query")
+	}
+
+	for _, op := range []*Operation{companies.GetQuery, companies.ListQuery} {
+		if strings.Contains(op.SelectionSet, "id") {
+			t.Errorf("%s re-adds Company.id after it was ignored:\n%s", op.Name, op.SelectionSet)
+		}
+		if !strings.Contains(op.SelectionSet, "__typename") {
+			t.Errorf("%s has no selection to fall back on:\n%s", op.Name, op.SelectionSet)
+		}
+		if strings.Contains(op.SelectionSet, "{ }") || strings.Contains(op.SelectionSet, "{  }") {
+			t.Errorf("%s emits an empty selection set, which is invalid GraphQL:\n%s", op.Name, op.SelectionSet)
+		}
+	}
+}

@@ -135,7 +135,8 @@ func (p *parser) validateIgnoredFields() error {
 	var stale []string
 	for _, entry := range p.overrides.IgnoreFields {
 		typeName, fieldName, ok := strings.Cut(entry, ".")
-		if !ok {
+		// A nested path is a different mistake from a renamed field, so say so.
+		if !ok || typeName == "" || fieldName == "" || strings.Contains(fieldName, ".") {
 			stale = append(stale, fmt.Sprintf("%q is not in Type.field form", entry))
 			continue
 		}
@@ -1248,8 +1249,11 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename " + unionFields + " } }"
 		}
 
-		dataFields := p.selectScalarFields(innerDef, 1)
-		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + typenamePrefix(innerDef) + dataFields + " } }"
+		dataFields := strings.TrimSpace(typenamePrefix(innerDef) + p.selectScalarFields(innerDef, 1))
+		if dataFields == "" {
+			dataFields = p.emptySelection(innerDef)
+		}
+		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
 	}
 
 	// Check if it's a union type
@@ -1267,11 +1271,21 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
 		return ""
 	}
-	fields := p.selectScalarFields(def, depth)
+	fields := strings.TrimSpace(typenamePrefix(def) + p.selectScalarFields(def, depth))
 	if fields == "" {
-		return "{ id }"
+		fields = p.emptySelection(def)
 	}
-	return "{ " + typenamePrefix(def) + fields + " }"
+	return "{ " + fields + " }"
+}
+
+// emptySelection is what to select on a type that has nothing else to select.
+// GraphQL rejects an empty selection set, and id cannot be the fallback when
+// the overrides ignore it — that would put back the field they exclude.
+func (p *parser) emptySelection(def *ast.Definition) string {
+	if def != nil && def.Fields.ForName("id") != nil && !p.fieldIgnored(def, "id") {
+		return "id"
+	}
+	return "__typename"
 }
 
 // typenamePrefix returns "__typename " for interface types. An interface
