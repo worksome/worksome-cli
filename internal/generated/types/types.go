@@ -519,8 +519,12 @@ type Client struct {
 	OnboardingDocuments []*OnboardingDocument `json:"onboardingDocuments"`
 	// The onboarding status of the client relationship.
 	OnboardingStatus *TrustedContactOnboardingStatus `json:"onboardingStatus,omitempty"`
-	// Whether all required worker-editable custom fields have been filled.
+	// Whether all required worker-editable custom fields have been filled. Also true when no fields are required; hasRequiredCustomFields indicates whether any exist.
 	RequiredCustomFieldsComplete bool `json:"requiredCustomFieldsComplete"`
+	// Whether any required worker-editable custom fields exist for this relationship.
+	HasRequiredCustomFields bool `json:"hasRequiredCustomFields"`
+	// Whether any worker-editable custom fields (required or optional) exist for this relationship.
+	HasWorkerEditableCustomFields bool `json:"hasWorkerEditableCustomFields"`
 	// The custom field values for the client relationship.
 	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
 }
@@ -839,6 +843,8 @@ type Contract struct {
 	WorkerAcceptedAt *string `json:"workerAcceptedAt,omitempty"`
 	// The date a scheduled change takes effect. Null means the change applies immediately on signature; a future date means it is parked until then.
 	EffectiveAt *string `json:"effectiveAt,omitempty"`
+	// When the contract version was created.
+	CreatedAt *string `json:"createdAt,omitempty"`
 	// The submitted signature of the accepted worker.
 	WorkerSignature *string `json:"workerSignature,omitempty"`
 	// The job for which the contract is for.
