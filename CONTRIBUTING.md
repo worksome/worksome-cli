@@ -15,6 +15,7 @@ by `cmd/generate`. To change it, change what produces it:
 |---|---|
 | A command's flags, help text, or behaviour | the templates in `internal/codegen/generator.go` |
 | How operations are grouped into resources | `schema/overrides.yaml` |
+| Which fields a selection set may request | `ignore_fields` in `schema/overrides.yaml` |
 | How the schema is interpreted (types, scalars, paginators) | `internal/codegen/parser.go` |
 | The API surface itself | nothing here — the schema comes from the API |
 

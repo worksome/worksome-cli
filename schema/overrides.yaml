@@ -26,3 +26,17 @@ aliases:
   # `company` query into the plural group. Keeps `worksome company get <id>`
   # working. Generation fails if a target or alias here goes stale.
   companies: ["company"]
+
+# Fields never to select, keyed by "Type.field".
+#
+# Introspection does not return applied directives, so schema.graphql carries
+# none of the API's field-level authorization. The generator cannot see which
+# fields are access controlled and selects them blind. A guarded field that is
+# declared non-null takes the whole parent object down with it when the guard
+# denies, so the command fails instead of degrading.
+#
+# Generation fails if an entry here goes stale.
+ignore_fields:
+  # Guarded on membership of that specific company, and `[EngagementTypeSetup!]!`,
+  # so `company get <id>` returned a null company to every non-member.
+  - "Company.usedEngagementTypeSetups"

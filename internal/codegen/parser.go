@@ -20,6 +20,10 @@ type Overrides struct {
 	Resources       map[string]OverrideResource `yaml:"resources"`
 	Ignore          []string                    `yaml:"ignore"`
 	IgnoreMutations []string                    `yaml:"ignore_mutations"`
+	// IgnoreFields lists "Type.field" entries never to select. Introspection
+	// strips applied directives, so the schema we parse cannot say which
+	// fields the server access-controls; this records what it cannot tell us.
+	IgnoreFields []string `yaml:"ignore_fields"`
 	// Aliases maps a resource name to extra names it also answers to, so a
 	// rename in the API schema doesn't break the old invocation.
 	Aliases map[string][]string `yaml:"aliases"`
@@ -95,11 +99,18 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 	}
 
 	p := &parser{
-		doc:        doc,
-		overrides:  overrides,
-		enums:      make(map[string]bool),
-		inputs:     make(map[string]bool),
-		paginators: make(map[string]string),
+		doc:           doc,
+		overrides:     overrides,
+		enums:         make(map[string]bool),
+		inputs:        make(map[string]bool),
+		paginators:    make(map[string]string),
+		ignoredFields: make(map[string]bool, len(overrides.IgnoreFields)),
+	}
+	for _, entry := range overrides.IgnoreFields {
+		p.ignoredFields[entry] = true
+	}
+	if err := p.validateIgnoredFields(); err != nil {
+		return nil, err
 	}
 
 	return p.parse()
@@ -111,8 +122,42 @@ type parser struct {
 	enums      map[string]bool
 	inputs     map[string]bool
 	paginators map[string]string // PaginatorTypeName -> DataTypeName
+	// ignoredFields is the IgnoreFields override as a "Type.field" set.
+	ignoredFields map[string]bool
 
 	aliasErrors []string
+}
+
+// validateIgnoredFields rejects entries that name a field the schema no longer
+// has. A stale entry is silently dead, which would quietly put a guarded field
+// back into every selection set that mentions its type.
+func (p *parser) validateIgnoredFields() error {
+	var stale []string
+	for _, entry := range p.overrides.IgnoreFields {
+		typeName, fieldName, ok := strings.Cut(entry, ".")
+		// A nested path is a different mistake from a renamed field, so say so.
+		if !ok || typeName == "" || fieldName == "" || strings.Contains(fieldName, ".") {
+			stale = append(stale, fmt.Sprintf("%q is not in Type.field form", entry))
+			continue
+		}
+		def := p.doc.Types[typeName]
+		if def == nil || def.Fields.ForName(fieldName) == nil {
+			stale = append(stale, fmt.Sprintf("%q names no field in the schema", entry))
+		}
+	}
+	if len(stale) == 0 {
+		return nil
+	}
+	sort.Strings(stale)
+	return fmt.Errorf("invalid ignore_fields in overrides:\n  %s", strings.Join(stale, "\n  "))
+}
+
+// fieldIgnored reports whether "Type.field" is excluded by the overrides.
+func (p *parser) fieldIgnored(def *ast.Definition, fieldName string) bool {
+	if def == nil {
+		return false
+	}
+	return p.ignoredFields[def.Name+"."+fieldName]
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -767,7 +812,7 @@ func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 		if f.Name == "__typename" {
 			continue
 		}
-		if hasRequiredArgs(f) {
+		if hasRequiredArgs(f) || p.fieldIgnored(def, f.Name) {
 			continue
 		}
 
@@ -797,7 +842,7 @@ func (p *parser) buildTableColumnsForType(typeName string) []TableColumn {
 			if nestedCount >= 2 || len(columns) >= maxColumns {
 				break
 			}
-			if !p.nestedFieldSelected(nf) {
+			if !p.nestedFieldSelected(nestedDef, nf) {
 				continue
 			}
 			columns = append(columns, TableColumn{
@@ -1204,8 +1249,11 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 			return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { __typename " + unionFields + " } }"
 		}
 
-		dataFields := p.selectScalarFields(innerDef, 1)
-		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + typenamePrefix(innerDef) + dataFields + " } }"
+		dataFields := strings.TrimSpace(typenamePrefix(innerDef) + p.selectScalarFields(innerDef, 1))
+		if dataFields == "" {
+			dataFields = p.emptySelection(innerDef)
+		}
+		return "{ paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { " + dataFields + " } }"
 	}
 
 	// Check if it's a union type
@@ -1223,11 +1271,21 @@ func (p *parser) buildSelectionSet(t *ast.Type, depth int) string {
 	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
 		return ""
 	}
-	fields := p.selectScalarFields(def, depth)
+	fields := strings.TrimSpace(typenamePrefix(def) + p.selectScalarFields(def, depth))
 	if fields == "" {
-		return "{ id }"
+		fields = p.emptySelection(def)
 	}
-	return "{ " + typenamePrefix(def) + fields + " }"
+	return "{ " + fields + " }"
+}
+
+// emptySelection is what to select on a type that has nothing else to select.
+// GraphQL rejects an empty selection set, and id cannot be the fallback when
+// the overrides ignore it — that would put back the field they exclude.
+func (p *parser) emptySelection(def *ast.Definition) string {
+	if def != nil && def.Fields.ForName("id") != nil && !p.fieldIgnored(def, "id") {
+		return "id"
+	}
+	return "__typename"
 }
 
 // typenamePrefix returns "__typename " for interface types. An interface
@@ -1309,7 +1367,7 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			continue
 		}
 		// Skip fields the auto-generated selection set cannot call correctly.
-		if p.needsArgument(f) {
+		if p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
 			continue
 		}
 		innerType := unwrapType(f.Type)
@@ -1372,7 +1430,7 @@ func (p *parser) unionSafeFields(def *ast.Definition) string {
 			continue
 		}
 		for _, f := range memberDef.Fields {
-			if !p.nestedFieldSelected(f) {
+			if !p.nestedFieldSelected(memberDef, f) {
 				continue
 			}
 			if types[f.Name] == nil {
@@ -1390,7 +1448,7 @@ func (p *parser) unionSafeFields(def *ast.Definition) string {
 		}
 		var fields []string
 		for _, f := range memberDef.Fields {
-			if p.nestedFieldSelected(f) && len(types[f.Name]) == 1 {
+			if p.nestedFieldSelected(memberDef, f) && len(types[f.Name]) == 1 {
 				fields = append(fields, f.Name)
 			}
 		}
@@ -1421,7 +1479,7 @@ func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 	for _, f := range def.Fields {
 		// Same guard as the default selections: a relation whose argument is a
 		// choice fails at the resolver even though the query is valid.
-		if p.needsArgument(f) {
+		if p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
 			continue
 		}
 		itemName, isPaginator := p.paginators[unwrapType(f.Type)]
@@ -1457,7 +1515,7 @@ func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 func (p *parser) selectSafeFields(def *ast.Definition) string {
 	var fields []string
 	for _, f := range def.Fields {
-		if p.nestedFieldSelected(f) {
+		if p.nestedFieldSelected(def, f) {
 			fields = append(fields, f.Name)
 		}
 	}
@@ -1469,8 +1527,8 @@ func (p *parser) selectSafeFields(def *ast.Definition) string {
 // a column for a field the query never selects renders blank, and a field the
 // query does fetch deserves its column. Widening what nested selections
 // include must widen the columns with it.
-func (p *parser) nestedFieldSelected(f *ast.FieldDefinition) bool {
-	if f.Name == "__typename" || p.needsArgument(f) {
+func (p *parser) nestedFieldSelected(def *ast.Definition, f *ast.FieldDefinition) bool {
+	if f.Name == "__typename" || p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
 		return false
 	}
 	innerType := unwrapType(f.Type)
