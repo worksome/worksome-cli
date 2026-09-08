@@ -1884,8 +1884,17 @@ type Client {
   onboardingStatus: TrustedContactOnboardingStatus
   """
   Whether all required worker-editable custom fields have been filled.
+  Also true when no fields are required; hasRequiredCustomFields indicates whether any exist.
   """
   requiredCustomFieldsComplete: Boolean!
+  """
+  Whether any required worker-editable custom fields exist for this relationship.
+  """
+  hasRequiredCustomFields: Boolean!
+  """
+  Whether any worker-editable custom fields (required or optional) exist for this relationship.
+  """
+  hasWorkerEditableCustomFields: Boolean!
   """
   The custom field values for the client relationship.
   """
@@ -3068,6 +3077,10 @@ type Contract {
   immediately on signature; a future date means it is parked until then.
   """
   effectiveAt: DateTime
+  """
+  When the contract version was created.
+  """
+  createdAt: DateTime
   """
   The submitted signature of the accepted worker.
   """

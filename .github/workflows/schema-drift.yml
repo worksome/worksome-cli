@@ -56,5 +56,8 @@ jobs:
             echo 'PR already open; branch updated.'
             exit 0
           fi
-          gh pr create --base main --title 'chore: sync schema with production API' \
+          # --head: the push above went to an explicit URL, so the branch has no
+          # upstream for gh to infer and pr create aborts.
+          gh pr create --base main --head chore/schema-sync \
+            --title 'chore: sync schema with production API' \
             --body 'Automated schema drift sync. Tests passed in the drift job (PRs from GITHUB_TOKEN do not trigger CI). Review the generated diff for renamed or removed commands before merging.'
