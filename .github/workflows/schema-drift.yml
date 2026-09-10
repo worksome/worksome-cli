@@ -5,9 +5,9 @@ on:
     - cron: '17 6 * * *'
   workflow_dispatch:
 
+# The PR is opened by DRIFT_PR_TOKEN, so GITHUB_TOKEN only needs to push.
 permissions:
   contents: write
-  pull-requests: write
 
 # Two overlapping runs would force-push the same branch and clobber each
 # other's PR diff.
@@ -37,7 +37,9 @@ jobs:
         run: go test ./... -race
       - name: Open or update the drift PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN pushes, but is barred from opening PRs by repo hardening.
+          PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DRIFT_PR_TOKEN }}
         run: |
           if [ -z "$(git status --porcelain -- schema internal/generated README.md)" ]; then
             echo "Schema is up to date with the API."
@@ -48,7 +50,7 @@ jobs:
           git checkout -B chore/schema-sync
           git add -A -- schema internal/generated README.md
           git commit -m 'chore: sync schema with production API'
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" \
+          git push -f "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}" \
             HEAD:chore/schema-sync
           # Reuses one branch, so a second run updates the open PR instead of opening another.
           existing=$(gh pr list --head chore/schema-sync --state open --json number --jq '.[].number')
@@ -60,4 +62,4 @@ jobs:
           # upstream for gh to infer and pr create aborts.
           gh pr create --base main --head chore/schema-sync \
             --title 'chore: sync schema with production API' \
-            --body 'Automated schema drift sync. Tests passed in the drift job (PRs from GITHUB_TOKEN do not trigger CI). Review the generated diff for renamed or removed commands before merging.'
+            --body 'Automated schema drift sync. Review the generated diff for renamed or removed commands before merging.'
