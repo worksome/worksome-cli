@@ -41,6 +41,12 @@ jobs:
           PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.DRIFT_PR_TOKEN }}
         run: |
+          # Checked before the drift test so a bad secret surfaces on quiet days
+          # too, rather than lying dormant until the next drift.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::DRIFT_PR_TOKEN is unset or empty; the drift PR cannot be opened."
+            exit 1
+          fi
           if [ -z "$(git status --porcelain -- schema internal/generated README.md)" ]; then
             echo "Schema is up to date with the API."
             exit 0
