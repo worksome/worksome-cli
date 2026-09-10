@@ -3195,6 +3195,27 @@ func ValidOvertimeType() []OvertimeType {
 	}
 }
 
+// OwnerRole — The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
+type OwnerRole string
+
+const (
+	// OwnerRolePrimaryContact — Primary contact
+	OwnerRolePrimaryContact OwnerRole = "PRIMARY_CONTACT"
+	// OwnerRoleCompliance — Compliance owner
+	OwnerRoleCompliance OwnerRole = "COMPLIANCE"
+	// OwnerRolePayments — Payments owner
+	OwnerRolePayments OwnerRole = "PAYMENTS"
+)
+
+// ValidOwnerRole returns all valid values for OwnerRole.
+func ValidOwnerRole() []OwnerRole {
+	return []OwnerRole{
+		OwnerRolePrimaryContact,
+		OwnerRoleCompliance,
+		OwnerRolePayments,
+	}
+}
+
 // PaymentRequestOrderByColumn — The columns that the payment requests list can be ordered by.
 type PaymentRequestOrderByColumn string
 

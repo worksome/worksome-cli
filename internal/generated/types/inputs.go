@@ -1143,6 +1143,14 @@ type OrderByClause struct {
 	Order SortOrder `json:"order"`
 }
 
+// OwnerInput — One user's owner assignment on a record.
+type OwnerInput struct {
+	// The user to assign as an owner.
+	User string `json:"user"`
+	// The part this person plays on the record, e.g. the primary contact.
+	Role *OwnerRole `json:"role,omitempty"`
+}
+
 // PaymentRequestOrderByClauseInput — Payment request sorting clause input.
 type PaymentRequestOrderByClauseInput struct {
 	// The field to sort payment requests by.
@@ -1477,6 +1485,14 @@ type UpdateCompanyRecruiterInput struct {
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
 	// The custom fields for the company recruiter.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
+}
+
+// UpdateCompanySupplierOwnersInput — The full set of owner assignments for one client relationship.
+type UpdateCompanySupplierOwnersInput struct {
+	// The client relationship to assign team members on.
+	Id string `json:"id"`
+	// The assignments to keep; team members not listed are unassigned.
+	Owners []OwnerInput `json:"owners"`
 }
 
 // UpdateCustomFieldInput — The input for updating a custom field.

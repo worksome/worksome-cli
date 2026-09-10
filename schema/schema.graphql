@@ -2291,6 +2291,10 @@ type CompanySupplier {
   The supplier account.
   """
   supplier: Account
+  """
+  The supplier-side team members assigned to this client relationship.
+  """
+  owners: [Owner!]!
 }
 """
 A paginated list of CompanySupplier items.
@@ -9818,6 +9822,18 @@ type Mutation {
     input: InviteCompanyRecruiterInput!
   ): CompanyRecruiter!
   """
+  Replace the set of supplier team members assigned to this client relationship.
+  
+  Only full-access users (account owner or admin) on the supplier account can
+  change assignments, and every assignee must be a member of that account.
+  """
+  updateCompanySupplierOwners(
+    """
+    The assignments to apply.
+    """
+    input: UpdateCompanySupplierOwnersInput!
+  ): CompanySupplier!
+  """
   Submit information for a compliance — e.g. a company reviewing a
   worker, or a worker filling in form data. Set exactly one field on
   the `input` to choose the action; the acting company/user comes
@@ -11124,6 +11140,53 @@ enum OvertimeType {
   Seventh Day
   """
   SEVENTH_DAY
+}
+"""
+A user assigned as an owner of a record, and the part they play on it.
+"""
+type Owner {
+  """
+  The owner's user ID.
+  """
+  id: ID!
+  """
+  The owner's name.
+  """
+  name: String!
+  """
+  The part this person plays on the record, e.g. the primary contact.
+  """
+  role: OwnerRole
+}
+"""
+One user's owner assignment on a record.
+"""
+input OwnerInput {
+  """
+  The user to assign as an owner.
+  """
+  user: ID!
+  """
+  The part this person plays on the record, e.g. the primary contact.
+  """
+  role: OwnerRole
+}
+"""
+The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
+"""
+enum OwnerRole {
+  """
+  Primary contact
+  """
+  PRIMARY_CONTACT
+  """
+  Compliance owner
+  """
+  COMPLIANCE
+  """
+  Payments owner
+  """
+  PAYMENTS
 }
 """
 Information about pagination using a fully featured paginator.
@@ -16093,6 +16156,19 @@ input UpdateCompanyRecruiterInput {
   The custom fields for the company recruiter.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
+}
+"""
+The full set of owner assignments for one client relationship.
+"""
+input UpdateCompanySupplierOwnersInput {
+  """
+  The client relationship to assign team members on.
+  """
+  id: ID!
+  """
+  The assignments to keep; team members not listed are unassigned.
+  """
+  owners: [OwnerInput!]!
 }
 """
 The input for updating a custom field.
