@@ -22,6 +22,7 @@ func RegisterAll(root *cobra.Command) {
 	root.AddCommand(NewCompaniesCmd())
 	root.AddCommand(NewCompanyRecruiterRegionsCmd())
 	root.AddCommand(NewCompanyRecruitersCmd())
+	root.AddCommand(NewCompanySupplierOwnersCmd())
 	root.AddCommand(NewCompanySuppliersCmd())
 	root.AddCommand(NewComplianceCmd())
 	root.AddCommand(NewContractsCmd())

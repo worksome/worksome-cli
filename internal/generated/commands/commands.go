@@ -4135,12 +4135,106 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+// NewCompanySupplierOwnersCmd creates the company-supplier-owners resource command.
+func NewCompanySupplierOwnersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "company-supplier-owners",
+		Short: "Replace the set of supplier team members assigned to this client relationship.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newCompanySupplierOwnersUpdateCmd())
+
+	return cmd
+}
+
+var companysupplierownersUpdateColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Owners ID", Field: "owners.id"},
+	{Header: "Owners Name", Field: "owners.name"},
+}
+
+func newCompanySupplierOwnersUpdateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update",
+		Short:   "Replace the set of supplier team members assigned to this client relationship. Only full-access users (account owner or admin) on the supplier account can change assignments, and every assignee must be a member of that account.",
+		Example: "  # Using a JSON input file:\n  worksome company-supplier-owners update --input payload.json\n\n  # Using flags:\n  worksome company-supplier-owners update --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"owners\": [\n      {\n        \"role\": \"PRIMARY_CONTACT\",\n        \"user\": \"<id>\"\n      }\n    ]\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "UpdateCompanySupplierOwners", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.UpdateCompanySupplierOwners(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, companysupplierownersUpdateColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("id", "", "The client relationship to assign team members on.")
+	return cmd
+}
+
 var companysuppliersColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Company ID", Field: "company.id"},
 	{Header: "Company Name", Field: "company.name"},
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Owners ID", Field: "owners.id"},
+	{Header: "Owners Name", Field: "owners.name"},
 }
 
 // NewCompanySuppliersCmd creates the company-suppliers resource command.

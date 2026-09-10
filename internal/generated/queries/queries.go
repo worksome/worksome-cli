@@ -633,10 +633,28 @@ func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]an
 	return result, nil
 }
 
+// UpdateCompanySupplierOwners — Replace the set of supplier team members assigned to this client relationship. Only full-access users (account owner or admin) on the supplier account can change assignments, and every assignee must be a member of that account.
+func (q *Querier) UpdateCompanySupplierOwners(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation UpdateCompanySupplierOwners($input: UpdateCompanySupplierOwnersInput!) {
+	updateCompanySupplierOwners(input: $input) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, client.WrapOperation("updateCompanySupplierOwners", err)
+	}
+	if data, ok := result["updateCompanySupplierOwners"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // CompanySupplier — Get a specific company supplier.
 func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySupplier($id: ID!) {
-	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } }
+	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
@@ -654,7 +672,7 @@ func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map
 // CompanySuppliers — Get a list of company suppliers for the authenticated company accounts.
 func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySuppliers($accounts: [ID!], $search: String, $first: Int! = 10, $page: Int) {
-	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } } }
+	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)

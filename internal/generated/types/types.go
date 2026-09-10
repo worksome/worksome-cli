@@ -669,6 +669,8 @@ type CompanySupplier struct {
 	Company *Company `json:"company"`
 	// The supplier account.
 	Supplier *Account `json:"supplier,omitempty"`
+	// The supplier-side team members assigned to this client relationship.
+	Owners []*Owner `json:"owners"`
 }
 
 // CompanySupplierPaginator — A paginated list of CompanySupplier items.
@@ -2038,6 +2040,16 @@ type OvertimePaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of Overtime items.
 	Data []*Overtime `json:"data"`
+}
+
+// Owner — A user assigned as an owner of a record, and the part they play on it.
+type Owner struct {
+	// The owner's user ID.
+	Id string `json:"id"`
+	// The owner's name.
+	Name string `json:"name"`
+	// The part this person plays on the record, e.g. the primary contact.
+	Role *OwnerRole `json:"role,omitempty"`
 }
 
 // PaginatorInfo — Information about pagination using a fully featured paginator.
