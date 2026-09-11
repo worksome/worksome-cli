@@ -19,6 +19,22 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      # First, so a bad secret fails in seconds on quiet days rather than after
+      # a full sync and test run, or only on days the schema drifts.
+      - name: Check the drift PR token
+        env:
+          GH_TOKEN: ${{ secrets.DRIFT_PR_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::DRIFT_PR_TOKEN is unset or empty; the drift PR cannot be opened."
+            exit 1
+          fi
+          # stderr is kept: a non-zero exit here can be expiry, revocation,
+          # rate limiting or a transient API failure, and they look different.
+          if ! gh api user --jq .login >/dev/null; then
+            echo "::error::DRIFT_PR_TOKEN failed validation; see the gh error above."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The drift PR targets main, so a manual run from another branch must
@@ -41,12 +57,6 @@ jobs:
           PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.DRIFT_PR_TOKEN }}
         run: |
-          # Checked before the drift test so a bad secret surfaces on quiet days
-          # too, rather than lying dormant until the next drift.
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::DRIFT_PR_TOKEN is unset or empty; the drift PR cannot be opened."
-            exit 1
-          fi
           if [ -z "$(git status --porcelain -- schema internal/generated README.md)" ]; then
             echo "Schema is up to date with the API."
             exit 0
