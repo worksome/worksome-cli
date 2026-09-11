@@ -47,6 +47,11 @@ jobs:
             echo "::error::DRIFT_PR_TOKEN is unset or empty; the drift PR cannot be opened."
             exit 1
           fi
+          # The PAT expires by design; catch that here rather than after the push.
+          if ! gh api user --jq .login >/dev/null 2>&1; then
+            echo "::error::DRIFT_PR_TOKEN is not valid (expired or revoked?); the drift PR cannot be opened."
+            exit 1
+          fi
           if [ -z "$(git status --porcelain -- schema internal/generated README.md)" ]; then
             echo "Schema is up to date with the API."
             exit 0
