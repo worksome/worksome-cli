@@ -1,0 +1,20 @@
+name: Probe drift PR creation
+on: push
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open then immediately close a PR, exactly as the drift job would
+        env:
+          GH_TOKEN: ${{ secrets.DRIFT_PR_TOKEN }}
+        run: |
+          url=$(gh pr create --repo "$GITHUB_REPOSITORY" \
+            --base main --head chore/drift-pr-probe \
+            --title 'probe: verifying drift PR creation' \
+            --body 'Temporary probe. Closed automatically by the job that opened it.')
+          echo "CREATED: $url"
+          gh pr close "$url" --repo "$GITHUB_REPOSITORY" --comment 'Probe complete, closing.'
+          echo "CLOSED"
