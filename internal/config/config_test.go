@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadSaveRoundTrip(t *testing.T) {
@@ -462,5 +463,44 @@ func TestLoadDoesNotCreateConfigDirectory(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(home, configDir)); !os.IsNotExist(err) {
 		t.Errorf("Load created %s; it must only be created when saving", configDir)
+	}
+}
+
+func TestProfileSessionRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	expires := time.Date(2026, 9, 26, 10, 30, 0, 0, time.FixedZone("CEST", 2*3600))
+	var p Profile
+	p.Endpoint = "https://api.example.test/graphql"
+	p.SetSession("acc", "ref", expires)
+
+	cfg := &Config{CurrentProfile: "default", Profiles: map[string]Profile{"default": p}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := loaded.Profiles["default"]
+	if !got.IsOAuth() || got.Token != "acc" || got.RefreshToken != "ref" {
+		t.Errorf("loaded profile = %+v", got)
+	}
+	exp, ok := got.Expiry()
+	if !ok || !exp.Equal(expires) {
+		t.Errorf("Expiry() = %v, %v; want %v", exp, ok, expires)
+	}
+	if got.ExpiresAt != "2026-09-26T08:30:00Z" {
+		t.Errorf("expiry should be stored in UTC RFC 3339, got %q", got.ExpiresAt)
+	}
+
+	// A personal access token profile has no session fields and is not OAuth.
+	pat := Profile{Token: "pat"}
+	if pat.IsOAuth() {
+		t.Error("a PAT profile must not report as OAuth")
+	}
+	if _, ok := pat.Expiry(); ok {
+		t.Error("a PAT profile has no expiry")
 	}
 }

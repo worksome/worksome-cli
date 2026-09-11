@@ -7,12 +7,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
+	"github.com/worksome/worksome-cli/internal/oauth"
 	"golang.org/x/term"
 )
+
+// loginTimeout bounds how long `auth login` waits for the browser.
+const loginTimeout = 5 * time.Minute
 
 func newAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -37,26 +42,38 @@ func newAuthLoginCmd() *cobra.Command {
 	var profileName string
 	var tokenFlag string
 	var endpointFlag string
+	var usePAT bool
+	var noBrowser bool
 
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "Authenticate with a personal access token",
-		Long: `Authenticate with the Worksome API using a Personal Access Token (PAT).
+		Short: "Sign in through your browser, or with a personal access token",
+		Long: `Sign in to the Worksome API.
 
-Create a token at: https://use.worksome.com/integrations/api-tokens
+By default this opens your browser: you sign in to Worksome as usual (SSO and
+MFA included), approve the CLI, and it is connected. The session renews itself
+while you keep using it and expires after 90 days without use. Nothing to copy.
 
-The token is stored in ~/.worksome/config.yaml with restricted file permissions.`,
-		Example: `  # Interactive login (prompts for token)
+For scripts, CI and other places with nobody at a keyboard, use a Personal
+Access Token instead: pass --token, pipe it on stdin, or set WORKSOME_API_TOKEN.
+Create one at: https://use.worksome.com/integrations/api-tokens
+
+Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
+		Example: `  # Sign in through the browser
   worksome auth login
 
-  # Non-interactive login (useful when paste doesn't work or for CI)
+  # Print the sign-in URL instead of opening a browser (remote shells, SSH)
+  worksome auth login --no-browser
+
+  # Personal access token: non-interactive, for CI and scheduled jobs
   worksome auth login --token <your-token>
+  echo "<your-token>" | worksome auth login
 
-  # Login with a custom endpoint and profile
-  worksome auth login --token <your-token> --endpoint https://staging.worksome.com/graphql --profile staging
+  # Prompt for a personal access token interactively
+  worksome auth login --pat
 
-  # Pipe token from stdin
-  echo "<your-token>" | worksome auth login`,
+  # A second profile against another platform
+  worksome auth login --profile staging --endpoint https://staging.worksome.com/graphql`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -69,8 +86,33 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 
 			token := tokenFlag
 			endpoint := endpointFlag
+			var session *oauth.Token
 
-			// If token not provided via flag, prompt interactively
+			// Browser login is the default when a person is present: no
+			// --token, no --pat, and stdin is a terminal rather than a pipe
+			// carrying a token.
+			if token == "" && !usePAT && term.IsTerminal(int(os.Stdin.Fd())) {
+				ocfg := oauthConfig()
+				if ocfg.ClientID == "" {
+					return fmt.Errorf("browser sign-in is not configured in this build (no OAuth client id); " +
+						"use a personal access token with --token or --pat, or set WORKSOME_OAUTH_CLIENT_ID")
+				}
+				open := oauth.OpenBrowser
+				if noBrowser {
+					open = nil
+				}
+				ctx, cancel := context.WithTimeout(cmd.Context(), loginTimeout)
+				defer cancel()
+				tok, err := oauth.Login(ctx, ocfg, open, os.Stderr)
+				if err != nil {
+					return fmt.Errorf("sign-in failed: %w", err)
+				}
+				session = &tok
+				token = tok.AccessToken
+			}
+
+			// Otherwise a personal access token: prompt for it, or read it
+			// from a non-terminal stdin.
 			if token == "" {
 				reader := bufio.NewReader(os.Stdin)
 
@@ -136,24 +178,31 @@ The token is stored in ~/.worksome/config.yaml with restricted file permissions.
 			if cfg.Profiles == nil {
 				cfg.Profiles = make(map[string]config.Profile)
 			}
-			cfg.Profiles[profileName] = config.Profile{
-				Token:    token,
-				Endpoint: endpoint,
+			profile := config.Profile{Token: token, Endpoint: endpoint}
+			if session != nil {
+				profile.SetSession(session.AccessToken, session.RefreshToken, session.ExpiresAt)
 			}
+			cfg.Profiles[profileName] = profile
 			cfg.CurrentProfile = profileName
 
 			if err := cfg.Save(); err != nil {
 				return fmt.Errorf("saving config: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Token saved to profile %q\n", profileName)
+			if session != nil {
+				fmt.Fprintf(os.Stderr, "Signed in. Session saved to profile %q; it renews automatically while in use.\n", profileName)
+			} else {
+				fmt.Fprintf(os.Stderr, "Token saved to profile %q\n", profileName)
+			}
 			return nil
 		},
 	}
 
 	// Same shorthands as the root persistent flags these shadow, so -p/-t keep working
-	cmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile name to save token under")
-	cmd.Flags().StringVarP(&tokenFlag, "token", "t", "", "Personal Access Token (skips interactive prompt)")
+	cmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile name to save the credentials under")
+	cmd.Flags().StringVarP(&tokenFlag, "token", "t", "", "Personal Access Token (skips browser sign-in)")
+	cmd.Flags().BoolVar(&usePAT, "pat", false, "Prompt for a Personal Access Token instead of signing in through the browser")
+	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL instead of opening a browser")
 	cmd.Flags().StringVar(&endpointFlag, "endpoint", "", "API endpoint URL (default: https://api.worksome.com/graphql)")
 	return cmd
 }
@@ -211,6 +260,15 @@ func newAuthStatusCmd() *cobra.Command {
 				token = envToken
 			} else {
 				fmt.Printf("Token:    %s\n", config.MaskToken(token))
+				if profile.IsOAuth() {
+					if exp, ok := profile.Expiry(); ok {
+						fmt.Printf("Auth:     browser sign-in, renews automatically (current token expires %s)\n", exp.Local().Format("2 Jan 2006"))
+					} else {
+						fmt.Printf("Auth:     browser sign-in, renews automatically\n")
+					}
+				} else {
+					fmt.Printf("Auth:     personal access token\n")
+				}
 			}
 
 			if envEndpoint != "" {

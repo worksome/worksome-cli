@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,9 +26,46 @@ type Config struct {
 }
 
 // Profile stores credentials and endpoint for a single environment.
+//
+// Token is always the bearer token sent to the API. For a personal access
+// token that is all there is. For an OAuth session (browser login) the
+// profile also carries the refresh token and the access token's expiry, so
+// the CLI can renew it without asking the user to sign in again.
 type Profile struct {
-	Token    string `yaml:"token,omitempty"`
-	Endpoint string `yaml:"endpoint,omitempty"`
+	Token        string `yaml:"token,omitempty"`
+	Endpoint     string `yaml:"endpoint,omitempty"`
+	RefreshToken string `yaml:"refresh_token,omitempty"`
+	ExpiresAt    string `yaml:"expires_at,omitempty"` // RFC 3339, UTC
+}
+
+// IsOAuth reports whether the profile holds a browser-login session rather
+// than a personal access token.
+func (p Profile) IsOAuth() bool {
+	return p.RefreshToken != ""
+}
+
+// Expiry returns when the access token expires. ok is false when the profile
+// carries no (or an unreadable) expiry.
+func (p Profile) Expiry() (expiry time.Time, ok bool) {
+	if p.ExpiresAt == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, p.ExpiresAt)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// SetSession records an OAuth session on the profile.
+func (p *Profile) SetSession(accessToken, refreshToken string, expiresAt time.Time) {
+	p.Token = accessToken
+	p.RefreshToken = refreshToken
+	if expiresAt.IsZero() {
+		p.ExpiresAt = ""
+	} else {
+		p.ExpiresAt = expiresAt.UTC().Format(time.RFC3339)
+	}
 }
 
 // configPath returns the full path to the config file.
