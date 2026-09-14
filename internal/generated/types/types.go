@@ -671,6 +671,8 @@ type CompanySupplier struct {
 	Supplier *Account `json:"supplier,omitempty"`
 	// The supplier-side team members assigned to this client relationship.
 	Owners []*Owner `json:"owners"`
+	// The custom field values the supplier stores about this client relationship. Only readable by the supplier that owns the fields; empty for the client.
+	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
 }
 
 // CompanySupplierPaginator — A paginated list of CompanySupplier items.

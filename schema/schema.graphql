@@ -2295,6 +2295,12 @@ type CompanySupplier {
   The supplier-side team members assigned to this client relationship.
   """
   owners: [Owner!]!
+  """
+  The custom field values the supplier stores about this client relationship.
+  
+  Only readable by the supplier that owns the fields; empty for the client.
+  """
+  customFieldValues: [CustomFieldValue!]!
 }
 """
 A paginated list of CompanySupplier items.
@@ -15239,7 +15245,7 @@ Union of types which custom field values may be applied to.
 
 This is closely coupled to the `TypeSupportingCustomFieldValues` enum.
 """
-union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter
+union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier
 """
 A tag.
 """
@@ -16032,6 +16038,10 @@ enum TypeSupportingCustomFieldValues {
   A Company Recruiter relationship
   """
   COMPANY_RECRUITER
+  """
+  A relationship between a client company and one of its suppliers
+  """
+  COMPANY_SUPPLIER
 }
 """
 A scalar for representing a URL.

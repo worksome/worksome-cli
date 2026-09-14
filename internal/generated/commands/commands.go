@@ -4159,6 +4159,7 @@ var companysupplierownersUpdateColumns = []output.Column{
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
 	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
 func newCompanySupplierOwnersUpdateCmd() *cobra.Command {
@@ -4235,6 +4236,7 @@ var companysuppliersColumns = []output.Column{
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
 	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
 // NewCompanySuppliersCmd creates the company-suppliers resource command.
@@ -5194,7 +5196,7 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
 
 	return cmd
 }
@@ -5363,7 +5365,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that will own the custom field.")
 	cmd.Flags().String("field-type", "", "The custom field type. [SINGLE_SELECT, FREE_TEXT, MULTI_SELECT, FILE_UPLOAD]")
-	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER]")
+	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
 	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
 	cmd.Flags().String("description", "", "The description of the custom field.")
@@ -5379,7 +5381,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 		return []string{"SINGLE_SELECT", "FREE_TEXT", "MULTI_SELECT", "FILE_UPLOAD"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST", "COMPANY_RECRUITER"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST", "COMPANY_RECRUITER", "COMPANY_SUPPLIER"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
@@ -8477,7 +8479,7 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
 
 	return cmd
 }
@@ -16387,7 +16389,7 @@ func newSupplierSharedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("supplier", "", "The supplier account whose shared fields to retrieve.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
 	_ = cmd.MarkFlagRequired("supplier")
 
 	return cmd
