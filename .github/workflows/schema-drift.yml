@@ -48,13 +48,16 @@ jobs:
           go-version-file: go.mod
       # Introspection is unauthenticated, so this needs no API credentials.
       - name: Sync schema and regenerate
+        id: sync
         run: make sync
       - name: Test
+        id: test
         run: go test ./... -race
       # The generator's errors say what to do; this says where to read about it,
-      # on the run page the alert links to.
+      # on the run page the alert links to. Scoped to the two steps the runbook
+      # covers: a token or checkout failure has nothing to do with drift.
       - name: Point at the runbook
-        if: failure()
+        if: failure() && (steps.sync.outcome == 'failure' || steps.test.outcome == 'failure')
         run: |
           {
             echo '## Schema drift failed'

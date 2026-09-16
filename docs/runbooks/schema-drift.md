@@ -3,8 +3,10 @@
 The [Schema drift](../../.github/workflows/schema-drift.yml) job runs nightly. It
 re-introspects the production API, regenerates `internal/generated/`, runs the
 tests, and opens or updates `chore/schema-sync`. A failure means the API moved in
-a way the generator cannot absorb on its own — nothing is broken for users, but
-the CLI stops tracking the API until someone resolves it.
+a way the generator cannot absorb on its own. The CLI stops tracking the API from
+that point, so released commands can already be out of step with what the API
+accepts — and, as below, a drift can drop or regroup a command outright. Treat a
+red drift job as user-facing until you have read the diff.
 
 Reproduce any of the below locally with:
 
