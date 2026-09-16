@@ -128,8 +128,8 @@ type parser struct {
 	// ignoredFields is the IgnoreFields override as a "Type.field" set.
 	ignoredFields map[string]bool
 
-	aliasErrors []string
-	nameErrors  []string
+	overrideErrors []string
+	nameErrors     []string
 	// usedCommandNames records which command_names overrides were applied.
 	usedCommandNames map[string]bool
 }
@@ -273,9 +273,9 @@ func (p *parser) parse() (*Schema, error) {
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
 
-	if len(p.aliasErrors) > 0 {
-		return nil, fmt.Errorf("invalid aliases in overrides:\n  %s",
-			strings.Join(p.aliasErrors, "\n  "))
+	if len(p.overrideErrors) > 0 {
+		return nil, fmt.Errorf("invalid overrides:\n  %s",
+			strings.Join(p.overrideErrors, "\n  "))
 	}
 
 	if len(p.nameErrors) > 0 {
@@ -764,25 +764,24 @@ func (p *parser) buildResources() []Resource {
 	}
 	for target, aliases := range p.overrides.Aliases {
 		if !byName[target] {
-			p.aliasErrors = append(p.aliasErrors,
+			p.overrideErrors = append(p.overrideErrors,
 				fmt.Sprintf("alias target %q is not a generated resource", target))
 			continue
 		}
 		for _, a := range aliases {
 			if byName[a] {
-				p.aliasErrors = append(p.aliasErrors,
+				p.overrideErrors = append(p.overrideErrors,
 					fmt.Sprintf("alias %q (for %q) collides with a real resource", a, target))
 			}
 		}
 	}
-	sort.Strings(p.aliasErrors)
-
 	for name := range p.overrides.CommandNames {
 		if !p.usedCommandNames[name] {
-			p.nameErrors = append(p.nameErrors,
+			p.overrideErrors = append(p.overrideErrors,
 				fmt.Sprintf("command_names entry %q matches no generated operation", name))
 		}
 	}
+	sort.Strings(p.overrideErrors)
 	sort.Strings(p.nameErrors)
 
 	return resources

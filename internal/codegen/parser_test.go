@@ -2037,6 +2037,9 @@ type PaginatorInfo {
 	if !strings.Contains(err.Error(), "endJobs") {
 		t.Errorf("error should name the colliding mutation, got: %v", err)
 	}
+	if !strings.HasPrefix(err.Error(), "colliding command names") {
+		t.Errorf("a collision should not be reported as an overrides problem, got: %v", err)
+	}
 
 	write("command_names:\n  endJobs: \"end-many\"\n")
 	parsed, err := ParseSchema(schemaPath, overridesPath)
@@ -2056,9 +2059,12 @@ type PaginatorInfo {
 		t.Errorf("jobs mutations = %q, want %q", got, "end,end-many")
 	}
 
-	write("command_names:\n  endNothing: \"gone\"\n")
-	if _, err := ParseSchema(schemaPath, overridesPath); err == nil ||
-		!strings.Contains(err.Error(), "endNothing") {
-		t.Errorf("a stale command_names entry should fail generation, got: %v", err)
+	write("command_names:\n  endJobs: \"end-many\"\n  endNothing: \"gone\"\n")
+	_, err = ParseSchema(schemaPath, overridesPath)
+	if err == nil || !strings.Contains(err.Error(), "endNothing") {
+		t.Fatalf("a stale command_names entry should fail generation, got: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "invalid overrides") {
+		t.Errorf("a stale entry should not be reported as a collision, got: %v", err)
 	}
 }
