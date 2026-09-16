@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -1985,5 +1986,150 @@ ignore_fields:
 		if strings.Contains(op.SelectionSet, "{ }") || strings.Contains(op.SelectionSet, "{  }") {
 			t.Errorf("%s emits an empty selection set, which is invalid GraphQL:\n%s", op.Name, op.SelectionSet)
 		}
+	}
+}
+
+func TestCollidingCommandNames(t *testing.T) {
+	schema := `
+type Query {
+	job(id: ID!): Job
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	endJob(id: ID!): Job!
+	endJobs(ids: [ID!]!): [Job!]!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	data: [Job!]!
+	paginatorInfo: PaginatorInfo!
+}
+
+type PaginatorInfo {
+	count: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+
+	write := func(content string) {
+		if err := os.WriteFile(overridesPath, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write("")
+	_, err := ParseSchema(schemaPath, overridesPath)
+	if err == nil {
+		t.Fatal("expected a collision error for endJob/endJobs")
+	}
+	if !strings.Contains(err.Error(), "endJobs") {
+		t.Errorf("error should name the colliding mutation, got: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "colliding command names") {
+		t.Errorf("a collision should not be reported as an overrides problem, got: %v", err)
+	}
+
+	write("command_names:\n  endJobs: \"end-many\"\n")
+	parsed, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed with the override applied: %v", err)
+	}
+	var names []string
+	for _, r := range parsed.Resources {
+		if r.Name == "jobs" {
+			for _, m := range r.Mutations {
+				names = append(names, m.CLIName)
+			}
+		}
+	}
+	sort.Strings(names)
+	if got := strings.Join(names, ","); got != "end,end-many" {
+		t.Errorf("jobs mutations = %q, want %q", got, "end,end-many")
+	}
+
+	write("command_names:\n  endJobs: \"end-many\"\n  endNothing: \"gone\"\n")
+	_, err = ParseSchema(schemaPath, overridesPath)
+	if err == nil || !strings.Contains(err.Error(), "endNothing") {
+		t.Fatalf("a stale command_names entry should fail generation, got: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "invalid overrides") {
+		t.Errorf("a stale entry should not be reported as a collision, got: %v", err)
+	}
+}
+
+func TestCommandNameOverrideIsRejected(t *testing.T) {
+	schema := `
+type Query {
+	job(id: ID!): Job
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	endJob(id: ID!): Job!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	data: [Job!]!
+	paginatorInfo: PaginatorInfo!
+}
+
+type PaginatorInfo {
+	count: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+
+	// A query generates a command too, so an override may not take its name.
+	for _, tc := range []struct{ value, want string }{
+		{"get", "colliding command names"},
+		{"list", "colliding command names"},
+		// These reach Cobra's Use and toPascalCase, where they stop being valid Go.
+		{"end many", "invalid overrides"},
+		{"", "invalid overrides"},
+		{"End-Many", "invalid overrides"},
+	} {
+		if err := os.WriteFile(overridesPath,
+			[]byte("command_names:\n  endJob: \""+tc.value+"\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := ParseSchema(schemaPath, overridesPath)
+		if err == nil {
+			t.Errorf("command_names value %q should be rejected", tc.value)
+			continue
+		}
+		if !strings.HasPrefix(err.Error(), tc.want) {
+			t.Errorf("command_names value %q: got %q, want a %q error", tc.value, err, tc.want)
+		}
+	}
+
+	if err := os.WriteFile(overridesPath,
+		[]byte("command_names:\n  endJob: \"end-many\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseSchema(schemaPath, overridesPath); err != nil {
+		t.Errorf("a kebab-case override should be accepted, got: %v", err)
 	}
 }

@@ -9988,6 +9988,7 @@ func NewJobsCmd() *cobra.Command {
 	cmd.AddCommand(newJobsCreateCmd())
 	cmd.AddCommand(newJobsDuplicateCmd())
 	cmd.AddCommand(newJobsEndCmd())
+	cmd.AddCommand(newJobsEndManyCmd())
 	cmd.AddCommand(newJobsSetInternalBudgetOnCmd())
 	cmd.AddCommand(newJobsUpdateCmd())
 
@@ -10568,6 +10569,77 @@ func newJobsEndCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("id", "", "The ID of the job.")
+	cmd.Flags().String("account-id", "", "The ID of the account performing the action.")
+	return cmd
+}
+
+var jobsEndManyColumns = []output.Column{
+	{Header: "Ended ID", Field: "ended.id"},
+	{Header: "Ended Number", Field: "ended.number"},
+}
+
+func newJobsEndManyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "end-many",
+		Short:   "End multiple jobs at once. Only companies can end jobs. Jobs that cannot be ended are skipped.",
+		Example: "  # Using a JSON input file:\n  worksome jobs end-many --input payload.json\n\n  # Using flags:\n  worksome jobs end-many --account-id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"accountId\": \"<id>\",\n    \"jobIds\": [\n      \"<id>\"\n    ]\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("account-id") {
+				v, _ := cmd.Flags().GetString("account-id")
+				inputObj["accountId"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"accountId", "account-id"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "EndJobs", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.EndJobs(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, jobsEndManyColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account-id", "", "The ID of the account performing the action.")
 	return cmd
 }

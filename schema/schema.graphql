@@ -6286,6 +6286,45 @@ input EndJobInput {
   accountId: ID!
 }
 """
+A job that was skipped when ending multiple jobs at once.
+"""
+type EndJobSkipped {
+  """
+  The job that was skipped.
+  """
+  job: Job!
+  """
+  A human-readable explanation of why the job was skipped.
+  """
+  reason: String!
+}
+"""
+The input for ending multiple jobs at once.
+"""
+input EndJobsInput {
+  """
+  The IDs of the jobs to end.
+  """
+  jobIds: [ID!]!
+  """
+  The ID of the account performing the action.
+  """
+  accountId: ID!
+}
+"""
+The result of ending multiple jobs at once.
+"""
+type EndJobsResult {
+  """
+  Jobs that were successfully ended.
+  """
+  ended: [Job!]!
+  """
+  Jobs that could not be ended, with the reason why.
+  """
+  skipped: [EndJobSkipped!]!
+}
+"""
 An input for ending an existing project.
 """
 input EndProjectInput {
@@ -10088,6 +10127,17 @@ type Mutation {
     """
     input: EndJobInput!
   ): Job!
+  """
+  End multiple jobs at once.
+  
+  Only companies can end jobs. Jobs that cannot be ended are skipped.
+  """
+  endJobs(
+    """
+    The details of the jobs to end.
+    """
+    input: EndJobsInput!
+  ): EndJobsResult!
   """
   Set the internal budget of a job.
   

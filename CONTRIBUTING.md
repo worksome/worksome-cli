@@ -16,6 +16,7 @@ by `cmd/generate`. To change it, change what produces it:
 | A command's flags, help text, or behaviour | the templates in `internal/codegen/generator.go` |
 | How operations are grouped into resources | `schema/overrides.yaml` |
 | Which fields a selection set may request | `ignore_fields` in `schema/overrides.yaml` |
+| What a command is called when two operations derive the same name | `command_names` in `schema/overrides.yaml` |
 | How the schema is interpreted (types, scalars, paginators) | `internal/codegen/parser.go` |
 | The API surface itself | nothing here — the schema comes from the API |
 
@@ -63,6 +64,10 @@ That is the expected way to find out, not a bug.
 If the API renames or regroups something in a way that would break an existing
 command, add an entry to `aliases` in `schema/overrides.yaml` rather than
 accepting the break.
+
+Generation also fails when two operations derive the same command — `endJob`
+and `endJobs` both want `jobs end`. Give the newcomer a name in `command_names`
+so the established command keeps its own.
 
 ## Tests
 

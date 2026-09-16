@@ -48,9 +48,23 @@ jobs:
           go-version-file: go.mod
       # Introspection is unauthenticated, so this needs no API credentials.
       - name: Sync schema and regenerate
+        id: sync
         run: make sync
       - name: Test
+        id: test
         run: go test ./... -race
+      # The generator's errors say what to do; this says where to read about it,
+      # on the run page the alert links to. Scoped to the two steps the runbook
+      # covers: a token or checkout failure has nothing to do with drift.
+      - name: Point at the runbook
+        if: failure() && (steps.sync.outcome == 'failure' || steps.test.outcome == 'failure')
+        run: |
+          {
+            echo '## Schema drift failed'
+            echo
+            echo "See [docs/runbooks/schema-drift.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/runbooks/schema-drift.md)"
+            echo 'for the known causes and their fixes. Reproduce locally with `make sync && go test ./... -race`.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Open or update the drift PR
         env:
           # GITHUB_TOKEN pushes, but is barred from opening PRs by repo hardening.

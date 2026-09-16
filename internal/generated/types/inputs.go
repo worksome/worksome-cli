@@ -873,6 +873,14 @@ type EndJobInput struct {
 	AccountId string `json:"accountId"`
 }
 
+// EndJobsInput — The input for ending multiple jobs at once.
+type EndJobsInput struct {
+	// The IDs of the jobs to end.
+	JobIds []string `json:"jobIds"`
+	// The ID of the account performing the action.
+	AccountId string `json:"accountId"`
+}
+
 // EndProjectInput — An input for ending an existing project.
 type EndProjectInput struct {
 	// The ID of the project.
