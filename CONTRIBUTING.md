@@ -79,6 +79,15 @@ Standard library `testing` only — no test frameworks.
 - Keep generated output in the same commit as the change that produces it
 - CI must be green: build, tests, lint, and the generated-code check
 
+## When CI fails and nobody is looking
+
+A failing PR run is visible on the PR. A failing run on `main`, a release, or
+the nightly `Schema drift` job is not, so the `Alerts` workflow posts those to
+`#worksome-cli-alerts` with a link to the run. It needs the
+`SLACK_ALERTS_WEBHOOK` repository secret — an incoming webhook for that channel.
+If the alert step fails with `invalid_token`, the webhook was revoked and needs
+reissuing in Slack.
+
 ## Security
 
 Don't open an issue for security problems — see [SECURITY.md](SECURITY.md).
