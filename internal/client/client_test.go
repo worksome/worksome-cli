@@ -957,3 +957,47 @@ func TestExecute_OmitsEmptyClientAwarenessHeaders(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 }
+
+// A mutation is never retried. The request can reach the server and be
+// committed while only the reply is lost; a second send of `approve` or
+// `createPaymentRequest` is then a second approval or a second payment. The
+// error must say the server may have applied it, so the caller re-reads
+// before deciding to try again. Queries keep the existing retry behaviour.
+func TestExecute_NeverRetriesMutations(t *testing.T) {
+	var attempts atomic.Int32
+	srv := newTestServer(func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("server does not support hijacking")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatalf("hijack failed: %v", err)
+		}
+		_ = conn.Close()
+	})
+	defer srv.Close()
+
+	c := New(srv.URL, "token", WithHTTPClient(&http.Client{Timeout: 2 * time.Second}))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	err := c.Execute(ctx, `mutation ApprovePaymentRequest($input: ApproveInput!) { approve(input: $input) { id } }`, nil, nil)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := attempts.Load(); got != 1 {
+		t.Fatalf("mutation was sent %d times, want exactly 1", got)
+	}
+	if !strings.Contains(err.Error(), "may have applied") || !strings.Contains(err.Error(), "read the record") {
+		t.Errorf("error should tell the caller to re-read before retrying, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "attempts") {
+		t.Errorf("a single send must not be reported as an exhausted retry, got: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("no backoff should be spent on a mutation, took %s", elapsed)
+	}
+}

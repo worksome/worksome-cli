@@ -339,8 +339,19 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 		log.Printf("[graphql] --> POST %s\n%s", c.endpoint, string(payload))
 	}
 
+	// Only reads are retried. A mutation whose request failed without a
+	// response — a timeout, a dropped connection — may or may not have been
+	// applied: the server can have committed an approval or created a payment
+	// request and lost only the reply. Re-sending it is how an agent double-
+	// pays. Fail once, say so, and leave the retry decision to a caller who
+	// has re-read the record.
+	attempts := maxRetries
+	if !isQuery(query) {
+		attempts = 1
+	}
+
 	var lastErr error
-	for attempt := range maxRetries {
+	for attempt := range attempts {
 		var respBody []byte
 		respBody, lastErr = c.doRequest(ctx, payload)
 		if lastErr != nil {
@@ -357,6 +368,9 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 			var cve *tls.CertificateVerificationError
 			if errors.As(lastErr, &cve) {
 				return lastErr
+			}
+			if attempts == 1 {
+				return fmt.Errorf("mutation sent but no response received (%w); the server may have applied it — read the record before retrying", lastErr)
 			}
 			if c.verbose {
 				log.Printf("[graphql] attempt %d/%d failed: %v", attempt+1, maxRetries, lastErr)
@@ -408,7 +422,7 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 		return nil
 	}
 
-	return fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
+	return fmt.Errorf("request failed after %d attempts: %w", attempts, lastErr)
 }
 
 // httpError is a non-retryable error indicating an unexpected HTTP status code.
