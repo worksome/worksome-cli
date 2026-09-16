@@ -636,7 +636,7 @@ func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]an
 // UpdateCompanySupplierOwners — Replace the set of supplier team members assigned to this client relationship. Only full-access users (account owner or admin) on the supplier account can change assignments, and every assignee must be a member of that account.
 func (q *Querier) UpdateCompanySupplierOwners(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateCompanySupplierOwners($input: UpdateCompanySupplierOwnersInput!) {
-	updateCompanySupplierOwners(input: $input) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } }
+	updateCompanySupplierOwners(input: $input) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -654,7 +654,7 @@ func (q *Querier) UpdateCompanySupplierOwners(ctx context.Context, vars map[stri
 // CompanySupplier — Get a specific company supplier.
 func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySupplier($id: ID!) {
-	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } }
+	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
@@ -672,7 +672,7 @@ func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map
 // CompanySuppliers — Get a list of company suppliers for the authenticated company accounts.
 func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySuppliers($accounts: [ID!], $search: String, $first: Int! = 10, $page: Int) {
-	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } } }
+	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, nil, vars, &result)
@@ -3240,7 +3240,7 @@ func (q *Querier) UpdateWorker(ctx context.Context, vars map[string]any) (map[st
 // UpdateWorkerCustomFieldValues — Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with 'workerInputAllowed: true' can be updated. Partial updates are supported - fields not included are ignored.
 func (q *Querier) UpdateWorkerCustomFieldValues(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateWorkerCustomFieldValues($input: UpdateWorkerCustomFieldValuesInput!) {
-	updateWorkerCustomFieldValues(input: $input) { fieldable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on Contract { id startDate endDate currency } ... on TrustedContact { id } ... on CompanyRecruiter { id email } } customFieldValues { id } }
+	updateWorkerCustomFieldValues(input: $input) { fieldable { __typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on Contract { id startDate endDate currency } ... on TrustedContact { id } ... on CompanyRecruiter { id email } ... on CompanySupplier { id } } customFieldValues { id } }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)

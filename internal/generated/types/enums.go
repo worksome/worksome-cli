@@ -4004,6 +4004,8 @@ const (
 	TypeSupportingCustomFieldValuesPaymentRequest TypeSupportingCustomFieldValues = "PAYMENT_REQUEST"
 	// TypeSupportingCustomFieldValuesCompanyRecruiter — A Company Recruiter relationship
 	TypeSupportingCustomFieldValuesCompanyRecruiter TypeSupportingCustomFieldValues = "COMPANY_RECRUITER"
+	// TypeSupportingCustomFieldValuesCompanySupplier — A relationship between a client company and one of its suppliers
+	TypeSupportingCustomFieldValuesCompanySupplier TypeSupportingCustomFieldValues = "COMPANY_SUPPLIER"
 )
 
 // ValidTypeSupportingCustomFieldValues returns all valid values for TypeSupportingCustomFieldValues.
@@ -4014,6 +4016,7 @@ func ValidTypeSupportingCustomFieldValues() []TypeSupportingCustomFieldValues {
 		TypeSupportingCustomFieldValuesTrustedContact,
 		TypeSupportingCustomFieldValuesPaymentRequest,
 		TypeSupportingCustomFieldValuesCompanyRecruiter,
+		TypeSupportingCustomFieldValuesCompanySupplier,
 	}
 }
 
