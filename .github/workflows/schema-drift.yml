@@ -60,7 +60,7 @@ jobs:
             echo '## Schema drift failed'
             echo
             echo "See [docs/runbooks/schema-drift.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/runbooks/schema-drift.md)"
-            echo 'for the known causes and their fixes. Reproduce locally with `make sync && go test ./...`.'
+            echo 'for the known causes and their fixes. Reproduce locally with `make sync && go test ./... -race`.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Open or update the drift PR
         env:

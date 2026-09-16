@@ -2068,3 +2068,68 @@ type PaginatorInfo {
 		t.Errorf("a stale entry should not be reported as a collision, got: %v", err)
 	}
 }
+
+func TestCommandNameOverrideIsRejected(t *testing.T) {
+	schema := `
+type Query {
+	job(id: ID!): Job
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	endJob(id: ID!): Job!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	data: [Job!]!
+	paginatorInfo: PaginatorInfo!
+}
+
+type PaginatorInfo {
+	count: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+
+	// A query generates a command too, so an override may not take its name.
+	for _, tc := range []struct{ value, want string }{
+		{"get", "colliding command names"},
+		{"list", "colliding command names"},
+		// These reach Cobra's Use and toPascalCase, where they stop being valid Go.
+		{"end many", "invalid overrides"},
+		{"", "invalid overrides"},
+		{"End-Many", "invalid overrides"},
+	} {
+		if err := os.WriteFile(overridesPath,
+			[]byte("command_names:\n  endJob: \""+tc.value+"\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := ParseSchema(schemaPath, overridesPath)
+		if err == nil {
+			t.Errorf("command_names value %q should be rejected", tc.value)
+			continue
+		}
+		if !strings.HasPrefix(err.Error(), tc.want) {
+			t.Errorf("command_names value %q: got %q, want a %q error", tc.value, err, tc.want)
+		}
+	}
+
+	if err := os.WriteFile(overridesPath,
+		[]byte("command_names:\n  endJob: \"end-many\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseSchema(schemaPath, overridesPath); err != nil {
+		t.Errorf("a kebab-case override should be accepted, got: %v", err)
+	}
+}

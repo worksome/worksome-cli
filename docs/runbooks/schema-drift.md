@@ -10,7 +10,7 @@ Reproduce any of the below locally with:
 
 ```
 make sync   # introspects the live API, then regenerates
-go test ./...
+go test ./... -race
 ```
 
 ## Colliding command names

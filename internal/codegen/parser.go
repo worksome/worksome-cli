@@ -732,9 +732,16 @@ func (p *parser) buildResources() []Resource {
 			return res.Mutations[i].Name < res.Mutations[j].Name
 		})
 
-		// Two mutations deriving the same action would generate duplicate Go
+		// Two operations deriving the same action would generate duplicate Go
 		// identifiers, so fail here rather than emit code that won't compile.
-		seen := make(map[string]string, len(res.Mutations))
+		// The queries are seeded first: they generate commands of their own.
+		seen := make(map[string]string, len(res.Mutations)+2)
+		if res.GetQuery != nil {
+			seen[res.GetQuery.CLIName] = res.GetQuery.Name
+		}
+		if res.ListQuery != nil {
+			seen[res.ListQuery.CLIName] = res.ListQuery.Name
+		}
 		for _, m := range res.Mutations {
 			if first, dup := seen[m.CLIName]; dup {
 				p.nameErrors = append(p.nameErrors, fmt.Sprintf(
@@ -1651,6 +1658,11 @@ func (p *parser) matchMutationToResource(mutationName string, resources map[stri
 	return toKebabCase(mutationName)
 }
 
+// commandNamePattern is what a derived name looks like; an override that does
+// not match reaches Cobra's Use and toPascalCase, where a space or an empty
+// value becomes an invalid Go identifier and go/format fails instead.
+var commandNamePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
 // mutationCLIName is deriveMutationCLIName with the overrides file applied.
 func (p *parser) mutationCLIName(mutationName, resourceName string) string {
 	if name, ok := p.overrides.CommandNames[mutationName]; ok {
@@ -1658,6 +1670,11 @@ func (p *parser) mutationCLIName(mutationName, resourceName string) string {
 			p.usedCommandNames = make(map[string]bool)
 		}
 		p.usedCommandNames[mutationName] = true
+		if !commandNamePattern.MatchString(name) {
+			p.overrideErrors = append(p.overrideErrors, fmt.Sprintf(
+				"command_names value %q for %q is not a kebab-case action name", name, mutationName))
+			return p.deriveMutationCLIName(mutationName, resourceName)
+		}
 		return name
 	}
 	return p.deriveMutationCLIName(mutationName, resourceName)
