@@ -54,6 +54,11 @@ Edit `cmd/worksome/main.go` in `newRootCmd()`.
 ### Adding a new resource override
 Edit `schema/overrides.yaml` to map operations to specific resource groups. Then `make generate`.
 
+### Resolving a colliding command name
+Two operations deriving the same command (e.g. `endJob` and `endJobs` → `jobs end`) fail
+generation. Name the newcomer in `command_names` in `schema/overrides.yaml` so the
+established command is unaffected, then `make generate`. Generation fails on a stale entry.
+
 ### Excluding a field from generated selection sets
 Add a `Type.field` entry to `ignore_fields` in `schema/overrides.yaml`, then `make generate`.
 Introspection does not return applied directives, so the vendored schema carries none of the

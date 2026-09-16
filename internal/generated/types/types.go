@@ -1137,6 +1137,22 @@ type EmploymentPaginator struct {
 	Data []*Employment `json:"data"`
 }
 
+// EndJobSkipped — A job that was skipped when ending multiple jobs at once.
+type EndJobSkipped struct {
+	// The job that was skipped.
+	Job *Job `json:"job"`
+	// A human-readable explanation of why the job was skipped.
+	Reason string `json:"reason"`
+}
+
+// EndJobsResult — The result of ending multiple jobs at once.
+type EndJobsResult struct {
+	// Jobs that were successfully ended.
+	Ended []*Job `json:"ended"`
+	// Jobs that could not be ended, with the reason why.
+	Skipped []*EndJobSkipped `json:"skipped"`
+}
+
 // Expense — An expense line item within an expense report. Expenses represent individual costs incurred by a worker during an engagement, such as travel or materials. They are grouped into expense reports and submitted alongside payment requests for approval.
 type Expense struct {
 	// The ID of the expense.

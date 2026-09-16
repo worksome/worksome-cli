@@ -27,6 +27,9 @@ type Overrides struct {
 	// Aliases maps a resource name to extra names it also answers to, so a
 	// rename in the API schema doesn't break the old invocation.
 	Aliases map[string][]string `yaml:"aliases"`
+	// CommandNames maps an operation name to the CLI action it generates,
+	// for operations whose derived name collides with another's.
+	CommandNames map[string]string `yaml:"command_names"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -126,6 +129,9 @@ type parser struct {
 	ignoredFields map[string]bool
 
 	aliasErrors []string
+	nameErrors  []string
+	// usedCommandNames records which command_names overrides were applied.
+	usedCommandNames map[string]bool
 }
 
 // validateIgnoredFields rejects entries that name a field the schema no longer
@@ -270,6 +276,11 @@ func (p *parser) parse() (*Schema, error) {
 	if len(p.aliasErrors) > 0 {
 		return nil, fmt.Errorf("invalid aliases in overrides:\n  %s",
 			strings.Join(p.aliasErrors, "\n  "))
+	}
+
+	if len(p.nameErrors) > 0 {
+		return nil, fmt.Errorf("colliding command names:\n  %s",
+			strings.Join(p.nameErrors, "\n  "))
 	}
 
 	return schema, nil
@@ -520,7 +531,7 @@ func (p *parser) buildResources() []Resource {
 		for _, mName := range override.Mutations {
 			if f, ok := mutations[mName]; ok {
 				op := p.fieldToOperation(f, OperationMutation, name)
-				op.CLIName = p.deriveMutationCLIName(mName, name)
+				op.CLIName = p.mutationCLIName(mName, name)
 				res.Mutations = append(res.Mutations, op)
 				claimed[mName] = true
 			}
@@ -658,7 +669,7 @@ func (p *parser) buildResources() []Resource {
 			resourceMap[resourceName] = res
 		}
 		op := p.fieldToOperation(f, OperationMutation, resourceName)
-		op.CLIName = p.deriveMutationCLIName(name, resourceName)
+		op.CLIName = p.mutationCLIName(name, resourceName)
 		res.Mutations = append(res.Mutations, op)
 		claimed[name] = true
 	}
@@ -721,6 +732,19 @@ func (p *parser) buildResources() []Resource {
 			return res.Mutations[i].Name < res.Mutations[j].Name
 		})
 
+		// Two mutations deriving the same action would generate duplicate Go
+		// identifiers, so fail here rather than emit code that won't compile.
+		seen := make(map[string]string, len(res.Mutations))
+		for _, m := range res.Mutations {
+			if first, dup := seen[m.CLIName]; dup {
+				p.nameErrors = append(p.nameErrors, fmt.Sprintf(
+					"%q and %q both generate %q %q; set command_names in the overrides file",
+					first, m.Name, res.Name, m.CLIName))
+				continue
+			}
+			seen[m.CLIName] = m.Name
+		}
+
 		// Generate table columns from the return type
 		res.TableColumns = p.buildTableColumns(res)
 		res.Aliases = p.overrides.Aliases[res.Name]
@@ -752,6 +776,14 @@ func (p *parser) buildResources() []Resource {
 		}
 	}
 	sort.Strings(p.aliasErrors)
+
+	for name := range p.overrides.CommandNames {
+		if !p.usedCommandNames[name] {
+			p.nameErrors = append(p.nameErrors,
+				fmt.Sprintf("command_names entry %q matches no generated operation", name))
+		}
+	}
+	sort.Strings(p.nameErrors)
 
 	return resources
 }
@@ -1618,6 +1650,18 @@ func (p *parser) matchMutationToResource(mutationName string, resources map[stri
 
 	// Fallback: use the full mutation name as resource
 	return toKebabCase(mutationName)
+}
+
+// mutationCLIName is deriveMutationCLIName with the overrides file applied.
+func (p *parser) mutationCLIName(mutationName, resourceName string) string {
+	if name, ok := p.overrides.CommandNames[mutationName]; ok {
+		if p.usedCommandNames == nil {
+			p.usedCommandNames = make(map[string]bool)
+		}
+		p.usedCommandNames[mutationName] = true
+		return name
+	}
+	return p.deriveMutationCLIName(mutationName, resourceName)
 }
 
 // deriveMutationCLIName extracts the CLI action name from a mutation name relative to its resource.

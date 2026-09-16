@@ -1,6 +1,6 @@
 # worksome-cli
 
-A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — <!-- resources -->78<!-- /resources --> resource groups, <!-- operations -->199<!-- /operations --> operations. Designed for both human users and AI agents.
+A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — <!-- resources -->78<!-- /resources --> resource groups, <!-- operations -->200<!-- /operations --> operations. Designed for both human users and AI agents.
 
 ## What is Worksome?
 

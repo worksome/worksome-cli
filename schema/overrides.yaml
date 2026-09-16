@@ -40,3 +40,8 @@ ignore_fields:
   # Guarded on membership of that specific company, and `[EngagementTypeSetup!]!`,
   # so `company get <id>` returned a null company to every non-member.
   - "Company.usedEngagementTypeSetups"
+
+# CLI action names for operations whose derived name collides with another's.
+# Generation fails if an entry here goes stale.
+command_names:
+  endJobs: "end-many"  # `endJob` already owns `jobs end`

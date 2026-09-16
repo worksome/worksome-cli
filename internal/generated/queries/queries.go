@@ -1643,6 +1643,24 @@ func (q *Querier) EndJob(ctx context.Context, vars map[string]any) (map[string]a
 	return result, nil
 }
 
+// EndJobs — End multiple jobs at once. Only companies can end jobs. Jobs that cannot be ended are skipped.
+func (q *Querier) EndJobs(ctx context.Context, vars map[string]any) (map[string]any, error) {
+	query := `mutation EndJobs($input: EndJobsInput!) {
+	endJobs(input: $input) { ended { id number name description market status currency startDate endDate completed url createdAt updatedAt } }
+}`
+	var result map[string]any
+	err := q.Client.Execute(ctx, query, vars, &result)
+	if err != nil {
+		return nil, client.WrapOperation("endJobs", err)
+	}
+	if data, ok := result["endJobs"]; ok {
+		if m, ok := data.(map[string]any); ok {
+			return m, nil
+		}
+	}
+	return result, nil
+}
+
 // SetInternalBudgetOnJob — Set the internal budget of a job. Only companies can set the internal budget on the job.
 func (q *Querier) SetInternalBudgetOnJob(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation SetInternalBudgetOnJob($input: SetInternalBudgetOnJobInput!) {
