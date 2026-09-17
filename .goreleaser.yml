@@ -20,6 +20,9 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+      # Public OAuth client for browser sign-in. Set in the release workflow's
+      # environment once the client exists; an empty value builds fine.
+      - -X main.oauthClientID={{ envOrDefault "WORKSOME_OAUTH_CLIENT_ID" "" }}
 
 archives:
   - formats: [tar.gz]

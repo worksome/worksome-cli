@@ -186,7 +186,7 @@ and when `WORKSOME_NO_UPDATE_CHECK` is set to anything.
 ## Quick Start
 
 ```bash
-# Authenticate with a Personal Access Token
+# Sign in through your browser
 worksome auth login
 
 # List hires (first page)
@@ -210,19 +210,70 @@ worksome hires list --status ACTIVE | jq '.[].id'
 
 ## Authentication
 
-The CLI uses Personal Access Tokens. Token resolution order:
-
-1. `--token` flag
-2. `WORKSOME_API_TOKEN` environment variable
-3. Config file (`~/.worksome/config.yaml`)
+`worksome auth login` opens your browser. You sign in to Worksome as usual, SSO
+and MFA included, approve the CLI, and it is connected. The session renews
+itself while you keep using it and lapses after 90 days without use. Nothing is
+copied or pasted, and `auth logout` ends it.
 
 ```bash
-worksome auth login           # Interactive setup
+worksome auth login           # Sign in through the browser
+worksome auth login --no-browser   # Print the sign-in URL instead (SSH, remote shells)
 worksome auth status          # Show current auth state
 worksome auth list            # List configured profiles
 worksome auth switch <name>   # Switch profile
 worksome auth logout [name]   # Remove a profile and its credentials
 ```
+
+The browser flow needs a browser on the same machine as the CLI. Where there is
+nobody at a keyboard, use a **Personal Access Token** instead: scheduled jobs,
+CI, a bot's credential store, an agent in a remote sandbox. Create one at
+<https://use.worksome.com/integrations/api-tokens> (six-month lifetime, shown
+once) and hand it over any of these ways:
+
+```bash
+export WORKSOME_API_TOKEN=<token>        # environment: nothing touches disk
+worksome auth login --token <token>      # saved to a profile
+echo "<token>" | worksome auth login     # from stdin
+worksome auth login --pat                # prompted, input hidden
+```
+
+Whatever the source, the token acts as the user it belongs to and sees exactly
+what that user sees in Worksome. A job should run on a service user's token, not
+a person's.
+
+Credential resolution order:
+
+1. `--token` flag
+2. `WORKSOME_API_TOKEN` environment variable
+3. The active profile in `~/.worksome/config.yaml` (browser session or saved token)
+
+Only a profile's own browser session is ever renewed; a token from the flag or
+the environment is used as given.
+
+### For Worksome operators: the OAuth client
+
+Browser sign-in uses a single **public** OAuth client named "Worksome CLI",
+registered once on the platform, whose id is compiled into releases
+(`-X main.oauthClientID=...`, see the Makefile and `.goreleaser.yml`) or set with
+`WORKSOME_OAUTH_CLIENT_ID`. It is public because a binary cannot keep a secret;
+the flow is protected by PKCE instead. Its redirect URI must be exactly
+`http://127.0.0.1:51789/callback`.
+
+The API-clients page creates confidential clients only, but the endpoint behind
+it accepts `confidential=false`. Signed in as a user who may manage API clients:
+
+```bash
+curl -sS https://use.worksome.com/oauth/clients \
+  -H "Cookie: <your session cookie>" -H "X-CSRF-TOKEN: <token>" \
+  --data-urlencode "name=Worksome CLI" \
+  --data-urlencode "redirect=http://127.0.0.1:51789/callback" \
+  --data-urlencode "confidential=0"
+```
+
+Own it under a service user, not a person: deleting a client revokes every
+session issued through it. Against another platform (staging), point
+`WORKSOME_OAUTH_AUTHORIZE_URL` and `WORKSOME_OAUTH_TOKEN_URL` at its
+`/oauth/authorize` and `/oauth/token`.
 
 ### Profiles
 

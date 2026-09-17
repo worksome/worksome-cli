@@ -8,7 +8,10 @@ INTROSPECT_ENDPOINT ?= https://api.worksome.com/graphql
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)"
+# WORKSOME_OAUTH_CLIENT_ID is the public "Worksome CLI" OAuth client; empty
+# builds still work, with browser sign-in reporting itself unavailable.
+WORKSOME_OAUTH_CLIENT_ID ?=
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.oauthClientID=$(WORKSOME_OAUTH_CLIENT_ID)"
 
 .PHONY: build test lint generate sync-schema sync clean verify-generated help
 
