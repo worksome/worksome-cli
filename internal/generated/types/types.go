@@ -469,6 +469,10 @@ type Classification struct {
 	IsClassificationActionRequired bool `json:"isClassificationActionRequired"`
 	// Whether the end client has completed their classification input (always true for non-supplier hires)
 	EndClientInputComplete bool `json:"endClientInputComplete"`
+	// Whether every answer needed to produce a classification result has been given.
+	CanCreateResult bool `json:"canCreateResult"`
+	// Whether any answer on record is "Don't know". Unanswered questions do not count.
+	HasDontKnowAnswers bool `json:"hasDontKnowAnswers"`
 	// The date and time the classification was created.
 	CreatedAt *string `json:"createdAt,omitempty"`
 	// The date and time the classification was last updated.
