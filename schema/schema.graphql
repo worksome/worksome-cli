@@ -1702,6 +1702,14 @@ type Classification {
   """
   endClientInputComplete: Boolean!
   """
+  Whether every answer needed to produce a classification result has been given.
+  """
+  canCreateResult: Boolean!
+  """
+  Whether any answer on record is "Don't know". Unanswered questions do not count.
+  """
+  hasDontKnowAnswers: Boolean!
+  """
   The date and time the classification was created.
   """
   createdAt: DateTime
