@@ -523,6 +523,33 @@ func ValidClassificationUsage() []ClassificationUsage {
 	}
 }
 
+// ClientRelationOrderByColumn — The columns that a supplier's client list can be ordered by.
+type ClientRelationOrderByColumn string
+
+const (
+	// ClientRelationOrderByColumnClientName — The name of the client company.
+	ClientRelationOrderByColumnClientName ClientRelationOrderByColumn = "CLIENT_NAME"
+	// ClientRelationOrderByColumnClientLocation — The client's market, then its region by name.
+	ClientRelationOrderByColumnClientLocation ClientRelationOrderByColumn = "CLIENT_LOCATION"
+	// ClientRelationOrderByColumnClientSince — The date the client relationship was established.
+	ClientRelationOrderByColumnClientSince ClientRelationOrderByColumn = "CLIENT_SINCE"
+	// ClientRelationOrderByColumnHires — The number of hires the supplier has at the client.
+	ClientRelationOrderByColumnHires ClientRelationOrderByColumn = "HIRES"
+	// ClientRelationOrderByColumnLinkedStaffingAgencies — The number of staffing agencies the supplier linked to the client.
+	ClientRelationOrderByColumnLinkedStaffingAgencies ClientRelationOrderByColumn = "LINKED_STAFFING_AGENCIES"
+)
+
+// ValidClientRelationOrderByColumn returns all valid values for ClientRelationOrderByColumn.
+func ValidClientRelationOrderByColumn() []ClientRelationOrderByColumn {
+	return []ClientRelationOrderByColumn{
+		ClientRelationOrderByColumnClientName,
+		ClientRelationOrderByColumnClientLocation,
+		ClientRelationOrderByColumnClientSince,
+		ClientRelationOrderByColumnHires,
+		ClientRelationOrderByColumnLinkedStaffingAgencies,
+	}
+}
+
 // CompanyNumberValidationStatus — The outcome of an external validation check (e.g. KvK, VAT/VIES).
 type CompanyNumberValidationStatus string
 
@@ -2482,6 +2509,33 @@ func ValidInsuranceType() []InsuranceType {
 	}
 }
 
+// InvoiceOrderByColumn — The columns that the invoices list can be ordered by.
+type InvoiceOrderByColumn string
+
+const (
+	// InvoiceOrderByColumnCreatedAt — The date that the invoice was created.
+	InvoiceOrderByColumnCreatedAt InvoiceOrderByColumn = "CREATED_AT"
+	// InvoiceOrderByColumnDate — The date that the invoice was issued.
+	InvoiceOrderByColumnDate InvoiceOrderByColumn = "DATE"
+	// InvoiceOrderByColumnDueDate — The due date of the invoice.
+	InvoiceOrderByColumnDueDate InvoiceOrderByColumn = "DUE_DATE"
+	// InvoiceOrderByColumnNumber — The invoice number.
+	InvoiceOrderByColumnNumber InvoiceOrderByColumn = "NUMBER"
+	// InvoiceOrderByColumnTotalAmount — The net total of the invoice.
+	InvoiceOrderByColumnTotalAmount InvoiceOrderByColumn = "TOTAL_AMOUNT"
+)
+
+// ValidInvoiceOrderByColumn returns all valid values for InvoiceOrderByColumn.
+func ValidInvoiceOrderByColumn() []InvoiceOrderByColumn {
+	return []InvoiceOrderByColumn{
+		InvoiceOrderByColumnCreatedAt,
+		InvoiceOrderByColumnDate,
+		InvoiceOrderByColumnDueDate,
+		InvoiceOrderByColumnNumber,
+		InvoiceOrderByColumnTotalAmount,
+	}
+}
+
 // InvoiceStatus — The payment status of an invoice issued to a company.
 type InvoiceStatus string
 
@@ -2524,30 +2578,6 @@ func ValidInvoiceTransactionType() []InvoiceTransactionType {
 		InvoiceTransactionTypeInvoice,
 		InvoiceTransactionTypeCreditNote,
 		InvoiceTransactionTypeBatchInvoice,
-	}
-}
-
-// InvoicesOrderByColumn — The columns that invoices can be ordered by.
-type InvoicesOrderByColumn string
-
-const (
-	// InvoicesOrderByColumnDate — The date the invoice was created.
-	InvoicesOrderByColumnDate InvoicesOrderByColumn = "DATE"
-	// InvoicesOrderByColumnDueDate — The due date.
-	InvoicesOrderByColumnDueDate InvoicesOrderByColumn = "DUE_DATE"
-	// InvoicesOrderByColumnNumber — The invoice number.
-	InvoicesOrderByColumnNumber InvoicesOrderByColumn = "NUMBER"
-	// InvoicesOrderByColumnTotalAmount — The net total.
-	InvoicesOrderByColumnTotalAmount InvoicesOrderByColumn = "TOTAL_AMOUNT"
-)
-
-// ValidInvoicesOrderByColumn returns all valid values for InvoicesOrderByColumn.
-func ValidInvoicesOrderByColumn() []InvoicesOrderByColumn {
-	return []InvoicesOrderByColumn{
-		InvoicesOrderByColumnDate,
-		InvoicesOrderByColumnDueDate,
-		InvoicesOrderByColumnNumber,
-		InvoicesOrderByColumnTotalAmount,
 	}
 }
 
@@ -2755,6 +2785,8 @@ const (
 	JobOrderByColumnPublishedDate JobOrderByColumn = "PUBLISHED_DATE"
 	// JobOrderByColumnCandidates — Order by the number of candidates on the job.
 	JobOrderByColumnCandidates JobOrderByColumn = "CANDIDATES"
+	// JobOrderByColumnLastCandidateSubmittedAt — The date a supplier last submitted a candidate to the job
+	JobOrderByColumnLastCandidateSubmittedAt JobOrderByColumn = "LAST_CANDIDATE_SUBMITTED_AT"
 )
 
 // ValidJobOrderByColumn returns all valid values for JobOrderByColumn.
@@ -2764,6 +2796,7 @@ func ValidJobOrderByColumn() []JobOrderByColumn {
 		JobOrderByColumnExpectedStartDate,
 		JobOrderByColumnPublishedDate,
 		JobOrderByColumnCandidates,
+		JobOrderByColumnLastCandidateSubmittedAt,
 	}
 }
 
@@ -3486,6 +3519,30 @@ func ValidProjectStatusFilter() []ProjectStatusFilter {
 	}
 }
 
+// RateCardNoMatchReason — Why a vacancy or payment request resolved to no rate card band.
+type RateCardNoMatchReason string
+
+const (
+	// RateCardNoMatchReasonNoRateCard — The owner has no rate card in the required currency.
+	RateCardNoMatchReasonNoRateCard RateCardNoMatchReason = "NO_RATE_CARD"
+	// RateCardNoMatchReasonUnsupportedRateType — The rate type is unknown or absent, so no band can apply.
+	RateCardNoMatchReasonUnsupportedRateType RateCardNoMatchReason = "UNSUPPORTED_RATE_TYPE"
+	// RateCardNoMatchReasonNoLineInForce — The card has no line in force on the date requested.
+	RateCardNoMatchReasonNoLineInForce RateCardNoMatchReason = "NO_LINE_IN_FORCE"
+	// RateCardNoMatchReasonNoLineMatchedCriteria — A line was in force, but none matched the criteria supplied.
+	RateCardNoMatchReasonNoLineMatchedCriteria RateCardNoMatchReason = "NO_LINE_MATCHED_CRITERIA"
+)
+
+// ValidRateCardNoMatchReason returns all valid values for RateCardNoMatchReason.
+func ValidRateCardNoMatchReason() []RateCardNoMatchReason {
+	return []RateCardNoMatchReason{
+		RateCardNoMatchReasonNoRateCard,
+		RateCardNoMatchReasonUnsupportedRateType,
+		RateCardNoMatchReasonNoLineInForce,
+		RateCardNoMatchReasonNoLineMatchedCriteria,
+	}
+}
+
 // RateType — The billing frequency for a hire or payment request — hourly, daily, weekly, monthly, or a fixed amount.
 type RateType string
 
@@ -3648,6 +3705,30 @@ func ValidRecruiterStatus() []RecruiterStatus {
 	}
 }
 
+// RightToWorkDocumentType — A category of right-to-work evidence a worker may be required to provide.
+type RightToWorkDocumentType string
+
+const (
+	// RightToWorkDocumentTypeIdentityDocument — A passport or national identity document evidencing identity and nationality.
+	RightToWorkDocumentTypeIdentityDocument RightToWorkDocumentType = "IDENTITY_DOCUMENT"
+	// RightToWorkDocumentTypeWorkPermit — A permit authorising the holder to work in the jurisdiction.
+	RightToWorkDocumentTypeWorkPermit RightToWorkDocumentType = "WORK_PERMIT"
+	// RightToWorkDocumentTypeResidencePermit — A permit authorising the holder to reside in the jurisdiction.
+	RightToWorkDocumentTypeResidencePermit RightToWorkDocumentType = "RESIDENCE_PERMIT"
+	// RightToWorkDocumentTypeWorkAuthorization — Evidence of authorisation to work, where that is issued separately from a permit.
+	RightToWorkDocumentTypeWorkAuthorization RightToWorkDocumentType = "WORK_AUTHORIZATION"
+)
+
+// ValidRightToWorkDocumentType returns all valid values for RightToWorkDocumentType.
+func ValidRightToWorkDocumentType() []RightToWorkDocumentType {
+	return []RightToWorkDocumentType{
+		RightToWorkDocumentTypeIdentityDocument,
+		RightToWorkDocumentTypeWorkPermit,
+		RightToWorkDocumentTypeResidencePermit,
+		RightToWorkDocumentTypeWorkAuthorization,
+	}
+}
+
 // SkillOrderByColumn — The columns that the skills list can be ordered by.
 type SkillOrderByColumn string
 
@@ -3741,6 +3822,33 @@ func ValidSourcingDeadlineChoice() []SourcingDeadlineChoice {
 	return []SourcingDeadlineChoice{
 		SourcingDeadlineChoiceUseDefault,
 		SourcingDeadlineChoiceNone,
+	}
+}
+
+// SupplierClientOrderByColumn — The columns a client's linked suppliers can be ordered by.
+type SupplierClientOrderByColumn string
+
+const (
+	// SupplierClientOrderByColumnSupplierName — The name of the supplier.
+	SupplierClientOrderByColumnSupplierName SupplierClientOrderByColumn = "SUPPLIER_NAME"
+	// SupplierClientOrderByColumnLinkedAt — The date the supplier was linked to this client.
+	SupplierClientOrderByColumnLinkedAt SupplierClientOrderByColumn = "LINKED_AT"
+	// SupplierClientOrderByColumnUpdatedAt — The date the link last changed.
+	SupplierClientOrderByColumnUpdatedAt SupplierClientOrderByColumn = "UPDATED_AT"
+	// SupplierClientOrderByColumnSupplierSince — The date the supplier was added as a contracted supplier.
+	SupplierClientOrderByColumnSupplierSince SupplierClientOrderByColumn = "SUPPLIER_SINCE"
+	// SupplierClientOrderByColumnPlacements — The number of placements the supplier and the client share.
+	SupplierClientOrderByColumnPlacements SupplierClientOrderByColumn = "PLACEMENTS"
+)
+
+// ValidSupplierClientOrderByColumn returns all valid values for SupplierClientOrderByColumn.
+func ValidSupplierClientOrderByColumn() []SupplierClientOrderByColumn {
+	return []SupplierClientOrderByColumn{
+		SupplierClientOrderByColumnSupplierName,
+		SupplierClientOrderByColumnLinkedAt,
+		SupplierClientOrderByColumnUpdatedAt,
+		SupplierClientOrderByColumnSupplierSince,
+		SupplierClientOrderByColumnPlacements,
 	}
 }
 
@@ -4143,6 +4251,39 @@ func ValidWebhookEventType() []WebhookEventType {
 		WebhookEventTypeInvoiceCreated,
 		WebhookEventTypeInvoicePaid,
 		WebhookEventTypeCreditNoteCreated,
+	}
+}
+
+// Weekday — A day of the week.
+type Weekday string
+
+const (
+	// WeekdayMonday — Monday.
+	WeekdayMonday Weekday = "MONDAY"
+	// WeekdayTuesday — Tuesday.
+	WeekdayTuesday Weekday = "TUESDAY"
+	// WeekdayWednesday — Wednesday.
+	WeekdayWednesday Weekday = "WEDNESDAY"
+	// WeekdayThursday — Thursday.
+	WeekdayThursday Weekday = "THURSDAY"
+	// WeekdayFriday — Friday.
+	WeekdayFriday Weekday = "FRIDAY"
+	// WeekdaySaturday — Saturday.
+	WeekdaySaturday Weekday = "SATURDAY"
+	// WeekdaySunday — Sunday.
+	WeekdaySunday Weekday = "SUNDAY"
+)
+
+// ValidWeekday returns all valid values for Weekday.
+func ValidWeekday() []Weekday {
+	return []Weekday{
+		WeekdayMonday,
+		WeekdayTuesday,
+		WeekdayWednesday,
+		WeekdayThursday,
+		WeekdayFriday,
+		WeekdaySaturday,
+		WeekdaySunday,
 	}
 }
 

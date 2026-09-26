@@ -1702,6 +1702,14 @@ type Classification {
   """
   endClientInputComplete: Boolean!
   """
+  Whether every answer needed to produce a classification result has been given.
+  """
+  canCreateResult: Boolean!
+  """
+  Whether any answer on record is "Don't know". Unanswered questions do not count.
+  """
+  hasDontKnowAnswers: Boolean!
+  """
   The date and time the classification was created.
   """
   createdAt: DateTime
@@ -1901,6 +1909,44 @@ type Client {
   customFieldValues: [CustomFieldValue!]!
 }
 """
+Sorting clause for the supplier's client list.
+"""
+input ClientRelationOrderByClauseInput {
+  """
+  The field to sort supplier clients by.
+  """
+  field: ClientRelationOrderByColumn
+  """
+  The order to sort supplier clients by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns that a supplier's client list can be ordered by.
+"""
+enum ClientRelationOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  The client's market, then its region by name.
+  """
+  CLIENT_LOCATION
+  """
+  The date the client relationship was established.
+  """
+  CLIENT_SINCE
+  """
+  The number of hires the supplier has at the client.
+  """
+  HIRES
+  """
+  The number of staffing agencies the supplier linked to the client.
+  """
+  LINKED_STAFFING_AGENCIES
+}
+"""
 A company account — the primary hiring entity on Worksome.
 
 Companies create jobs, manage a Talent Pool of trusted contacts, make hires, and process payments.
@@ -1923,6 +1969,10 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   The market that the company is in.
   """
   market: MarketCode!
+  """
+  The region within its market the company is located in, when it has set one.
+  """
+  region: MarketRegion
   """
   The avatar (or profile picture) for the company.
   """
@@ -1949,6 +1999,14 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   The address of the company.
   """
   address: Address
+  """
+  The user who owns the company account. Visible to the company's own members and to its suppliers.
+  """
+  owner: User
+  """
+  The company's primary business entity, which carries its registration number.
+  """
+  primaryBusinessEntity: BusinessEntity
   """
   If the account has active webhooks.
   """
@@ -2001,7 +2059,8 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
     page: Int
   ): UserPaginator!
   """
-  The team members and owners that the company has.
+  The team members and owners that the company has. Its own members see everyone;
+  a supplier of the company sees the owner and the members who have accepted.
   """
   teamMembersAndOwners(
     """
@@ -2141,6 +2200,10 @@ type CompanyRecruiter {
   """
   recruiterOwnershipDaysLeft: Int
   """
+  The maximum number of candidates this staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   Whether the recruiter manages workers for this company relationship.
   
   Resolved from the per-relationship override if set, otherwise falls back to the company-level default.
@@ -2170,6 +2233,21 @@ type CompanyRecruiter {
   The custom field values for the company recruiter.
   """
   customFieldValues: [CustomFieldValue!]!
+  """
+  The end clients this staffing agency works for, whether engaged by them directly or through
+  a supplier that manages the agency.
+  """
+  endClients(
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
   """
   Whether the company requires onboarding for this staffing agency relationship.
   """
@@ -2301,6 +2379,71 @@ type CompanySupplier {
   Only readable by the supplier that owns the fields; empty for the client.
   """
   customFieldValues: [CustomFieldValue!]!
+  """
+  When the client relationship was established.
+  """
+  createdAt: Date!
+  """
+  Whether supplier hires for this client copy the end client's payment terms.
+  """
+  paymentTermsFollowsClient: Boolean!
+  """
+  Whether supplier self-bills for this client batch on the end client's cadence.
+  """
+  invoiceBatchingCadenceFollowsClient: Boolean!
+  """
+  The number of days in the payment terms supplier hires for this client are contracted on:
+  the client's own when the relationship follows the client, otherwise the supplier's. Null
+  when the supplier is not a company and follows nobody.
+  """
+  paymentTerm: Int
+  """
+  How the payment term days are counted, from the same source as paymentTerm.
+  """
+  paymentTermMethod: PaymentTermMethod
+  """
+  The cadence self-billing invoices for this client are batched on: the client's own when the
+  relationship follows the client, otherwise the supplier's. Null when the supplier is not a
+  company and follows nobody.
+  """
+  invoiceBatchingCadence: InvoiceBatchingCadence
+  """
+  Whether the viewer may link and unlink staffing agencies on this client: the manage-recruiters
+  team permission on the supplier company. Reading the linked agencies needs no permission.
+  """
+  viewerCanManageStaffingAgencies: Boolean!
+  """
+  The staffing agencies the supplier has linked to this client.
+  """
+  linkedStaffingAgencies(
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanyRecruiterPaginator!
+  """
+  Hires the supplier has at this client, in any status. Narrow by status when needed.
+  """
+  hiresCount(
+    """
+    Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  Distinct workers the supplier has placed at this client.
+  """
+  workersCount: Int!
+  """
+  When the supplier's earliest hire at this client started. Often predates
+  createdAt, which only records when the relation row itself appeared.
+  """
+  firstHireStartedAt: Date
 }
 """
 A paginated list of CompanySupplier items.
@@ -2460,7 +2603,7 @@ the frontend should be able to query a first-class domain type directly.
 `ComplianceDataClassification` is the specialised Q&A shape for determination
 compliances (IR35, NL/Global/US worker classification).
 """
-union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification
+union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument
 """
 An address associated with a compliance (residential address, work location,
 etc.). Wraps the existing `Address` type so the frontend can query any field.
@@ -2559,6 +2702,32 @@ type ComplianceDataGroup {
   The fields in the group.
   """
   fields: [ComplianceDataField!]!
+}
+"""
+A restricted document associated with a compliance, such as a passport scan or
+a work permit, together with the compliance reviewer's decision on it.
+"""
+type ComplianceDataRestrictedDocument {
+  """
+  The document itself, in the same shape the worker's own view reads it in.
+  """
+  document: WorkerRightToWorkDocument!
+  """
+  Review state of this document: Awaiting review, Approved, Declined or Expired.
+  """
+  status: String!
+  """
+  When a compliance reviewer approved it, or null if not yet approved.
+  """
+  approvedAt: DateTime
+  """
+  Why a compliance reviewer declined it, where they gave a reason.
+  """
+  rejectionReason: String
+  """
+  Whether the current viewer may approve or decline this document.
+  """
+  canReview: Boolean!
 }
 """
 A user associated with a compliance, typically an attribution such as
@@ -4567,6 +4736,10 @@ input CreateCompanyRecruiterInput {
   """
   managesWorkers: Boolean
   """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   The custom fields for the company recruiter.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
@@ -5926,6 +6099,15 @@ input DeleteWebhookInput {
   id: ID!
 }
 """
+A right-to-work document to remove.
+"""
+input DeleteWorkerRightToWorkDocumentInput {
+  """
+  The document to remove.
+  """
+  id: ID!
+}
+"""
 The input for deleting an existing workflow.
 """
 input DeleteWorkflowInput {
@@ -7222,7 +7404,8 @@ type Hire {
   """
   classificationPdfUrl: String! @deprecated(reason: "Decoupling classification from hire in future versions.")
   """
-  The worker which the company is hiring.
+  The worker which the company is hiring. A worker can only delete their account while their hires
+  are still drafts; such a worker resolves here anonymised rather than failing.
   """
   worker: Worker!
   """
@@ -7413,6 +7596,11 @@ type Hire {
   yet been reflected here. Always false on hires without a `sourceHire`.
   """
   hasUnactedClientChanges: Boolean!
+  """
+  True when the `sourceHire` has been ended early and this hire still runs
+  past that date. Always false on hires without a `sourceHire`.
+  """
+  hasUnactedClientTermination: Boolean!
   """
   Checks if the current viewer has the correct permissions to be able to accept the contract
   and that all blocking actions have been completed.
@@ -7847,6 +8035,10 @@ input InviteCompanyRecruiterInput {
   When null, the company-level default is used.
   """
   managesWorkers: Boolean
+  """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
 }
 """
 Trusted contact invited by users filter input.
@@ -7994,6 +8186,48 @@ type Invoice {
   ): InvoiceRowPaginator!
 }
 """
+How often self-billing invoices are batched, and on which day the batch runs.
+"""
+type InvoiceBatchingCadence {
+  """
+  Whether self-billing invoices are batched at all; the schedule below only applies when they are.
+  """
+  enabled: Boolean!
+  """
+  The number of weeks between batch runs.
+  """
+  intervalWeeks: Int!
+  """
+  The weekday the batch runs on.
+  """
+  weekday: Weekday!
+}
+"""
+The columns that the invoices list can be ordered by.
+"""
+enum InvoiceOrderByColumn {
+  """
+  The date that the invoice was created.
+  """
+  CREATED_AT
+  """
+  The date that the invoice was issued.
+  """
+  DATE
+  """
+  The due date of the invoice.
+  """
+  DUE_DATE
+  """
+  The invoice number.
+  """
+  NUMBER
+  """
+  The net total of the invoice.
+  """
+  TOTAL_AMOUNT
+}
+"""
 A paginated list of Invoice items.
 """
 type InvoicePaginator {
@@ -8077,27 +8311,6 @@ enum InvoiceTransactionType {
   Batch Invoice
   """
   BATCH_INVOICE
-}
-"""
-The columns that invoices can be ordered by.
-"""
-enum InvoicesOrderByColumn {
-  """
-  The date the invoice was created.
-  """
-  DATE
-  """
-  The due date.
-  """
-  DUE_DATE
-  """
-  The invoice number.
-  """
-  NUMBER
-  """
-  The net total.
-  """
-  TOTAL_AMOUNT
 }
 """
 A scalar for representing JSON data.
@@ -8348,6 +8561,10 @@ type Job implements HasURL {
   """
   viewerCanShare: Boolean!
   """
+  The maximum number of candidates the viewing staffing agency may submit on this job. Null means no limit.
+  """
+  viewerCandidateSubmissionLimit: Int
+  """
   Whether the viewer is able to create a job candidate.
   """
   viewerCanCreateJobCandidate: Boolean!
@@ -8375,6 +8592,10 @@ type Job implements HasURL {
   Whether the job is shared publicly on the marketplace.
   """
   isForMarketplace: Boolean!
+  """
+  The date a supplier last submitted a candidate to this job.
+  """
+  lastCandidateSubmittedAt: Date
   """
   An identifier associated with the job from an external system.
   """
@@ -8404,6 +8625,30 @@ type Job implements HasURL {
   The supplier-side job derived from this source job.
   """
   supplierJob: Job
+  """
+  The rate card band that applies to this job.
+  
+  A band is the client's internal pricing policy, so it is readable only by the
+  client company owning the job, and by a company registered as that client's
+  supplier that also holds an active share of the job — in practice, the MSP.
+  Anyone else, staffing agencies included, reads null.
+  
+  A stub until the resolver lands: it returns the no-match state rather than
+  invented figures.
+  """
+  rateCardBand(
+    """
+    The date to resolve the band on. Defaults to today.
+    """
+    date: Date
+
+    """
+    Resolve against these custom field values instead of the job's stored
+    ones. The job form has no autosave, so the criteria being changed exist
+    only in the form's store until it is saved.
+    """
+    customFieldValues: [CustomFieldTypeValueInput!]
+  ): RateCardBand
   """
   The hires made on the job.
   """
@@ -8926,6 +9171,10 @@ enum JobOrderByColumn {
   Order by the number of candidates on the job.
   """
   CANDIDATES
+  """
+  The date a supplier last submitted a candidate to the job
+  """
+  LAST_CANDIDATE_SUBMITTED_AT
 }
 """
 A paginated list of Job items.
@@ -9856,6 +10105,30 @@ type Mutation {
     input: DeleteCompanyRecruiterInput!
   ): CompanyRecruiter
   """
+  Link or unlink a set of agencies against a set of the company's clients.
+  
+  One request for the whole selection: linking creates or revives each pair, unlinking
+  withdraws it. Already-correct pairs are left alone, so it is safe to re-send.
+  """
+  setSupplierClientLinks(
+    """
+    The agencies, the clients, and whether they should be linked.
+    """
+    input: SetSupplierClientLinksInput!
+  ): [SupplierClient!]!
+  """
+  Link or unlink suppliers for one of the company's clients.
+  
+  Unlinking withdraws the link without dropping the row, and linking again revives that same
+  row, so the relationship keeps its history either way.
+  """
+  updateSupplierClientLinks(
+    """
+    The links to update, and whether they should be linked.
+    """
+    input: UpdateSupplierClientLinksInput!
+  ): [SupplierClient!]!
+  """
   Invite an existing recruiter.
   
   Only companies can invite the recruiter.
@@ -9890,6 +10163,19 @@ type Mutation {
     """
     input: SubmitComplianceInput!
   ): Compliance!
+  """
+  Record a compliance reviewer's decision on a single right-to-work document.
+  
+  Requires the `manage-compliance-tracker` permission at a company that both
+  engages the worker and requires the checks. Returns the document as it now
+  appears in the compliance review.
+  """
+  reviewRightToWorkDocument(
+    """
+    The decision to record.
+    """
+    input: ReviewRightToWorkDocumentInput!
+  ): ComplianceDataRestrictedDocument!
   """
   Create a custom field.
   """
@@ -10824,6 +11110,15 @@ type Mutation {
     """
     input: UpdateWorkerIdentificationInput!
   ): WorkerIdentification!
+  """
+  Remove a right-to-work document. Soft-deleted, so the audit trail is kept.
+  """
+  deleteWorkerRightToWorkDocument(
+    """
+    The document to remove.
+    """
+    input: DeleteWorkerRightToWorkDocumentInput!
+  ): Boolean!
   """
   Create an approval workflow as a complete tree in a single operation.
   
@@ -11964,6 +12259,10 @@ type Profile implements HasURL {
   """
   url: URL!
   """
+  The account's own description of itself, as shown on its profile page. Plain text.
+  """
+  description: String
+  """
   The links for the profile
   """
   links: [Link!]!
@@ -12161,6 +12460,15 @@ type Query {
     """
     id: ID!
   ): CompanyRecruiter
+  """
+  Get a specific client the authenticated company accounts supply to.
+  """
+  supplierClient(
+    """
+    The ID of the company supplier row.
+    """
+    id: ID!
+  ): CompanySupplier
   """
   Get a specific company supplier.
   """
@@ -12803,6 +13111,11 @@ type Query {
     verifiedRecruiterReview: VerifiedRecruiterReviewFilterInput
 
     """
+    Only show staffing agencies linked to any of the given end-client companies.
+    """
+    endClients: [ID!]
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -12812,6 +13125,45 @@ type Query {
     """
     page: Int
   ): CompanyRecruiterPaginator!
+  """
+  The suppliers contracted for one of the company's clients.
+  """
+  clientSuppliers(
+    """
+    The client company to list contracted suppliers for.
+    """
+    client: ID!
+
+    """
+    Supply an input string which will be used to search through supplier names.
+    """
+    search: String
+
+    """
+    Filter by the status of the supplier relation itself.
+    """
+    supplierStatuses: [RecruiterStatus!]
+
+    """
+    Filter by the date the supplier was linked to this client.
+    """
+    linkedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.
+    """
+    orderBy: [SupplierClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
   """
   Get a list of company suppliers for the authenticated company accounts.
   """
@@ -12825,6 +13177,63 @@ type Query {
     Search suppliers by name.
     """
     search: String
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanySupplierPaginator!
+  """
+  Get a list of clients the authenticated company accounts supply to.
+  
+  The supplier-side view of the same rows companySuppliers reads from the client side.
+  """
+  supplierClients(
+    """
+    Only show the clients of these supplier company accounts. Without it, clients of every
+    supplier company the viewer belongs to are shown.
+    """
+    accounts: [ID!]
+
+    """
+    Search clients by company name.
+    """
+    search: String
+
+    """
+    Filter clients by market and optionally narrow by specific regions.
+    """
+    clientRegions: MarketRegionInput
+
+    """
+    Only show clients whose relationship was established within the given date range.
+    """
+    createdAtDateRange: DateRangeInput
+
+    """
+    Only show clients whose supplier hires copy (or do not copy) the client's payment terms.
+    """
+    paymentTermsFollowsClient: Boolean
+
+    """
+    Only show clients with (or without) staffing agencies linked to them by the supplier.
+    """
+    hasLinkedStaffingAgencies: Boolean
+
+    """
+    Only show clients linked to any of the given staffing-agency relations.
+    """
+    linkedStaffingAgencies: [ID!]
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationOrderByClauseInput!]
 
     """
     Limits number of fetched items.
@@ -13131,7 +13540,19 @@ type Query {
     workers: [ID!]
 
     """
-    Filter hires by recruiter ids.
+    Filter hires by the staffing agencies that supplied them.
+    
+    Includes hires supplied through a managed service provider, where the staffing
+    agency is recorded on the provider's copy of the hire rather than on this one.
+    """
+    staffingAgencies: [ID!]
+
+    """
+    Filter hires by the staffing agency recorded on the hire itself.
+    
+    Unlike `staffingAgencies`, this ignores hires supplied through a managed service
+    provider, where the staffing agency is recorded only on the provider's copy. Both
+    return the same hires for work supplied directly.
     """
     recruiters: [ID!]
 
@@ -13297,7 +13718,7 @@ type Query {
     externalIdentifiers: [String!]
 
     """
-    Order the results by the invoice date, number, total or due date.
+    Order the results by the creation date, invoice date, number, total or due date.
     """
     orderBy: [QueryInvoicesOrderByOrderByClause!]
 
@@ -14314,17 +14735,64 @@ type Query {
   ): WorkflowVariablePaginator!
 }
 """
-Order by clause for Query.invoices.orderBy.
+Invoice sorting clause input.
 """
 input QueryInvoicesOrderByOrderByClause {
   """
-  The column that is used for ordering.
+  The field to sort invoices by.
   """
-  column: InvoicesOrderByColumn!
+  field: InvoiceOrderByColumn
   """
-  The direction that is used for ordering.
+  The order to sort invoices by.
   """
-  order: SortOrder!
+  order: SortOrder! = ASC
+}
+"""
+The rate card band that applies to a job.
+
+A band is a minimum and a maximum for a given rate type. A fixed rate is a band
+whose minimum and maximum are equal. When nothing matched, `noMatchReason`
+says why and the amounts are absent — they are never invented.
+"""
+type RateCardBand {
+  """
+  The minimum of the band, in the rate card's currency.
+  """
+  minimum: DecimalTwo
+  """
+  The maximum of the band. Equal to the minimum when the line is a fixed rate.
+  """
+  maximum: DecimalTwo
+  """
+  The unit the band is expressed in.
+  """
+  rateType: RateType
+  """
+  Why nothing matched. Absent when a line matched, which is what says the
+  amounts above are present.
+  """
+  noMatchReason: RateCardNoMatchReason
+}
+"""
+Why a vacancy or payment request resolved to no rate card band.
+"""
+enum RateCardNoMatchReason {
+  """
+  The owner has no rate card in the required currency.
+  """
+  NO_RATE_CARD
+  """
+  The rate type is unknown or absent, so no band can apply.
+  """
+  UNSUPPORTED_RATE_TYPE
+  """
+  The card has no line in force on the date requested.
+  """
+  NO_LINE_IN_FORCE
+  """
+  A line was in force, but none matched the criteria supplied.
+  """
+  NO_LINE_MATCHED_CRITERIA
 }
 """
 An input for the rate.
@@ -14815,6 +15283,23 @@ input ReviewRecruiterInput {
   recruiterMessage: String
 }
 """
+A compliance reviewer's decision on a right-to-work document.
+"""
+input ReviewRightToWorkDocumentInput {
+  """
+  The document being reviewed.
+  """
+  id: ID!
+  """
+  True to approve, false to decline.
+  """
+  approved: Boolean!
+  """
+  Why the document was declined. Required when declining.
+  """
+  rejectionReason: String
+}
+"""
 Input for recording a company's compliance review of a worker.
 
 The reviewer is the authenticated user; the company is the user's
@@ -14839,6 +15324,27 @@ input ReviewWorkerInput {
   Also shown to the reviewer on subsequent reviews for continuity.
   """
   workerMessage: String
+}
+"""
+A category of right-to-work evidence a worker may be required to provide.
+"""
+enum RightToWorkDocumentType {
+  """
+  A passport or national identity document evidencing identity and nationality.
+  """
+  IDENTITY_DOCUMENT
+  """
+  A permit authorising the holder to work in the jurisdiction.
+  """
+  WORK_PERMIT
+  """
+  A permit authorising the holder to reside in the jurisdiction.
+  """
+  RESIDENCE_PERMIT
+  """
+  Evidence of authorisation to work, where that is issued separately from a permit.
+  """
+  WORK_AUTHORIZATION
 }
 """
 The input used for running an action on a batch.
@@ -14901,6 +15407,24 @@ input SetInternalBudgetOnJobInput {
   Up to 2 decimal points are stored, the rest is omitted.
   """
   amount: Float!
+}
+"""
+The details for linking or unlinking a set of agencies against a set of clients.
+"""
+input SetSupplierClientLinksInput {
+  """
+  The agency relations to link or unlink.
+  """
+  companyRecruiterIds: [ID!]!
+  """
+  The client companies to link them against.
+  """
+  clientIds: [ID!]!
+  """
+  Whether the pairs should be linked. Unlinking withdraws them; linking revives a
+  withdrawn pair rather than creating a second one.
+  """
+  linked: Boolean!
 }
 """
 The details for sharing candidates with the linked partner account.
@@ -15245,6 +15769,93 @@ type SupplierCandidatePaginator {
   A list of SupplierCandidate items.
   """
   data: [SupplierCandidate!]!
+}
+"""
+A link between a supplier and an end client the supplier works for.
+Row presence is the relationship: direct when the client contracted the supplier itself,
+managed when another company sits in the middle.
+"""
+type SupplierClient {
+  """
+  The ID of the supplier-to-client link.
+  """
+  id: ID!
+  """
+  The supplier working for the client — a staffing agency or a company.
+  """
+  supplier: Account!
+  """
+  The end client the supplier works for.
+  """
+  client: Company!
+  """
+  The staffing agency relation this link was contracted under. Null when the supplier is a
+  company rather than a staffing agency.
+  """
+  companyRecruiter: CompanyRecruiter
+  """
+  When the link was created.
+  """
+  createdAt: Date!
+  """
+  When the link was last changed.
+  """
+  updatedAt: Date!
+  """
+  The hires the supplier has at the client, in any status.
+  """
+  hiresCount: Int!
+}
+"""
+Sorting clause for a client's linked staffing agencies.
+"""
+input SupplierClientOrderByClauseInput {
+  """
+  The field to sort the linked suppliers by.
+  """
+  field: SupplierClientOrderByColumn
+  """
+  The order to sort the linked suppliers by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a client's linked suppliers can be ordered by.
+"""
+enum SupplierClientOrderByColumn {
+  """
+  The name of the supplier.
+  """
+  SUPPLIER_NAME
+  """
+  The date the supplier was linked to this client.
+  """
+  LINKED_AT
+  """
+  The date the link last changed.
+  """
+  UPDATED_AT
+  """
+  The date the supplier was added as a contracted supplier.
+  """
+  SUPPLIER_SINCE
+  """
+  The number of placements the supplier and the client share.
+  """
+  PLACEMENTS
+}
+"""
+A paginated list of SupplierClient items.
+"""
+type SupplierClientPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of SupplierClient items.
+  """
+  data: [SupplierClient!]!
 }
 """
 A supplier invoice.
@@ -16213,6 +16824,10 @@ input UpdateCompanyRecruiterInput {
   """
   managesWorkers: Boolean
   """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   The custom fields for the company recruiter.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
@@ -16746,6 +17361,20 @@ input UpdateSupplierCandidateInput {
   files: [ID!]
 }
 """
+The details for linking or unlinking suppliers for one client.
+"""
+input UpdateSupplierClientLinksInput {
+  """
+  The supplier-to-client links to update.
+  """
+  ids: [ID!]!
+  """
+  Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking
+  revives a withdrawn one.
+  """
+  linked: Boolean!
+}
+"""
 The input used for updating a timesheet.
 """
 input UpdateTimesheetInput {
@@ -17148,6 +17777,11 @@ type User {
   """
   email: String!
   """
+  The phone number of the user, as entered. Visible to the user themselves and their teammates,
+  and to a supplier for people at the clients it supplies and the staffing agencies it manages.
+  """
+  phone: String
+  """
   The avatar (or profile picture) for the user.
   """
   avatar: URL
@@ -17173,7 +17807,7 @@ type User {
   """
   hasVerifiedEmail: Boolean!
   """
-  When the email was verified.
+  When the email was verified. Only visible to the user and people related to them.
   """
   emailVerifiedAt: DateTime
   """
@@ -17672,6 +18306,39 @@ type WebhookPaginator {
   data: [Webhook!]!
 }
 """
+A day of the week.
+"""
+enum Weekday {
+  """
+  Monday.
+  """
+  MONDAY
+  """
+  Tuesday.
+  """
+  TUESDAY
+  """
+  Wednesday.
+  """
+  WEDNESDAY
+  """
+  Thursday.
+  """
+  THURSDAY
+  """
+  Friday.
+  """
+  FRIDAY
+  """
+  Saturday.
+  """
+  SATURDAY
+  """
+  Sunday.
+  """
+  SUNDAY
+}
+"""
 The details for withdrawing a forwarded candidate.
 """
 input WithdrawForwardedCandidateInput {
@@ -17865,6 +18532,20 @@ type Worker implements Account {
   """
   identification: WorkerIdentification
   """
+  The worker's right-to-work requirement, or null when nothing is required.
+  
+  Pass `nationality` to resolve for a nationality the user has selected but
+  not yet saved, so a form can reveal or hide the uploads the moment the
+  dropdown changes. Nationality is self-declared either way, so this widens
+  nothing; the server re-resolves on upload regardless.
+  """
+  rightToWork(
+    """
+    ISO 3166-1 alpha-2 code overriding the worker's saved nationality.
+    """
+    nationality: String
+  ): WorkerRightToWork
+  """
   The business entities that the worker has.
   """
   businessEntities(
@@ -17978,6 +18659,88 @@ enum WorkerReviewDecision {
   The reviewer asks the worker to supply or correct information. A note is delivered to the worker.
   """
   CHANGES_REQUESTED
+}
+"""
+Right-to-work evidence a worker must provide before a hire can be finalised.
+
+What is required is a function of the market the work happens in and the
+worker's nationality, never of the individual client, which only decides
+whether the checks apply at all.
+"""
+type WorkerRightToWork {
+  """
+  The documents this worker must provide. Empty means nothing is required,
+  in which case the whole `rightToWork` field is null instead.
+  """
+  requirements: [WorkerRightToWorkRequirement!]!
+  """
+  Documents the worker has provided so far, the current one per type.
+  """
+  documents: [WorkerRightToWorkDocument!]!
+  """
+  True while a client requiring these documents has requested changes in its compliance review, which covers the documents as a whole.
+  """
+  changesRequested: Boolean!
+  """
+  Names of the clients requiring these documents, for the consent copy shown to the worker.
+  """
+  requiredBy: [String!]!
+}
+"""
+One piece of right-to-work evidence.
+
+Carries no file contents and no signed link. `viewUrl` addresses an
+authenticated, policy-checked and audited route, and is null when the viewer may
+not read the document.
+"""
+type WorkerRightToWorkDocument {
+  """
+  Global ID of the document.
+  """
+  id: ID!
+  """
+  Which requirement this document satisfies.
+  """
+  documentType: RightToWorkDocumentType!
+  """
+  Label of the requirement this document satisfies, e.g. 'Passport or national ID'.
+  """
+  label: String!
+  """
+  Original filename.
+  """
+  filename: String!
+  """
+  When the document expires.
+  """
+  expiresAt: Date
+  """
+  When it was uploaded.
+  """
+  uploadedAt: DateTime
+  """
+  Authenticated route serving the document inline, or null if not permitted.
+  """
+  viewUrl: String
+}
+"""
+One document type a worker must provide, with the presentation the form needs,
+so labels and expiry rules live in one place, on the server, instead of being
+restated per client.
+"""
+type WorkerRightToWorkRequirement {
+  """
+  The kind of evidence required.
+  """
+  documentType: RightToWorkDocumentType!
+  """
+  Label to show the worker, e.g. 'Passport or national ID'.
+  """
+  label: String!
+  """
+  Whether an expiry date must be captured alongside the upload.
+  """
+  requiresExpiry: Boolean!
 }
 """
 A workflow — an alternative tree-structured view of an approval flow for hires.

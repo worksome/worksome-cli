@@ -221,6 +221,14 @@ type ChangeEmailInput struct {
 	Email string `json:"email"`
 }
 
+// ClientRelationOrderByClauseInput — Sorting clause for the supplier's client list.
+type ClientRelationOrderByClauseInput struct {
+	// The field to sort supplier clients by.
+	Field *ClientRelationOrderByColumn `json:"field,omitempty"`
+	// The order to sort supplier clients by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
 // CreateApprovalInput — The input for creating a new approval flow. After creating the approval, use 'createApprovalRule' to add conditions and then 'createApprover' to assign user groups who will review matching items. Alternatively, use 'createWorkflow' to create the entire approval flow (root, rules, and approvers) in a single operation.
 type CreateApprovalInput struct {
 	// The display name for the approval flow.
@@ -283,6 +291,8 @@ type CreateCompanyRecruiterInput struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 	// The custom fields for the company recruiter.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
@@ -817,6 +827,12 @@ type DeleteWebhookInput struct {
 	Id string `json:"id"`
 }
 
+// DeleteWorkerRightToWorkDocumentInput — A right-to-work document to remove.
+type DeleteWorkerRightToWorkDocumentInput struct {
+	// The document to remove.
+	Id string `json:"id"`
+}
+
 // DeleteWorkflowInput — The input for deleting an existing workflow.
 type DeleteWorkflowInput struct {
 	// The ID of the workflow to delete (same as the approval ID).
@@ -1039,6 +1055,8 @@ type InviteCompanyRecruiterInput struct {
 	Tags []string `json:"tags,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 }
 
 // InvitedByInput — Trusted contact invited by users filter input. If 'null', all trusted contacts will be returned.
@@ -1167,11 +1185,11 @@ type PaymentRequestOrderByClauseInput struct {
 	Order *SortOrder `json:"order,omitempty"`
 }
 
-// QueryInvoicesOrderByOrderByClause — Order by clause for Query.invoices.orderBy.
+// QueryInvoicesOrderByOrderByClause — Invoice sorting clause input.
 type QueryInvoicesOrderByOrderByClause struct {
-	// The column that is used for ordering.
-	Column InvoicesOrderByColumn `json:"column"`
-	// The direction that is used for ordering.
+	// The field to sort invoices by.
+	Field *InvoiceOrderByColumn `json:"field,omitempty"`
+	// The order to sort invoices by.
 	Order SortOrder `json:"order"`
 }
 
@@ -1279,6 +1297,16 @@ type ReviewRecruiterInput struct {
 	RecruiterMessage *string `json:"recruiterMessage,omitempty"`
 }
 
+// ReviewRightToWorkDocumentInput — A compliance reviewer's decision on a right-to-work document.
+type ReviewRightToWorkDocumentInput struct {
+	// The document being reviewed.
+	Id string `json:"id"`
+	// True to approve, false to decline.
+	Approved bool `json:"approved"`
+	// Why the document was declined. Required when declining.
+	RejectionReason *string `json:"rejectionReason,omitempty"`
+}
+
 // ReviewWorkerInput — Input for recording a company's compliance review of a worker. The reviewer is the authenticated user; the company is the user's active account. The review record is scoped to (worker, company).
 type ReviewWorkerInput struct {
 	// The worker being reviewed.
@@ -1309,6 +1337,16 @@ type SetInternalBudgetOnJobInput struct {
 	Job string `json:"job"`
 	// The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.
 	Amount float64 `json:"amount"`
+}
+
+// SetSupplierClientLinksInput — The details for linking or unlinking a set of agencies against a set of clients.
+type SetSupplierClientLinksInput struct {
+	// The agency relations to link or unlink.
+	CompanyRecruiterIds []string `json:"companyRecruiterIds"`
+	// The client companies to link them against.
+	ClientIds []string `json:"clientIds"`
+	// Whether the pairs should be linked. Unlinking withdraws them; linking revives a withdrawn pair rather than creating a second one.
+	Linked bool `json:"linked"`
 }
 
 // ShareCandidatesWithPartnerInput — The details for sharing candidates with the linked partner account.
@@ -1373,6 +1411,14 @@ type SubmitComplianceInput struct {
 	ReviewRecruiter *ReviewRecruiterInput `json:"reviewRecruiter,omitempty"`
 	// Catch-all for compliances without a dedicated typed input shape. The 'data' JSON must match the compliance's expected form structure.
 	Generic *GenericComplianceInput `json:"generic,omitempty"`
+}
+
+// SupplierClientOrderByClauseInput — Sorting clause for a client's linked staffing agencies.
+type SupplierClientOrderByClauseInput struct {
+	// The field to sort the linked suppliers by.
+	Field *SupplierClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort the linked suppliers by.
+	Order *SortOrder `json:"order,omitempty"`
 }
 
 // TaxLineInput — An input for a tax line.
@@ -1491,6 +1537,8 @@ type UpdateCompanyRecruiterInput struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 	// The custom fields for the company recruiter.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
@@ -1763,6 +1811,14 @@ type UpdateSupplierCandidateInput struct {
 	Links []string `json:"links,omitempty"`
 	// The updated files to associate with the candidate.
 	Files []string `json:"files,omitempty"`
+}
+
+// UpdateSupplierClientLinksInput — The details for linking or unlinking suppliers for one client.
+type UpdateSupplierClientLinksInput struct {
+	// The supplier-to-client links to update.
+	Ids []string `json:"ids"`
+	// Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking revives a withdrawn one.
+	Linked bool `json:"linked"`
 }
 
 // UpdateTimesheetInput — The input used for updating a timesheet.
