@@ -3201,15 +3201,215 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 	return printResult(cmd, allData, classificationsColumns)
 }
 
+var clientsuppliersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
+	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
+// NewClientSuppliersCmd creates the client-suppliers resource command.
+func NewClientSuppliersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-suppliers",
+		Short: "The suppliers contracted for one of the company's clients.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientSuppliersListCmd())
+
+	return cmd
+}
+
+func newClientSuppliersListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "The suppliers contracted for one of the company's clients.",
+		Example: "  worksome client-suppliers list -n 20\n  worksome client-suppliers list --all\n  worksome client-suppliers list --watch\n  worksome client-suppliers list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("client") {
+				v, _ := cmd.Flags().GetString("client")
+				vars["client"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("supplier-statuses") {
+				v, _ := cmd.Flags().GetStringSlice("supplier-statuses")
+				vars["supplierStatuses"] = v
+			}
+			if cmd.Flags().Changed("linked-at-date-range") {
+				raw, _ := cmd.Flags().GetString("linked-at-date-range")
+				v, err := jsonArg("linked-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["linkedAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[SupplierClientOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientSuppliers", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return clientsuppliersFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ClientSuppliers(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["clientSuppliers"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["clientSuppliers"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, clientsuppliersColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().String("client", "", "The client company to list contracted suppliers for.")
+	cmd.Flags().String("search", "", "Supply an input string which will be used to search through supplier names.")
+	cmd.Flags().StringSlice("supplier-statuses", nil, "Filter by the status of the supplier relation itself. [ACTIVE, INVITED]")
+	cmd.Flags().String("linked-at-date-range", "", "Filter by the date the supplier was linked to this client. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [SupplierClientOrderByClauseInput!], e.g. [{\"field\":\"SUPPLIER_NAME\",\"order\":\"ASC\"}]; field: SUPPLIER_NAME | LINKED_AT | UPDATED_AT | SUPPLIER_SINCE | PLACEMENTS; order: ASC | DESC)")
+	_ = cmd.MarkFlagRequired("client")
+
+	return cmd
+}
+
+func clientsuppliersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.ClientSuppliers(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["clientSuppliers"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, clientsuppliersColumns)
+}
+
 var companiesColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 // NewCompaniesCmd creates the companies resource command.
@@ -3626,6 +3826,10 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 				}
 				vars["verifiedRecruiterReview"] = v
 			}
+			if cmd.Flags().Changed("end-clients") {
+				v, _ := cmd.Flags().GetStringSlice("end-clients")
+				vars["endClients"] = v
+			}
 
 			// Validate flags
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -3706,6 +3910,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show company recruiters with the specified external identifier.")
 	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
 	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state. (JSON for VerifiedRecruiterReviewFilterInput, e.g. {\"status\":\"INCOMPLETE\",\"updatedBy\":[\"<id>\"]}; status: INCOMPLETE | READY_TO_REVIEW | CHANGES_REQUESTED | CLEARED)")
+	cmd.Flags().StringSlice("end-clients", nil, "Only show staffing agencies linked to any of the given end-client companies.")
 
 	return cmd
 }
@@ -3762,7 +3967,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -3820,6 +4025,10 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
+			if cmd.Flags().Changed("max-candidate-submissions") {
+				v, _ := cmd.Flags().GetInt("max-candidate-submissions")
+				inputObj["maxCandidateSubmissions"] = v
+			}
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
@@ -3856,6 +4065,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
 	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Int("max-candidate-submissions", 0, "The maximum number of candidates the staffing agency may submit per job. Null means no limit.")
 	return cmd
 }
 
@@ -3951,7 +4161,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "invite",
 		Short:   "Invite an existing recruiter. Only companies can invite the recruiter.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters invite --input payload.json\n\n  # Using flags:\n  worksome company-recruiters invite --id \\\"value\\\" --company \\\"value\\\" --recruiter-fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"message\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters invite --input payload.json\n\n  # Using flags:\n  worksome company-recruiters invite --id \\\"value\\\" --company \\\"value\\\" --recruiter-fee \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"message\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4001,6 +4211,10 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
+			if cmd.Flags().Changed("max-candidate-submissions") {
+				v, _ := cmd.Flags().GetInt("max-candidate-submissions")
+				inputObj["maxCandidateSubmissions"] = v
+			}
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
@@ -4035,6 +4249,7 @@ func newCompanyRecruitersInviteCmd() *cobra.Command {
 	cmd.Flags().Int("recruiter-ownership-days", 0, "The ownership days of the recruiter.")
 	cmd.Flags().String("message", "", "The message that will be sent to the recruiter.")
 	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Int("max-candidate-submissions", 0, "The maximum number of candidates the staffing agency may submit per job. Null means no limit.")
 	return cmd
 }
 
@@ -4053,7 +4268,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4099,6 +4314,10 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetBool("manages-workers")
 				inputObj["managesWorkers"] = v
 			}
+			if cmd.Flags().Changed("max-candidate-submissions") {
+				v, _ := cmd.Flags().GetInt("max-candidate-submissions")
+				inputObj["maxCandidateSubmissions"] = v
+			}
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
@@ -4132,6 +4351,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd.Flags().Int("recruiter-ownership-days", 0, "The updated recruiter ownership.")
 	cmd.Flags().String("external-identifier", "", "An identifier associated with the company recruiter from an external system.")
 	cmd.Flags().Bool("manages-workers", false, "Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.")
+	cmd.Flags().Int("max-candidate-submissions", 0, "The maximum number of candidates the staffing agency may submit per job. Null means no limit.")
 	return cmd
 }
 
@@ -5630,11 +5850,11 @@ var emailChangeColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
 	{Header: "Can Create Password", Field: "canCreatePassword"},
 	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newEmailChangeCmd() *cobra.Command {
@@ -5712,11 +5932,11 @@ var emailSendVerificationColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
 	{Header: "Can Create Password", Field: "canCreatePassword"},
 	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newEmailSendVerificationCmd() *cobra.Command {
@@ -6970,6 +7190,10 @@ func newHiresListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("workers")
 				vars["workers"] = v
 			}
+			if cmd.Flags().Changed("staffing-agencies") {
+				v, _ := cmd.Flags().GetStringSlice("staffing-agencies")
+				vars["staffingAgencies"] = v
+			}
 			if cmd.Flags().Changed("recruiters") {
 				v, _ := cmd.Flags().GetStringSlice("recruiters")
 				vars["recruiters"] = v
@@ -7143,7 +7367,8 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter hires by company ids.")
 	cmd.Flags().StringSlice("workers", nil, "Filter hires by worker ids.")
-	cmd.Flags().StringSlice("recruiters", nil, "Filter hires by recruiter ids.")
+	cmd.Flags().StringSlice("staffing-agencies", nil, "Filter hires by the staffing agencies that supplied them. Includes hires supplied through a managed service provider, where the staffing agency is recorded on the provider's copy of the hire rather than on this one.")
+	cmd.Flags().StringSlice("recruiters", nil, "Filter hires by the staffing agency recorded on the hire itself. Unlike 'staffingAgencies', this ignores hires supplied through a managed service provider, where the staffing agency is recorded only on the provider's copy. Both return the same hires for work supplied directly.")
 	cmd.Flags().String("start-date-range", "", "Filter hires by hire start date. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("end-date-range", "", "Filter hires by hire end date. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("starts-after", "", "Filter hires that start after the specified date.")
@@ -8099,7 +8324,7 @@ func newIncomingJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("search", "", "Search job posts by title or description.")
-	cmd.Flags().String("order-by", "", "Order the results. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES; order: ASC | DESC)")
+	cmd.Flags().String("order-by", "", "Order the results. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES | LAST_CANDIDATE_SUBMITTED_AT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -8543,10 +8768,10 @@ var invitelinkGenerateColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newInviteLinkGenerateCmd() *cobra.Command {
@@ -8955,7 +9180,7 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
 	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show invoices with the specified external identifiers.")
-	cmd.Flags().String("order-by", "", "Order the results by the invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!], e.g. [{\"column\":\"DATE\",\"order\":\"ASC\"}]; column: DATE | DUE_DATE | NUMBER | TOTAL_AMOUNT; order: ASC | DESC)")
+	cmd.Flags().String("order-by", "", "Order the results by the creation date, invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | DATE | DUE_DATE | NUMBER | TOTAL_AMOUNT; order: ASC | DESC)")
 
 	return cmd
 }
@@ -10273,7 +10498,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-hire", false, "Filter for jobs with or without hires.")
 	cmd.Flags().Bool("has-bids", false, "Filter for jobs with or without bids.")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show jobs with the specified external identifier.")
-	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES; order: ASC | DESC)")
+	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES | LAST_CANDIDATE_SUBMITTED_AT; order: ASC | DESC)")
 	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
 	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
@@ -12216,10 +12441,10 @@ var onboardingdocumentsManageColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsManageCmd() *cobra.Command {
@@ -12293,10 +12518,10 @@ var onboardingdocumentsManageRecruiterColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsManageRecruiterCmd() *cobra.Command {
@@ -12370,10 +12595,10 @@ var onboardingdocumentsRemoveColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsRemoveCmd() *cobra.Command {
@@ -12447,10 +12672,10 @@ var onboardingdocumentsRemoveRecruiterColumns = []output.Column{
 	{Header: "Name", Field: "name"},
 	{Header: "Currency", Field: "currency"},
 	{Header: "Market", Field: "market"},
+	{Header: "Region ID", Field: "region.id"},
+	{Header: "Region Name", Field: "region.name"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Profile ID", Field: "profile.id"},
-	{Header: "Profile Url", Field: "profile.url"},
-	{Header: "Contact Invite Url", Field: "contactInviteUrl"},
 }
 
 func newOnboardingDocumentsRemoveRecruiterCmd() *cobra.Command {
@@ -13053,11 +13278,11 @@ var passwordCreateColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
 	{Header: "Can Create Password", Field: "canCreatePassword"},
 	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newPasswordCreateCmd() *cobra.Command {
@@ -13130,11 +13355,11 @@ var passwordUpdateColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
 	{Header: "Can Create Password", Field: "canCreatePassword"},
 	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 func newPasswordUpdateCmd() *cobra.Command {
@@ -15553,6 +15778,92 @@ func NewReinviteTrustedContactCmd() *cobra.Command {
 	return cmd
 }
 
+var reviewrighttoworkdocumentHoistedColumns = []output.Column{
+	{Header: "Document ID", Field: "document.id"},
+	{Header: "Document Label", Field: "document.label"},
+	{Header: "Status", Field: "status"},
+	{Header: "Approved At", Field: "approvedAt"},
+	{Header: "Rejection Reason", Field: "rejectionReason"},
+	{Header: "Can Review", Field: "canReview"},
+}
+
+// NewReviewRightToWorkDocumentCmd creates the review-right-to-work-document resource command.
+func NewReviewRightToWorkDocumentCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "review-right-to-work-document",
+		Short:   "Record a compliance reviewer's decision on a single right-to-work document.",
+		Example: "  # Using a JSON input file:\n  worksome review-right-to-work-document --input payload.json\n\n  # Using flags:\n  worksome review-right-to-work-document --id \\\"value\\\" --approved \\\"value\\\" --rejection-reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"approved\": false,\n    \"id\": \"<id>\",\n    \"rejectionReason\": \"...\"\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("approved") {
+				v, _ := cmd.Flags().GetBool("approved")
+				inputObj["approved"] = v
+			}
+			if cmd.Flags().Changed("rejection-reason") {
+				v, _ := cmd.Flags().GetString("rejection-reason")
+				inputObj["rejectionReason"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"approved", "approved"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "ReviewRightToWorkDocument", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.ReviewRightToWorkDocument(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, reviewrighttoworkdocumentHoistedColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("id", "", "The document being reviewed.")
+	cmd.Flags().Bool("approved", false, "True to approve, false to decline.")
+	cmd.Flags().String("rejection-reason", "", "Why the document was declined. Required when declining.")
+	return cmd
+}
+
 var skillsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
@@ -16325,6 +16636,434 @@ func newSupplierCandidatesUpdateCmd() *cobra.Command {
 	cmd.Flags().Float64("daily-rate", 0, "The daily rate to update.")
 	cmd.Flags().Float64("monthly-rate", 0, "The monthly rate to update.")
 	return cmd
+}
+
+// NewSupplierClientLinksCmd creates the supplier-client-links resource command.
+func NewSupplierClientLinksCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "supplier-client-links",
+		Short: "Manage supplier client links.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newSupplierClientLinksSetCmd())
+	cmd.AddCommand(newSupplierClientLinksUpdateCmd())
+
+	return cmd
+}
+
+var supplierclientlinksSetColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
+	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
+func newSupplierClientLinksSetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "set",
+		Short:   "Link or unlink a set of agencies against a set of the company's clients. One request for the whole selection: linking creates or revives each pair, unlinking withdraws it. Already-correct pairs are left alone, so it is safe to re-send.",
+		Example: "  # Using a JSON input file:\n  worksome supplier-client-links set --input payload.json\n\n  # Using flags:\n  worksome supplier-client-links set --linked \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"clientIds\": [\n      \"<id>\"\n    ],\n    \"companyRecruiterIds\": [\n      \"<id>\"\n    ],\n    \"linked\": false\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("linked") {
+				v, _ := cmd.Flags().GetBool("linked")
+				inputObj["linked"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"linked", "linked"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SetSupplierClientLinks", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SetSupplierClientLinks(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, supplierclientlinksSetColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().Bool("linked", false, "Whether the pairs should be linked. Unlinking withdraws them; linking revives a withdrawn pair rather than creating a second one.")
+	return cmd
+}
+
+var supplierclientlinksUpdateColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
+	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
+func newSupplierClientLinksUpdateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update",
+		Short:   "Link or unlink suppliers for one of the company's clients. Unlinking withdraws the link without dropping the row, and linking again revives that same row, so the relationship keeps its history either way.",
+		Example: "  # Using a JSON input file:\n  worksome supplier-client-links update --input payload.json\n\n  # Using flags:\n  worksome supplier-client-links update --linked \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"ids\": [\n      \"<id>\"\n    ],\n    \"linked\": false\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("linked") {
+				v, _ := cmd.Flags().GetBool("linked")
+				inputObj["linked"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"linked", "linked"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "UpdateSupplierClientLinks", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.UpdateSupplierClientLinks(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, supplierclientlinksUpdateColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().Bool("linked", false, "Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking revives a withdrawn one.")
+	return cmd
+}
+
+var supplierclientsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Owners ID", Field: "owners.id"},
+	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
+}
+
+// NewSupplierClientsCmd creates the supplier-clients resource command.
+func NewSupplierClientsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "supplier-clients",
+		Short: "Get a list of clients the authenticated company accounts supply to.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newSupplierClientsGetCmd())
+	cmd.AddCommand(newSupplierClientsListCmd())
+
+	return cmd
+}
+
+func newSupplierClientsGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get <id>",
+		Short:   "Get a specific client the authenticated company accounts supply to.",
+		Example: "  worksome supplier-clients get <id>",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			vars["id"] = args[0]
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "SupplierClient", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SupplierClient(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, supplierclientsColumns)
+		},
+	}
+
+	return cmd
+}
+
+func newSupplierClientsListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "Get a list of clients the authenticated company accounts supply to. The supplier-side view of the same rows companySuppliers reads from the client side.",
+		Example: "  worksome supplier-clients list -n 20\n  worksome supplier-clients list --all\n  worksome supplier-clients list --watch\n  worksome supplier-clients list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("client-regions") {
+				raw, _ := cmd.Flags().GetString("client-regions")
+				v, err := jsonArg("client-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["clientRegions"] = v
+			}
+			if cmd.Flags().Changed("created-at-date-range") {
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["createdAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("payment-terms-follows-client") {
+				v, _ := cmd.Flags().GetBool("payment-terms-follows-client")
+				vars["paymentTermsFollowsClient"] = v
+			}
+			if cmd.Flags().Changed("has-linked-staffing-agencies") {
+				v, _ := cmd.Flags().GetBool("has-linked-staffing-agencies")
+				vars["hasLinkedStaffingAgencies"] = v
+			}
+			if cmd.Flags().Changed("linked-staffing-agencies") {
+				v, _ := cmd.Flags().GetStringSlice("linked-staffing-agencies")
+				vars["linkedStaffingAgencies"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[ClientRelationOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "SupplierClients", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return supplierclientsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.SupplierClients(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["supplierClients"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["supplierClients"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, supplierclientsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only show the clients of these supplier company accounts. Without it, clients of every supplier company the viewer belongs to are shown.")
+	cmd.Flags().String("search", "", "Search clients by company name.")
+	cmd.Flags().String("client-regions", "", "Filter clients by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
+	cmd.Flags().String("created-at-date-range", "", "Only show clients whose relationship was established within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().Bool("payment-terms-follows-client", false, "Only show clients whose supplier hires copy (or do not copy) the client's payment terms.")
+	cmd.Flags().Bool("has-linked-staffing-agencies", false, "Only show clients with (or without) staffing agencies linked to them by the supplier.")
+	cmd.Flags().StringSlice("linked-staffing-agencies", nil, "Only show clients linked to any of the given staffing-agency relations.")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationOrderByClauseInput!], e.g. [{\"field\":\"CLIENT_NAME\",\"order\":\"ASC\"}]; field: CLIENT_NAME | CLIENT_LOCATION | CLIENT_SINCE | HIRES | LINKED_STAFFING_AGENCIES; order: ASC | DESC)")
+
+	return cmd
+}
+
+func supplierclientsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.SupplierClients(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["supplierClients"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, supplierclientsColumns)
 }
 
 var suppliersharedcustomfieldsColumns = []output.Column{
@@ -18633,11 +19372,11 @@ var viewerColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Name", Field: "name"},
 	{Header: "Email", Field: "email"},
+	{Header: "Phone", Field: "phone"},
 	{Header: "Avatar", Field: "avatar"},
 	{Header: "Has Consented To Worksome Intelligence", Field: "hasConsentedToWorksomeIntelligence"},
 	{Header: "Can Create Password", Field: "canCreatePassword"},
 	{Header: "Missing Authentication", Field: "missingAuthentication"},
-	{Header: "Has Verified Email", Field: "hasVerifiedEmail"},
 }
 
 // NewViewerCmd creates the viewer resource command.
@@ -20196,6 +20935,88 @@ func newWorkerIdentificationUpdateCmd() *cobra.Command {
 	cmd.RegisterFlagCompletionFunc("document-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"PASSPORT", "NATIONAL_ID_CARD", "RESIDENCE_PERMIT"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	return cmd
+}
+
+// NewWorkerRightToWorkDocumentCmd creates the worker-right-to-work-document resource command.
+func NewWorkerRightToWorkDocumentCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "worker-right-to-work-document",
+		Short: "Remove a right-to-work document.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newWorkerRightToWorkDocumentDeleteCmd())
+
+	return cmd
+}
+
+func newWorkerRightToWorkDocumentDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "delete",
+		Short:   "Remove a right-to-work document. Soft-deleted, so the audit trail is kept.",
+		Example: "  # Using a JSON input file:\n  worksome worker-right-to-work-document delete --input payload.json\n\n  # Using flags:\n  worksome worker-right-to-work-document delete --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\"\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "DeleteWorkerRightToWorkDocument", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.DeleteWorkerRightToWorkDocument(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, nil)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("id", "", "The document to remove.")
 	return cmd
 }
 
