@@ -173,6 +173,7 @@ func newRootCmd() *cobra.Command {
 	// Register built-in commands
 	rootCmd.AddCommand(newAuthCmd())
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newCompletionCmd())
 
 	// Register all generated resource commands
@@ -215,7 +216,7 @@ func newRootCmd() *cobra.Command {
 		switch {
 		case name == "auth":
 			cmd.GroupID = "auth"
-		case name == "version" || name == "completion" || name == "help":
+		case name == "version" || name == "status" || name == "completion" || name == "help":
 			// leave ungrouped
 		case coreResources[name]:
 			cmd.GroupID = "core"

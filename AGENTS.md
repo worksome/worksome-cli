@@ -21,6 +21,7 @@ To change generated code, modify the **templates** in `internal/codegen/generato
 ### Hand-Written
 - `cmd/worksome/main.go` — Root command, global flags, client factory
 - `cmd/worksome/auth.go` — Auth login/status/switch commands
+- `cmd/worksome/status.go` — `worksome status`, summarises status.worksome.com (Oh Dear JSON feed)
 - `cmd/generate/main.go` — Codegen tool entrypoint
 - `internal/client/` — GraphQL HTTP client, retry, pagination
 - `internal/config/` — Profile management, token resolution
@@ -98,6 +99,7 @@ Tests are in:
 - `internal/client/client_test.go` — HTTP client, retries, pagination
 - `internal/config/config_test.go` — Config load/save, token precedence
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
+- `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
 
 ## Style
 
