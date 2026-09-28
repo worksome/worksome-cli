@@ -7,6 +7,7 @@ on:
     branches: [main]
   # For the schema drift job: its pushes use GITHUB_TOKEN, which never triggers
   # pull_request, so it dispatches this workflow on the drift branch instead.
+  # See the `report` job for how the result reaches the drift PR.
   workflow_dispatch:
 
 # CI only reads the repo. The org default is write, which CI does not need.
@@ -52,3 +53,24 @@ jobs:
           # Exact, like the action SHA above: v2.11 floated onto v2.11.4, which
           # reported SA5011 against untouched test code and turned main red.
           version: v2.13.2
+
+  # Checks from a workflow_dispatch run are not attached to any PR, so on the
+  # schema drift PR `test` and `lint` would not show. A commit status shows on
+  # every PR whose head is that commit, whatever triggered the run. It replaces
+  # the pending status the drift job set, under the same context.
+  report:
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Report the result as a commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ (needs.test.result == 'success' && needs.lint.result == 'success') && 'success' || 'failure' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$STATE" -f context='CI (dispatched)' \
+            -f description='test and lint' -f target_url="$RUN_URL"
