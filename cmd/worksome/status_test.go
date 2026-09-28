@@ -61,3 +61,11 @@ func TestFetchStatusRejectsNon200(t *testing.T) {
 		t.Fatalf("err = %v, want HTTP 502", err)
 	}
 }
+
+func TestStatusRejectsNegativeTimeout(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"status", "--timeout", "-1"})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "non-negative") {
+		t.Fatalf("err = %v, want non-negative timeout error", err)
+	}
+}

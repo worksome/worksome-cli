@@ -186,7 +186,7 @@ and when `WORKSOME_NO_UPDATE_CHECK` is set to anything.
 ## Service Status
 
 ```bash
-worksome status           # Overall status, per-service monitors, last 7 days of updates
+worksome status           # Overall status, per-service monitors, recent updates
 worksome status -o json   # Same summary as JSON, for scripts and agents
 ```
 

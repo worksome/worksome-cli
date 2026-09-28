@@ -50,8 +50,12 @@ func newStatusCmd() *cobra.Command {
 		Short: "Show the Worksome service status from status.worksome.com",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			timeout, _ := cmd.Root().PersistentFlags().GetInt("timeout")
+			if timeout < 0 {
+				return fmt.Errorf("--timeout must be non-negative (got %d)", timeout)
+			}
 			ctx := cmd.Context()
-			if timeout, _ := cmd.Root().PersistentFlags().GetInt("timeout"); timeout > 0 {
+			if timeout > 0 {
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 				defer cancel()
@@ -96,7 +100,7 @@ func fetchStatus(ctx context.Context, url string) (*statusSummary, error) {
 	return summarize(feed), nil
 }
 
-// summarize flattens the feed's map-keyed groups and days into stable, sorted lists.
+// summarize flattens the feed's maps into lists: groups alphabetical, monitors in page order, days newest first.
 func summarize(feed statusFeed) *statusSummary {
 	s := &statusSummary{Status: feed.SummarizedStatus, Pinned: feed.PinnedUpdate, Monitors: []statusMonitor{}, Updates: []statusUpdate{}}
 
@@ -144,7 +148,7 @@ func formatStatus(s *statusSummary) string {
 		fmt.Fprintf(&w, "  %-6s %s\n", m.Status, m.Label)
 	}
 
-	fmt.Fprintln(&w, "\nRecent updates (last 7 days):")
+	fmt.Fprintln(&w, "\nRecent updates:")
 	if len(s.Updates) == 0 {
 		fmt.Fprintln(&w, "  none")
 	}
