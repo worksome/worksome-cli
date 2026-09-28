@@ -51,6 +51,20 @@ func TestFetchStatusSummarizesFeed(t *testing.T) {
 	}
 }
 
+func TestFetchStatusRejectsFeedWithoutStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.UserAgent(), "worksome-cli/") {
+			t.Errorf("User-Agent = %q", r.UserAgent())
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	if _, err := fetchStatus(context.Background(), srv.URL); err == nil || !strings.Contains(err.Error(), "summarizedStatus") {
+		t.Fatalf("err = %v, want missing summarizedStatus", err)
+	}
+}
+
 func TestFetchStatusRejectsNon200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

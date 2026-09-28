@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/worksome/worksome-cli/internal/client"
 )
 
 // statusURL is the public Oh Dear JSON feed behind status.worksome.com.
@@ -82,7 +83,7 @@ func fetchStatus(ctx context.Context, url string) (*statusSummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "worksome-cli/"+version)
+	req.Header.Set("User-Agent", client.UserAgent(version))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -96,6 +97,10 @@ func fetchStatus(ctx context.Context, url string) (*statusSummary, error) {
 	var feed statusFeed
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&feed); err != nil {
 		return nil, fmt.Errorf("decoding status: %w", err)
+	}
+	// Unknown values pass through so a new Oh Dear status doesn't break the command.
+	if feed.SummarizedStatus == "" {
+		return nil, fmt.Errorf("decoding status: feed has no summarizedStatus")
 	}
 	return summarize(feed), nil
 }
