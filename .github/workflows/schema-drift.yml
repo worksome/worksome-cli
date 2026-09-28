@@ -5,9 +5,11 @@ on:
     - cron: '17 6 * * *'
   workflow_dispatch:
 
-# The PR is opened by DRIFT_PR_TOKEN, so GITHUB_TOKEN only needs to push.
+# The PR is opened by DRIFT_PR_TOKEN, so GITHUB_TOKEN only needs to push and
+# to dispatch CI on what it pushed.
 permissions:
   contents: write
+  actions: write
 
 # Two overlapping runs would force-push the same branch and clobber each
 # other's PR diff.
@@ -82,6 +84,11 @@ jobs:
           git commit -m 'chore: sync schema with production API'
           git push -f "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}" \
             HEAD:chore/schema-sync
+          # A GITHUB_TOKEN push triggers no workflows, so without this the drift
+          # PR shows no CI and a sync that breaks the build looks mergeable (#60
+          # sat untested for ten days). workflow_dispatch is the exception to
+          # that rule, and the run reports its checks on the pushed commit.
+          GH_TOKEN="$PUSH_TOKEN" gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref chore/schema-sync
           # Reuses one branch, so a second run updates the open PR instead of opening another.
           existing=$(gh pr list --head chore/schema-sync --state open --json number --jq '.[].number')
           if [ -n "$existing" ]; then

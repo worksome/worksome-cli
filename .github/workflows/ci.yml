@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # For the schema drift job: its pushes use GITHUB_TOKEN, which never triggers
+  # pull_request, so it dispatches this workflow on the drift branch instead.
+  workflow_dispatch:
 
 # CI only reads the repo. The org default is write, which CI does not need.
 permissions:
