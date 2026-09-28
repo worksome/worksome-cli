@@ -183,6 +183,16 @@ stdout and stderr are terminals, so piped output, scripts and non-interactive
 containers never see it and never pay for it. It is also skipped when `CI` is set, on `dev` builds,
 and when `WORKSOME_NO_UPDATE_CHECK` is set to anything.
 
+## Service Status
+
+```bash
+worksome status           # Overall status, per-service monitors, last 7 days of updates
+worksome status -o json   # Same summary as JSON, for scripts and agents
+```
+
+Reads the public feed behind [status.worksome.com](https://status.worksome.com);
+no authentication needed.
+
 ## Quick Start
 
 ```bash
