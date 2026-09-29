@@ -1173,8 +1173,8 @@ type OrderByClause struct {
 type OwnerInput struct {
 	// The user to assign as an owner.
 	User string `json:"user"`
-	// The part this person plays on the record, e.g. the primary contact.
-	Role *OwnerRole `json:"role,omitempty"`
+	// What this person looks after on the record. Grants no permissions.
+	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
 }
 
 // PaymentRequestOrderByClauseInput — Payment request sorting clause input.

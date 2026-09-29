@@ -685,6 +685,8 @@ type CompanySupplier struct {
 	Supplier *Account `json:"supplier,omitempty"`
 	// The supplier-side team members assigned to this client relationship.
 	Owners []*Owner `json:"owners"`
+	// Whether the viewer may change the owners of this client relationship: the account owner or an admin on the supplier company.
+	ViewerCanManageOwners bool `json:"viewerCanManageOwners"`
 	// The custom field values the supplier stores about this client relationship. Only readable by the supplier that owns the fields; empty for the client.
 	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
 	// When the client relationship was established.
@@ -2128,14 +2130,16 @@ type OvertimePaginator struct {
 	Data []*Overtime `json:"data"`
 }
 
-// Owner — A user assigned as an owner of a record, and the part they play on it.
+// Owner — A user assigned as an owner of a record, and what they look after on it.
 type Owner struct {
-	// The owner's user ID.
+	// The ID of this assignment: one per user per record.
 	Id string `json:"id"`
-	// The owner's name.
-	Name string `json:"name"`
-	// The part this person plays on the record, e.g. the primary contact.
-	Role *OwnerRole `json:"role,omitempty"`
+	// The user who owns the record.
+	User *User `json:"user"`
+	// What this person looks after on the record. Grants no permissions.
+	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
+	// When the user was assigned.
+	AssignedAt *string `json:"assignedAt,omitempty"`
 }
 
 // PaginatorInfo — Information about pagination using a fully featured paginator.

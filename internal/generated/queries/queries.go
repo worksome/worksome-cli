@@ -649,7 +649,7 @@ func (q *Querier) UpdateCompanyRecruiter(ctx context.Context, vars map[string]an
 // UpdateCompanySupplierOwners — Replace the set of supplier team members assigned to this client relationship. Only full-access users (account owner or admin) on the supplier account can change assignments, and every assignee must be a member of that account.
 func (q *Querier) UpdateCompanySupplierOwners(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation UpdateCompanySupplierOwners($input: UpdateCompanySupplierOwnersInput!) {
-	updateCompanySupplierOwners(input: $input) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
+	updateCompanySupplierOwners(input: $input) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id } viewerCanManageOwners customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)
@@ -667,7 +667,7 @@ func (q *Querier) UpdateCompanySupplierOwners(ctx context.Context, vars map[stri
 // CompanySupplier — Get a specific company supplier.
 func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySupplier($id: ID!) {
-	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
+	companySupplier(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id } viewerCanManageOwners customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"linkedStaffingAgencies": "linkedStaffingAgencies { paginatorInfo { total } data { id email status } }"}, vars, &result)
@@ -685,7 +685,7 @@ func (q *Querier) CompanySupplier(ctx context.Context, vars map[string]any) (map
 // CompanySuppliers — Get a list of company suppliers for the authenticated company accounts.
 func (q *Querier) CompanySuppliers(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query CompanySuppliers($accounts: [ID!], $search: String, $first: Int! = 10, $page: Int) {
-	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt } }
+	companySuppliers(accounts: $accounts, search: $search, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id } viewerCanManageOwners customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"linkedStaffingAgencies": "linkedStaffingAgencies { paginatorInfo { total } data { id email status } }"}, vars, &result)
@@ -2712,7 +2712,7 @@ func (q *Querier) UpdateSupplierClientLinks(ctx context.Context, vars map[string
 // SupplierClient — Get a specific client the authenticated company accounts supply to.
 func (q *Querier) SupplierClient(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query SupplierClient($id: ID!) {
-	supplierClient(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
+	supplierClient(id: $id) { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id } viewerCanManageOwners customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"linkedStaffingAgencies": "linkedStaffingAgencies { paginatorInfo { total } data { id email status } }"}, vars, &result)
@@ -2729,8 +2729,8 @@ func (q *Querier) SupplierClient(ctx context.Context, vars map[string]any) (map[
 
 // SupplierClients — Get a list of clients the authenticated company accounts supply to. The supplier-side view of the same rows companySuppliers reads from the client side.
 func (q *Querier) SupplierClients(ctx context.Context, vars map[string]any) (map[string]any, error) {
-	query := `query SupplierClients($accounts: [ID!], $search: String, $clientRegions: MarketRegionInput, $createdAtDateRange: DateRangeInput, $paymentTermsFollowsClient: Boolean, $hasLinkedStaffingAgencies: Boolean, $linkedStaffingAgencies: [ID!], $orderBy: [ClientRelationOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	supplierClients(accounts: $accounts, search: $search, clientRegions: $clientRegions, createdAtDateRange: $createdAtDateRange, paymentTermsFollowsClient: $paymentTermsFollowsClient, hasLinkedStaffingAgencies: $hasLinkedStaffingAgencies, linkedStaffingAgencies: $linkedStaffingAgencies, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id name } customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt } }
+	query := `query SupplierClients($accounts: [ID!], $search: String, $clientRegions: MarketRegionInput, $createdAtDateRange: DateRangeInput, $paymentTermsFollowsClient: Boolean, $hasLinkedStaffingAgencies: Boolean, $linkedStaffingAgencies: [ID!], $owners: [ID!], $orderBy: [ClientRelationOrderByClauseInput!], $first: Int! = 10, $page: Int) {
+	supplierClients(accounts: $accounts, search: $search, clientRegions: $clientRegions, createdAtDateRange: $createdAtDateRange, paymentTermsFollowsClient: $paymentTermsFollowsClient, hasLinkedStaffingAgencies: $hasLinkedStaffingAgencies, linkedStaffingAgencies: $linkedStaffingAgencies, owners: $owners, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id company { id name currency market avatar } supplier { __typename id name avatar } owners { id } viewerCanManageOwners customFieldValues { id } createdAt paymentTermsFollowsClient invoiceBatchingCadenceFollowsClient paymentTerm paymentTermMethod viewerCanManageStaffingAgencies hiresCount workersCount firstHireStartedAt } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteWithOptional(ctx, query, map[string]string{"linkedStaffingAgencies": "linkedStaffingAgencies { paginatorInfo { total } data { id email status } }"}, vars, &result)

@@ -3228,24 +3228,24 @@ func ValidOvertimeType() []OvertimeType {
 	}
 }
 
-// OwnerRole — The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
-type OwnerRole string
+// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
+type OwnerResponsibility string
 
 const (
-	// OwnerRolePrimaryContact — Primary contact
-	OwnerRolePrimaryContact OwnerRole = "PRIMARY_CONTACT"
-	// OwnerRoleCompliance — Compliance owner
-	OwnerRoleCompliance OwnerRole = "COMPLIANCE"
-	// OwnerRolePayments — Payments owner
-	OwnerRolePayments OwnerRole = "PAYMENTS"
+	// OwnerResponsibilityPrimaryContact — Primary contact
+	OwnerResponsibilityPrimaryContact OwnerResponsibility = "PRIMARY_CONTACT"
+	// OwnerResponsibilityCompliance — Compliance
+	OwnerResponsibilityCompliance OwnerResponsibility = "COMPLIANCE"
+	// OwnerResponsibilityPayments — Payments
+	OwnerResponsibilityPayments OwnerResponsibility = "PAYMENTS"
 )
 
-// ValidOwnerRole returns all valid values for OwnerRole.
-func ValidOwnerRole() []OwnerRole {
-	return []OwnerRole{
-		OwnerRolePrimaryContact,
-		OwnerRoleCompliance,
-		OwnerRolePayments,
+// ValidOwnerResponsibility returns all valid values for OwnerResponsibility.
+func ValidOwnerResponsibility() []OwnerResponsibility {
+	return []OwnerResponsibility{
+		OwnerResponsibilityPrimaryContact,
+		OwnerResponsibilityCompliance,
+		OwnerResponsibilityPayments,
 	}
 }
 
@@ -4229,6 +4229,8 @@ const (
 	WebhookEventTypeInvoicePaid WebhookEventType = "INVOICE_PAID"
 	// WebhookEventTypeCreditNoteCreated — Triggered when a credit note is created.
 	WebhookEventTypeCreditNoteCreated WebhookEventType = "CREDIT_NOTE_CREATED"
+	// WebhookEventTypeClassificationAccepted — Triggered when a worker classification is accepted.
+	WebhookEventTypeClassificationAccepted WebhookEventType = "CLASSIFICATION_ACCEPTED"
 )
 
 // ValidWebhookEventType returns all valid values for WebhookEventType.
@@ -4251,6 +4253,7 @@ func ValidWebhookEventType() []WebhookEventType {
 		WebhookEventTypeInvoiceCreated,
 		WebhookEventTypeInvoicePaid,
 		WebhookEventTypeCreditNoteCreated,
+		WebhookEventTypeClassificationAccepted,
 	}
 }
 

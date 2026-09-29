@@ -2374,6 +2374,11 @@ type CompanySupplier {
   """
   owners: [Owner!]!
   """
+  Whether the viewer may change the owners of this client relationship: the account owner or an
+  admin on the supplier company.
+  """
+  viewerCanManageOwners: Boolean!
+  """
   The custom field values the supplier stores about this client relationship.
   
   Only readable by the supplier that owns the fields; empty for the client.
@@ -11493,21 +11498,25 @@ enum OvertimeType {
   SEVENTH_DAY
 }
 """
-A user assigned as an owner of a record, and the part they play on it.
+A user assigned as an owner of a record, and what they look after on it.
 """
 type Owner {
   """
-  The owner's user ID.
+  The ID of this assignment: one per user per record.
   """
   id: ID!
   """
-  The owner's name.
+  The user who owns the record.
   """
-  name: String!
+  user: User!
   """
-  The part this person plays on the record, e.g. the primary contact.
+  What this person looks after on the record. Grants no permissions.
   """
-  role: OwnerRole
+  responsibility: OwnerResponsibility
+  """
+  When the user was assigned.
+  """
+  assignedAt: DateTime
 }
 """
 One user's owner assignment on a record.
@@ -11518,24 +11527,24 @@ input OwnerInput {
   """
   user: ID!
   """
-  The part this person plays on the record, e.g. the primary contact.
+  What this person looks after on the record. Grants no permissions.
   """
-  role: OwnerRole
+  responsibility: OwnerResponsibility
 }
 """
-The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
+What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
 """
-enum OwnerRole {
+enum OwnerResponsibility {
   """
   Primary contact
   """
   PRIMARY_CONTACT
   """
-  Compliance owner
+  Compliance
   """
   COMPLIANCE
   """
-  Payments owner
+  Payments
   """
   PAYMENTS
 }
@@ -13229,6 +13238,11 @@ type Query {
     Only show clients linked to any of the given staffing-agency relations.
     """
     linkedStaffingAgencies: [ID!]
+
+    """
+    Only show clients owned by any of the given users.
+    """
+    owners: [ID!]
 
     """
     Supply a list of column/order pairs for sorting, applied in the provided order.
@@ -18291,6 +18305,10 @@ enum WebhookEventType {
   Triggered when a credit note is created.
   """
   CREDIT_NOTE_CREATED
+  """
+  Triggered when a worker classification is accepted.
+  """
+  CLASSIFICATION_ACCEPTED
 }
 """
 A paginated list of Webhook items.
