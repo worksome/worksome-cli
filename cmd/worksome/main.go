@@ -12,6 +12,7 @@ import (
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
 	"github.com/worksome/worksome-cli/internal/generated/commands"
+	"github.com/worksome/worksome-cli/internal/oauth"
 	"github.com/worksome/worksome-cli/internal/output"
 	"github.com/worksome/worksome-cli/internal/update"
 )
@@ -137,11 +138,27 @@ func newRootCmd() *cobra.Command {
 
 		cfg.CurrentProfile = cfg.ResolveProfile(profileFlag)
 
+		// A browser-login session renews itself. Only the profile's own
+		// token is ever refreshed: a token from --token or the environment
+		// belongs to whoever put it there.
+		if tokenFlag == "" && os.Getenv("WORKSOME_API_TOKEN") == "" {
+			if p, ok := cfg.ActiveProfile(); ok && oauth.NeedsRefresh(p, time.Now()) {
+				if err := oauth.RefreshProfile(context.Background(), oauthConfig(), &p); err != nil {
+					return nil, fmt.Errorf("%w. Run 'worksome auth login' to sign in again", err)
+				}
+				cfg.Profiles[cfg.CurrentProfile] = p
+				if err := cfg.Save(); err != nil {
+					// The renewed token still works for this run; only its persistence failed.
+					fmt.Fprintf(os.Stderr, "warning: session renewed but could not be saved: %v\n", err)
+				}
+			}
+		}
+
 		token := cfg.ResolveToken(tokenFlag)
 		endpoint := cfg.ResolveEndpoint(endpointFlag)
 
 		if token == "" {
-			return nil, fmt.Errorf("no API token configured. Run 'worksome auth login' to set up authentication")
+			return nil, fmt.Errorf("no credentials configured. Run 'worksome auth login' to sign in")
 		}
 
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
