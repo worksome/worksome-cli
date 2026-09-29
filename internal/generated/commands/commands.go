@@ -4378,7 +4378,7 @@ var companysupplierownersUpdateColumns = []output.Column{
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
 	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
@@ -4386,7 +4386,7 @@ func newCompanySupplierOwnersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Replace the set of supplier team members assigned to this client relationship. Only full-access users (account owner or admin) on the supplier account can change assignments, and every assignee must be a member of that account.",
-		Example: "  # Using a JSON input file:\n  worksome company-supplier-owners update --input payload.json\n\n  # Using flags:\n  worksome company-supplier-owners update --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"owners\": [\n      {\n        \"role\": \"PRIMARY_CONTACT\",\n        \"user\": \"<id>\"\n      }\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-supplier-owners update --input payload.json\n\n  # Using flags:\n  worksome company-supplier-owners update --id \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"id\": \"<id>\",\n    \"owners\": [\n      {\n        \"responsibility\": \"PRIMARY_CONTACT\",\n        \"user\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4455,7 +4455,7 @@ var companysuppliersColumns = []output.Column{
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
 	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
@@ -16816,7 +16816,7 @@ var supplierclientsColumns = []output.Column{
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Owners Name", Field: "owners.name"},
+	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
 	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
@@ -16939,6 +16939,10 @@ func newSupplierClientsListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("linked-staffing-agencies")
 				vars["linkedStaffingAgencies"] = v
 			}
+			if cmd.Flags().Changed("owners") {
+				v, _ := cmd.Flags().GetStringSlice("owners")
+				vars["owners"] = v
+			}
 			if cmd.Flags().Changed("order-by") {
 				raw, _ := cmd.Flags().GetString("order-by")
 				v, err := jsonArg("order-by", "[ClientRelationOrderByClauseInput!]", raw)
@@ -17024,6 +17028,7 @@ func newSupplierClientsListCmd() *cobra.Command {
 	cmd.Flags().Bool("payment-terms-follows-client", false, "Only show clients whose supplier hires copy (or do not copy) the client's payment terms.")
 	cmd.Flags().Bool("has-linked-staffing-agencies", false, "Only show clients with (or without) staffing agencies linked to them by the supplier.")
 	cmd.Flags().StringSlice("linked-staffing-agencies", nil, "Only show clients linked to any of the given staffing-agency relations.")
+	cmd.Flags().StringSlice("owners", nil, "Only show clients owned by any of the given users.")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationOrderByClauseInput!], e.g. [{\"field\":\"CLIENT_NAME\",\"order\":\"ASC\"}]; field: CLIENT_NAME | CLIENT_LOCATION | CLIENT_SINCE | HIRES | LINKED_STAFFING_AGENCIES; order: ASC | DESC)")
 
 	return cmd
