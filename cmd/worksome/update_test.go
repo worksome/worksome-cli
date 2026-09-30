@@ -44,6 +44,24 @@ func TestUpdateRefusesManualInstall(t *testing.T) {
 	}
 }
 
+func TestUpdateDryRunRunsNothing(t *testing.T) {
+	stubUpgrade(t, []string{"brew", "upgrade", "--cask", "worksome"}, func(*cobra.Command, []string) error {
+		t.Fatal("--dry-run must not run the upgrade")
+		return nil
+	})
+
+	root := newRootCmd()
+	var stderr bytes.Buffer
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"update", "--dry-run"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr.String(), "Would run: brew upgrade --cask worksome") {
+		t.Errorf("stderr = %q, want the command it would run", stderr.String())
+	}
+}
+
 func stubUpgrade(t *testing.T, argv []string, run func(*cobra.Command, []string) error) {
 	t.Helper()
 	origCmd, origRun := upgradeCommand, runUpgrade

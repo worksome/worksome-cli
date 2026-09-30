@@ -34,6 +34,10 @@ download has to be upgraded by downloading the latest release again.`,
 			if argv == nil {
 				return fmt.Errorf("this install can't be upgraded automatically; download the latest release from %s", update.UpgradeHint())
 			}
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Would run: %s\n", strings.Join(argv, " "))
+				return nil
+			}
 			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Running: %s\n", strings.Join(argv, " "))
 			if err := runUpgrade(cmd, argv); err != nil {
 				return fmt.Errorf("%s: %w", argv[0], err)

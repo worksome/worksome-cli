@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// The notice would be stale straight after an upgrade.
-	if ran.Name() != "update" {
+	if ran.CommandPath() != "worksome update" {
 		printUpdateNotice(latest)
 	}
 }
