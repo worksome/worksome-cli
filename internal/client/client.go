@@ -102,7 +102,7 @@ func New(endpoint, token string, opts ...Option) *Client {
 		opt(c)
 	}
 	if c.userAgent == "" {
-		c.userAgent = "worksome-cli"
+		c.userAgent = clientName
 	}
 	if c.warnw == nil {
 		c.warnw = os.Stderr
@@ -421,10 +421,47 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected status %d: %s", e.StatusCode, e.Body)
 }
 
+// Client names reported to the API. The introspection tool gets one of its own
+// so the usage dashboard can tell the nightly schema-drift run apart from human
+// CLI use rather than lumping both under one client.
+const (
+	clientName           = "worksome-cli"
+	introspectClientName = clientName + "-introspect"
+)
+
 // UserAgent identifies the CLI and its platform to the API. Every client.New
 // caller needs it: an unversioned agent also drops the Apollo client-version.
 func UserAgent(version string) string {
-	return fmt.Sprintf("worksome-cli/%s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+	return agent(clientName, version)
+}
+
+// IntrospectUserAgent identifies cmd/introspect, which builds its own request
+// rather than going through Client, so that its traffic is attributed to this
+// tooling instead of Go's default agent.
+func IntrospectUserAgent(version string) string {
+	return agent(introspectClientName, version)
+}
+
+func agent(name, version string) string {
+	return fmt.Sprintf("%s/%s (%s/%s)", name, version, runtime.GOOS, runtime.GOARCH)
+}
+
+// SetIdentityHeaders labels req as coming from this tooling. Callers that build
+// their own request — cmd/introspect — go through here so every call path
+// identifies itself the same way, and so a header added here reaches all of
+// them.
+func SetIdentityHeaders(req *http.Request, userAgent string) {
+	req.Header.Set("User-Agent", userAgent)
+
+	// Apollo client awareness: the gateway tags its spans with these, and it
+	// replaces the User-Agent before the API sees it.
+	name, ver := clientNameVersion(userAgent)
+	if name != "" {
+		req.Header.Set("apollographql-client-name", name)
+	}
+	if ver != "" {
+		req.Header.Set("apollographql-client-version", ver)
+	}
 }
 
 // clientNameVersion splits a User-Agent such as "worksome-cli/0.7.0 (darwin/arm64)"
@@ -445,17 +482,7 @@ func (c *Client) doRequest(ctx context.Context, payload []byte) ([]byte, error) 
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("User-Agent", c.userAgent)
-
-	// Apollo client awareness: the gateway tags its spans with these, and it
-	// replaces the User-Agent before the API sees it.
-	name, ver := clientNameVersion(c.userAgent)
-	if name != "" {
-		req.Header.Set("apollographql-client-name", name)
-	}
-	if ver != "" {
-		req.Header.Set("apollographql-client-version", ver)
-	}
+	SetIdentityHeaders(req, c.userAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

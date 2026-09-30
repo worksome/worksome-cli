@@ -957,3 +957,59 @@ func TestExecute_OmitsEmptyClientAwarenessHeaders(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 }
+
+// cmd/introspect is scheduled tooling, not a person at a terminal, so it gets a
+// client name of its own — the usage dashboard cannot otherwise tell the nightly
+// schema-drift run apart from human CLI use.
+func TestIntrospectUserAgentIsADistinctClient(t *testing.T) {
+	ua := IntrospectUserAgent("0.7.0")
+
+	name, ver := clientNameVersion(ua)
+	if name != "worksome-cli-introspect" {
+		t.Errorf("clientNameVersion(IntrospectUserAgent(...)) name = %q, want worksome-cli-introspect", name)
+	}
+	if ver != "0.7.0" {
+		t.Errorf("clientNameVersion(IntrospectUserAgent(...)) version = %q, want 0.7.0", ver)
+	}
+	if cliName, _ := clientNameVersion(UserAgent("0.7.0")); name == cliName {
+		t.Errorf("introspection reports the same client name as the CLI: %q", name)
+	}
+	if !strings.Contains(ua, runtime.GOOS) || !strings.Contains(ua, runtime.GOARCH) {
+		t.Errorf("IntrospectUserAgent() = %q, want the platform named as (%s/%s)", ua, runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// Callers outside this package build their own request; SetIdentityHeaders is
+// the one place that decides what identifies it, so doRequest and cmd/introspect
+// cannot drift apart again.
+func TestSetIdentityHeaders(t *testing.T) {
+	req, err := http.NewRequest(http.MethodPost, "https://example.test/graphql", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+
+	SetIdentityHeaders(req, "worksome-cli-introspect/0.7.0 (linux/amd64)")
+
+	if got := req.Header.Get("User-Agent"); got != "worksome-cli-introspect/0.7.0 (linux/amd64)" {
+		t.Errorf("User-Agent = %q", got)
+	}
+	if got := req.Header.Get("apollographql-client-name"); got != "worksome-cli-introspect" {
+		t.Errorf("client-name = %q, want worksome-cli-introspect", got)
+	}
+	if got := req.Header.Get("apollographql-client-version"); got != "0.7.0" {
+		t.Errorf("client-version = %q, want 0.7.0", got)
+	}
+
+	// A nameless agent must not put empty client-awareness headers on the wire.
+	bare, err := http.NewRequest(http.MethodPost, "https://example.test/graphql", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	SetIdentityHeaders(bare, " ")
+	if _, ok := bare.Header["Apollographql-Client-Name"]; ok {
+		t.Errorf("client-name header set for a nameless agent")
+	}
+	if _, ok := bare.Header["Apollographql-Client-Version"]; ok {
+		t.Errorf("client-version header set for a versionless agent")
+	}
+}

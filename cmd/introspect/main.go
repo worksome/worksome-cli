@@ -15,6 +15,9 @@ import (
 
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/formatter"
+
+	"github.com/worksome/worksome-cli/internal/buildinfo"
+	"github.com/worksome/worksome-cli/internal/client"
 )
 
 // introspectionQuery is the standard full introspection query.
@@ -245,6 +248,8 @@ func fetchIntrospection(endpoint, token string) (*introspectionSchema, error) {
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+
+	client.SetIdentityHeaders(req, client.IntrospectUserAgent(buildinfo.Version))
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	resp, err := httpClient.Do(req)

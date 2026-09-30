@@ -51,6 +51,10 @@ should rarely need to run this by hand. If
 introspection ever becomes authenticated, `make sync-schema` fails with an
 `HTTP 401` and honours `WORKSOME_API_TOKEN` again.
 
+Introspection identifies itself to the API as `worksome-cli-introspect`, a
+client name of its own, so scheduled schema syncs can be told apart from human
+CLI use (`worksome-cli`) in the API usage dashboards.
+
 If the API has introduced a scalar we don't know about, generation fails and
 tells you which:
 
