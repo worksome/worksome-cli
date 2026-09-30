@@ -205,16 +205,20 @@ func hintForPath(exe string) string {
 	}
 }
 
+// gopathBin reports whether exe sits where `go install` writes: GOBIN when set, else GOPATH/bin.
 func gopathBin(exe string) bool {
-	dir := os.Getenv("GOPATH")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return false
+	binDir := os.Getenv("GOBIN")
+	if binDir == "" {
+		dir := os.Getenv("GOPATH")
+		if dir == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return false
+			}
+			dir = filepath.Join(home, "go")
 		}
-		dir = filepath.Join(home, "go")
+		binDir = filepath.Join(dir, "bin")
 	}
-	binDir := filepath.Join(dir, "bin")
 	// The executable path has already been through EvalSymlinks, so resolve
 	// this side too or a symlinked prefix (macOS /tmp -> /private/tmp) never
 	// matches.

@@ -83,6 +83,7 @@ func TestSuppressed(t *testing.T) {
 func TestHintForPath(t *testing.T) {
 	gopath := t.TempDir()
 	t.Setenv("GOPATH", gopath)
+	t.Setenv("GOBIN", "")
 
 	tests := map[string]string{
 		filepath.Join("/opt/homebrew/Caskroom/worksome/0.4.1", "worksome"):   "brew upgrade --cask worksome",
@@ -103,6 +104,7 @@ func TestHintForPath(t *testing.T) {
 func TestHintForPathDoesNotMatchSiblingDirectory(t *testing.T) {
 	gopath := t.TempDir()
 	t.Setenv("GOPATH", gopath)
+	t.Setenv("GOBIN", "")
 
 	sibling := gopath + "-other"
 	if got := hintForPath(filepath.Join(sibling, "bin", "worksome")); got != downloadURL {
@@ -253,5 +255,24 @@ func TestNoticeIncludesBothVersions(t *testing.T) {
 	}
 	if strings.Contains(got, "v0.4.1") {
 		t.Errorf("notice should normalise the v prefix, got: %q", got)
+	}
+}
+
+// go install writes to GOBIN when set, so only a binary there can be upgraded that way.
+func TestHintForPathHonoursGOBIN(t *testing.T) {
+	gopath, gobin := t.TempDir(), t.TempDir()
+	t.Setenv("GOPATH", gopath)
+	t.Setenv("GOBIN", gobin)
+	// Callers pass an already-resolved executable; macOS temp dirs sit behind a symlink.
+	gobin, err := filepath.EvalSymlinks(gobin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := hintForPath(filepath.Join(gobin, "worksome")); got != "go install github.com/worksome/worksome-cli/cmd/worksome@latest" {
+		t.Errorf("binary in GOBIN: got %q", got)
+	}
+	if got := hintForPath(filepath.Join(gopath, "bin", "worksome")); got != downloadURL {
+		t.Errorf("binary in GOPATH/bin with GOBIN elsewhere: got %q, want the download link", got)
 	}
 }
