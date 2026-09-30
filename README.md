@@ -169,8 +169,12 @@ worksome version
 ### Upgrading
 
 ```bash
-worksome version --check
+worksome version --check   # Is there a newer release?
+worksome update            # Upgrade with the tool that installed this binary
 ```
+
+`worksome update` runs that upgrade command for you. A downloaded binary can't
+be upgraded in place, so it points you at the latest release instead.
 
 Reports whether a newer release exists and prints the upgrade command for how
 this binary was actually installed — `brew upgrade --cask worksome`, `go install

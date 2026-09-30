@@ -23,7 +23,7 @@ func main() {
 	latest := startUpdateCheck()
 
 	rootCmd := newRootCmd()
-	err := rootCmd.Execute()
+	ran, err := rootCmd.ExecuteC()
 
 	// Report the failure immediately. Waiting on a courtesy check first would
 	// delay the error the user actually needs, by up to the whole fetch budget
@@ -33,7 +33,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	printUpdateNotice(latest)
+	// The notice would be stale straight after an upgrade.
+	if ran.CommandPath() != "worksome update" {
+		printUpdateNotice(latest)
+	}
 }
 
 // startUpdateCheck kicks off the once-a-day release check in the background,
@@ -170,6 +173,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.AddCommand(newAuthCmd())
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newStatusCmd())
+	rootCmd.AddCommand(newUpdateCmd())
 	rootCmd.AddCommand(newCompletionCmd())
 
 	// Register all generated resource commands
@@ -212,7 +216,7 @@ func newRootCmd() *cobra.Command {
 		switch {
 		case name == "auth":
 			cmd.GroupID = "auth"
-		case name == "version" || name == "status" || name == "completion" || name == "help":
+		case name == "version" || name == "status" || name == "update" || name == "completion" || name == "help":
 			// leave ungrouped
 		case coreResources[name]:
 			cmd.GroupID = "core"
