@@ -180,6 +180,14 @@ func UpgradeHint() string {
 	return hintForPath(exe)
 }
 
+// UpgradeCommand returns the argv that upgrades this install, or nil when only a manual download will do.
+func UpgradeCommand() []string {
+	if hint := UpgradeHint(); hint != downloadURL {
+		return strings.Fields(hint)
+	}
+	return nil
+}
+
 const downloadURL = "https://github.com/worksome/worksome-cli/releases/latest"
 
 // hintForPath classifies an already-resolved executable path. Split out from
