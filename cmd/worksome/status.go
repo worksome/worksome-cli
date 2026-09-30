@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/worksome/worksome-cli/internal/buildinfo"
 	"github.com/worksome/worksome-cli/internal/client"
 )
 
@@ -83,7 +84,7 @@ func fetchStatus(ctx context.Context, url string) (*statusSummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", client.UserAgent(version))
+	req.Header.Set("User-Agent", client.UserAgent(buildinfo.Version))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
