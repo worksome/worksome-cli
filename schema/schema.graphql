@@ -8631,7 +8631,7 @@ type Job implements HasURL {
   """
   supplierJob: Job
   """
-  The rate card band that applies to this job.
+  **Experimental.** The rate card band that applies to this job.
   
   A band is the client's internal pricing policy, so it is readable only by the
   client company owning the job, and by a company registered as that client's
