@@ -21639,6 +21639,7 @@ func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 
 var workercustomfieldvaluesUpdateColumns = []output.Column{
 	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
+	{Header: "Custom Field Values Display Value", Field: "customFieldValues.displayValue"},
 }
 
 func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
