@@ -66,6 +66,11 @@ type Notable interface {
 	IsNotable()
 }
 
+// Ownable is a GraphQL union type.
+type Ownable interface {
+	IsOwnable()
+}
+
 // SupportsCustomFieldValue is a GraphQL union type.
 type SupportsCustomFieldValue interface {
 	IsSupportsCustomFieldValue()
@@ -407,6 +412,70 @@ type BusinessEntityPaginator struct {
 	Data []*BusinessEntity `json:"data"`
 }
 
+// Checklist — **Experimental.** A checklist applied to a hire, made from a checklist template.
+type Checklist struct {
+	// The checklist's ID.
+	Id string `json:"id"`
+	// The template this checklist was made from.
+	Template *ChecklistTemplate `json:"template"`
+	// Whether every check is done, or a required check is still pending.
+	Status *ChecklistStatus `json:"status,omitempty"`
+	// How many checks this checklist has, and how far they have got.
+	CheckCounts *ChecklistCheckCounts `json:"checkCounts"`
+	// The checks on this checklist, in the order they were applied.
+	Checks []*ChecklistCheck `json:"checks"`
+	// Whether the viewer may confirm the checks on this checklist or mark them not applicable.
+	ViewerCanDecide bool `json:"viewerCanDecide"`
+}
+
+// ChecklistCheck — **Experimental.** A single check on a checklist, confirmed by a person or marked not applicable.
+type ChecklistCheck struct {
+	// The check's ID.
+	Id string `json:"id"`
+	// The checklist this check belongs to.
+	Checklist *Checklist `json:"checklist"`
+	// What to check, worded as it was when the checklist was applied.
+	Label string `json:"label"`
+	// How to carry out the check, worded as it was when the checklist was applied.
+	HelpText *string `json:"helpText,omitempty"`
+	// Whether this check must be done before the offer can be sent.
+	Blocking bool `json:"blocking"`
+	// Whether this check may be marked not applicable.
+	AllowsNotApplicable bool `json:"allowsNotApplicable"`
+	// How many days a confirmation lasts before the check is due again. Null when it never expires.
+	RepeatsAfterDays *int `json:"repeatsAfterDays,omitempty"`
+	// Whether the check is pending, confirmed or not applicable.
+	State ChecklistCheckState `json:"state"`
+	// The reason given when the check was marked not applicable.
+	NotApplicableReason *string `json:"notApplicableReason,omitempty"`
+	// When the check was last confirmed or marked not applicable.
+	DecidedAt *string `json:"decidedAt,omitempty"`
+	// Who last confirmed the check or marked it not applicable. Null when nobody has, or when that person's account has been deleted.
+	DecidedBy *User `json:"decidedBy,omitempty"`
+}
+
+// ChecklistCheckCounts — **Experimental.** How many checks a checklist has, and how far they have got.
+type ChecklistCheckCounts struct {
+	// How many checks the checklist has.
+	Total int `json:"total"`
+	// How many checks are confirmed or marked not applicable.
+	Done int `json:"done"`
+	// How many checks are marked not applicable.
+	NotApplicable int `json:"notApplicable"`
+	// How many blocking checks are still pending.
+	BlockingPending int `json:"blockingPending"`
+}
+
+// ChecklistTemplate — **Experimental.** A named list of checks that an organisation or company defines once and applies to hires.
+type ChecklistTemplate struct {
+	// The template's ID.
+	Id string `json:"id"`
+	// The template's name.
+	Name string `json:"name"`
+	// The name of the organisation or company that defined this template.
+	OwnerName *string `json:"ownerName,omitempty"`
+}
+
 // Classification — A classification represents a worker classification (SDS/WCR) for a hire. This can be various types of classifications like IR35, US Worker Classification, etc.
 type Classification struct {
 	// The unique identifier of the classification
@@ -719,6 +788,24 @@ type CompanySupplierPaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of CompanySupplier items.
 	Data []*CompanySupplier `json:"data"`
+}
+
+// CompanyTeamMember — One person on a company's team, and whether they own the account or are a member of it.
+type CompanyTeamMember struct {
+	// Identifies this row, not a record: the client company plus the person, so one person on two teams has two IDs. No query or mutation accepts it.
+	Id string `json:"id"`
+	// The person.
+	User *User `json:"user"`
+	// Whether the person owns the company account or is a member of it. Not a permission role.
+	AccountRole CompanyTeamRole `json:"accountRole"`
+}
+
+// CompanyTeamMemberPaginator — A paginated list of CompanyTeamMember items.
+type CompanyTeamMemberPaginator struct {
+	// Pagination information about the list of items.
+	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
+	// A list of CompanyTeamMember items.
+	Data []*CompanyTeamMember `json:"data"`
 }
 
 // Compliance — A compliance requirement that must be met for business processes to proceed.
@@ -1355,6 +1442,10 @@ type Hire struct {
 	HasScheduledChanges bool `json:"hasScheduledChanges"`
 	// If the hire has a signed, future-dated change that is parked awaiting its effective date. When true the change is locked: it can no longer be amended and must be cancelled and re-created to change it.
 	HasSignedScheduledChange bool `json:"hasSignedScheduledChange"`
+	// Dates on which this hire's rate, rate type or currency changed or will change, in date order. Includes a signed scheduled change that hasn't taken effect yet.
+	RateChangeDates []string `json:"rateChangeDates"`
+	// The contract whose rate, rate type and currency applied on the given date, or null when no contract applied on it.
+	ContractForDate *Contract `json:"contractForDate,omitempty"`
 	// The company which the worker will work with.
 	Company *Company `json:"company"`
 	// The job that the hire is on.
@@ -1481,6 +1572,8 @@ type Hire struct {
 	Fees []*Fee `json:"fees"`
 	// The staffing agency's markup fee on this hire, when one applies. Visible only to the staffing agency; null otherwise.
 	MarkupFee *Fee `json:"markupFee,omitempty"`
+	// **Experimental.** The checklists applied to this hire, in the order they were added.
+	Checklists []*Checklist `json:"checklists"`
 	// The contracts for the hire. These are legal documents, however it can contain old contracts and drafts also.
 	Contracts ContractPaginator `json:"contracts"`
 	// The payment requests created on the hire.
@@ -2140,6 +2233,16 @@ type Owner struct {
 	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
 	// When the user was assigned.
 	AssignedAt *string `json:"assignedAt,omitempty"`
+	// The record this person is assigned to as an owner.
+	Owned *Ownable `json:"owned"`
+}
+
+// OwnerPaginator — A paginated list of Owner items.
+type OwnerPaginator struct {
+	// Pagination information about the list of items.
+	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
+	// A list of Owner items.
+	Data []*Owner `json:"data"`
 }
 
 // PaginatorInfo — Information about pagination using a fully featured paginator.
@@ -2203,6 +2306,48 @@ type Partner struct {
 }
 
 func (Partner) IsAccount() {}
+
+// PayItem — **Experimental.** A pay item in a company's or organisation's catalogue, such as a shift premium or a standby allowance.
+type PayItem struct {
+	// The ID of the pay item.
+	Id string `json:"id"`
+	// The account that owns the pay item.
+	Account *Account `json:"account"`
+	// The name of the pay item.
+	Name string `json:"name"`
+	// What kind of pay the pay item is.
+	Role PayItemRole `json:"role"`
+	// How the pay item's price is worked out.
+	Basis PayItemBasis `json:"basis"`
+	// The unit a per-unit pay item is priced in. Absent for flat and percentage pay items.
+	Unit *PayItemUnit `json:"unit,omitempty"`
+	// The name of the unit when the unit is 'OTHER', such as 1,000 words.
+	UnitLabel *string `json:"unitLabel,omitempty"`
+	// The currency a flat or per-unit pay item is priced in. Absent for percentage pay items.
+	Currency *Currency `json:"currency,omitempty"`
+	// Whether the pay item can be used or has been archived.
+	Status PayItemStatus `json:"status"`
+	// The price in force today. Absent when no price has taken effect yet.
+	CurrentPrice *PayItemPrice `json:"currentPrice,omitempty"`
+}
+
+// PayItemPaginator — A paginated list of PayItem items.
+type PayItemPaginator struct {
+	// Pagination information about the list of items.
+	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
+	// A list of PayItem items.
+	Data []*PayItem `json:"data"`
+}
+
+// PayItemPrice — **Experimental.** One version of a pay item's price, in force from its effective date until a later version takes effect.
+type PayItemPrice struct {
+	// The price of a flat or per-unit pay item, in the pay item's currency. Absent for percentage pay items.
+	Amount *float64 `json:"amount,omitempty"`
+	// The price of a percentage pay item. Absent for flat and per-unit pay items.
+	Percentage *float64 `json:"percentage,omitempty"`
+	// The date the price takes effect.
+	EffectiveAt string `json:"effectiveAt"`
+}
 
 // PaymentRequest — A payment request.
 type PaymentRequest struct {

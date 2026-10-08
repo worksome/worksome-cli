@@ -221,11 +221,35 @@ type ChangeEmailInput struct {
 	Email string `json:"email"`
 }
 
+// ClientRelationAgencyOwnerOrderByClauseInput — Sorting clause for the people staffing agencies assign to a client.
+type ClientRelationAgencyOwnerOrderByClauseInput struct {
+	// The field to sort the people by.
+	Field *ClientRelationAgencyOwnerOrderByColumn `json:"field,omitempty"`
+	// The order to sort the people by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
 // ClientRelationOrderByClauseInput — Sorting clause for the supplier's client list.
 type ClientRelationOrderByClauseInput struct {
 	// The field to sort supplier clients by.
 	Field *ClientRelationOrderByColumn `json:"field,omitempty"`
 	// The order to sort supplier clients by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// ClientRelationOwnerOrderByClauseInput — Sorting clause for a supplier's own team on a client.
+type ClientRelationOwnerOrderByClauseInput struct {
+	// The field to sort the people by.
+	Field *ClientRelationOwnerOrderByColumn `json:"field,omitempty"`
+	// The order to sort the people by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// ClientRelationTeamOrderByClauseInput — Sorting clause for a client company's team.
+type ClientRelationTeamOrderByClauseInput struct {
+	// The field to sort the team by.
+	Field *ClientRelationTeamOrderByColumn `json:"field,omitempty"`
+	// The order to sort the team by.
 	Order *SortOrder `json:"order,omitempty"`
 }
 
@@ -1329,6 +1353,16 @@ type RunBatchActionInput struct {
 	Scope *BatchActionScopeInput `json:"scope,omitempty"`
 	// If true and the action results in zero items remaining in the batch, delete the batch.
 	DeleteIfEmptied *bool `json:"deleteIfEmptied,omitempty"`
+}
+
+// SetChecklistCheckStateInput — **Experimental.** The input for changing where a check on a checklist stands.
+type SetChecklistCheckStateInput struct {
+	// The check to change.
+	Check string `json:"check"`
+	// The check's new state.
+	State ChecklistCheckState `json:"state"`
+	// Why the check does not apply. Required when marking it not applicable.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // SetInternalBudgetOnJobInput — The input used for setting the internal budget on a job.

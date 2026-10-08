@@ -424,6 +424,48 @@ func ValidCandidateSubmissionType() []CandidateSubmissionType {
 	}
 }
 
+// ChecklistCheckState — **Experimental.** Where a check on a checklist stands.
+type ChecklistCheckState string
+
+const (
+	// ChecklistCheckStatePending — Still to be confirmed or marked not applicable.
+	ChecklistCheckStatePending ChecklistCheckState = "PENDING"
+	// ChecklistCheckStateConfirmed — Someone looked at the evidence and confirmed the check.
+	ChecklistCheckStateConfirmed ChecklistCheckState = "CONFIRMED"
+	// ChecklistCheckStateNotApplicable — Someone judged that the check does not apply here, and gave a reason.
+	ChecklistCheckStateNotApplicable ChecklistCheckState = "NOT_APPLICABLE"
+)
+
+// ValidChecklistCheckState returns all valid values for ChecklistCheckState.
+func ValidChecklistCheckState() []ChecklistCheckState {
+	return []ChecklistCheckState{
+		ChecklistCheckStatePending,
+		ChecklistCheckStateConfirmed,
+		ChecklistCheckStateNotApplicable,
+	}
+}
+
+// ChecklistStatus — **Experimental.** Whether the checks on a checklist are done.
+type ChecklistStatus string
+
+const (
+	// ChecklistStatusComplete — Every check has been confirmed or marked not applicable.
+	ChecklistStatusComplete ChecklistStatus = "COMPLETE"
+	// ChecklistStatusBlocked — A check that blocks progress is still pending.
+	ChecklistStatusBlocked ChecklistStatus = "BLOCKED"
+	// ChecklistStatusOpen — Checks are still pending, but none of them block progress.
+	ChecklistStatusOpen ChecklistStatus = "OPEN"
+)
+
+// ValidChecklistStatus returns all valid values for ChecklistStatus.
+func ValidChecklistStatus() []ChecklistStatus {
+	return []ChecklistStatus{
+		ChecklistStatusComplete,
+		ChecklistStatusBlocked,
+		ChecklistStatusOpen,
+	}
+}
+
 // ClassificationResult — Determination result
 type ClassificationResult string
 
@@ -523,6 +565,27 @@ func ValidClassificationUsage() []ClassificationUsage {
 	}
 }
 
+// ClientRelationAgencyOwnerOrderByColumn — The columns the people staffing agencies assign to a client can be ordered by.
+type ClientRelationAgencyOwnerOrderByColumn string
+
+const (
+	// ClientRelationAgencyOwnerOrderByColumnName — The name of the person.
+	ClientRelationAgencyOwnerOrderByColumnName ClientRelationAgencyOwnerOrderByColumn = "NAME"
+	// ClientRelationAgencyOwnerOrderByColumnAssignedAt — When the person was assigned.
+	ClientRelationAgencyOwnerOrderByColumnAssignedAt ClientRelationAgencyOwnerOrderByColumn = "ASSIGNED_AT"
+	// ClientRelationAgencyOwnerOrderByColumnStaffingAgency — The name of the staffing agency the person works for.
+	ClientRelationAgencyOwnerOrderByColumnStaffingAgency ClientRelationAgencyOwnerOrderByColumn = "STAFFING_AGENCY"
+)
+
+// ValidClientRelationAgencyOwnerOrderByColumn returns all valid values for ClientRelationAgencyOwnerOrderByColumn.
+func ValidClientRelationAgencyOwnerOrderByColumn() []ClientRelationAgencyOwnerOrderByColumn {
+	return []ClientRelationAgencyOwnerOrderByColumn{
+		ClientRelationAgencyOwnerOrderByColumnName,
+		ClientRelationAgencyOwnerOrderByColumnAssignedAt,
+		ClientRelationAgencyOwnerOrderByColumnStaffingAgency,
+	}
+}
+
 // ClientRelationOrderByColumn — The columns that a supplier's client list can be ordered by.
 type ClientRelationOrderByColumn string
 
@@ -550,6 +613,42 @@ func ValidClientRelationOrderByColumn() []ClientRelationOrderByColumn {
 	}
 }
 
+// ClientRelationOwnerOrderByColumn — The columns a supplier's own team on a client can be ordered by.
+type ClientRelationOwnerOrderByColumn string
+
+const (
+	// ClientRelationOwnerOrderByColumnName — The name of the person.
+	ClientRelationOwnerOrderByColumnName ClientRelationOwnerOrderByColumn = "NAME"
+	// ClientRelationOwnerOrderByColumnAssignedAt — When the person was assigned.
+	ClientRelationOwnerOrderByColumnAssignedAt ClientRelationOwnerOrderByColumn = "ASSIGNED_AT"
+)
+
+// ValidClientRelationOwnerOrderByColumn returns all valid values for ClientRelationOwnerOrderByColumn.
+func ValidClientRelationOwnerOrderByColumn() []ClientRelationOwnerOrderByColumn {
+	return []ClientRelationOwnerOrderByColumn{
+		ClientRelationOwnerOrderByColumnName,
+		ClientRelationOwnerOrderByColumnAssignedAt,
+	}
+}
+
+// ClientRelationTeamOrderByColumn — The columns a client company's team can be ordered by.
+type ClientRelationTeamOrderByColumn string
+
+const (
+	// ClientRelationTeamOrderByColumnName — The name of the person.
+	ClientRelationTeamOrderByColumnName ClientRelationTeamOrderByColumn = "NAME"
+	// ClientRelationTeamOrderByColumnAccountRole — The account owner before the members.
+	ClientRelationTeamOrderByColumnAccountRole ClientRelationTeamOrderByColumn = "ACCOUNT_ROLE"
+)
+
+// ValidClientRelationTeamOrderByColumn returns all valid values for ClientRelationTeamOrderByColumn.
+func ValidClientRelationTeamOrderByColumn() []ClientRelationTeamOrderByColumn {
+	return []ClientRelationTeamOrderByColumn{
+		ClientRelationTeamOrderByColumnName,
+		ClientRelationTeamOrderByColumnAccountRole,
+	}
+}
+
 // CompanyNumberValidationStatus — The outcome of an external validation check (e.g. KvK, VAT/VIES).
 type CompanyNumberValidationStatus string
 
@@ -571,6 +670,24 @@ func ValidCompanyNumberValidationStatus() []CompanyNumberValidationStatus {
 		CompanyNumberValidationStatusValid,
 		CompanyNumberValidationStatusInvalid,
 		CompanyNumberValidationStatusNotVerified,
+	}
+}
+
+// CompanyTeamRole — Whether a person on a company team owns the company account or is a member of it.
+type CompanyTeamRole string
+
+const (
+	// CompanyTeamRoleOwner — Owner
+	CompanyTeamRoleOwner CompanyTeamRole = "OWNER"
+	// CompanyTeamRoleMember — Member
+	CompanyTeamRoleMember CompanyTeamRole = "MEMBER"
+)
+
+// ValidCompanyTeamRole returns all valid values for CompanyTeamRole.
+func ValidCompanyTeamRole() []CompanyTeamRole {
+	return []CompanyTeamRole{
+		CompanyTeamRoleOwner,
+		CompanyTeamRoleMember,
 	}
 }
 
@@ -3246,6 +3363,93 @@ func ValidOwnerResponsibility() []OwnerResponsibility {
 		OwnerResponsibilityPrimaryContact,
 		OwnerResponsibilityCompliance,
 		OwnerResponsibilityPayments,
+	}
+}
+
+// PayItemBasis — How a pay item's price is worked out.
+type PayItemBasis string
+
+const (
+	// PayItemBasisFlat — A fixed amount each time the item is charged.
+	PayItemBasisFlat PayItemBasis = "FLAT"
+	// PayItemBasisPerUnit — An amount per unit, such as per hour, per shift or per 1,000 words.
+	PayItemBasisPerUnit PayItemBasis = "PER_UNIT"
+	// PayItemBasisPercentage — A percentage on top of the base pay.
+	PayItemBasisPercentage PayItemBasis = "PERCENTAGE"
+)
+
+// ValidPayItemBasis returns all valid values for PayItemBasis.
+func ValidPayItemBasis() []PayItemBasis {
+	return []PayItemBasis{
+		PayItemBasisFlat,
+		PayItemBasisPerUnit,
+		PayItemBasisPercentage,
+	}
+}
+
+// PayItemRole — What kind of pay a pay item is.
+type PayItemRole string
+
+const (
+	// PayItemRoleBasePay — Pay for the work itself.
+	PayItemRoleBasePay PayItemRole = "BASE_PAY"
+	// PayItemRolePremium — Pay on top of the base pay, such as a shift or weekend premium.
+	PayItemRolePremium PayItemRole = "PREMIUM"
+)
+
+// ValidPayItemRole returns all valid values for PayItemRole.
+func ValidPayItemRole() []PayItemRole {
+	return []PayItemRole{
+		PayItemRoleBasePay,
+		PayItemRolePremium,
+	}
+}
+
+// PayItemStatus — Whether a pay item can be used or has been archived.
+type PayItemStatus string
+
+const (
+	// PayItemStatusActive — The pay item can be offered and charged.
+	PayItemStatusActive PayItemStatus = "ACTIVE"
+	// PayItemStatusArchived — The pay item has been archived.
+	PayItemStatusArchived PayItemStatus = "ARCHIVED"
+)
+
+// ValidPayItemStatus returns all valid values for PayItemStatus.
+func ValidPayItemStatus() []PayItemStatus {
+	return []PayItemStatus{
+		PayItemStatusActive,
+		PayItemStatusArchived,
+	}
+}
+
+// PayItemUnit — The unit a per-unit pay item is priced in.
+type PayItemUnit string
+
+const (
+	// PayItemUnitHour — Per hour.
+	PayItemUnitHour PayItemUnit = "HOUR"
+	// PayItemUnitDay — Per day.
+	PayItemUnitDay PayItemUnit = "DAY"
+	// PayItemUnitShift — Per shift.
+	PayItemUnitShift PayItemUnit = "SHIFT"
+	// PayItemUnitWeek — Per week.
+	PayItemUnitWeek PayItemUnit = "WEEK"
+	// PayItemUnitMonth — Per month.
+	PayItemUnitMonth PayItemUnit = "MONTH"
+	// PayItemUnitOther — Per a unit the client names, such as 1,000 words, held in the item's unit label.
+	PayItemUnitOther PayItemUnit = "OTHER"
+)
+
+// ValidPayItemUnit returns all valid values for PayItemUnit.
+func ValidPayItemUnit() []PayItemUnit {
+	return []PayItemUnit{
+		PayItemUnitHour,
+		PayItemUnitDay,
+		PayItemUnitShift,
+		PayItemUnitWeek,
+		PayItemUnitMonth,
+		PayItemUnitOther,
 	}
 }
 

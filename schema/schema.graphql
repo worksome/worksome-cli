@@ -1572,6 +1572,156 @@ input ChangeEmailInput {
   email: String!
 }
 """
+**Experimental.** A checklist applied to a hire, made from a checklist template.
+"""
+type Checklist {
+  """
+  The checklist's ID.
+  """
+  id: ID!
+  """
+  The template this checklist was made from.
+  """
+  template: ChecklistTemplate!
+  """
+  Whether every check is done, or a required check is still pending.
+  """
+  status: ChecklistStatus
+  """
+  How many checks this checklist has, and how far they have got.
+  """
+  checkCounts: ChecklistCheckCounts!
+  """
+  The checks on this checklist, in the order they were applied.
+  """
+  checks: [ChecklistCheck!]!
+  """
+  Whether the viewer may confirm the checks on this checklist or mark them not applicable.
+  """
+  viewerCanDecide: Boolean!
+}
+"""
+**Experimental.** A single check on a checklist, confirmed by a person or marked not applicable.
+"""
+type ChecklistCheck {
+  """
+  The check's ID.
+  """
+  id: ID!
+  """
+  The checklist this check belongs to.
+  """
+  checklist: Checklist!
+  """
+  What to check, worded as it was when the checklist was applied.
+  """
+  label: String!
+  """
+  How to carry out the check, worded as it was when the checklist was applied.
+  """
+  helpText: String
+  """
+  Whether this check must be done before the offer can be sent.
+  """
+  blocking: Boolean!
+  """
+  Whether this check may be marked not applicable.
+  """
+  allowsNotApplicable: Boolean!
+  """
+  How many days a confirmation lasts before the check is due again. Null when it never expires.
+  """
+  repeatsAfterDays: Int
+  """
+  Whether the check is pending, confirmed or not applicable.
+  """
+  state: ChecklistCheckState!
+  """
+  The reason given when the check was marked not applicable.
+  """
+  notApplicableReason: String
+  """
+  When the check was last confirmed or marked not applicable.
+  """
+  decidedAt: DateTime
+  """
+  Who last confirmed the check or marked it not applicable. Null when nobody has, or when that person's account has been deleted.
+  """
+  decidedBy: User
+}
+"""
+**Experimental.** How many checks a checklist has, and how far they have got.
+"""
+type ChecklistCheckCounts {
+  """
+  How many checks the checklist has.
+  """
+  total: Int!
+  """
+  How many checks are confirmed or marked not applicable.
+  """
+  done: Int!
+  """
+  How many checks are marked not applicable.
+  """
+  notApplicable: Int!
+  """
+  How many blocking checks are still pending.
+  """
+  blockingPending: Int!
+}
+"""
+**Experimental.** Where a check on a checklist stands.
+"""
+enum ChecklistCheckState {
+  """
+  Still to be confirmed or marked not applicable.
+  """
+  PENDING
+  """
+  Someone looked at the evidence and confirmed the check.
+  """
+  CONFIRMED
+  """
+  Someone judged that the check does not apply here, and gave a reason.
+  """
+  NOT_APPLICABLE
+}
+"""
+**Experimental.** Whether the checks on a checklist are done.
+"""
+enum ChecklistStatus {
+  """
+  Every check has been confirmed or marked not applicable.
+  """
+  COMPLETE
+  """
+  A check that blocks progress is still pending.
+  """
+  BLOCKED
+  """
+  Checks are still pending, but none of them block progress.
+  """
+  OPEN
+}
+"""
+**Experimental.** A named list of checks that an organisation or company defines once and applies to hires.
+"""
+type ChecklistTemplate {
+  """
+  The template's ID.
+  """
+  id: ID!
+  """
+  The template's name.
+  """
+  name: String!
+  """
+  The name of the organisation or company that defined this template.
+  """
+  ownerName: String
+}
+"""
 A classification represents a worker classification (SDS/WCR) for a hire.
 This can be various types of classifications like IR35, US Worker Classification, etc.
 """
@@ -1909,6 +2059,36 @@ type Client {
   customFieldValues: [CustomFieldValue!]!
 }
 """
+Sorting clause for the people staffing agencies assign to a client.
+"""
+input ClientRelationAgencyOwnerOrderByClauseInput {
+  """
+  The field to sort the people by.
+  """
+  field: ClientRelationAgencyOwnerOrderByColumn
+  """
+  The order to sort the people by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns the people staffing agencies assign to a client can be ordered by.
+"""
+enum ClientRelationAgencyOwnerOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  When the person was assigned.
+  """
+  ASSIGNED_AT
+  """
+  The name of the staffing agency the person works for.
+  """
+  STAFFING_AGENCY
+}
+"""
 Sorting clause for the supplier's client list.
 """
 input ClientRelationOrderByClauseInput {
@@ -1945,6 +2125,58 @@ enum ClientRelationOrderByColumn {
   The number of staffing agencies the supplier linked to the client.
   """
   LINKED_STAFFING_AGENCIES
+}
+"""
+Sorting clause for a supplier's own team on a client.
+"""
+input ClientRelationOwnerOrderByClauseInput {
+  """
+  The field to sort the people by.
+  """
+  field: ClientRelationOwnerOrderByColumn
+  """
+  The order to sort the people by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a supplier's own team on a client can be ordered by.
+"""
+enum ClientRelationOwnerOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  When the person was assigned.
+  """
+  ASSIGNED_AT
+}
+"""
+Sorting clause for a client company's team.
+"""
+input ClientRelationTeamOrderByClauseInput {
+  """
+  The field to sort the team by.
+  """
+  field: ClientRelationTeamOrderByColumn
+  """
+  The order to sort the team by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a client company's team can be ordered by.
+"""
+enum ClientRelationTeamOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  The account owner before the members.
+  """
+  ACCOUNT_ROLE
 }
 """
 A company account — the primary hiring entity on Worksome.
@@ -2462,6 +2694,50 @@ type CompanySupplierPaginator {
   A list of CompanySupplier items.
   """
   data: [CompanySupplier!]!
+}
+"""
+One person on a company's team, and whether they own the account or are a member of it.
+"""
+type CompanyTeamMember {
+  """
+  Identifies this row, not a record: the client company plus the person, so one person on two teams
+  has two IDs. No query or mutation accepts it.
+  """
+  id: ID!
+  """
+  The person.
+  """
+  user: User!
+  """
+  Whether the person owns the company account or is a member of it. Not a permission role.
+  """
+  accountRole: CompanyTeamRole!
+}
+"""
+A paginated list of CompanyTeamMember items.
+"""
+type CompanyTeamMemberPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of CompanyTeamMember items.
+  """
+  data: [CompanyTeamMember!]!
+}
+"""
+Whether a person on a company team owns the company account or is a member of it.
+"""
+enum CompanyTeamRole {
+  """
+  Owner
+  """
+  OWNER
+  """
+  Member
+  """
+  MEMBER
 }
 """
 A compliance requirement that must be met for business processes to proceed.
@@ -7327,6 +7603,22 @@ type Hire {
   """
   hasSignedScheduledChange: Boolean!
   """
+  Dates on which this hire's rate, rate type or currency changed or will
+  change, in date order. Includes a signed scheduled change that hasn't
+  taken effect yet.
+  """
+  rateChangeDates: [Date!]!
+  """
+  The contract whose rate, rate type and currency applied on the given date,
+  or null when no contract applied on it.
+  """
+  contractForDate(
+    """
+    The date to find the contract for.
+    """
+    date: Date!
+  ): Contract
+  """
   The company which the worker will work with.
   """
   company: Company!
@@ -7625,6 +7917,10 @@ type Hire {
   Visible only to the staffing agency; null otherwise.
   """
   markupFee: Fee
+  """
+  **Experimental.** The checklists applied to this hire, in the order they were added.
+  """
+  checklists: [Checklist!]!
   """
   The contracts for the hire.
   
@@ -10020,6 +10316,16 @@ type Mutation {
     input: RunBatchActionInput!
   ): RunBatchActionResponse!
   """
+  **Experimental.** Confirm a check, mark it not applicable, or set it back to pending. Records who
+  made the decision and when.
+  """
+  setChecklistCheckState(
+    """
+    The check to change, and its new state.
+    """
+    input: SetChecklistCheckStateInput!
+  ): ChecklistCheck!
+  """
   Generate the company invite link token.
   """
   generateInviteLink(
@@ -11498,6 +11804,10 @@ enum OvertimeType {
   SEVENTH_DAY
 }
 """
+A record that people can be assigned to as owners.
+"""
+union Ownable = CompanySupplier | SupplierClient
+"""
 A user assigned as an owner of a record, and what they look after on it.
 """
 type Owner {
@@ -11517,6 +11827,10 @@ type Owner {
   When the user was assigned.
   """
   assignedAt: DateTime
+  """
+  The record this person is assigned to as an owner.
+  """
+  owned: Ownable!
 }
 """
 One user's owner assignment on a record.
@@ -11530,6 +11844,19 @@ input OwnerInput {
   What this person looks after on the record. Grants no permissions.
   """
   responsibility: OwnerResponsibility
+}
+"""
+A paginated list of Owner items.
+"""
+type OwnerPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of Owner items.
+  """
+  data: [Owner!]!
 }
 """
 What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
@@ -11658,6 +11985,155 @@ type Partner implements Account {
   The primary profile of the partner.
   """
   primaryProfile: Profile
+}
+"""
+**Experimental.** A pay item in a company's or organisation's catalogue, such as a
+shift premium or a standby allowance.
+"""
+type PayItem {
+  """
+  The ID of the pay item.
+  """
+  id: ID!
+  """
+  The account that owns the pay item.
+  """
+  account: Account!
+  """
+  The name of the pay item.
+  """
+  name: String!
+  """
+  What kind of pay the pay item is.
+  """
+  role: PayItemRole!
+  """
+  How the pay item's price is worked out.
+  """
+  basis: PayItemBasis!
+  """
+  The unit a per-unit pay item is priced in. Absent for flat and percentage pay items.
+  """
+  unit: PayItemUnit
+  """
+  The name of the unit when the unit is `OTHER`, such as 1,000 words.
+  """
+  unitLabel: String
+  """
+  The currency a flat or per-unit pay item is priced in. Absent for percentage pay items.
+  """
+  currency: Currency
+  """
+  Whether the pay item can be used or has been archived.
+  """
+  status: PayItemStatus!
+  """
+  The price in force today. Absent when no price has taken effect yet.
+  """
+  currentPrice: PayItemPrice
+}
+"""
+How a pay item's price is worked out.
+"""
+enum PayItemBasis {
+  """
+  A fixed amount each time the item is charged.
+  """
+  FLAT
+  """
+  An amount per unit, such as per hour, per shift or per 1,000 words.
+  """
+  PER_UNIT
+  """
+  A percentage on top of the base pay.
+  """
+  PERCENTAGE
+}
+"""
+A paginated list of PayItem items.
+"""
+type PayItemPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of PayItem items.
+  """
+  data: [PayItem!]!
+}
+"""
+**Experimental.** One version of a pay item's price, in force from its effective date
+until a later version takes effect.
+"""
+type PayItemPrice {
+  """
+  The price of a flat or per-unit pay item, in the pay item's currency. Absent for percentage pay items.
+  """
+  amount: DecimalTwo
+  """
+  The price of a percentage pay item. Absent for flat and per-unit pay items.
+  """
+  percentage: Percentage
+  """
+  The date the price takes effect.
+  """
+  effectiveAt: Date!
+}
+"""
+What kind of pay a pay item is.
+"""
+enum PayItemRole {
+  """
+  Pay for the work itself.
+  """
+  BASE_PAY
+  """
+  Pay on top of the base pay, such as a shift or weekend premium.
+  """
+  PREMIUM
+}
+"""
+Whether a pay item can be used or has been archived.
+"""
+enum PayItemStatus {
+  """
+  The pay item can be offered and charged.
+  """
+  ACTIVE
+  """
+  The pay item has been archived.
+  """
+  ARCHIVED
+}
+"""
+The unit a per-unit pay item is priced in.
+"""
+enum PayItemUnit {
+  """
+  Per hour.
+  """
+  HOUR
+  """
+  Per day.
+  """
+  DAY
+  """
+  Per shift.
+  """
+  SHIFT
+  """
+  Per week.
+  """
+  WEEK
+  """
+  Per month.
+  """
+  MONTH
+  """
+  Per a unit the client names, such as 1,000 words, held in the item's unit label.
+  """
+  OTHER
 }
 """
 A payment request.
@@ -13139,6 +13615,12 @@ type Query {
   """
   clientSuppliers(
     """
+    Only show links managed by these company accounts. Without it, every company the viewer
+    manages staffing agencies for.
+    """
+    accounts: [ID!]
+
+    """
     The client company to list contracted suppliers for.
     """
     client: ID!
@@ -13259,6 +13741,139 @@ type Query {
     """
     page: Int
   ): CompanySupplierPaginator!
+  """
+  The supplier's own team members assigned to one client relation.
+  """
+  clientRelationOwners(
+    """
+    Only when the relation belongs to these supplier company accounts. Without it, any supplier
+    company the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    The client relation to list the assigned team members of.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show people assigned within the given date range.
+    """
+    assignedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationOwnerOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): OwnerPaginator!
+  """
+  The people the relation's staffing agencies have assigned to its client, as owners of their agency links.
+  
+  Covers the agency links the relation's supplier manages at that client; direct links and links
+  managed by anyone else are left out.
+  """
+  clientRelationAgencyOwners(
+    """
+    Only when the relation belongs to these supplier company accounts. Without it, any supplier
+    company the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    The client relation to list the agency-assigned people of.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show recruiters of these staffing agencies.
+    """
+    staffingAgencies: [ID!]
+
+    """
+    Only show recruiters assigned within the given date range.
+    """
+    assignedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationAgencyOwnerOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): OwnerPaginator!
+  """
+  The client company's team behind one relation: its owner and the members who have accepted.
+  """
+  clientRelationTeam(
+    """
+    Only when the relation belongs to these supplier company accounts. Without it, any supplier
+    company the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    The client relation whose client company's team to list.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show people with one of these account roles.
+    """
+    accountRoles: [CompanyTeamRole!]
+
+    """
+    Only show people with (or without) a phone number.
+    """
+    hasPhone: Boolean
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationTeamOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanyTeamMemberPaginator!
   """
   Get a list of contracts.
   """
@@ -14043,6 +14658,34 @@ type Query {
     """
     page: Int
   ): MultiFactorPaginator!
+  """
+  **Experimental.** Get a list of pay items in the catalogue of the authenticated accounts.
+  
+  Archived pay items are left out unless `includeArchived` is true.
+  """
+  payItems(
+    """
+    Supply which accounts to see pay items for.
+    
+    If no accounts are supplied, then all authenticated accounts will be used.
+    """
+    accounts: [ID!]
+
+    """
+    Supply true to include archived pay items.
+    """
+    includeArchived: Boolean = false
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): PayItemPaginator!
   """
   Get a list of payment requests.
   """
@@ -15406,6 +16049,23 @@ type RunBatchActionResponse {
   The URL of the result of the action.
   """
   resultUrl: String
+}
+"""
+**Experimental.** The input for changing where a check on a checklist stands.
+"""
+input SetChecklistCheckStateInput {
+  """
+  The check to change.
+  """
+  check: ID!
+  """
+  The check's new state.
+  """
+  state: ChecklistCheckState!
+  """
+  Why the check does not apply. Required when marking it not applicable.
+  """
+  reason: String
 }
 """
 The input used for setting the internal budget on a job.
