@@ -2990,6 +2990,112 @@ func newCandidateToOnboardInviteCmd() *cobra.Command {
 	return cmd
 }
 
+// NewChecklistCheckStateCmd creates the checklist-check-state resource command.
+func NewChecklistCheckStateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "checklist-check-state",
+		Short: "**Experimental.** Confirm a check, mark it not applicable, or set it back to pending.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newChecklistCheckStateSetCmd())
+
+	return cmd
+}
+
+var checklistcheckstateSetColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Checklist ID", Field: "checklist.id"},
+	{Header: "Checklist Status", Field: "checklist.status"},
+	{Header: "Label", Field: "label"},
+	{Header: "Help Text", Field: "helpText"},
+	{Header: "Blocking", Field: "blocking"},
+	{Header: "Allows Not Applicable", Field: "allowsNotApplicable"},
+	{Header: "Repeats After Days", Field: "repeatsAfterDays"},
+}
+
+func newChecklistCheckStateSetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "set",
+		Short:   "**Experimental.** Confirm a check, mark it not applicable, or set it back to pending. Records who made the decision and when.",
+		Example: "  # Using a JSON input file:\n  worksome checklist-check-state set --input payload.json\n\n  # Using flags:\n  worksome checklist-check-state set --check \\\"value\\\" --state \\\"value\\\" --reason \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"check\": \"<id>\",\n    \"reason\": \"...\",\n    \"state\": \"PENDING\"\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("check") {
+				v, _ := cmd.Flags().GetString("check")
+				inputObj["check"] = v
+			}
+			if cmd.Flags().Changed("state") {
+				v, _ := cmd.Flags().GetString("state")
+				inputObj["state"] = v
+			}
+			if cmd.Flags().Changed("reason") {
+				v, _ := cmd.Flags().GetString("reason")
+				inputObj["reason"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"check", "check"}, {"state", "state"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SetChecklistCheckState", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SetChecklistCheckState(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, checklistcheckstateSetColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("check", "", "The check to change.")
+	cmd.Flags().String("state", "", "The check's new state. [PENDING, CONFIRMED, NOT_APPLICABLE]")
+	cmd.Flags().String("reason", "", "Why the check does not apply. Required when marking it not applicable.")
+	cmd.RegisterFlagCompletionFunc("state", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"PENDING", "CONFIRMED", "NOT_APPLICABLE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	return cmd
+}
+
 var classificationsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "User ID", Field: "user.id"},
@@ -3201,6 +3307,602 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 	return printResult(cmd, allData, classificationsColumns)
 }
 
+var clientrelationagencyownersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Responsibility", Field: "responsibility"},
+	{Header: "Assigned At", Field: "assignedAt"},
+}
+
+// NewClientRelationAgencyOwnersCmd creates the client-relation-agency-owners resource command.
+func NewClientRelationAgencyOwnersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-relation-agency-owners",
+		Short: "The people the relation's staffing agencies have assigned to its client, as owners of their agency links.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientRelationAgencyOwnersListCmd())
+
+	return cmd
+}
+
+func newClientRelationAgencyOwnersListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "The people the relation's staffing agencies have assigned to its client, as owners of their agency links. Covers the agency links the relation's supplier manages at that client; direct links and links managed by anyone else are left out.",
+		Example: "  worksome client-relation-agency-owners list -n 20\n  worksome client-relation-agency-owners list --all\n  worksome client-relation-agency-owners list --watch\n  worksome client-relation-agency-owners list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("client") {
+				v, _ := cmd.Flags().GetString("client")
+				vars["client"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("staffing-agencies") {
+				v, _ := cmd.Flags().GetStringSlice("staffing-agencies")
+				vars["staffingAgencies"] = v
+			}
+			if cmd.Flags().Changed("assigned-at-date-range") {
+				raw, _ := cmd.Flags().GetString("assigned-at-date-range")
+				v, err := jsonArg("assigned-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["assignedAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[ClientRelationAgencyOwnerOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientRelationAgencyOwners", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return clientrelationagencyownersFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ClientRelationAgencyOwners(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, clientrelationagencyownersColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company accounts. Without it, any supplier company the viewer belongs to.")
+	cmd.Flags().String("client", "", "The client relation to list the agency-assigned people of.")
+	cmd.Flags().String("search", "", "Search people by name or email.")
+	cmd.Flags().StringSlice("staffing-agencies", nil, "Only show recruiters of these staffing agencies.")
+	cmd.Flags().String("assigned-at-date-range", "", "Only show recruiters assigned within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationAgencyOwnerOrderByClauseInput!], e.g. [{\"field\":\"NAME\",\"order\":\"ASC\"}]; field: NAME | ASSIGNED_AT | STAFFING_AGENCY; order: ASC | DESC)")
+	_ = cmd.MarkFlagRequired("client")
+
+	return cmd
+}
+
+func clientrelationagencyownersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.ClientRelationAgencyOwners(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, clientrelationagencyownersColumns)
+}
+
+var clientrelationownersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Responsibility", Field: "responsibility"},
+	{Header: "Assigned At", Field: "assignedAt"},
+}
+
+// NewClientRelationOwnersCmd creates the client-relation-owners resource command.
+func NewClientRelationOwnersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-relation-owners",
+		Short: "The supplier's own team members assigned to one client relation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientRelationOwnersListCmd())
+
+	return cmd
+}
+
+func newClientRelationOwnersListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "The supplier's own team members assigned to one client relation.",
+		Example: "  worksome client-relation-owners list -n 20\n  worksome client-relation-owners list --all\n  worksome client-relation-owners list --watch\n  worksome client-relation-owners list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("client") {
+				v, _ := cmd.Flags().GetString("client")
+				vars["client"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("assigned-at-date-range") {
+				raw, _ := cmd.Flags().GetString("assigned-at-date-range")
+				v, err := jsonArg("assigned-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["assignedAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[ClientRelationOwnerOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientRelationOwners", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return clientrelationownersFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ClientRelationOwners(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["clientRelationOwners"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["clientRelationOwners"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, clientrelationownersColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company accounts. Without it, any supplier company the viewer belongs to.")
+	cmd.Flags().String("client", "", "The client relation to list the assigned team members of.")
+	cmd.Flags().String("search", "", "Search people by name or email.")
+	cmd.Flags().String("assigned-at-date-range", "", "Only show people assigned within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationOwnerOrderByClauseInput!], e.g. [{\"field\":\"NAME\",\"order\":\"ASC\"}]; field: NAME | ASSIGNED_AT; order: ASC | DESC)")
+	_ = cmd.MarkFlagRequired("client")
+
+	return cmd
+}
+
+func clientrelationownersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.ClientRelationOwners(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["clientRelationOwners"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, clientrelationownersColumns)
+}
+
+var clientrelationteamColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Account Role", Field: "accountRole"},
+}
+
+// NewClientRelationTeamCmd creates the client-relation-team resource command.
+func NewClientRelationTeamCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-relation-team",
+		Short: "The client company's team behind one relation: its owner and the members who have accepted.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientRelationTeamListCmd())
+
+	return cmd
+}
+
+func newClientRelationTeamListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "The client company's team behind one relation: its owner and the members who have accepted.",
+		Example: "  worksome client-relation-team list -n 20\n  worksome client-relation-team list --all\n  worksome client-relation-team list --watch\n  worksome client-relation-team list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("client") {
+				v, _ := cmd.Flags().GetString("client")
+				vars["client"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("account-roles") {
+				v, _ := cmd.Flags().GetStringSlice("account-roles")
+				vars["accountRoles"] = v
+			}
+			if cmd.Flags().Changed("has-phone") {
+				v, _ := cmd.Flags().GetBool("has-phone")
+				vars["hasPhone"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[ClientRelationTeamOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientRelationTeam", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return clientrelationteamFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.ClientRelationTeam(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["clientRelationTeam"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["clientRelationTeam"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, clientrelationteamColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company accounts. Without it, any supplier company the viewer belongs to.")
+	cmd.Flags().String("client", "", "The client relation whose client company's team to list.")
+	cmd.Flags().String("search", "", "Search people by name or email.")
+	cmd.Flags().StringSlice("account-roles", nil, "Only show people with one of these account roles. [OWNER, MEMBER]")
+	cmd.Flags().Bool("has-phone", false, "Only show people with (or without) a phone number.")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationTeamOrderByClauseInput!], e.g. [{\"field\":\"NAME\",\"order\":\"ASC\"}]; field: NAME | ACCOUNT_ROLE; order: ASC | DESC)")
+	_ = cmd.MarkFlagRequired("client")
+
+	return cmd
+}
+
+func clientrelationteamFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.ClientRelationTeam(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["clientRelationTeam"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, clientrelationteamColumns)
+}
+
 var clientsuppliersColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Supplier ID", Field: "supplier.id"},
@@ -3255,6 +3957,10 @@ func newClientSuppliersListCmd() *cobra.Command {
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
 				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("client") {
 				v, _ := cmd.Flags().GetString("client")
@@ -3354,6 +4060,7 @@ func newClientSuppliersListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only show links managed by these company accounts. Without it, every company the viewer manages staffing agencies for.")
 	cmd.Flags().String("client", "", "The client company to list contracted suppliers for.")
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through supplier names.")
 	cmd.Flags().StringSlice("supplier-statuses", nil, "Filter by the status of the supplier relation itself. [ACTIVE, INVITED]")
@@ -13436,6 +14143,182 @@ func newPasswordUpdateCmd() *cobra.Command {
 	cmd.Flags().String("password", "", "The new password for the user.")
 	cmd.Flags().String("password-confirmation", "", "The confirmation of the password for the user.")
 	return cmd
+}
+
+var payitemsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Account ID", Field: "account.id"},
+	{Header: "Account Name", Field: "account.name"},
+	{Header: "Name", Field: "name"},
+	{Header: "Role", Field: "role"},
+	{Header: "Basis", Field: "basis"},
+	{Header: "Unit", Field: "unit"},
+	{Header: "Unit Label", Field: "unitLabel"},
+}
+
+// NewPayItemsCmd creates the pay-items resource command.
+func NewPayItemsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pay-items",
+		Short: "**Experimental.** Get a list of pay items in the catalogue of the authenticated accounts.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newPayItemsListCmd())
+
+	return cmd
+}
+
+func newPayItemsListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "**Experimental.** Get a list of pay items in the catalogue of the authenticated accounts. Archived pay items are left out unless 'includeArchived' is true.",
+		Example: "  worksome pay-items list -n 20\n  worksome pay-items list --all\n  worksome pay-items list --watch\n  worksome pay-items list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("include-archived") {
+				v, _ := cmd.Flags().GetBool("include-archived")
+				vars["includeArchived"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "PayItems", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return payitemsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.PayItems(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["payItems"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["payItems"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, payitemsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see pay items for. If no accounts are supplied, then all authenticated accounts will be used.")
+	cmd.Flags().Bool("include-archived", false, "Supply true to include archived pay items.")
+
+	return cmd
+}
+
+func payitemsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.PayItems(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["payItems"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, payitemsColumns)
 }
 
 var paymentrequestsColumns = []output.Column{
