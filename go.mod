@@ -6,7 +6,7 @@ require (
 	github.com/rodaine/table v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/vektah/gqlparser/v2 v2.5.58
+	github.com/vektah/gqlparser/v2 v2.5.60
 	golang.org/x/term v0.46.0
 	gopkg.in/yaml.v3 v3.0.1
 )
