@@ -858,6 +858,8 @@ type ComplianceClassificationQuestion struct {
 	HelpText *string `json:"helpText,omitempty"`
 	// The recorded answer. Null when the question is unanswered.
 	Answer *ComplianceClassificationAnswer `json:"answer,omitempty"`
+	// Why the person answered this way, in their own words. Null when they gave no reason.
+	Explanation *string `json:"explanation,omitempty"`
 }
 
 // ComplianceDataAddress — An address associated with a compliance (residential address, work location, etc.). Wraps the existing 'Address' type so the frontend can query any field.
@@ -1166,6 +1168,8 @@ type CustomFieldOption struct {
 	DisplayOrder int `json:"displayOrder"`
 	// The value of the field option.
 	Value string `json:"value"`
+	// What stops this option being removed from its custom field. Empty when it can be removed. This can reveal how the client prices work, so only the account owning the custom field reads it. Anyone else, staffing agencies included, reads an empty list.
+	RemovalBlockedBy []CustomFieldUsage `json:"removalBlockedBy"`
 }
 
 // CustomFieldPaginator — A paginated list of CustomField items.

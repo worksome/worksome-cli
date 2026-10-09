@@ -2873,6 +2873,10 @@ type ComplianceClassificationQuestion {
   The recorded answer. Null when the question is unanswered.
   """
   answer: ComplianceClassificationAnswer
+  """
+  Why the person answered this way, in their own words. Null when they gave no reason.
+  """
+  explanation: String
 }
 """
 Union of typed data a compliance can emit. Compose atomic `ComplianceDataField`
@@ -3297,6 +3301,10 @@ enum ComplianceName {
   Contract end date
   """
   CONTRACT_START_AND_END_DATE
+  """
+  **Experimental.** Checklists compliance
+  """
+  CHECKLISTS
   """
   Payroll currency compliance
   """
@@ -6024,6 +6032,13 @@ type CustomFieldOption {
   The value of the field option.
   """
   value: String!
+  """
+  What stops this option being removed from its custom field. Empty when it can be removed.
+  
+  This can reveal how the client prices work, so only the account owning the custom field
+  reads it. Anyone else, staffing agencies included, reads an empty list.
+  """
+  removalBlockedBy: [CustomFieldUsage!]!
 }
 """
 A paginated list of CustomField items.
@@ -6099,6 +6114,15 @@ input CustomFieldTypeValueInput {
   The input custom field values representation of the `FILE_UPLOAD` field type.
   """
   fileUpload: FileUploadCustomFieldValueInput
+}
+"""
+Something that depends on a custom field or one of its options, and so stops it being removed.
+"""
+enum CustomFieldUsage {
+  """
+  The option is used by a rate card, so it cannot be removed.
+  """
+  RATE_CARD_LINES
 }
 """
 Enum of available validation rules applicable to CustomFields

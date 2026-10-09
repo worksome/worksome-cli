@@ -874,6 +874,8 @@ const (
 	ComplianceNameWcrAcceptance ComplianceName = "WCR_ACCEPTANCE"
 	// ComplianceNameContractStartAndEndDate — Contract end date
 	ComplianceNameContractStartAndEndDate ComplianceName = "CONTRACT_START_AND_END_DATE"
+	// ComplianceNameChecklists — **Experimental.** Checklists compliance
+	ComplianceNameChecklists ComplianceName = "CHECKLISTS"
 	// ComplianceNamePayrollCurrency — Payroll currency compliance
 	ComplianceNamePayrollCurrency ComplianceName = "PAYROLL_CURRENCY"
 	// ComplianceNameSoWConfirmation — Statement of Work confirmation compliance
@@ -990,6 +992,7 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameEmployerOfRecord,
 		ComplianceNameWcrAcceptance,
 		ComplianceNameContractStartAndEndDate,
+		ComplianceNameChecklists,
 		ComplianceNamePayrollCurrency,
 		ComplianceNameSoWConfirmation,
 		ComplianceNameNlWaadiRegistration,
@@ -2026,6 +2029,21 @@ func ValidCustomFieldType() []CustomFieldType {
 		CustomFieldTypeFreeText,
 		CustomFieldTypeMultiSelect,
 		CustomFieldTypeFileUpload,
+	}
+}
+
+// CustomFieldUsage — Something that depends on a custom field or one of its options, and so stops it being removed.
+type CustomFieldUsage string
+
+const (
+	// CustomFieldUsageRateCardLines — The option is used by a rate card, so it cannot be removed.
+	CustomFieldUsageRateCardLines CustomFieldUsage = "RATE_CARD_LINES"
+)
+
+// ValidCustomFieldUsage returns all valid values for CustomFieldUsage.
+func ValidCustomFieldUsage() []CustomFieldUsage {
+	return []CustomFieldUsage{
+		CustomFieldUsageRateCardLines,
 	}
 }
 
