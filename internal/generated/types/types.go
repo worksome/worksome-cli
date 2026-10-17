@@ -6,6 +6,11 @@ type Account interface {
 	IsAccount()
 }
 
+// ClientRelation — **Experimental.** A supplier's relation with one client company.
+type ClientRelation interface {
+	IsClientRelation()
+}
+
 // HasCompanyInformation — An interface requiring company-specific fields.
 type HasCompanyInformation interface {
 	IsHasCompanyInformation()
@@ -750,6 +755,8 @@ type CompanySupplier struct {
 	Id string `json:"id"`
 	// The client company.
 	Company *Company `json:"company"`
+	// **Experimental.** The client company; the same as 'company', under the name every client relation shares.
+	Client *Company `json:"client"`
 	// The supplier account.
 	Supplier *Account `json:"supplier,omitempty"`
 	// The supplier-side team members assigned to this client relationship.
@@ -781,6 +788,8 @@ type CompanySupplier struct {
 	// When the supplier's earliest hire at this client started. Often predates createdAt, which only records when the relation row itself appeared.
 	FirstHireStartedAt *string `json:"firstHireStartedAt,omitempty"`
 }
+
+func (CompanySupplier) IsClientRelation() {}
 
 // CompanySupplierPaginator — A paginated list of CompanySupplier items.
 type CompanySupplierPaginator struct {
@@ -1156,6 +1165,8 @@ type CustomField struct {
 	UpdatedAt *string `json:"updatedAt,omitempty"`
 	// The date and time that the field was deleted.
 	DeletedAt *string `json:"deletedAt,omitempty"`
+	// The date and time that the field was archived.
+	ArchivedAt *string `json:"archivedAt,omitempty"`
 }
 
 // CustomFieldOption — A custom field option.
@@ -1300,11 +1311,13 @@ type EndJobsResult struct {
 type Expense struct {
 	// The ID of the expense.
 	Id string `json:"id"`
+	// The unique reference for the expense.
+	Number int `json:"number"`
 	// The description of the expense.
 	Description *string `json:"description,omitempty"`
-	// The currency of the expense.
+	// The currency of the expense. Taken from the expense report's payment request when it was created, or from its hire when the report wasn't linked to one.
 	Currency Currency `json:"currency"`
-	// The amount of the expense.
+	// The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
 	Amount float64 `json:"amount"`
 	// The vendor of the expense.
 	Vendor string `json:"vendor"`
@@ -1312,6 +1325,8 @@ type Expense struct {
 	ExpenseAt string `json:"expenseAt"`
 	// The date and time that the expense was created.
 	CreatedAt string `json:"createdAt"`
+	// Custom field values captured against this expense (see the "Expenses custom fields" section of the client account's payment request custom fields). Filtered to Worker-visibility values for any viewer other than the client company the fields belong to.
+	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
 	// The files attached to this expense.
 	Files FilePaginator `json:"files"`
 }
@@ -1850,7 +1865,9 @@ type Job struct {
 	SourceJob *Job `json:"sourceJob,omitempty"`
 	// The supplier-side job derived from this source job.
 	SupplierJob *Job `json:"supplierJob,omitempty"`
-	// **Experimental.** The rate card band that applies to this job. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null. A stub until the resolver lands: it returns the no-match state rather than invented figures.
+	// **Experimental.** The pay items this job can offer. On an MSP's copy of a client job, these are the client's, and the list is empty once the client job is deleted. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
+	OfferablePayItems []*PayItem `json:"offerablePayItems"`
+	// **Experimental.** The rate card band that applies to this job. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null.
 	RateCardBand *RateCardBand `json:"rateCardBand,omitempty"`
 	// The hires made on the job.
 	Hires HirePaginator `json:"hires"`
@@ -2723,15 +2740,23 @@ type SupplierClient struct {
 	Supplier *Account `json:"supplier"`
 	// The end client the supplier works for.
 	Client *Company `json:"client"`
-	// The staffing agency relation this link was contracted under. Null when the supplier is a company rather than a staffing agency.
+	// **Experimental.** The company the link was contracted through: the client itself for a direct link, the MSP for a managed one.
+	ManagingCompany *Company `json:"managingCompany"`
+	// **Experimental.** Whether the client contracted the supplier itself, rather than through a managing company.
+	IsDirect bool `json:"isDirect"`
+	// The staffing agency relation this link was contracted under, as the managing company keeps it. Null when the supplier is a company rather than a staffing agency, and for viewers outside the managing company.
 	CompanyRecruiter *CompanyRecruiter `json:"companyRecruiter,omitempty"`
+	// **Experimental.** The people at the managing company who look after the client: the owners of the client's relation with it. Empty on a direct link, and for viewers other than the staffing agency the link belongs to.
+	ManagingCompanyContacts []*User `json:"managingCompanyContacts"`
 	// When the link was created.
 	CreatedAt string `json:"createdAt"`
 	// When the link was last changed.
 	UpdatedAt string `json:"updatedAt"`
-	// The hires the supplier has at the client, in any status.
+	// The hires the supplier placed at the client through this link, in any status unless narrowed: for a staffing agency, its own copy of each hire under the managing company.
 	HiresCount int `json:"hiresCount"`
 }
+
+func (SupplierClient) IsClientRelation() {}
 
 // SupplierClientPaginator — A paginated list of SupplierClient items.
 type SupplierClientPaginator struct {
