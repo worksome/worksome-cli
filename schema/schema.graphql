@@ -2059,6 +2059,23 @@ type Client {
   customFieldValues: [CustomFieldValue!]!
 }
 """
+**Experimental.** A supplier's relation with one client company.
+"""
+interface ClientRelation {
+  """
+  The ID of the relation.
+  """
+  id: ID!
+  """
+  The client company.
+  """
+  client: Company!
+  """
+  When the relation was created.
+  """
+  createdAt: Date!
+}
+"""
 Sorting clause for the people staffing agencies assign to a client.
 """
 input ClientRelationAgencyOwnerOrderByClauseInput {
@@ -2087,44 +2104,6 @@ enum ClientRelationAgencyOwnerOrderByColumn {
   The name of the staffing agency the person works for.
   """
   STAFFING_AGENCY
-}
-"""
-Sorting clause for the supplier's client list.
-"""
-input ClientRelationOrderByClauseInput {
-  """
-  The field to sort supplier clients by.
-  """
-  field: ClientRelationOrderByColumn
-  """
-  The order to sort supplier clients by.
-  """
-  order: SortOrder = ASC
-}
-"""
-The columns that a supplier's client list can be ordered by.
-"""
-enum ClientRelationOrderByColumn {
-  """
-  The name of the client company.
-  """
-  CLIENT_NAME
-  """
-  The client's market, then its region by name.
-  """
-  CLIENT_LOCATION
-  """
-  The date the client relationship was established.
-  """
-  CLIENT_SINCE
-  """
-  The number of hires the supplier has at the client.
-  """
-  HIRES
-  """
-  The number of staffing agencies the supplier linked to the client.
-  """
-  LINKED_STAFFING_AGENCIES
 }
 """
 Sorting clause for a supplier's own team on a client.
@@ -2361,6 +2340,44 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   ): CompanyRecruiterPaginator!
 }
 """
+Sorting clause for the supplier's client list.
+"""
+input CompanyClientOrderByClauseInput {
+  """
+  The field to sort supplier clients by.
+  """
+  field: CompanyClientOrderByColumn
+  """
+  The order to sort supplier clients by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns that a supplier's client list can be ordered by.
+"""
+enum CompanyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  The client's market, then its region by name.
+  """
+  CLIENT_LOCATION
+  """
+  The date the client relationship was established.
+  """
+  CLIENT_SINCE
+  """
+  The number of hires the supplier has at the client.
+  """
+  HIRES
+  """
+  The number of staffing agencies the supplier linked to the client.
+  """
+  LINKED_STAFFING_AGENCIES
+}
+"""
 The outcome of an external validation check (e.g. KvK, VAT/VIES).
 """
 enum CompanyNumberValidationStatus {
@@ -2588,7 +2605,7 @@ type CompanySettings {
 """
 A link between a client company and a supplier account (Company acting as a staffing agency).
 """
-type CompanySupplier {
+type CompanySupplier implements ClientRelation {
   """
   The ID of the company supplier.
   """
@@ -2597,6 +2614,10 @@ type CompanySupplier {
   The client company.
   """
   company: Company!
+  """
+  **Experimental.** The client company; the same as `company`, under the name every client relation shares.
+  """
+  client: Company!
   """
   The supplier account.
   """
@@ -3381,6 +3402,10 @@ enum ComplianceName {
   Staffing-agency onboarding — review of onboarding documents and required custom fields
   """
   RECRUITER_ONBOARDING
+  """
+  Client onboarding — whether any of the account's clients still needs onboarding completed
+  """
+  CLIENT_ONBOARDING
   """
   End client input for supplier-managed worker classification
   """
@@ -5141,6 +5166,40 @@ input CreateCustomTimesheetInput {
   data: String!
 }
 """
+The input for creating an expense.
+"""
+input CreateExpenseInput {
+  """
+  The expense report this expense belongs to.
+  """
+  expenseReport: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
+}
+"""
 An input for creating an export.
 """
 input CreateExportInput {
@@ -5817,49 +5876,49 @@ input CreateWorkflowVariableFieldInput {
   rule: WorkflowVariableFieldRuleInput!
 }
 """
-Currency
+A currency code as defined by ISO 4217.
 """
 enum Currency {
   """
-  CAD
-  """
-  CAD
-  """
-  DKK
-  """
-  DKK
-  """
-  EUR
-  """
-  EUR
-  """
-  GBP
-  """
-  GBP
-  """
-  NOK
-  """
-  NOK
-  """
-  SEK
-  """
-  SEK
-  """
-  USD
-  """
-  USD
+  United Arab Emirates Dirham
   """
   AED
   """
-  AED
-  """
-  SGD
-  """
-  SGD
+  Australian Dollar
   """
   AUD
   """
-  AUD
+  Canadian Dollar
+  """
+  CAD
+  """
+  Danish Krone
+  """
+  DKK
+  """
+  Euro
+  """
+  EUR
+  """
+  Great British Pound
+  """
+  GBP
+  """
+  Norwegian Krone
+  """
+  NOK
+  """
+  Swedish Krona
+  """
+  SEK
+  """
+  Singapore Dollar
+  """
+  SGD
+  """
+  United States Dollar
+  """
+  USD
 }
 """
 A custom field.
@@ -5990,6 +6049,10 @@ type CustomField {
   The date and time that the field was deleted.
   """
   deletedAt: DateTime
+  """
+  The date and time that the field was archived.
+  """
+  archivedAt: DateTime
 }
 """
 The settings input for custom fields.
@@ -6988,15 +7051,20 @@ type Expense {
   """
   id: ID!
   """
+  The unique reference for the expense.
+  """
+  number: Int!
+  """
   The description of the expense.
   """
   description: String
   """
-  The currency of the expense.
+  The currency of the expense. Taken from the expense report's payment request when it was
+  created, or from its hire when the report wasn't linked to one.
   """
   currency: Currency!
   """
-  The amount of the expense.
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
   """
   amount: Float!
   """
@@ -7011,6 +7079,14 @@ type Expense {
   The date and time that the expense was created.
   """
   createdAt: DateTime!
+  """
+  Custom field values captured against this expense (see the "Expenses custom
+  fields" section of the client account's payment request custom fields).
+  
+  Filtered to Worker-visibility values for any viewer other than the client
+  company the fields belong to.
+  """
+  customFieldValues: [CustomFieldValue!]!
   """
   The files attached to this expense.
   """
@@ -8951,15 +9027,20 @@ type Job implements HasURL {
   """
   supplierJob: Job
   """
+  **Experimental.** The pay items this job can offer. On an MSP's copy of a client job,
+  these are the client's, and the list is empty once the client job is deleted.
+  
+  Readable only by the client company owning the job, and by the MSP managing it; on
+  an MSP's copy, only by that MSP. Anyone else reads an empty list.
+  """
+  offerablePayItems: [PayItem!]!
+  """
   **Experimental.** The rate card band that applies to this job.
   
   A band is the client's internal pricing policy, so it is readable only by the
   client company owning the job, and by a company registered as that client's
   supplier that also holds an active share of the job — in practice, the MSP.
   Anyone else, staffing agencies included, reads null.
-  
-  A stub until the resolver lands: it returns the no-match state rather than
-  invented figures.
   """
   rateCardBand(
     """
@@ -8968,9 +9049,7 @@ type Job implements HasURL {
     date: Date
 
     """
-    Resolve against these custom field values instead of the job's stored
-    ones. The job form has no autosave, so the criteria being changed exist
-    only in the form's store until it is saved.
+    Resolve against these custom field values instead of the job's stored ones.
     """
     customFieldValues: [CustomFieldTypeValueInput!]
   ): RateCardBand
@@ -10544,6 +10623,17 @@ type Mutation {
     input: DeleteCustomFieldInput!
   ): CustomField!
   """
+  Archive or unarchive a custom field.
+  
+  The field is offered or stops being offered for input, but its existing values stay readable.
+  """
+  setCustomFieldsArchived(
+    """
+    The input for archiving or unarchiving a custom field.
+    """
+    input: SetCustomFieldsArchivedInput!
+  ): [CustomField!]!
+  """
   Update custom field values for a fieldable entity as a worker.
   
   Accepts a collection of field values in a single payload.
@@ -10574,6 +10664,24 @@ type Mutation {
     """
     input: OnboardEmploymentInput!
   ): Employment!
+  """
+  Create an expense line item on an expense report.
+  """
+  createExpense(
+    """
+    The details of the expense to create.
+    """
+    input: CreateExpenseInput!
+  ): Expense!
+  """
+  Update an expense line item.
+  """
+  updateExpense(
+    """
+    The details of the expense to update.
+    """
+    input: UpdateExpenseInput!
+  ): Expense!
   """
   Generate temporary upload URLs for files for the given account.
   
@@ -10855,7 +10963,8 @@ type Mutation {
   ): JobCandidate!
   """
   Withdraw an own submitted candidate from the hiring process. Used by
-  suppliers; moves the candidate to the withdrawn step of its current phase.
+  suppliers (staffing agencies and companies acting as suppliers); moves the
+  candidate to the withdrawn step of its current phase.
   """
   withdrawJobCandidate(
     """
@@ -12887,6 +12996,16 @@ type Query {
   """
   companyRecruiterRegions: [MarketWithRegions!]!
   """
+  **Experimental.** The markets of the viewer's clients, with all of their regions: the clients of its supplier
+  companies and of its staffing agencies.
+  """
+  clientRelationRegions(
+    """
+    Only the clients of these accounts. Without it, every account the viewer belongs to.
+    """
+    accounts: [ID!]
+  ): [MarketWithRegions!]!
+  """
   Get a specific approval rule by ID.
   """
   approvalRule(
@@ -12970,14 +13089,15 @@ type Query {
     id: ID!
   ): CompanyRecruiter
   """
-  Get a specific client the authenticated company accounts supply to.
+  **Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's relation or a
+  staffing agency's client link, whichever kind the ID is.
   """
-  supplierClient(
+  clientRelation(
     """
-    The ID of the company supplier row.
+    The ID of a company supplier relation or of a staffing agency's client link.
     """
     id: ID!
-  ): CompanySupplier
+  ): ClientRelation
   """
   Get a specific company supplier.
   """
@@ -13680,6 +13800,51 @@ type Query {
     page: Int
   ): SupplierClientPaginator!
   """
+  **Experimental.** The end clients the viewer's staffing agencies work for: one row per client link, direct or
+  through an MSP.
+  """
+  staffingAgencyClients(
+    """
+    Only show the clients of these staffing agency accounts. Without it, every staffing agency the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    Search clients by company name.
+    """
+    search: String
+
+    """
+    Only show direct links (true) or links through an MSP (false).
+    """
+    isDirect: Boolean
+
+    """
+    Filter clients by market and optionally narrow by specific regions.
+    """
+    clientRegions: MarketRegionInput
+
+    """
+    Only show links created within the given date range.
+    """
+    createdAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [StaffingAgencyClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
+  """
   Get a list of company suppliers for the authenticated company accounts.
   """
   companySuppliers(
@@ -13706,9 +13871,9 @@ type Query {
   """
   Get a list of clients the authenticated company accounts supply to.
   
-  The supplier-side view of the same rows companySuppliers reads from the client side.
+  The rows companySuppliers also returns, limited to those where the viewer's company is the supplier.
   """
-  supplierClients(
+  companyClients(
     """
     Only show the clients of these supplier company accounts. Without it, clients of every
     supplier company the viewer belongs to are shown.
@@ -13753,7 +13918,7 @@ type Query {
     """
     Supply a list of column/order pairs for sorting, applied in the provided order.
     """
-    orderBy: [ClientRelationOrderByClauseInput!]
+    orderBy: [CompanyClientOrderByClauseInput!]
 
     """
     Limits number of fetched items.
@@ -13981,6 +14146,11 @@ type Query {
     appliesTo: [TypeSupportingCustomFieldValues!]
 
     """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -14010,6 +14180,11 @@ type Query {
     A list of entity types supporting custom fields.
     """
     appliesTo: [TypeSupportingCustomFieldValues!]
+
+    """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
 
     """
     Limits number of fetched items.
@@ -16092,6 +16267,19 @@ input SetChecklistCheckStateInput {
   reason: String
 }
 """
+The input for archiving or unarchiving a custom field.
+"""
+input SetCustomFieldsArchivedInput {
+  """
+  The IDs of the custom fields to archive or unarchive.
+  """
+  customFields: [ID!]!
+  """
+  Whether the fields should be archived (true) or unarchived (false)
+  """
+  archived: Boolean!
+}
+"""
 The input used for setting the internal budget on a job.
 """
 input SetInternalBudgetOnJobInput {
@@ -16323,6 +16511,40 @@ enum SourcingDeadlineChoice {
   NONE
 }
 """
+**Experimental.** Sorting clause for a staffing agency's client list.
+"""
+input StaffingAgencyClientOrderByClauseInput {
+  """
+  The field to sort the client links by.
+  """
+  field: StaffingAgencyClientOrderByColumn
+  """
+  The order to sort the client links by.
+  """
+  order: SortOrder = ASC
+}
+"""
+**Experimental.** The columns that a staffing agency's client list can be ordered by.
+"""
+enum StaffingAgencyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  Direct links first, then the name of the MSP the link goes through.
+  """
+  RELATION
+  """
+  The date the link was created.
+  """
+  CLIENT_SINCE
+  """
+  The number of the agency's offered, ready, active, ended, cancelled and terminated hires at the client.
+  """
+  PLACEMENTS
+}
+"""
 The details for updating a bank account details.
 """
 input StoreBankDetailsInput {
@@ -16473,7 +16695,7 @@ A link between a supplier and an end client the supplier works for.
 Row presence is the relationship: direct when the client contracted the supplier itself,
 managed when another company sits in the middle.
 """
-type SupplierClient {
+type SupplierClient implements ClientRelation {
   """
   The ID of the supplier-to-client link.
   """
@@ -16487,10 +16709,24 @@ type SupplierClient {
   """
   client: Company!
   """
-  The staffing agency relation this link was contracted under. Null when the supplier is a
-  company rather than a staffing agency.
+  **Experimental.** The company the link was contracted through: the client itself for a direct link, the MSP for a
+  managed one.
+  """
+  managingCompany: Company!
+  """
+  **Experimental.** Whether the client contracted the supplier itself, rather than through a managing company.
+  """
+  isDirect: Boolean!
+  """
+  The staffing agency relation this link was contracted under, as the managing company keeps it. Null when the
+  supplier is a company rather than a staffing agency, and for viewers outside the managing company.
   """
   companyRecruiter: CompanyRecruiter
+  """
+  **Experimental.** The people at the managing company who look after the client: the owners of the client's
+  relation with it. Empty on a direct link, and for viewers other than the staffing agency the link belongs to.
+  """
+  managingCompanyContacts: [User!]!
   """
   When the link was created.
   """
@@ -16500,9 +16736,15 @@ type SupplierClient {
   """
   updatedAt: Date!
   """
-  The hires the supplier has at the client, in any status.
+  The hires the supplier placed at the client through this link, in any status unless narrowed: for a staffing
+  agency, its own copy of each hire under the managing company.
   """
-  hiresCount: Int!
+  hiresCount(
+    """
+    **Experimental.** Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
 }
 """
 Sorting clause for a client's linked staffing agencies.
@@ -16604,7 +16846,7 @@ Union of types which custom field values may be applied to.
 
 This is closely coupled to the `TypeSupportingCustomFieldValues` enum.
 """
-union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier
+union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier | Expense
 """
 A tag.
 """
@@ -17401,6 +17643,10 @@ enum TypeSupportingCustomFieldValues {
   A relationship between a client company and one of its suppliers
   """
   COMPANY_SUPPLIER
+  """
+  An Expense
+  """
+  EXPENSE
 }
 """
 A scalar for representing a URL.
@@ -17615,6 +17861,40 @@ input UpdateCustomFieldInput {
   Only applies to some field types (e.g. `SINGLE_SELECT`).
   """
   options: [CustomFieldCustomFieldOptionInput!]
+}
+"""
+The input for updating an expense.
+"""
+input UpdateExpenseInput {
+  """
+  The expense to update.
+  """
+  id: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
 }
 """
 The details for updating the "preferred" status of a job candidate.

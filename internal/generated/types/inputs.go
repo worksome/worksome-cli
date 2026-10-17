@@ -229,14 +229,6 @@ type ClientRelationAgencyOwnerOrderByClauseInput struct {
 	Order *SortOrder `json:"order,omitempty"`
 }
 
-// ClientRelationOrderByClauseInput — Sorting clause for the supplier's client list.
-type ClientRelationOrderByClauseInput struct {
-	// The field to sort supplier clients by.
-	Field *ClientRelationOrderByColumn `json:"field,omitempty"`
-	// The order to sort supplier clients by.
-	Order *SortOrder `json:"order,omitempty"`
-}
-
 // ClientRelationOwnerOrderByClauseInput — Sorting clause for a supplier's own team on a client.
 type ClientRelationOwnerOrderByClauseInput struct {
 	// The field to sort the people by.
@@ -250,6 +242,14 @@ type ClientRelationTeamOrderByClauseInput struct {
 	// The field to sort the team by.
 	Field *ClientRelationTeamOrderByColumn `json:"field,omitempty"`
 	// The order to sort the team by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// CompanyClientOrderByClauseInput — Sorting clause for the supplier's client list.
+type CompanyClientOrderByClauseInput struct {
+	// The field to sort supplier clients by.
+	Field *CompanyClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort supplier clients by.
 	Order *SortOrder `json:"order,omitempty"`
 }
 
@@ -363,6 +363,24 @@ type CreateCustomTimesheetInput struct {
 	Schema string `json:"schema"`
 	// The custom data for the timesheet.
 	Data string `json:"data"`
+}
+
+// CreateExpenseInput — The input for creating an expense.
+type CreateExpenseInput struct {
+	// The expense report this expense belongs to.
+	ExpenseReport string `json:"expenseReport"`
+	// The vendor of the expense.
+	Vendor string `json:"vendor"`
+	// The description of the expense.
+	Description *string `json:"description,omitempty"`
+	// The date that the expense was expensed.
+	ExpenseAt *string `json:"expenseAt,omitempty"`
+	// The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+	Amount *float64 `json:"amount,omitempty"`
+	// The IDs of previously-uploaded files (see the 'uploadFiles' mutation) to attach.
+	Files []string `json:"files,omitempty"`
+	// Custom field values to set on this expense (see the "Expenses custom fields" section of the client account's payment request custom fields).
+	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
 
 // CreateExportInput — An input for creating an export.
@@ -1365,6 +1383,14 @@ type SetChecklistCheckStateInput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+// SetCustomFieldsArchivedInput — The input for archiving or unarchiving a custom field.
+type SetCustomFieldsArchivedInput struct {
+	// The IDs of the custom fields to archive or unarchive.
+	CustomFields []string `json:"customFields"`
+	// Whether the fields should be archived (true) or unarchived (false)
+	Archived bool `json:"archived"`
+}
+
 // SetInternalBudgetOnJobInput — The input used for setting the internal budget on a job.
 type SetInternalBudgetOnJobInput struct {
 	// The job that the budget is for.
@@ -1413,6 +1439,14 @@ type SkillOrderByClauseInput struct {
 	Column SkillOrderByColumn `json:"column"`
 	// Sorting order for the associated sorting column
 	Order SortOrder `json:"order"`
+}
+
+// StaffingAgencyClientOrderByClauseInput — **Experimental.** Sorting clause for a staffing agency's client list.
+type StaffingAgencyClientOrderByClauseInput struct {
+	// The field to sort the client links by.
+	Field *StaffingAgencyClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort the client links by.
+	Order *SortOrder `json:"order,omitempty"`
 }
 
 // StoreBankDetailsInput — The details for updating a bank account details.
@@ -1617,6 +1651,24 @@ type UpdateCustomFieldInput struct {
 	SharedWithStaffingAgencies *bool `json:"sharedWithStaffingAgencies,omitempty"`
 	// The list of options which will be available for custom field values. Only applies to some field types (e.g. 'SINGLE_SELECT').
 	Options []CustomFieldCustomFieldOptionInput `json:"options,omitempty"`
+}
+
+// UpdateExpenseInput — The input for updating an expense.
+type UpdateExpenseInput struct {
+	// The expense to update.
+	Id string `json:"id"`
+	// The vendor of the expense.
+	Vendor string `json:"vendor"`
+	// The description of the expense.
+	Description *string `json:"description,omitempty"`
+	// The date that the expense was expensed.
+	ExpenseAt *string `json:"expenseAt,omitempty"`
+	// The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+	Amount *float64 `json:"amount,omitempty"`
+	// The IDs of previously-uploaded files (see the 'uploadFiles' mutation) to attach.
+	Files []string `json:"files,omitempty"`
+	// Custom field values to set on this expense (see the "Expenses custom fields" section of the client account's payment request custom fields).
+	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
 
 // UpdateJobCandidatePreferredInput — The details for updating the "preferred" status of a job candidate.
