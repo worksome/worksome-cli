@@ -586,33 +586,6 @@ func ValidClientRelationAgencyOwnerOrderByColumn() []ClientRelationAgencyOwnerOr
 	}
 }
 
-// ClientRelationOrderByColumn — The columns that a supplier's client list can be ordered by.
-type ClientRelationOrderByColumn string
-
-const (
-	// ClientRelationOrderByColumnClientName — The name of the client company.
-	ClientRelationOrderByColumnClientName ClientRelationOrderByColumn = "CLIENT_NAME"
-	// ClientRelationOrderByColumnClientLocation — The client's market, then its region by name.
-	ClientRelationOrderByColumnClientLocation ClientRelationOrderByColumn = "CLIENT_LOCATION"
-	// ClientRelationOrderByColumnClientSince — The date the client relationship was established.
-	ClientRelationOrderByColumnClientSince ClientRelationOrderByColumn = "CLIENT_SINCE"
-	// ClientRelationOrderByColumnHires — The number of hires the supplier has at the client.
-	ClientRelationOrderByColumnHires ClientRelationOrderByColumn = "HIRES"
-	// ClientRelationOrderByColumnLinkedStaffingAgencies — The number of staffing agencies the supplier linked to the client.
-	ClientRelationOrderByColumnLinkedStaffingAgencies ClientRelationOrderByColumn = "LINKED_STAFFING_AGENCIES"
-)
-
-// ValidClientRelationOrderByColumn returns all valid values for ClientRelationOrderByColumn.
-func ValidClientRelationOrderByColumn() []ClientRelationOrderByColumn {
-	return []ClientRelationOrderByColumn{
-		ClientRelationOrderByColumnClientName,
-		ClientRelationOrderByColumnClientLocation,
-		ClientRelationOrderByColumnClientSince,
-		ClientRelationOrderByColumnHires,
-		ClientRelationOrderByColumnLinkedStaffingAgencies,
-	}
-}
-
 // ClientRelationOwnerOrderByColumn — The columns a supplier's own team on a client can be ordered by.
 type ClientRelationOwnerOrderByColumn string
 
@@ -646,6 +619,33 @@ func ValidClientRelationTeamOrderByColumn() []ClientRelationTeamOrderByColumn {
 	return []ClientRelationTeamOrderByColumn{
 		ClientRelationTeamOrderByColumnName,
 		ClientRelationTeamOrderByColumnAccountRole,
+	}
+}
+
+// CompanyClientOrderByColumn — The columns that a supplier's client list can be ordered by.
+type CompanyClientOrderByColumn string
+
+const (
+	// CompanyClientOrderByColumnClientName — The name of the client company.
+	CompanyClientOrderByColumnClientName CompanyClientOrderByColumn = "CLIENT_NAME"
+	// CompanyClientOrderByColumnClientLocation — The client's market, then its region by name.
+	CompanyClientOrderByColumnClientLocation CompanyClientOrderByColumn = "CLIENT_LOCATION"
+	// CompanyClientOrderByColumnClientSince — The date the client relationship was established.
+	CompanyClientOrderByColumnClientSince CompanyClientOrderByColumn = "CLIENT_SINCE"
+	// CompanyClientOrderByColumnHires — The number of hires the supplier has at the client.
+	CompanyClientOrderByColumnHires CompanyClientOrderByColumn = "HIRES"
+	// CompanyClientOrderByColumnLinkedStaffingAgencies — The number of staffing agencies the supplier linked to the client.
+	CompanyClientOrderByColumnLinkedStaffingAgencies CompanyClientOrderByColumn = "LINKED_STAFFING_AGENCIES"
+)
+
+// ValidCompanyClientOrderByColumn returns all valid values for CompanyClientOrderByColumn.
+func ValidCompanyClientOrderByColumn() []CompanyClientOrderByColumn {
+	return []CompanyClientOrderByColumn{
+		CompanyClientOrderByColumnClientName,
+		CompanyClientOrderByColumnClientLocation,
+		CompanyClientOrderByColumnClientSince,
+		CompanyClientOrderByColumnHires,
+		CompanyClientOrderByColumnLinkedStaffingAgencies,
 	}
 }
 
@@ -910,12 +910,20 @@ const (
 	ComplianceNameWorkerOnboarding ComplianceName = "WORKER_ONBOARDING"
 	// ComplianceNameIdentification — Required identification details
 	ComplianceNameIdentification ComplianceName = "IDENTIFICATION"
+	// ComplianceNameHireWorkerCustomFieldsBeforeOffer — Required hire custom fields the worker answers before the hire is offered
+	ComplianceNameHireWorkerCustomFieldsBeforeOffer ComplianceName = "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_OFFER"
+	// ComplianceNameHireWorkerCustomFieldsBeforeAcceptance — Required hire custom fields the worker answers before accepting the contract
+	ComplianceNameHireWorkerCustomFieldsBeforeAcceptance ComplianceName = "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_ACCEPTANCE"
 	// ComplianceNameVerifiedRecruiterCompliance — Verified staffing-agency compliance — company verification of a staffing agency
 	ComplianceNameVerifiedRecruiterCompliance ComplianceName = "VERIFIED_RECRUITER_COMPLIANCE"
 	// ComplianceNameRecruiterOnboarding — Staffing-agency onboarding — review of onboarding documents and required custom fields
 	ComplianceNameRecruiterOnboarding ComplianceName = "RECRUITER_ONBOARDING"
+	// ComplianceNameClientOnboarding — Client onboarding — whether any of the account's clients still needs onboarding completed
+	ComplianceNameClientOnboarding ComplianceName = "CLIENT_ONBOARDING"
 	// ComplianceNameDeterminationSupplierHireClientInput — End client input for supplier-managed worker classification
 	ComplianceNameDeterminationSupplierHireClientInput ComplianceName = "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT"
+	// ComplianceNameDeterminationHireFreelancerInput — Worker input for the classification questions about their own hire
+	ComplianceNameDeterminationHireFreelancerInput ComplianceName = "DETERMINATION_HIRE_FREELANCER_INPUT"
 	// ComplianceNameDeterminationSupplierHireAwaitingClient — Supplier awaiting end client classification input
 	ComplianceNameDeterminationSupplierHireAwaitingClient ComplianceName = "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT"
 	// ComplianceNameSupplierHirePrepared — Downstream supplier-mirror hire is out of draft and prepared by the staffing agency
@@ -1010,9 +1018,13 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameVerifiedWorkerCompliance,
 		ComplianceNameWorkerOnboarding,
 		ComplianceNameIdentification,
+		ComplianceNameHireWorkerCustomFieldsBeforeOffer,
+		ComplianceNameHireWorkerCustomFieldsBeforeAcceptance,
 		ComplianceNameVerifiedRecruiterCompliance,
 		ComplianceNameRecruiterOnboarding,
+		ComplianceNameClientOnboarding,
 		ComplianceNameDeterminationSupplierHireClientInput,
+		ComplianceNameDeterminationHireFreelancerInput,
 		ComplianceNameDeterminationSupplierHireAwaitingClient,
 		ComplianceNameSupplierHirePrepared,
 	}
@@ -1966,45 +1978,45 @@ func ValidCountryCode() []CountryCode {
 	}
 }
 
-// Currency — Currency
+// Currency — A currency code as defined by ISO 4217.
 type Currency string
 
 const (
-	// CurrencyCad — CAD
-	CurrencyCad Currency = "CAD"
-	// CurrencyDkk — DKK
-	CurrencyDkk Currency = "DKK"
-	// CurrencyEur — EUR
-	CurrencyEur Currency = "EUR"
-	// CurrencyGbp — GBP
-	CurrencyGbp Currency = "GBP"
-	// CurrencyNok — NOK
-	CurrencyNok Currency = "NOK"
-	// CurrencySek — SEK
-	CurrencySek Currency = "SEK"
-	// CurrencyUsd — USD
-	CurrencyUsd Currency = "USD"
-	// CurrencyAed — AED
+	// CurrencyAed — United Arab Emirates Dirham
 	CurrencyAed Currency = "AED"
-	// CurrencySgd — SGD
-	CurrencySgd Currency = "SGD"
-	// CurrencyAud — AUD
+	// CurrencyAud — Australian Dollar
 	CurrencyAud Currency = "AUD"
+	// CurrencyCad — Canadian Dollar
+	CurrencyCad Currency = "CAD"
+	// CurrencyDkk — Danish Krone
+	CurrencyDkk Currency = "DKK"
+	// CurrencyEur — Euro
+	CurrencyEur Currency = "EUR"
+	// CurrencyGbp — Great British Pound
+	CurrencyGbp Currency = "GBP"
+	// CurrencyNok — Norwegian Krone
+	CurrencyNok Currency = "NOK"
+	// CurrencySek — Swedish Krona
+	CurrencySek Currency = "SEK"
+	// CurrencySgd — Singapore Dollar
+	CurrencySgd Currency = "SGD"
+	// CurrencyUsd — United States Dollar
+	CurrencyUsd Currency = "USD"
 )
 
 // ValidCurrency returns all valid values for Currency.
 func ValidCurrency() []Currency {
 	return []Currency{
+		CurrencyAed,
+		CurrencyAud,
 		CurrencyCad,
 		CurrencyDkk,
 		CurrencyEur,
 		CurrencyGbp,
 		CurrencyNok,
 		CurrencySek,
-		CurrencyUsd,
-		CurrencyAed,
 		CurrencySgd,
-		CurrencyAud,
+		CurrencyUsd,
 	}
 }
 
@@ -2020,6 +2032,10 @@ const (
 	CustomFieldTypeMultiSelect CustomFieldType = "MULTI_SELECT"
 	// CustomFieldTypeFileUpload — File Upload input field. Used to attach an uploaded file as the field value.
 	CustomFieldTypeFileUpload CustomFieldType = "FILE_UPLOAD"
+	// CustomFieldTypeDate — Date input field. Used to collect a single calendar date.
+	CustomFieldTypeDate CustomFieldType = "DATE"
+	// CustomFieldTypeBoolean — Boolean input field. Used to collect a yes or no answer.
+	CustomFieldTypeBoolean CustomFieldType = "BOOLEAN"
 )
 
 // ValidCustomFieldType returns all valid values for CustomFieldType.
@@ -2029,6 +2045,8 @@ func ValidCustomFieldType() []CustomFieldType {
 		CustomFieldTypeFreeText,
 		CustomFieldTypeMultiSelect,
 		CustomFieldTypeFileUpload,
+		CustomFieldTypeDate,
+		CustomFieldTypeBoolean,
 	}
 }
 
@@ -2080,6 +2098,24 @@ func ValidCustomFieldVisibility() []CustomFieldVisibility {
 	return []CustomFieldVisibility{
 		CustomFieldVisibilityInternal,
 		CustomFieldVisibilityWorker,
+	}
+}
+
+// CustomFieldWorkerInputStage — When the worker, or the staffing agency managing them, must answer a hire custom field.
+type CustomFieldWorkerInputStage string
+
+const (
+	// CustomFieldWorkerInputStageBeforeOffer — The worker answers while the hire is a draft, before the company can offer it.
+	CustomFieldWorkerInputStageBeforeOffer CustomFieldWorkerInputStage = "BEFORE_OFFER"
+	// CustomFieldWorkerInputStageBeforeAcceptance — The worker answers before they can accept the contract.
+	CustomFieldWorkerInputStageBeforeAcceptance CustomFieldWorkerInputStage = "BEFORE_ACCEPTANCE"
+)
+
+// ValidCustomFieldWorkerInputStage returns all valid values for CustomFieldWorkerInputStage.
+func ValidCustomFieldWorkerInputStage() []CustomFieldWorkerInputStage {
+	return []CustomFieldWorkerInputStage{
+		CustomFieldWorkerInputStageBeforeOffer,
+		CustomFieldWorkerInputStageBeforeAcceptance,
 	}
 }
 
@@ -4047,6 +4083,30 @@ func ValidSourcingDeadlineChoice() []SourcingDeadlineChoice {
 	}
 }
 
+// StaffingAgencyClientOrderByColumn — **Experimental.** The columns that a staffing agency's client list can be ordered by.
+type StaffingAgencyClientOrderByColumn string
+
+const (
+	// StaffingAgencyClientOrderByColumnClientName — The name of the client company.
+	StaffingAgencyClientOrderByColumnClientName StaffingAgencyClientOrderByColumn = "CLIENT_NAME"
+	// StaffingAgencyClientOrderByColumnRelation — Direct links first, then the name of the MSP the link goes through.
+	StaffingAgencyClientOrderByColumnRelation StaffingAgencyClientOrderByColumn = "RELATION"
+	// StaffingAgencyClientOrderByColumnClientSince — The date the link was created.
+	StaffingAgencyClientOrderByColumnClientSince StaffingAgencyClientOrderByColumn = "CLIENT_SINCE"
+	// StaffingAgencyClientOrderByColumnPlacements — The number of the agency's offered, ready, active, ended, cancelled and terminated hires at the client.
+	StaffingAgencyClientOrderByColumnPlacements StaffingAgencyClientOrderByColumn = "PLACEMENTS"
+)
+
+// ValidStaffingAgencyClientOrderByColumn returns all valid values for StaffingAgencyClientOrderByColumn.
+func ValidStaffingAgencyClientOrderByColumn() []StaffingAgencyClientOrderByColumn {
+	return []StaffingAgencyClientOrderByColumn{
+		StaffingAgencyClientOrderByColumnClientName,
+		StaffingAgencyClientOrderByColumnRelation,
+		StaffingAgencyClientOrderByColumnClientSince,
+		StaffingAgencyClientOrderByColumnPlacements,
+	}
+}
+
 // SupplierClientOrderByColumn — The columns a client's linked suppliers can be ordered by.
 type SupplierClientOrderByColumn string
 
@@ -4336,6 +4396,12 @@ const (
 	TypeSupportingCustomFieldValuesCompanyRecruiter TypeSupportingCustomFieldValues = "COMPANY_RECRUITER"
 	// TypeSupportingCustomFieldValuesCompanySupplier — A relationship between a client company and one of its suppliers
 	TypeSupportingCustomFieldValuesCompanySupplier TypeSupportingCustomFieldValues = "COMPANY_SUPPLIER"
+	// TypeSupportingCustomFieldValuesExpense — An Expense
+	TypeSupportingCustomFieldValuesExpense TypeSupportingCustomFieldValues = "EXPENSE"
+	// TypeSupportingCustomFieldValuesHire — A Hire
+	TypeSupportingCustomFieldValuesHire TypeSupportingCustomFieldValues = "HIRE"
+	// TypeSupportingCustomFieldValuesClassificationInput — The input collected for a worker classification
+	TypeSupportingCustomFieldValuesClassificationInput TypeSupportingCustomFieldValues = "CLASSIFICATION_INPUT"
 )
 
 // ValidTypeSupportingCustomFieldValues returns all valid values for TypeSupportingCustomFieldValues.
@@ -4347,6 +4413,9 @@ func ValidTypeSupportingCustomFieldValues() []TypeSupportingCustomFieldValues {
 		TypeSupportingCustomFieldValuesPaymentRequest,
 		TypeSupportingCustomFieldValuesCompanyRecruiter,
 		TypeSupportingCustomFieldValuesCompanySupplier,
+		TypeSupportingCustomFieldValuesExpense,
+		TypeSupportingCustomFieldValuesHire,
+		TypeSupportingCustomFieldValuesClassificationInput,
 	}
 }
 
