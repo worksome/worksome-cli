@@ -184,13 +184,13 @@ func jsonArg(flag, gqlType, raw string) (any, error) {
 
 var acceptbidHoistedColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 // NewAcceptBidCmd creates the accept-bid resource command.
@@ -3307,35 +3307,100 @@ func classificationsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[st
 	return printResult(cmd, allData, classificationsColumns)
 }
 
-var clientrelationagencyownersColumns = []output.Column{
+var clientrelationColumns = []output.Column{
 	{Header: "ID", Field: "id"},
-	{Header: "User ID", Field: "user.id"},
-	{Header: "User Name", Field: "user.name"},
-	{Header: "Responsibility", Field: "responsibility"},
-	{Header: "Assigned At", Field: "assignedAt"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Created At", Field: "createdAt"},
+	{Header: "Hires Count", Field: "hiresCount"},
+	{Header: "Workers Count", Field: "workersCount"},
+	{Header: "First Hire Started At", Field: "firstHireStartedAt"},
 }
 
-// NewClientRelationAgencyOwnersCmd creates the client-relation-agency-owners resource command.
-func NewClientRelationAgencyOwnersCmd() *cobra.Command {
+// NewClientRelationCmd creates the client-relation resource command.
+func NewClientRelationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "client-relation-agency-owners",
-		Short: "The people the relation's staffing agencies have assigned to its client, as owners of their agency links.",
+		Use:   "client-relation",
+		Short: "**Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's...",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 	}
 
-	cmd.AddCommand(newClientRelationAgencyOwnersListCmd())
+	cmd.AddCommand(newClientRelationGetCmd())
 
 	return cmd
 }
 
-func newClientRelationAgencyOwnersListCmd() *cobra.Command {
+func newClientRelationGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get <id>",
+		Short:   "**Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's relation or a staffing agency's client link, whichever kind the ID is.",
+		Example: "  worksome client-relation get <id>",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			vars["id"] = args[0]
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientRelation", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.ClientRelation(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, clientrelationColumns)
+		},
+	}
+
+	return cmd
+}
+
+var clientrelationcounterpartownersColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Responsibility", Field: "responsibility"},
+	{Header: "Assigned At", Field: "assignedAt"},
+	{Header: "Owned ID", Field: "owned.id"},
+}
+
+// NewClientRelationCounterpartOwnersCmd creates the client-relation-counterpart-owners resource command.
+func NewClientRelationCounterpartOwnersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-relation-counterpart-owners",
+		Short: "**Experimental.** The other side's people assigned to one client relation.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientRelationCounterpartOwnersListCmd())
+
+	return cmd
+}
+
+func newClientRelationCounterpartOwnersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "The people the relation's staffing agencies have assigned to its client, as owners of their agency links. Covers the agency links the relation's supplier manages at that client; direct links and links managed by anyone else are left out.",
-		Example: "  worksome client-relation-agency-owners list -n 20\n  worksome client-relation-agency-owners list --all\n  worksome client-relation-agency-owners list --watch\n  worksome client-relation-agency-owners list --watch --watch-interval 10",
+		Short:   "**Experimental.** The other side's people assigned to one client relation. On a supplier company's relation: the people its staffing agencies assigned to their links at that client. On a staffing agency's managed link: the people the managing company assigned to its own relation with that client. Empty for a direct agency link.",
+		Example: "  worksome client-relation-counterpart-owners list -n 20\n  worksome client-relation-counterpart-owners list --all\n  worksome client-relation-counterpart-owners list --watch\n  worksome client-relation-counterpart-owners list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
 			if err := output.ApplyFilterFlag(cmd); err != nil {
@@ -3409,7 +3474,7 @@ func newClientRelationAgencyOwnersListCmd() *cobra.Command {
 				return fmt.Errorf("--watch and --dry-run cannot be used together")
 			}
 			if dryRun {
-				return printDryRun(cmd, "query", "ClientRelationAgencyOwners", vars)
+				return printDryRun(cmd, "query", "ClientRelationCounterpartOwners", vars)
 			}
 
 			q, err := getQuerier()
@@ -3420,20 +3485,20 @@ func newClientRelationAgencyOwnersListCmd() *cobra.Command {
 			// fetchAndPrint executes the query and prints the result once.
 			fetchAndPrint := func() error {
 				if fetchAll {
-					return clientrelationagencyownersFetchAll(cmd, q, vars)
+					return clientrelationcounterpartownersFetchAll(cmd, q, vars)
 				}
 
-				result, err := q.ClientRelationAgencyOwners(context.Background(), vars)
+				result, err := q.ClientRelationCounterpartOwners(context.Background(), vars)
 				if err != nil {
 					return err
 				}
-				if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+				if paginator, ok := result["clientRelationCounterpartOwners"].(map[string]any); ok {
 					printPageInfo(paginator)
 				}
 				// Extract data array from paginator response for table output
-				if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+				if paginator, ok := result["clientRelationCounterpartOwners"].(map[string]any); ok {
 					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, clientrelationagencyownersColumns)
+						return printResult(cmd, data, clientrelationcounterpartownersColumns)
 					}
 				}
 				return printResult(cmd, result, nil)
@@ -3461,18 +3526,18 @@ func newClientRelationAgencyOwnersListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company accounts. Without it, any supplier company the viewer belongs to.")
-	cmd.Flags().String("client", "", "The client relation to list the agency-assigned people of.")
+	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any such account the viewer belongs to.")
+	cmd.Flags().String("client", "", "The client relation: a CompanySupplier or a SupplierClient.")
 	cmd.Flags().String("search", "", "Search people by name or email.")
-	cmd.Flags().StringSlice("staffing-agencies", nil, "Only show recruiters of these staffing agencies.")
-	cmd.Flags().String("assigned-at-date-range", "", "Only show recruiters assigned within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().StringSlice("staffing-agencies", nil, "Only show recruiters of these staffing agencies. Ignored on a staffing agency's link.")
+	cmd.Flags().String("assigned-at-date-range", "", "Only show people assigned within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationAgencyOwnerOrderByClauseInput!], e.g. [{\"field\":\"NAME\",\"order\":\"ASC\"}]; field: NAME | ASSIGNED_AT | STAFFING_AGENCY; order: ASC | DESC)")
 	_ = cmd.MarkFlagRequired("client")
 
 	return cmd
 }
 
-func clientrelationagencyownersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+func clientrelationcounterpartownersFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
 	const maxPages = 1000
 	vars["first"] = 100 // Use large page size for --all
 	var allData []any
@@ -3480,12 +3545,12 @@ func clientrelationagencyownersFetchAll(cmd *cobra.Command, q *queries.Querier, 
 	for {
 		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
 		vars["page"] = page
-		result, err := q.ClientRelationAgencyOwners(context.Background(), vars)
+		result, err := q.ClientRelationCounterpartOwners(context.Background(), vars)
 		if err != nil {
 			return fmt.Errorf("page %d: %w", page, err)
 		}
 		// Extract data array from paginator response
-		if paginator, ok := result["clientRelationAgencyOwners"].(map[string]any); ok {
+		if paginator, ok := result["clientRelationCounterpartOwners"].(map[string]any); ok {
 			if data, ok := paginator["data"].([]any); ok {
 				allData = append(allData, data...)
 			}
@@ -3506,7 +3571,7 @@ func clientrelationagencyownersFetchAll(cmd *cobra.Command, q *queries.Querier, 
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, clientrelationagencyownersColumns)
+	return printResult(cmd, allData, clientrelationcounterpartownersColumns)
 }
 
 var clientrelationownersColumns = []output.Column{
@@ -3515,13 +3580,14 @@ var clientrelationownersColumns = []output.Column{
 	{Header: "User Name", Field: "user.name"},
 	{Header: "Responsibility", Field: "responsibility"},
 	{Header: "Assigned At", Field: "assignedAt"},
+	{Header: "Owned ID", Field: "owned.id"},
 }
 
 // NewClientRelationOwnersCmd creates the client-relation-owners resource command.
 func NewClientRelationOwnersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "client-relation-owners",
-		Short: "The supplier's own team members assigned to one client relation.",
+		Short: "The viewer's own team members assigned to one client relation: a supplier company's or a staffing...",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -3536,7 +3602,7 @@ func NewClientRelationOwnersCmd() *cobra.Command {
 func newClientRelationOwnersListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "The supplier's own team members assigned to one client relation.",
+		Short:   "The viewer's own team members assigned to one client relation: a supplier company's or a staffing agency's.",
 		Example: "  worksome client-relation-owners list -n 20\n  worksome client-relation-owners list --all\n  worksome client-relation-owners list --watch\n  worksome client-relation-owners list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
@@ -3659,8 +3725,8 @@ func newClientRelationOwnersListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company accounts. Without it, any supplier company the viewer belongs to.")
-	cmd.Flags().String("client", "", "The client relation to list the assigned team members of.")
+	cmd.Flags().StringSlice("accounts", nil, "Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any such account the viewer belongs to.")
+	cmd.Flags().String("client", "", "**Experimental.** The client relation to list the assigned team members of: a CompanySupplier or a SupplierClient.")
 	cmd.Flags().String("search", "", "Search people by name or email.")
 	cmd.Flags().String("assigned-at-date-range", "", "Only show people assigned within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationOwnerOrderByClauseInput!], e.g. [{\"field\":\"NAME\",\"order\":\"ASC\"}]; field: NAME | ASSIGNED_AT; order: ASC | DESC)")
@@ -3704,6 +3770,71 @@ func clientrelationownersFetchAll(cmd *cobra.Command, q *queries.Querier, vars m
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, clientrelationownersColumns)
+}
+
+var clientrelationregionsColumns = []output.Column{
+	{Header: "Code", Field: "code"},
+	{Header: "Name", Field: "name"},
+	{Header: "Region Label", Field: "regionLabel"},
+	{Header: "Regions ID", Field: "regions.id"},
+	{Header: "Regions Name", Field: "regions.name"},
+}
+
+// NewClientRelationRegionsCmd creates the client-relation-regions resource command.
+func NewClientRelationRegionsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "client-relation-regions",
+		Short: "**Experimental.** The markets of the viewer's clients, with all of their regions: the clients of...",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newClientRelationRegionsGetCmd())
+
+	return cmd
+}
+
+func newClientRelationRegionsGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get",
+		Short:   "**Experimental.** The markets of the viewer's clients, with all of their regions: the clients of its supplier companies and of its staffing agencies.",
+		Example: "  worksome client-relation-regions get <id>",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "ClientRelationRegions", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.ClientRelationRegions(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, clientrelationregionsColumns)
+		},
+	}
+	cmd.Flags().StringSlice("accounts", nil, "Only the clients of these accounts. Without it, every account the viewer belongs to.")
+
+	return cmd
 }
 
 var clientrelationteamColumns = []output.Column{
@@ -3909,9 +4040,9 @@ var clientsuppliersColumns = []output.Column{
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Client ID", Field: "client.id"},
 	{Header: "Client Name", Field: "client.name"},
-	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
-	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
-	{Header: "Created At", Field: "createdAt"},
+	{Header: "Managing Company ID", Field: "managingCompany.id"},
+	{Header: "Managing Company Name", Field: "managingCompany.name"},
+	{Header: "Is Direct", Field: "isDirect"},
 }
 
 // NewClientSuppliersCmd creates the client-suppliers resource command.
@@ -4319,6 +4450,229 @@ func companiesFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]a
 	return printResult(cmd, allData, companiesColumns)
 }
 
+var companyclientsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Owners ID", Field: "owners.id"},
+}
+
+// NewCompanyClientsCmd creates the company-clients resource command.
+func NewCompanyClientsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "company-clients",
+		Short: "Get a list of clients the authenticated company accounts supply to.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newCompanyClientsListCmd())
+
+	return cmd
+}
+
+func newCompanyClientsListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "Get a list of clients the authenticated company accounts supply to. The rows companySuppliers also returns, limited to those where the viewer's company is the supplier.",
+		Example: "  worksome company-clients list -n 20\n  worksome company-clients list --all\n  worksome company-clients list --watch\n  worksome company-clients list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("client-regions") {
+				raw, _ := cmd.Flags().GetString("client-regions")
+				v, err := jsonArg("client-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["clientRegions"] = v
+			}
+			if cmd.Flags().Changed("created-at-date-range") {
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["createdAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("payment-terms-follows-client") {
+				v, _ := cmd.Flags().GetBool("payment-terms-follows-client")
+				vars["paymentTermsFollowsClient"] = v
+			}
+			if cmd.Flags().Changed("has-linked-staffing-agencies") {
+				v, _ := cmd.Flags().GetBool("has-linked-staffing-agencies")
+				vars["hasLinkedStaffingAgencies"] = v
+			}
+			if cmd.Flags().Changed("linked-staffing-agencies") {
+				v, _ := cmd.Flags().GetStringSlice("linked-staffing-agencies")
+				vars["linkedStaffingAgencies"] = v
+			}
+			if cmd.Flags().Changed("owners") {
+				v, _ := cmd.Flags().GetStringSlice("owners")
+				vars["owners"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[CompanyClientOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "CompanyClients", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return companyclientsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.CompanyClients(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["companyClients"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["companyClients"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, companyclientsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only show the clients of these supplier company accounts. Without it, clients of every supplier company the viewer belongs to are shown.")
+	cmd.Flags().String("search", "", "Search clients by company name.")
+	cmd.Flags().String("client-regions", "", "Filter clients by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
+	cmd.Flags().String("created-at-date-range", "", "Only show clients whose relationship was established within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().Bool("payment-terms-follows-client", false, "Only show clients whose supplier hires copy (or do not copy) the client's payment terms.")
+	cmd.Flags().Bool("has-linked-staffing-agencies", false, "Only show clients with (or without) staffing agencies linked to them by the supplier.")
+	cmd.Flags().StringSlice("linked-staffing-agencies", nil, "Only show clients linked to any of the given staffing-agency relations.")
+	cmd.Flags().StringSlice("owners", nil, "Only show clients owned by any of the given users.")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [CompanyClientOrderByClauseInput!], e.g. [{\"field\":\"CLIENT_NAME\",\"order\":\"ASC\"}]; field: CLIENT_NAME | CLIENT_LOCATION | CLIENT_SINCE | HIRES | LINKED_STAFFING_AGENCIES; order: ASC | DESC)")
+
+	return cmd
+}
+
+func companyclientsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.CompanyClients(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["companyClients"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, companyclientsColumns)
+}
+
 var companyrecruiterregionsColumns = []output.Column{
 	{Header: "Code", Field: "code"},
 	{Header: "Name", Field: "name"},
@@ -4615,7 +4969,7 @@ func newCompanyRecruitersListCmd() *cobra.Command {
 	cmd.Flags().String("recruiter-regions", "", "Filter recruiters by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [RecruiterOrderByClauseInput!], e.g. [{\"field\":\"RECRUITER_NAME\",\"order\":\"ASC\"}]; field: RECRUITER_NAME | RECRUITER_MARKET | RECRUITER_FEE | RECRUITER_OWNERSHIP_DAYS | RECRUITER_STATUS | RECRUITER_INVITED_AT | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show company recruiters with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the company recruiters. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"boolean\":{...},\"date\":{...},\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
 	cmd.Flags().String("verified-recruiter-review", "", "Filter staffing agencies by their VerifiedRecruiterCompliance review state. (JSON for VerifiedRecruiterReviewFilterInput, e.g. {\"status\":\"INCOMPLETE\",\"updatedBy\":[\"<id>\"]}; status: INCOMPLETE | READY_TO_REVIEW | CHANGES_REQUESTED | CLEARED)")
 	cmd.Flags().StringSlice("end-clients", nil, "Only show staffing agencies linked to any of the given end-client companies.")
 
@@ -4674,7 +5028,7 @@ func newCompanyRecruitersCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new recruiter. Only companies can add and invite recruiters.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters create --input payload.json\n\n  # Using flags:\n  worksome company-recruiters create --company \\\"value\\\" --name \\\"value\\\" --email \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -4975,7 +5329,7 @@ func newCompanyRecruitersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a recruiter relationship. Only companies can edit recruiter relationships.",
-		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome company-recruiters update --input payload.json\n\n  # Using flags:\n  worksome company-recruiters update --id \\\"value\\\" --recruiter-fee \\\"value\\\" --recruiter-ownership-days \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"managesWorkers\": false,\n    \"maxCandidateSubmissions\": 0,\n    \"recruiterFee\": 0,\n    \"recruiterOwnershipDays\": 0,\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -5082,11 +5436,11 @@ var companysupplierownersUpdateColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Company ID", Field: "company.id"},
 	{Header: "Company Name", Field: "company.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
-	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
 func newCompanySupplierOwnersUpdateCmd() *cobra.Command {
@@ -5159,11 +5513,11 @@ var companysuppliersColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Company ID", Field: "company.id"},
 	{Header: "Company Name", Field: "company.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
 	{Header: "Supplier ID", Field: "supplier.id"},
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
-	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 }
 
 // NewCompanySuppliersCmd creates the company-suppliers resource command.
@@ -5439,7 +5793,7 @@ func newComplianceGetCmd() *cobra.Command {
 			return printResult(cmd, result, complianceColumns)
 		},
 	}
-	cmd.Flags().StringSlice("names", nil, "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ... and 85 more]")
+	cmd.Flags().StringSlice("names", nil, "Optional compliance names to filter for specific compliances [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ... and 89 more]")
 	cmd.Flags().Bool("cached", false, "Read strategy for 'applicable' / 'completed'. Defaults to live computation. Pass 'true' to read the persisted compliance status row (falling back to live when no row exists yet). Intended for verification dashboards during the persisted-status rollout; the default will remain live until the persisted rows are proven correct in production.")
 
 	return cmd
@@ -5626,7 +5980,7 @@ func newContractsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Only show contracts created by a specific account.")
-	cmd.Flags().StringSlice("currencies", nil, "Only show contracts using the specified currencies. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
+	cmd.Flags().StringSlice("currencies", nil, "Only show contracts using the specified currencies. [AED, AUD, CAD, DKK, EUR, GBP, NOK, SEK, SGD, USD]")
 	cmd.Flags().StringSlice("statuses", nil, "Only show contracts with the specified statuses. [DRAFT, ACTIVE, ARCHIVED]")
 	cmd.Flags().StringSlice("location-preferences", nil, "Only show contracts with the specified location preferences. [ONSITE_ONLY, ONSITE_SOME, REMOTE_ONLY]")
 
@@ -6051,6 +6405,10 @@ func newCustomFieldsListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("applies-to")
 				vars["appliesTo"] = v
 			}
+			if cmd.Flags().Changed("include-archived") {
+				v, _ := cmd.Flags().GetBool("include-archived")
+				vars["includeArchived"] = v
+			}
 
 			// Validate flags
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -6123,7 +6481,8 @@ func newCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER, EXPENSE, HIRE, CLASSIFICATION_INPUT]")
+	cmd.Flags().Bool("include-archived", false, "Supply true to also include archived fields. Defaults to excluding them.")
 
 	return cmd
 }
@@ -6180,7 +6539,7 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a custom field.",
-		Example: "  # Using a JSON input file:\n  worksome custom-fields create --input payload.json\n\n  # Using flags:\n  worksome custom-fields create --account \\\"value\\\" --field-type \\\"value\\\" --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"apiOnly\": false,\n    \"appliesTo\": \"JOB\",\n    \"approval\": false,\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"recruiterInputAllowed\": false,\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"sharedWithClients\": false,\n    \"sharedWithStaffingAgencies\": false,\n    \"showOnInvoice\": false,\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields create --input payload.json\n\n  # Using flags:\n  worksome custom-fields create --account \\\"value\\\" --field-type \\\"value\\\" --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"apiOnly\": false,\n    \"appliesTo\": \"JOB\",\n    \"approval\": false,\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"recruiterInputAllowed\": false,\n    \"recruiterInputStage\": \"BEFORE_OFFER\",\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"sharedWithClients\": false,\n    \"sharedWithStaffingAgencies\": false,\n    \"showOnInvoice\": false,\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false,\n    \"workerInputStage\": \"BEFORE_OFFER\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6246,9 +6605,17 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetBool("worker-input-allowed")
 				inputObj["workerInputAllowed"] = v
 			}
+			if cmd.Flags().Changed("worker-input-stage") {
+				v, _ := cmd.Flags().GetString("worker-input-stage")
+				inputObj["workerInputStage"] = v
+			}
 			if cmd.Flags().Changed("recruiter-input-allowed") {
 				v, _ := cmd.Flags().GetBool("recruiter-input-allowed")
 				inputObj["recruiterInputAllowed"] = v
+			}
+			if cmd.Flags().Changed("recruiter-input-stage") {
+				v, _ := cmd.Flags().GetString("recruiter-input-stage")
+				inputObj["recruiterInputStage"] = v
 			}
 			if cmd.Flags().Changed("show-on-invoice") {
 				v, _ := cmd.Flags().GetBool("show-on-invoice")
@@ -6291,8 +6658,8 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that will own the custom field.")
-	cmd.Flags().String("field-type", "", "The custom field type. [SINGLE_SELECT, FREE_TEXT, MULTI_SELECT, FILE_UPLOAD]")
-	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
+	cmd.Flags().String("field-type", "", "The custom field type. [SINGLE_SELECT, FREE_TEXT, MULTI_SELECT, FILE_UPLOAD, DATE, BOOLEAN]")
+	cmd.Flags().String("applies-to", "", "The type to which the custom field is applying to. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER, EXPENSE, HIRE, CLASSIFICATION_INPUT]")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
 	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
 	cmd.Flags().String("description", "", "The description of the custom field.")
@@ -6300,18 +6667,26 @@ func newCustomFieldsCreateCmd() *cobra.Command {
 	cmd.Flags().Bool("approval", false, "Whether the field is enabled for approval workflows.")
 	cmd.Flags().Bool("api-only", false, "Configures the field to be enabled for api updates only.")
 	cmd.Flags().Bool("worker-input-allowed", false, "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.Flags().String("worker-input-stage", "", "For hire fields with worker input allowed, when the worker must answer. Defaults to 'BEFORE_ACCEPTANCE'. [BEFORE_OFFER, BEFORE_ACCEPTANCE]")
 	cmd.Flags().Bool("recruiter-input-allowed", false, "Configures the field to allow recruiter (staffing agency) input. When enabled, recruiters can provide values for this field through the recruiter API.")
+	cmd.Flags().String("recruiter-input-stage", "", "For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to 'BEFORE_ACCEPTANCE'. [BEFORE_OFFER, BEFORE_ACCEPTANCE]")
 	cmd.Flags().Bool("show-on-invoice", false, "Configures the field to surface its values on client invoices.")
 	cmd.Flags().Bool("shared-with-clients", false, "Configures the field to be shared with client companies. When enabled, clients of the supplier that owns this field will see it during job sharing.")
 	cmd.Flags().Bool("shared-with-staffing-agencies", false, "Configures the field's values to be visible to staffing agencies the company shares the job with.")
 	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SINGLE_SELECT", "FREE_TEXT", "MULTI_SELECT", "FILE_UPLOAD"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"SINGLE_SELECT", "FREE_TEXT", "MULTI_SELECT", "FILE_UPLOAD", "DATE", "BOOLEAN"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("applies-to", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST", "COMPANY_RECRUITER", "COMPANY_SUPPLIER"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"JOB", "CONTRACT", "TRUSTED_CONTACT", "PAYMENT_REQUEST", "COMPANY_RECRUITER", "COMPANY_SUPPLIER", "EXPENSE", "HIRE", "CLASSIFICATION_INPUT"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("worker-input-stage", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"BEFORE_OFFER", "BEFORE_ACCEPTANCE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("recruiter-input-stage", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"BEFORE_OFFER", "BEFORE_ACCEPTANCE"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -6408,7 +6783,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a custom field. All fields must be provided.",
-		Example: "  # Using a JSON input file:\n  worksome custom-fields update --input payload.json\n\n  # Using flags:\n  worksome custom-fields update --custom-field \\\"value\\\" --field-type \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"apiOnly\": false,\n    \"approval\": false,\n    \"customField\": \"<id>\",\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"recruiterInputAllowed\": false,\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"sharedWithClients\": false,\n    \"sharedWithStaffingAgencies\": false,\n    \"showOnInvoice\": false,\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false\n  }",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields update --input payload.json\n\n  # Using flags:\n  worksome custom-fields update --custom-field \\\"value\\\" --field-type \\\"value\\\" --title \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"apiOnly\": false,\n    \"approval\": false,\n    \"customField\": \"<id>\",\n    \"description\": \"...\",\n    \"fieldType\": \"SINGLE_SELECT\",\n    \"options\": [\n      {\n        \"displayOrder\": 0,\n        \"option\": \"<id>\",\n        \"value\": \"...\"\n      }\n    ],\n    \"recruiterInputAllowed\": false,\n    \"recruiterInputStage\": \"BEFORE_OFFER\",\n    \"settings\": {\n      \"validation\": [\n        \"REQUIRED\"\n      ]\n    },\n    \"sharedWithClients\": false,\n    \"sharedWithStaffingAgencies\": false,\n    \"showOnInvoice\": false,\n    \"slug\": \"...\",\n    \"title\": \"...\",\n    \"visibility\": \"INTERNAL\",\n    \"workerInputAllowed\": false,\n    \"workerInputStage\": \"BEFORE_OFFER\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -6470,9 +6845,17 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetBool("worker-input-allowed")
 				inputObj["workerInputAllowed"] = v
 			}
+			if cmd.Flags().Changed("worker-input-stage") {
+				v, _ := cmd.Flags().GetString("worker-input-stage")
+				inputObj["workerInputStage"] = v
+			}
 			if cmd.Flags().Changed("recruiter-input-allowed") {
 				v, _ := cmd.Flags().GetBool("recruiter-input-allowed")
 				inputObj["recruiterInputAllowed"] = v
+			}
+			if cmd.Flags().Changed("recruiter-input-stage") {
+				v, _ := cmd.Flags().GetString("recruiter-input-stage")
+				inputObj["recruiterInputStage"] = v
 			}
 			if cmd.Flags().Changed("show-on-invoice") {
 				v, _ := cmd.Flags().GetBool("show-on-invoice")
@@ -6515,7 +6898,7 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("custom-field", "", "The ID of the custom field to update.")
-	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values. [SINGLE_SELECT, FREE_TEXT, MULTI_SELECT, FILE_UPLOAD]")
+	cmd.Flags().String("field-type", "", "The custom field type. Updating a field type is restricted if the custom field already has values. [SINGLE_SELECT, FREE_TEXT, MULTI_SELECT, FILE_UPLOAD, DATE, BOOLEAN]")
 	cmd.Flags().String("title", "", "The title or label of the custom field.")
 	cmd.Flags().String("slug", "", "A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.")
 	cmd.Flags().String("description", "", "The description of the custom field.")
@@ -6523,16 +6906,117 @@ func newCustomFieldsUpdateCmd() *cobra.Command {
 	cmd.Flags().Bool("approval", false, "Whether the field is enabled for approval workflows.")
 	cmd.Flags().Bool("api-only", false, "Configures the field to be enabled for api updates only.")
 	cmd.Flags().Bool("worker-input-allowed", false, "Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.")
+	cmd.Flags().String("worker-input-stage", "", "For hire fields with worker input allowed, when the worker must answer. Defaults to 'BEFORE_ACCEPTANCE'. [BEFORE_OFFER, BEFORE_ACCEPTANCE]")
 	cmd.Flags().Bool("recruiter-input-allowed", false, "Configures the field to allow recruiter (staffing agency) input. When enabled, recruiters can provide values for this field through the recruiter API.")
+	cmd.Flags().String("recruiter-input-stage", "", "For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to 'BEFORE_ACCEPTANCE'. [BEFORE_OFFER, BEFORE_ACCEPTANCE]")
 	cmd.Flags().Bool("show-on-invoice", false, "Configures the field to surface its values on client invoices.")
 	cmd.Flags().Bool("shared-with-clients", false, "Configures the field to be shared with client companies. When enabled, clients of the supplier that owns this field will see it during job sharing.")
 	cmd.Flags().Bool("shared-with-staffing-agencies", false, "Configures the field's values to be visible to staffing agencies the company shares the job with.")
 	cmd.RegisterFlagCompletionFunc("field-type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"SINGLE_SELECT", "FREE_TEXT", "MULTI_SELECT", "FILE_UPLOAD"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"SINGLE_SELECT", "FREE_TEXT", "MULTI_SELECT", "FILE_UPLOAD", "DATE", "BOOLEAN"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.RegisterFlagCompletionFunc("visibility", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"INTERNAL", "WORKER"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	cmd.RegisterFlagCompletionFunc("worker-input-stage", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"BEFORE_OFFER", "BEFORE_ACCEPTANCE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("recruiter-input-stage", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"BEFORE_OFFER", "BEFORE_ACCEPTANCE"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	return cmd
+}
+
+// NewCustomFieldsArchivedCmd creates the custom-fields-archived resource command.
+func NewCustomFieldsArchivedCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "custom-fields-archived",
+		Short: "Archive or unarchive a custom field.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newCustomFieldsArchivedSetCmd())
+
+	return cmd
+}
+
+var customfieldsarchivedSetColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "User ID", Field: "user.id"},
+	{Header: "User Name", Field: "user.name"},
+	{Header: "Account ID", Field: "account.id"},
+	{Header: "Account Name", Field: "account.name"},
+	{Header: "Title", Field: "title"},
+	{Header: "Slug", Field: "slug"},
+	{Header: "Description", Field: "description"},
+}
+
+func newCustomFieldsArchivedSetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "set",
+		Short:   "Archive or unarchive a custom field. The field is offered or stops being offered for input, but its existing values stay readable.",
+		Example: "  # Using a JSON input file:\n  worksome custom-fields-archived set --input payload.json\n\n  # Using flags:\n  worksome custom-fields-archived set --archived \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"archived\": false,\n    \"customFields\": [\n      \"<id>\"\n    ]\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("archived") {
+				v, _ := cmd.Flags().GetBool("archived")
+				inputObj["archived"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"archived", "archived"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "SetCustomFieldsArchived", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.SetCustomFieldsArchived(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, customfieldsarchivedSetColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().Bool("archived", false, "Whether the fields should be archived (true) or unarchived (false)")
 	return cmd
 }
 
@@ -7144,6 +7628,217 @@ func newEmploymentsOnboardCmd() *cobra.Command {
 	return cmd
 }
 
+// NewExpenseCmd creates the expense resource command.
+func NewExpenseCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "expense",
+		Short: "Manage expenses.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newExpenseCreateCmd())
+	cmd.AddCommand(newExpenseUpdateCmd())
+
+	return cmd
+}
+
+var expenseCreateColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Number", Field: "number"},
+	{Header: "Description", Field: "description"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Amount", Field: "amount"},
+	{Header: "Vendor", Field: "vendor"},
+	{Header: "Expense At", Field: "expenseAt"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
+func newExpenseCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "create",
+		Short:   "Create an expense line item on an expense report.",
+		Example: "  # Using a JSON input file:\n  worksome expense create --input payload.json\n\n  # Using flags:\n  worksome expense create --expense-report \\\"value\\\" --vendor \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"amount\": 0,\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"expenseAt\": \"2024-01-01\",\n    \"expenseReport\": \"<id>\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"vendor\": \"...\"\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("expense-report") {
+				v, _ := cmd.Flags().GetString("expense-report")
+				inputObj["expenseReport"] = v
+			}
+			if cmd.Flags().Changed("vendor") {
+				v, _ := cmd.Flags().GetString("vendor")
+				inputObj["vendor"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("expense-at") {
+				v, _ := cmd.Flags().GetString("expense-at")
+				inputObj["expenseAt"] = v
+			}
+			if cmd.Flags().Changed("amount") {
+				v, _ := cmd.Flags().GetFloat64("amount")
+				inputObj["amount"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"expenseReport", "expense-report"}, {"vendor", "vendor"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "CreateExpense", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.CreateExpense(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, expenseCreateColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("expense-report", "", "The expense report this expense belongs to.")
+	cmd.Flags().String("vendor", "", "The vendor of the expense.")
+	cmd.Flags().String("description", "", "The description of the expense.")
+	cmd.Flags().String("expense-at", "", "The date that the expense was expensed.")
+	cmd.Flags().Float64("amount", 0, "The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.")
+	return cmd
+}
+
+var expenseUpdateColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Number", Field: "number"},
+	{Header: "Description", Field: "description"},
+	{Header: "Currency", Field: "currency"},
+	{Header: "Amount", Field: "amount"},
+	{Header: "Vendor", Field: "vendor"},
+	{Header: "Expense At", Field: "expenseAt"},
+	{Header: "Created At", Field: "createdAt"},
+}
+
+func newExpenseUpdateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update",
+		Short:   "Update an expense line item.",
+		Example: "  # Using a JSON input file:\n  worksome expense update --input payload.json\n\n  # Using flags:\n  worksome expense update --id \\\"value\\\" --vendor \\\"value\\\" --description \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"amount\": 0,\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"expenseAt\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"vendor\": \"...\"\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("id") {
+				v, _ := cmd.Flags().GetString("id")
+				inputObj["id"] = v
+			}
+			if cmd.Flags().Changed("vendor") {
+				v, _ := cmd.Flags().GetString("vendor")
+				inputObj["vendor"] = v
+			}
+			if cmd.Flags().Changed("description") {
+				v, _ := cmd.Flags().GetString("description")
+				inputObj["description"] = v
+			}
+			if cmd.Flags().Changed("expense-at") {
+				v, _ := cmd.Flags().GetString("expense-at")
+				inputObj["expenseAt"] = v
+			}
+			if cmd.Flags().Changed("amount") {
+				v, _ := cmd.Flags().GetFloat64("amount")
+				inputObj["amount"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"id", "id"}, {"vendor", "vendor"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "UpdateExpense", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.UpdateExpense(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, expenseUpdateColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("id", "", "The expense to update.")
+	cmd.Flags().String("vendor", "", "The vendor of the expense.")
+	cmd.Flags().String("description", "", "The description of the expense.")
+	cmd.Flags().String("expense-at", "", "The date that the expense was expensed.")
+	cmd.Flags().Float64("amount", 0, "The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.")
+	return cmd
+}
+
 // NewExportCmd creates the export resource command.
 func NewExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -7752,26 +8447,154 @@ func newGateGetCmd() *cobra.Command {
 			return printResult(cmd, result, gateColumns)
 		},
 	}
-	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ... and 85 more]")
+	cmd.Flags().String("gate", "", "The name of the compliance gate to retrieve [ADDRESS, BANK_ACCOUNT, BACKGROUND_CHECKS, COMMON_BUSINESS_ENTITY, COMPANY_COMMON_BUSINESS_ENTITY, ... and 89 more]")
 	cmd.Flags().Bool("cached", false, "Read strategy for 'applicable' / 'completed' on the gate and its compliances. Defaults to live; pass 'true' to read the persisted status rows with a live fallback.")
 	_ = cmd.MarkFlagRequired("gate")
 
 	cmd.RegisterFlagCompletionFunc("gate", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "RECRUITER_DE_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_INSURANCE", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "CHECKLISTS", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_KVK_REGISTRATION", "NL_BTW_IDENTIFICATION", "BUSINESS_ENTITY_TYPE_VALIDITY", "BUSINESS_ENTITY_TYPE_UPDATE", "NL_G_ACCOUNT", "NL_BSN", "FREELANCER_NL_KVK_CERTIFICATE", "RECRUITER_NL_KVK_CERTIFICATE", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION_REVIEW", "VERIFIED_WORKER_COMPLIANCE", "WORKER_ONBOARDING", "IDENTIFICATION", "VERIFIED_RECRUITER_COMPLIANCE", "RECRUITER_ONBOARDING", "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT", "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT", "SUPPLIER_HIRE_PREPARED"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"ADDRESS", "BANK_ACCOUNT", "BACKGROUND_CHECKS", "COMMON_BUSINESS_ENTITY", "COMPANY_COMMON_BUSINESS_ENTITY", "FREELANCER_COMMON_BUSINESS_ENTITY", "RECRUITER_COMMON_BUSINESS_ENTITY", "COMPANY_ADDRESS", "COMPANY_AU_BUSINESS_ENTITY", "COMPANY_CA_BUSINESS_ENTITY", "COMPANY_DE_BUSINESS_ENTITY", "COMPANY_NL_BUSINESS_ENTITY", "COMPANY_SG_BUSINESS_ENTITY", "COMPANY_US_BUSINESS_ENTITY", "CONTRACT_CHANGES", "CONTRACT_DOC", "EMPLOYMENT_COST", "FREELANCER_AU_BUSINESS_ENTITY", "FREELANCER_CA_BUSINESS_ENTITY", "FREELANCER_DE_BUSINESS_ENTITY", "FREELANCER_DK_BUSINESS_ENTITY", "FREELANCER_FR_BUSINESS_ENTITY", "FREELANCER_IE_BUSINESS_ENTITY", "FREELANCER_NL_BUSINESS_ENTITY", "FREELANCER_SG_BUSINESS_ENTITY", "FREELANCER_UK_BUSINESS_ENTITY", "FREELANCER_US_BUSINESS_ENTITY", "FLSA", "FULL_NAME", "GATE_HIRE_ACCEPT", "GATE_HIRE_CREATE_BILL", "GATE_HIRE_OFFER", "GATE_HIRE_PROGRESS", "GLOBAL_CONTRACT_TYPE", "GLOBAL_CONTRACT_TYPE_HIRE", "IR35", "IR35_COMPANY_SETTINGS", "ONSITE_PRESENCE", "PAYE_ACCEPT", "RECRUITER_US_BUSINESS_ENTITY", "RECRUITER_NL_BUSINESS_ENTITY", "RECRUITER_DE_BUSINESS_ENTITY", "UK_CONTRACT_TYPE", "UK_CONTRACT_TYPE_SOLE_TRADER", "UK_PAYE_EMPLOYMENT", "UK_PAYE_REQUIRED_CONTRACT_DATES", "UK_PAYROLL", "UK_PAYROLL_CONTRACT_PERIOD", "UK_SOLE_TRADER", "UK_SOLE_TRADER_CLASSIFICATION", "UK_STATEMENT_OF_WORK", "UK_TAX", "US_CONTRACT_TYPE", "US_TAX", "US_WORKER_CLASSIFICATION", "US_WORKER_LOCATION", "US_W2_RETROACTIVE_START_DATE", "UK_VALID_CONTRACT_SETUP", "W2_HIRE", "GLOBAL_WORKER_CLASSIFICATION", "NL_INSURANCE", "NL_CONTRACT_TYPE", "NL_WORKER_CLASSIFICATION", "VALID_VAT", "EMPLOYER_OF_RECORD", "WCR_ACCEPTANCE", "CONTRACT_START_AND_END_DATE", "CHECKLISTS", "PAYROLL_CURRENCY", "SO_W_CONFIRMATION", "NL_WAADI_REGISTRATION", "NL_SNA_CERTIFICATION", "NL_KVK_REGISTRATION", "NL_BTW_IDENTIFICATION", "BUSINESS_ENTITY_TYPE_VALIDITY", "BUSINESS_ENTITY_TYPE_UPDATE", "NL_G_ACCOUNT", "NL_BSN", "FREELANCER_NL_KVK_CERTIFICATE", "RECRUITER_NL_KVK_CERTIFICATE", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION", "NL_SUPPLIER_EMPLOYMENT_CONFIRMATION_REVIEW", "VERIFIED_WORKER_COMPLIANCE", "WORKER_ONBOARDING", "IDENTIFICATION", "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_OFFER", "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_ACCEPTANCE", "VERIFIED_RECRUITER_COMPLIANCE", "RECRUITER_ONBOARDING", "CLIENT_ONBOARDING", "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT", "DETERMINATION_HIRE_FREELANCER_INPUT", "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT", "SUPPLIER_HIRE_PREPARED"}, cobra.ShellCompDirectiveNoFileComp
 	})
+
+	return cmd
+}
+
+var hireinvitationColumns = []output.Column{
+	{Header: "Hire Id", Field: "hireId"},
+	{Header: "Number", Field: "number"},
+	{Header: "Worker Name", Field: "workerName"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Company Name", Field: "companyName"},
+	{Header: "Job Title", Field: "jobTitle"},
+	{Header: "Job Description", Field: "jobDescription"},
+}
+
+// NewHireInvitationCmd creates the hire-invitation resource command.
+func NewHireInvitationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "hire-invitation",
+		Short: "The questions a hire's company asks its worker, with only the hire details needed to answer them.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newHireInvitationGetCmd())
+
+	return cmd
+}
+
+func newHireInvitationGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get <id>",
+		Short:   "The questions a hire's company asks its worker, with only the hire details needed to answer them. Available to the hire's worker, or the staffing agency managing them. Unlike 'hire', this also works while the hire is a draft waiting on answers, and never exposes commercial terms.",
+		Example: "  worksome hire-invitation get <id>",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			vars["id"] = args[0]
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "HireInvitation", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.HireInvitation(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, hireinvitationColumns)
+		},
+	}
+
+	return cmd
+}
+
+var hireinvitationsColumns = []output.Column{
+	{Header: "Hire Id", Field: "hireId"},
+	{Header: "Number", Field: "number"},
+	{Header: "Worker Name", Field: "workerName"},
+	{Header: "Company ID", Field: "company.id"},
+	{Header: "Company Name", Field: "company.name"},
+	{Header: "Company Name", Field: "companyName"},
+	{Header: "Job Title", Field: "jobTitle"},
+	{Header: "Job Description", Field: "jobDescription"},
+}
+
+// NewHireInvitationsCmd creates the hire-invitations resource command.
+func NewHireInvitationsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "hire-invitations",
+		Short: "The draft hires waiting on answers from the viewer (the worker, or the staffing agency managing...",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newHireInvitationsGetCmd())
+
+	return cmd
+}
+
+func newHireInvitationsGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get",
+		Short:   "The draft hires waiting on answers from the viewer (the worker, or the staffing agency managing them).",
+		Example: "  worksome hire-invitations get <id>",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "HireInvitations", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.HireInvitations(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, hireinvitationsColumns)
+		},
+	}
 
 	return cmd
 }
 
 var hiresColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 // NewHiresCmd creates the hires resource command.
@@ -7893,6 +8716,10 @@ func newHiresListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("companies")
 				vars["companies"] = v
 			}
+			if cmd.Flags().Changed("end-clients") {
+				v, _ := cmd.Flags().GetStringSlice("end-clients")
+				vars["endClients"] = v
+			}
 			if cmd.Flags().Changed("workers") {
 				v, _ := cmd.Flags().GetStringSlice("workers")
 				vars["workers"] = v
@@ -7944,6 +8771,10 @@ func newHiresListCmd() *cobra.Command {
 			if cmd.Flags().Changed("contract-status") {
 				v, _ := cmd.Flags().GetStringSlice("contract-status")
 				vars["contractStatus"] = v
+			}
+			if cmd.Flags().Changed("checklist-status") {
+				v, _ := cmd.Flags().GetStringSlice("checklist-status")
+				vars["checklistStatus"] = v
 			}
 			if cmd.Flags().Changed("contract-type") {
 				v, _ := cmd.Flags().GetStringSlice("contract-type")
@@ -8073,6 +8904,7 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [HiresOrderByClauseInput!], e.g. [{\"field\":\"START_DATE\",\"order\":\"ASC\"}]; field: START_DATE | END_DATE | COMPANY_NAME | WORKER_NAME | JOB_NAME | HIRE_ID | CREATED_AT | ENGAGEMENT_TYPE | LAST_PAYMENT_REQUEST_DATE; order: ASC | DESC)")
 	cmd.Flags().Bool("recruiter-ownership-is-expired", false, "Filter hires by if recruiter ownership is active.")
 	cmd.Flags().StringSlice("companies", nil, "Filter hires by company ids.")
+	cmd.Flags().StringSlice("end-clients", nil, "**Experimental.** Only hires at these end clients, including placements made through a managed service provider for one of them.")
 	cmd.Flags().StringSlice("workers", nil, "Filter hires by worker ids.")
 	cmd.Flags().StringSlice("staffing-agencies", nil, "Filter hires by the staffing agencies that supplied them. Includes hires supplied through a managed service provider, where the staffing agency is recorded on the provider's copy of the hire rather than on this one.")
 	cmd.Flags().StringSlice("recruiters", nil, "Filter hires by the staffing agency recorded on the hire itself. Unlike 'staffingAgencies', this ignores hires supplied through a managed service provider, where the staffing agency is recorded only on the provider's copy. Both return the same hires for work supplied directly.")
@@ -8083,6 +8915,7 @@ func newHiresListCmd() *cobra.Command {
 	cmd.Flags().String("created-at-date-range", "", "Filter hires by hire by the date the hire was created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show hires with the specified external identifier.")
 	cmd.Flags().StringSlice("contract-status", nil, "Filter hires by hire contract status. [DRAFT, ACTIVE, ARCHIVED]")
+	cmd.Flags().StringSlice("checklist-status", nil, "**Experimental.** Only hires with a checklist in one of these statuses. [COMPLETE, BLOCKED, OPEN]")
 	cmd.Flags().StringSlice("contract-type", nil, "Filter hires by hire contract type. [CONTRACT_TYPE_CONTRACTOR, CONTRACT_TYPE_SOW, CONTRACT_TYPE_FT, CONTRACT_TYPE_SOLE_TRADER, CONTRACT_TYPE_W_2, CONTRACT_TYPE_UNKNOWN, CONTRACT_TYPE_UNDETERMINED, CONTRACT_TYPE_DEFAULT, CONTRACT_TYPE_WORKSOME_CLASSIFY, CONTRACT_TYPE_GLOBAL_PAYROLL, CONTRACT_TYPE_NL_PAYROLL]")
 	cmd.Flags().StringSlice("engagement-type", nil, "Filter hires by engagement type. [PAYROLL, CONTRACTOR, EXTERNAL, PENDING]")
 	cmd.Flags().StringSlice("engagement-type-setup", nil, "Filter hires by engagement type setup. [W2, PAYE, INSIDE_IR35, GLOBAL_PAYROLL, W2_CLASSIFY, PAYE_CLASSIFY, INSIDE_IR35_CLASSIFY, GLOBAL_EMPLOYEE_CLASSIFY, IC1099, OUTSIDE_IR35, SOLE_TRADER, STATEMENT_OF_WORK, CONTRACTOR_ZZP, DEFAULT, IC1099_CLASSIFY, OUTSIDE_IR35_CLASSIFY, SOLE_TRADER_CLASSIFY, GLOBAL_CONTRACTOR_CLASSIFY, CONTRACTOR_ZZP_CLASSIFY, UMBRELLA, STAFFING_AGENCY, PENDING]")
@@ -8138,13 +8971,13 @@ func hiresFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) 
 
 var hiresAttributeRecruiterToColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresAttributeRecruiterToCmd() *cobra.Command {
@@ -8235,13 +9068,13 @@ func newHiresAttributeRecruiterToCmd() *cobra.Command {
 
 var hiresAttributeSupplierToColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresAttributeSupplierToCmd() *cobra.Command {
@@ -8322,13 +9155,13 @@ func newHiresAttributeSupplierToCmd() *cobra.Command {
 
 var hiresCancelColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresCancelCmd() *cobra.Command {
@@ -8404,20 +9237,20 @@ func newHiresCancelCmd() *cobra.Command {
 
 var hiresCreateDraftColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresCreateDraftCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-draft",
 		Short:   "Create a draft hire for a trusted contact. Only companies can make hires. The worker must already be a trusted contact of the hiring company. A job is optional — if omitted, one will be created automatically from the provided details. Draft hires must be completed in the Worksome UI before they become active, such as applicable compliance checks. The hire will start in 'DRAFT' status and progress through the lifecycle once all required steps are finished.",
-		Example: "  # Using a JSON input file:\n  worksome hires create-draft --input payload.json\n\n  # Using flags:\n  worksome hires create-draft --trusted-contact \\\"value\\\" --job \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"conversation\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"hireDescription\": \"...\",\n    \"includeStandardContract\": false,\n    \"job\": \"<id>\",\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"rateType\": \"HOURLY\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"trustedContact\": \"<id>\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome hires create-draft --input payload.json\n\n  # Using flags:\n  worksome hires create-draft --trusted-contact \\\"value\\\" --job \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"company\": \"<id>\",\n    \"conversation\": \"<id>\",\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"externalIdentifier\": \"...\",\n    \"hireDescription\": \"...\",\n    \"includeStandardContract\": false,\n    \"job\": \"<id>\",\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"message\": \"...\",\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"purchaseOrderNumber\": \"...\",\n    \"rate\": 0,\n    \"rateType\": \"HOURLY\",\n    \"recruiter\": {\n      \"fee\": 0,\n      \"ownershipDays\": 0,\n      \"ownershipStartDate\": \"2024-01-01\",\n      \"recruiter\": \"<id>\"\n    },\n    \"startDate\": \"2024-01-01\",\n    \"trustedContact\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -8554,13 +9387,13 @@ func newHiresCreateDraftCmd() *cobra.Command {
 
 var hiresRejectColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresRejectCmd() *cobra.Command {
@@ -8636,13 +9469,13 @@ func newHiresRejectCmd() *cobra.Command {
 
 var hiresRemoveRecruiterFromColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresRemoveRecruiterFromCmd() *cobra.Command {
@@ -8713,13 +9546,13 @@ func newHiresRemoveRecruiterFromCmd() *cobra.Command {
 
 var hiresShareColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresShareCmd() *cobra.Command {
@@ -8795,13 +9628,13 @@ func newHiresShareCmd() *cobra.Command {
 
 var hiresTerminateColumns = []output.Column{
 	{Header: "ID", Field: "id"},
+	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
 	{Header: "Number", Field: "number"},
 	{Header: "Last Payment Request Date", Field: "lastPaymentRequestDate"},
 	{Header: "Latest Contract ID", Field: "latestContract.id"},
 	{Header: "Latest Contract Status", Field: "latestContract.status"},
 	{Header: "Active Contract ID", Field: "activeContract.id"},
 	{Header: "Active Contract Status", Field: "activeContract.status"},
-	{Header: "Draft Contract ID", Field: "draftContract.id"},
 }
 
 func newHiresTerminateCmd() *cobra.Command {
@@ -9339,6 +10172,10 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("applies-to")
 				vars["appliesTo"] = v
 			}
+			if cmd.Flags().Changed("include-archived") {
+				v, _ := cmd.Flags().GetBool("include-archived")
+				vars["includeArchived"] = v
+			}
 
 			// Validate flags
 			fetchAll, _ := cmd.Flags().GetBool("all")
@@ -9411,7 +10248,8 @@ func newInheritedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Supply which accounts to see fields for. If no accounts are supplied, then all authenticated accounts will be used.")
 	cmd.Flags().Bool("approval", false, "Supply to select fields with approval workflow enabled or disabled.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER, EXPENSE, HIRE, CLASSIFICATION_INPUT]")
+	cmd.Flags().Bool("include-archived", false, "Supply true to also include archived fields. Defaults to excluding them.")
 
 	return cmd
 }
@@ -9706,9 +10544,10 @@ func NewInvoicesCmd() *cobra.Command {
 
 func newInvoicesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get",
+		Use:     "get <id>",
 		Short:   "Get a specific invoice.",
 		Example: "  worksome invoices get <id>",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -9718,6 +10557,7 @@ func newInvoicesGetCmd() *cobra.Command {
 			}
 
 			vars := make(map[string]any)
+			vars["id"] = args[0]
 			if cmd.Flags().Changed("number") {
 				v, _ := cmd.Flags().GetString("number")
 				vars["number"] = v
@@ -9740,8 +10580,7 @@ func newInvoicesGetCmd() *cobra.Command {
 			return printResult(cmd, result, invoicesColumns)
 		},
 	}
-	cmd.Flags().String("number", "", "The invoice number on the PDF.")
-	_ = cmd.MarkFlagRequired("number")
+	cmd.Flags().String("number", "", "The invoice number on the PDF. Exactly one of 'id' or 'number' must be supplied.")
 
 	return cmd
 }
@@ -9885,7 +10724,7 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("transaction-types", nil, "Only show invoices with the given transaction types. [INVOICE, CREDIT_NOTE, BATCH_INVOICE]")
 	cmd.Flags().String("search", "", "Filter invoices by PO number, invoice number, worker name, or amount.")
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
-	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
+	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [AED, AUD, CAD, DKK, EUR, GBP, NOK, SEK, SGD, USD]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show invoices with the specified external identifiers.")
 	cmd.Flags().String("order-by", "", "Order the results by the creation date, invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | DATE | DUE_DATE | NUMBER | TOTAL_AMOUNT; order: ASC | DESC)")
 
@@ -11191,7 +12030,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().StringSlice("owners", nil, "Only show jobs owned by specific users.")
 	cmd.Flags().StringSlice("markets", nil, "Only show jobs in the specified markets. [US, UK, IE, EU, CA, FR, DE, DK, NO, SE, FI, LT, UAE, SG, AU, NL, WW]")
 	cmd.Flags().String("search", "", "Search job posts.")
-	cmd.Flags().StringSlice("currencies", nil, "Only show jobs using the specified currencies. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
+	cmd.Flags().StringSlice("currencies", nil, "Only show jobs using the specified currencies. [AED, AUD, CAD, DKK, EUR, GBP, NOK, SEK, SGD, USD]")
 	cmd.Flags().StringSlice("rate-types", nil, "Only show jobs using the specified payment rate types. [HOURLY, DAILY, WEEKLY, MONTHLY, FIXED, UNKNOWN]")
 	cmd.Flags().StringSlice("skills", nil, "Only show jobs requiring a set of specific skills. This filter takes a list of skill names, ie \"php\" for the skill php, or \"Graphql api\" for the graphql api skill.")
 	cmd.Flags().StringSlice("experience-level", nil, "Only show jobs requiring specific experience levels. [STUDENT, JUNIOR, MID_LEVEL, SENIOR, EXPERT]")
@@ -11208,7 +12047,7 @@ func newJobsListCmd() *cobra.Command {
 	cmd.Flags().String("order-by", "", "Order the results by the hire id, company name, job name, or worker name. (JSON for [JobsOrderByClauseInput!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | EXPECTED_START_DATE | PUBLISHED_DATE | CANDIDATES | LAST_CANDIDATE_SUBMITTED_AT; order: ASC | DESC)")
 	cmd.Flags().String("created-at-date-range", "", "Filter jobs by the date the job was created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("unfilled", false, "Filter by unfilled jobs.")
-	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("custom-fields", "", "Only show jobs with specific custom field values. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"boolean\":{...},\"date\":{...},\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
 	cmd.Flags().String("start-date-range", "", "Only show jobs with start dates within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("end-date-range", "", "Only show jobs with end dates within the specified range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().Bool("is-job-post", false, "Only show jobs that are job posts.")
@@ -11673,7 +12512,7 @@ func newJobsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a job's details. Only companies can update jobs. This is the follow-up to 'createJob' — use it to set the full role details (description, rates, dates, location, visibility) and to publish the job when ready. All fields are optional; only the fields you provide will be updated.",
-		Example: "  # Using a JSON input file:\n  worksome jobs update --input payload.json\n\n  # Using flags:\n  worksome jobs update --id \\\"value\\\" --locale \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"association\": \"SMALL_TASK\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"contactEmail\": \"...\",\n    \"contactName\": \"...\",\n    \"contactPhone\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"endDateTimeframe\": \"ONE_MONTH\",\n    \"evaluationPeriod\": \"MONTH\",\n    \"expectedExperienceLevel\": [\n      \"STUDENT\"\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"industries\": [\n      \"<id>\"\n    ],\n    \"isExtensionAvailable\": false,\n    \"languages\": [\n      {\n        \"experience\": \"GOOD\",\n        \"name\": \"ARABIC\"\n      }\n    ],\n    \"locale\": \"ENGLISH\",\n    \"location\": {\n      \"address\": \"...\",\n      \"city\": \"...\",\n      \"country\": \"...\",\n      \"postCode\": \"...\",\n      \"state\": \"...\"\n    },\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"published\": false,\n    \"rateType\": {\n      \"range\": {\n        \"maximum\": 0,\n        \"minimum\": 0\n      },\n      \"rate\": 0,\n      \"type\": \"HOURLY\"\n    },\n    \"removed\": false,\n    \"removedCause\": \"...\",\n    \"requiredWorkers\": 0,\n    \"skills\": [\n      \"...\"\n    ],\n    \"sourcingDeadlineChoice\": \"USE_DEFAULT\",\n    \"sourcingEndDate\": \"2024-01-01T00:00:00Z\",\n    \"sourcingEndDateLocal\": \"...\",\n    \"startDate\": \"2024-01-01\",\n    \"startDateTimeframe\": \"ASAP\",\n    \"visibility\": [\n      \"VISIBLE_FOR_TRUSTED_CONTACTS\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome jobs update --input payload.json\n\n  # Using flags:\n  worksome jobs update --id \\\"value\\\" --locale \\\"value\\\" --name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"association\": \"SMALL_TASK\",\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"contactEmail\": \"...\",\n    \"contactName\": \"...\",\n    \"contactPhone\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"description\": \"...\",\n    \"endDate\": \"2024-01-01\",\n    \"endDateTimeframe\": \"ONE_MONTH\",\n    \"evaluationPeriod\": \"MONTH\",\n    \"expectedExperienceLevel\": [\n      \"STUDENT\"\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"industries\": [\n      \"<id>\"\n    ],\n    \"isExtensionAvailable\": false,\n    \"languages\": [\n      {\n        \"experience\": \"GOOD\",\n        \"name\": \"ARABIC\"\n      }\n    ],\n    \"locale\": \"ENGLISH\",\n    \"location\": {\n      \"address\": \"...\",\n      \"city\": \"...\",\n      \"country\": \"...\",\n      \"postCode\": \"...\",\n      \"state\": \"...\"\n    },\n    \"locationPreference\": {\n      \"address\": \"...\",\n      \"preference\": \"ONSITE_ONLY\"\n    },\n    \"name\": \"...\",\n    \"owners\": [\n      \"<id>\"\n    ],\n    \"published\": false,\n    \"rateType\": {\n      \"range\": {\n        \"maximum\": 0,\n        \"minimum\": 0\n      },\n      \"rate\": 0,\n      \"type\": \"HOURLY\"\n    },\n    \"removed\": false,\n    \"removedCause\": \"...\",\n    \"requiredWorkers\": 0,\n    \"skills\": [\n      \"...\"\n    ],\n    \"sourcingDeadlineChoice\": \"USE_DEFAULT\",\n    \"sourcingEndDate\": \"2024-01-01T00:00:00Z\",\n    \"sourcingEndDateLocal\": \"...\",\n    \"startDate\": \"2024-01-01\",\n    \"startDateTimeframe\": \"ASAP\",\n    \"visibility\": [\n      \"VISIBLE_FOR_TRUSTED_CONTACTS\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -13784,7 +14623,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"CURRENTLY_HIRED\"}; status: CURRENTLY_HIRED | NOT_CURRENTLY_HIRED)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, DE_FREELANCER, DE_TRADESPERSON, DE_ENTREPRENEURIAL, DE_LTD, NL_LTD, NL_SOLE_TRADER, NL_GENERAL_PARTNERSHIP, NL_PROFESSIONAL_PARTNERSHIP, B_INCOME, FR_LTD, FR_SOLE_TRADER, IE_LTD, IE_SOLE_TRADER, SG_LTD, SG_SOLE_TRADER, LTD, SOLE_TRADER, UMBRELLA]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"boolean\":{...},\"date\":{...},\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!], e.g. [{\"field\":\"WORKER_NAME\",\"order\":\"ASC\"}]; field: WORKER_NAME | WORKER_JOBS_COUNT | WORKER_MARKET | WORKER_COUNTRY | WORKER_BUSINESS_SETUP | WORKER_COMPANY_NAME | WORKER_DATE_ADDED | WORKER_STATUS_UPDATED | WORKER_RTW_VERIFICATION | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
 
 	cmd.RegisterFlagCompletionFunc("origin", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -13835,6 +14674,94 @@ func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier,
 	}
 	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
 	return printResult(cmd, allData, organisationtrustedcontactsColumns)
+}
+
+// NewOwnersCmd creates the owners resource command.
+func NewOwnersCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "owners",
+		Short: "**Experimental.** Replace the set of team members assigned to a record.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newOwnersUpdateCmd())
+
+	return cmd
+}
+
+var ownersUpdateColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Owners ID", Field: "owners.id"},
+	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
+}
+
+func newOwnersUpdateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update",
+		Short:   "**Experimental.** Replace the set of team members assigned to a record. Only full-access users (account owner or admin) on the account that owns the record can change assignments, and every assignee must be a member of that account.",
+		Example: "  # Using a JSON input file:\n  worksome owners update --input payload.json\n\n  # Using flags:\n  worksome owners update --ownable \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"ownable\": \"<id>\",\n    \"owners\": [\n      {\n        \"responsibility\": \"PRIMARY_CONTACT\",\n        \"user\": \"<id>\"\n      }\n    ]\n  }",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+
+			// Load from input file if provided
+			inputFile, _ := cmd.Flags().GetString("input")
+			if inputFile != "" {
+				fileVars, err := readInputFile(inputFile)
+				if err != nil {
+					return err
+				}
+				vars["input"] = fileVars
+			}
+
+			// Build input object from flags (flags override file values)
+			inputObj, _ := vars["input"].(map[string]any)
+			if inputObj == nil {
+				inputObj = make(map[string]any)
+			}
+			if cmd.Flags().Changed("ownable") {
+				v, _ := cmd.Flags().GetString("ownable")
+				inputObj["ownable"] = v
+			}
+			vars["input"] = inputObj
+			// Refuse to call the API with an empty input object.
+			if err := requireInput(vars); err != nil {
+				return err
+			}
+			// Name every missing required field here, rather than letting the
+			// server reject the request one field at a time.
+			if err := requireFields(inputObj, []requiredField{{"ownable", "ownable"}}); err != nil {
+				return err
+			}
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "mutation", "UpdateOwners", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.UpdateOwners(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, ownersUpdateColumns)
+		},
+	}
+	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
+	cmd.Flags().String("ownable", "", "The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).")
+	return cmd
 }
 
 var partnerColumns = []output.Column{
@@ -14609,7 +15536,7 @@ func newPaymentRequestsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Only show payment requests for the specified accounts.")
-	cmd.Flags().StringSlice("currencies", nil, "Only show payment requests using the specified currencies. [CAD, DKK, EUR, GBP, NOK, SEK, USD, AED, SGD, AUD]")
+	cmd.Flags().StringSlice("currencies", nil, "Only show payment requests using the specified currencies. [AED, AUD, CAD, DKK, EUR, GBP, NOK, SEK, SGD, USD]")
 	cmd.Flags().Bool("has-purchase-order-number", false, "Only show payment requests that have a Purchase Order number.")
 	cmd.Flags().Bool("has-timesheet", false, "Only show payment requests that have a timesheet.")
 	cmd.Flags().StringSlice("jobs", nil, "Only show payment requests for the specified jobs.")
@@ -16926,6 +17853,214 @@ func skillsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any)
 	return printResult(cmd, allData, skillsColumns)
 }
 
+var staffingagencyclientsColumns = []output.Column{
+	{Header: "ID", Field: "id"},
+	{Header: "Supplier ID", Field: "supplier.id"},
+	{Header: "Supplier Name", Field: "supplier.name"},
+	{Header: "Client ID", Field: "client.id"},
+	{Header: "Client Name", Field: "client.name"},
+	{Header: "Managing Company ID", Field: "managingCompany.id"},
+	{Header: "Managing Company Name", Field: "managingCompany.name"},
+	{Header: "Is Direct", Field: "isDirect"},
+}
+
+// NewStaffingAgencyClientsCmd creates the staffing-agency-clients resource command.
+func NewStaffingAgencyClientsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "staffing-agency-clients",
+		Short: "**Experimental.** The end clients the viewer's staffing agencies work for: one row per client link,...",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newStaffingAgencyClientsListCmd())
+
+	return cmd
+}
+
+func newStaffingAgencyClientsListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "**Experimental.** The end clients the viewer's staffing agencies work for: one row per client link, direct or through an MSP.",
+		Example: "  worksome staffing-agency-clients list -n 20\n  worksome staffing-agency-clients list --all\n  worksome staffing-agency-clients list --watch\n  worksome staffing-agency-clients list --watch --watch-interval 10",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Apply --filter shorthand before reading individual flags
+			if err := output.ApplyFilterFlag(cmd); err != nil {
+				return err
+			}
+
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			first, _ := cmd.Flags().GetInt("first")
+			if first <= 0 {
+				return fmt.Errorf("--first must be a positive integer")
+			}
+			vars["first"] = first
+			if cmd.Flags().Changed("page") {
+				page, _ := cmd.Flags().GetInt("page")
+				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+			if cmd.Flags().Changed("search") {
+				v, _ := cmd.Flags().GetString("search")
+				vars["search"] = v
+			}
+			if cmd.Flags().Changed("is-direct") {
+				v, _ := cmd.Flags().GetBool("is-direct")
+				vars["isDirect"] = v
+			}
+			if cmd.Flags().Changed("client-regions") {
+				raw, _ := cmd.Flags().GetString("client-regions")
+				v, err := jsonArg("client-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["clientRegions"] = v
+			}
+			if cmd.Flags().Changed("created-at-date-range") {
+				raw, _ := cmd.Flags().GetString("created-at-date-range")
+				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["createdAtDateRange"] = v
+			}
+			if cmd.Flags().Changed("order-by") {
+				raw, _ := cmd.Flags().GetString("order-by")
+				v, err := jsonArg("order-by", "[StaffingAgencyClientOrderByClauseInput!]", raw)
+				if err != nil {
+					return err
+				}
+				vars["orderBy"] = v
+			}
+
+			// Validate flags
+			fetchAll, _ := cmd.Flags().GetBool("all")
+			if fetchAll && cmd.Flags().Changed("page") {
+				return fmt.Errorf("--all and --page cannot be used together")
+			}
+
+			watchFlag, _ := cmd.Flags().GetBool("watch")
+			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
+			if intervalFlag <= 0 {
+				intervalFlag = 5
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun && watchFlag {
+				return fmt.Errorf("--watch and --dry-run cannot be used together")
+			}
+			if dryRun {
+				return printDryRun(cmd, "query", "StaffingAgencyClients", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			// fetchAndPrint executes the query and prints the result once.
+			fetchAndPrint := func() error {
+				if fetchAll {
+					return staffingagencyclientsFetchAll(cmd, q, vars)
+				}
+
+				result, err := q.StaffingAgencyClients(context.Background(), vars)
+				if err != nil {
+					return err
+				}
+				if paginator, ok := result["staffingAgencyClients"].(map[string]any); ok {
+					printPageInfo(paginator)
+				}
+				// Extract data array from paginator response for table output
+				if paginator, ok := result["staffingAgencyClients"].(map[string]any); ok {
+					if data, ok := paginator["data"].([]any); ok {
+						return printResult(cmd, data, staffingagencyclientsColumns)
+					}
+				}
+				return printResult(cmd, result, nil)
+			}
+
+			if !watchFlag {
+				return fetchAndPrint()
+			}
+
+			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
+			for {
+				fmt.Fprint(os.Stderr, "\033[2J\033[H")
+				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
+
+				if err := fetchAndPrint(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+
+				time.Sleep(time.Duration(intervalFlag) * time.Second)
+			}
+		},
+	}
+	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
+	cmd.Flags().Int("page", 1, "Page number")
+	cmd.Flags().Bool("all", false, "Fetch all pages")
+	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
+	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Only show the clients of these staffing agency accounts. Without it, every staffing agency the viewer belongs to.")
+	cmd.Flags().String("search", "", "Search clients by company name.")
+	cmd.Flags().Bool("is-direct", false, "Only show direct links (true) or links through an MSP (false).")
+	cmd.Flags().String("client-regions", "", "Filter clients by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
+	cmd.Flags().String("created-at-date-range", "", "Only show links created within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [StaffingAgencyClientOrderByClauseInput!], e.g. [{\"field\":\"CLIENT_NAME\",\"order\":\"ASC\"}]; field: CLIENT_NAME | RELATION | CLIENT_SINCE | PLACEMENTS; order: ASC | DESC)")
+
+	return cmd
+}
+
+func staffingagencyclientsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
+	const maxPages = 1000
+	vars["first"] = 100 // Use large page size for --all
+	var allData []any
+	page := 1
+	for {
+		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
+		vars["page"] = page
+		result, err := q.StaffingAgencyClients(context.Background(), vars)
+		if err != nil {
+			return fmt.Errorf("page %d: %w", page, err)
+		}
+		// Extract data array from paginator response
+		if paginator, ok := result["staffingAgencyClients"].(map[string]any); ok {
+			if data, ok := paginator["data"].([]any); ok {
+				allData = append(allData, data...)
+			}
+			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
+				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
+					break
+				}
+			} else {
+				break
+			}
+		} else {
+			// Not a paginator response, return single result
+			return printResult(cmd, result, nil)
+		}
+		page++
+		if page > maxPages {
+			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
+	return printResult(cmd, allData, staffingagencyclientsColumns)
+}
+
 var submitcomplianceHoistedColumns = []output.Column{
 	{Header: "Actor", Field: "actor"},
 	{Header: "Name", Field: "name"},
@@ -17544,9 +18679,9 @@ var supplierclientlinksSetColumns = []output.Column{
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Client ID", Field: "client.id"},
 	{Header: "Client Name", Field: "client.name"},
-	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
-	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
-	{Header: "Created At", Field: "createdAt"},
+	{Header: "Managing Company ID", Field: "managingCompany.id"},
+	{Header: "Managing Company Name", Field: "managingCompany.name"},
+	{Header: "Is Direct", Field: "isDirect"},
 }
 
 func newSupplierClientLinksSetCmd() *cobra.Command {
@@ -17621,9 +18756,9 @@ var supplierclientlinksUpdateColumns = []output.Column{
 	{Header: "Supplier Name", Field: "supplier.name"},
 	{Header: "Client ID", Field: "client.id"},
 	{Header: "Client Name", Field: "client.name"},
-	{Header: "Company Recruiter ID", Field: "companyRecruiter.id"},
-	{Header: "Company Recruiter Email", Field: "companyRecruiter.email"},
-	{Header: "Created At", Field: "createdAt"},
+	{Header: "Managing Company ID", Field: "managingCompany.id"},
+	{Header: "Managing Company Name", Field: "managingCompany.name"},
+	{Header: "Is Direct", Field: "isDirect"},
 }
 
 func newSupplierClientLinksUpdateCmd() *cobra.Command {
@@ -17690,268 +18825,6 @@ func newSupplierClientLinksUpdateCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().Bool("linked", false, "Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking revives a withdrawn one.")
 	return cmd
-}
-
-var supplierclientsColumns = []output.Column{
-	{Header: "ID", Field: "id"},
-	{Header: "Company ID", Field: "company.id"},
-	{Header: "Company Name", Field: "company.name"},
-	{Header: "Supplier ID", Field: "supplier.id"},
-	{Header: "Supplier Name", Field: "supplier.name"},
-	{Header: "Owners ID", Field: "owners.id"},
-	{Header: "Viewer Can Manage Owners", Field: "viewerCanManageOwners"},
-	{Header: "Custom Field Values ID", Field: "customFieldValues.id"},
-}
-
-// NewSupplierClientsCmd creates the supplier-clients resource command.
-func NewSupplierClientsCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "supplier-clients",
-		Short: "Get a list of clients the authenticated company accounts supply to.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
-	}
-
-	cmd.AddCommand(newSupplierClientsGetCmd())
-	cmd.AddCommand(newSupplierClientsListCmd())
-
-	return cmd
-}
-
-func newSupplierClientsGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "get <id>",
-		Short:   "Get a specific client the authenticated company accounts supply to.",
-		Example: "  worksome supplier-clients get <id>",
-		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-			vars["id"] = args[0]
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun {
-				return printDryRun(cmd, "query", "SupplierClient", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			result, err := q.SupplierClient(context.Background(), vars)
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, result, supplierclientsColumns)
-		},
-	}
-
-	return cmd
-}
-
-func newSupplierClientsListCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "list",
-		Short:   "Get a list of clients the authenticated company accounts supply to. The supplier-side view of the same rows companySuppliers reads from the client side.",
-		Example: "  worksome supplier-clients list -n 20\n  worksome supplier-clients list --all\n  worksome supplier-clients list --watch\n  worksome supplier-clients list --watch --watch-interval 10",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Apply --filter shorthand before reading individual flags
-			if err := output.ApplyFilterFlag(cmd); err != nil {
-				return err
-			}
-
-			// Validate output format
-			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
-				if outputFlag != "json" && outputFlag != "table" {
-					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
-				}
-			}
-
-			vars := make(map[string]any)
-			first, _ := cmd.Flags().GetInt("first")
-			if first <= 0 {
-				return fmt.Errorf("--first must be a positive integer")
-			}
-			vars["first"] = first
-			if cmd.Flags().Changed("page") {
-				page, _ := cmd.Flags().GetInt("page")
-				vars["page"] = page
-			}
-			if cmd.Flags().Changed("accounts") {
-				v, _ := cmd.Flags().GetStringSlice("accounts")
-				vars["accounts"] = v
-			}
-			if cmd.Flags().Changed("search") {
-				v, _ := cmd.Flags().GetString("search")
-				vars["search"] = v
-			}
-			if cmd.Flags().Changed("client-regions") {
-				raw, _ := cmd.Flags().GetString("client-regions")
-				v, err := jsonArg("client-regions", "MarketRegionInput", raw)
-				if err != nil {
-					return err
-				}
-				vars["clientRegions"] = v
-			}
-			if cmd.Flags().Changed("created-at-date-range") {
-				raw, _ := cmd.Flags().GetString("created-at-date-range")
-				v, err := jsonArg("created-at-date-range", "DateRangeInput", raw)
-				if err != nil {
-					return err
-				}
-				vars["createdAtDateRange"] = v
-			}
-			if cmd.Flags().Changed("payment-terms-follows-client") {
-				v, _ := cmd.Flags().GetBool("payment-terms-follows-client")
-				vars["paymentTermsFollowsClient"] = v
-			}
-			if cmd.Flags().Changed("has-linked-staffing-agencies") {
-				v, _ := cmd.Flags().GetBool("has-linked-staffing-agencies")
-				vars["hasLinkedStaffingAgencies"] = v
-			}
-			if cmd.Flags().Changed("linked-staffing-agencies") {
-				v, _ := cmd.Flags().GetStringSlice("linked-staffing-agencies")
-				vars["linkedStaffingAgencies"] = v
-			}
-			if cmd.Flags().Changed("owners") {
-				v, _ := cmd.Flags().GetStringSlice("owners")
-				vars["owners"] = v
-			}
-			if cmd.Flags().Changed("order-by") {
-				raw, _ := cmd.Flags().GetString("order-by")
-				v, err := jsonArg("order-by", "[ClientRelationOrderByClauseInput!]", raw)
-				if err != nil {
-					return err
-				}
-				vars["orderBy"] = v
-			}
-
-			// Validate flags
-			fetchAll, _ := cmd.Flags().GetBool("all")
-			if fetchAll && cmd.Flags().Changed("page") {
-				return fmt.Errorf("--all and --page cannot be used together")
-			}
-
-			watchFlag, _ := cmd.Flags().GetBool("watch")
-			intervalFlag, _ := cmd.Flags().GetInt("watch-interval")
-			if intervalFlag <= 0 {
-				intervalFlag = 5
-			}
-
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			if dryRun && watchFlag {
-				return fmt.Errorf("--watch and --dry-run cannot be used together")
-			}
-			if dryRun {
-				return printDryRun(cmd, "query", "SupplierClients", vars)
-			}
-
-			q, err := getQuerier()
-			if err != nil {
-				return err
-			}
-
-			// fetchAndPrint executes the query and prints the result once.
-			fetchAndPrint := func() error {
-				if fetchAll {
-					return supplierclientsFetchAll(cmd, q, vars)
-				}
-
-				result, err := q.SupplierClients(context.Background(), vars)
-				if err != nil {
-					return err
-				}
-				if paginator, ok := result["supplierClients"].(map[string]any); ok {
-					printPageInfo(paginator)
-				}
-				// Extract data array from paginator response for table output
-				if paginator, ok := result["supplierClients"].(map[string]any); ok {
-					if data, ok := paginator["data"].([]any); ok {
-						return printResult(cmd, data, supplierclientsColumns)
-					}
-				}
-				return printResult(cmd, result, nil)
-			}
-
-			if !watchFlag {
-				return fetchAndPrint()
-			}
-
-			// Watch loop: clear screen, print header, fetch and print, sleep, repeat.
-			for {
-				fmt.Fprint(os.Stderr, "\033[2J\033[H")
-				fmt.Fprintf(os.Stderr, "Every %ds — %s\n\n", intervalFlag, time.Now().Format("15:04:05"))
-
-				if err := fetchAndPrint(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				}
-
-				time.Sleep(time.Duration(intervalFlag) * time.Second)
-			}
-		},
-	}
-	cmd.Flags().IntP("first", "n", 10, "Number of items to fetch per page")
-	cmd.Flags().Int("page", 1, "Page number")
-	cmd.Flags().Bool("all", false, "Fetch all pages")
-	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
-	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
-	cmd.Flags().StringSlice("accounts", nil, "Only show the clients of these supplier company accounts. Without it, clients of every supplier company the viewer belongs to are shown.")
-	cmd.Flags().String("search", "", "Search clients by company name.")
-	cmd.Flags().String("client-regions", "", "Filter clients by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
-	cmd.Flags().String("created-at-date-range", "", "Only show clients whose relationship was established within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
-	cmd.Flags().Bool("payment-terms-follows-client", false, "Only show clients whose supplier hires copy (or do not copy) the client's payment terms.")
-	cmd.Flags().Bool("has-linked-staffing-agencies", false, "Only show clients with (or without) staffing agencies linked to them by the supplier.")
-	cmd.Flags().StringSlice("linked-staffing-agencies", nil, "Only show clients linked to any of the given staffing-agency relations.")
-	cmd.Flags().StringSlice("owners", nil, "Only show clients owned by any of the given users.")
-	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, applied in the provided order. (JSON for [ClientRelationOrderByClauseInput!], e.g. [{\"field\":\"CLIENT_NAME\",\"order\":\"ASC\"}]; field: CLIENT_NAME | CLIENT_LOCATION | CLIENT_SINCE | HIRES | LINKED_STAFFING_AGENCIES; order: ASC | DESC)")
-
-	return cmd
-}
-
-func supplierclientsFetchAll(cmd *cobra.Command, q *queries.Querier, vars map[string]any) error {
-	const maxPages = 1000
-	vars["first"] = 100 // Use large page size for --all
-	var allData []any
-	page := 1
-	for {
-		fmt.Fprintf(os.Stderr, "\rFetching page %d...", page)
-		vars["page"] = page
-		result, err := q.SupplierClients(context.Background(), vars)
-		if err != nil {
-			return fmt.Errorf("page %d: %w", page, err)
-		}
-		// Extract data array from paginator response
-		if paginator, ok := result["supplierClients"].(map[string]any); ok {
-			if data, ok := paginator["data"].([]any); ok {
-				allData = append(allData, data...)
-			}
-			if info, ok := paginator["paginatorInfo"].(map[string]any); ok {
-				if hasMore, ok := info["hasMorePages"].(bool); ok && !hasMore {
-					break
-				}
-			} else {
-				break
-			}
-		} else {
-			// Not a paginator response, return single result
-			return printResult(cmd, result, nil)
-		}
-		page++
-		if page > maxPages {
-			return fmt.Errorf("reached maximum page limit (%d); use --first and --page for manual pagination", maxPages)
-		}
-	}
-	fmt.Fprintf(os.Stderr, "\r%-60s\n", fmt.Sprintf("Fetched %d items across %d pages.", len(allData), page))
-	return printResult(cmd, allData, supplierclientsColumns)
 }
 
 var suppliersharedcustomfieldsColumns = []output.Column{
@@ -18088,7 +18961,7 @@ func newSupplierSharedCustomFieldsListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().String("supplier", "", "The supplier account whose shared fields to retrieve.")
-	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER]")
+	cmd.Flags().StringSlice("applies-to", nil, "A list of entity types supporting custom fields. [JOB, CONTRACT, TRUSTED_CONTACT, PAYMENT_REQUEST, COMPANY_RECRUITER, COMPANY_SUPPLIER, EXPENSE, HIRE, CLASSIFICATION_INPUT]")
 	_ = cmd.MarkFlagRequired("supplier")
 
 	return cmd
@@ -18650,7 +19523,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a timesheet. Only workers can create timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -18819,7 +19692,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet. Only workers can update timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -19183,7 +20056,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("hire-status", "", "Filter contacts by whether they are currently hired or not. (JSON for HireStatusFilterInput, e.g. {\"accounts\":[\"<id>\"],\"status\":\"CURRENTLY_HIRED\"}; status: CURRENTLY_HIRED | NOT_CURRENTLY_HIRED)")
 	cmd.Flags().StringSlice("business-setup", nil, "Supply a list of business entities to filter workers by. [COMMON, NO_SETUP, PERSONAL, AU_LTD, AU_SOLE_TRADER, DE_FREELANCER, DE_TRADESPERSON, DE_ENTREPRENEURIAL, DE_LTD, NL_LTD, NL_SOLE_TRADER, NL_GENERAL_PARTNERSHIP, NL_PROFESSIONAL_PARTNERSHIP, B_INCOME, FR_LTD, FR_SOLE_TRADER, IE_LTD, IE_SOLE_TRADER, SG_LTD, SG_SOLE_TRADER, LTD, SOLE_TRADER, UMBRELLA]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show trusted contacts with the specified external identifier.")
-	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
+	cmd.Flags().String("custom-fields", "", "Filter by custom fields attached to the TC's. Freetext CF's work by fuzzy search in the text. Single select works as inclusive or filters. That is you can chain multiple single select filters in the array to filter by many different CF selected options. This can similarly be done with freetext CF's. (JSON for [CustomFieldTypeValueInput!], e.g. [{\"boolean\":{...},\"date\":{...},\"fileUpload\":{...},\"freeText\":{...},\"multiSelect\":{...},\"singleSelect\":{...}}])")
 	cmd.Flags().String("order-by", "", "Supply a list of column/order pairs for sorting, ordering will be applied in the provided order. (JSON for [TrustedContactOrderByClauseInput!], e.g. [{\"field\":\"WORKER_NAME\",\"order\":\"ASC\"}]; field: WORKER_NAME | WORKER_JOBS_COUNT | WORKER_MARKET | WORKER_COUNTRY | WORKER_BUSINESS_SETUP | WORKER_COMPANY_NAME | WORKER_DATE_ADDED | WORKER_STATUS_UPDATED | WORKER_RTW_VERIFICATION | COMPLIANCE_UPDATED_AT; order: ASC | DESC)")
 	cmd.Flags().String("created-at-date-range", "", "Filter trusted contacts by the date they were created. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
 	cmd.Flags().String("verified-worker-review", "", "Filter contacts by their VerifiedWorkerCompliance review state. (JSON for VerifiedWorkerReviewFilterInput, e.g. {\"status\":\"INCOMPLETE\",\"updatedBy\":[\"<id>\"]}; status: INCOMPLETE | READY_TO_REVIEW | CHANGES_REQUESTED | CLEARED)")
@@ -19330,7 +20203,7 @@ func newTrustedContactsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Add and invite a new trusted contact. Only companies can add & invite trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts create --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts create --company \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"company\": \"<id>\",\n    \"country\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"firstName\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"message\": \"...\",\n    \"middleName\": \"...\",\n    \"notifyWorker\": false,\n    \"origin\": \"INVITED\",\n    \"originChannel\": \"EXISTING_SETUP\",\n    \"skills\": [\n      \"...\"\n    ],\n    \"state\": \"...\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts create --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts create --company \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"company\": \"<id>\",\n    \"country\": \"...\",\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"email\": \"...\",\n    \"externalIdentifier\": \"...\",\n    \"firstName\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"message\": \"...\",\n    \"middleName\": \"...\",\n    \"notifyWorker\": false,\n    \"origin\": \"INVITED\",\n    \"originChannel\": \"EXISTING_SETUP\",\n    \"skills\": [\n      \"...\"\n    ],\n    \"state\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -19550,7 +20423,7 @@ func newTrustedContactsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a trusted contact. Only companies can edit trusted contacts.",
-		Example: "  # Using a JSON input file:\n  worksome trusted-contacts update --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts update --id \\\"value\\\" --external-identifier \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
+		Example: "  # Using a JSON input file:\n  worksome trusted-contacts update --input payload.json\n\n  # Using flags:\n  worksome trusted-contacts update --id \\\"value\\\" --external-identifier \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"attachments\": [\n      \"<id>\"\n    ],\n    \"customFieldValues\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ],\n    \"externalIdentifier\": \"...\",\n    \"id\": \"<id>\",\n    \"links\": [\n      \"...\"\n    ],\n    \"skills\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -21625,7 +22498,7 @@ func newWorkerUpdateCmd() *cobra.Command {
 func NewWorkerCustomFieldValuesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker-custom-field-values",
-		Short: "Update custom field values for a fieldable entity as a worker.",
+		Short: "Update custom field values for a fieldable entity as a worker, a staffing agency, a supplier or, for a hire, the company that owns it.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -21644,8 +22517,8 @@ var workercustomfieldvaluesUpdateColumns = []output.Column{
 func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
-		Short:   "Update custom field values for a fieldable entity as a worker. Accepts a collection of field values in a single payload. Only fields with 'workerInputAllowed: true' can be updated. Partial updates are supported - fields not included are ignored.",
-		Example: "  # Using a JSON input file:\n  worksome worker-custom-field-values update --input payload.json\n\n  # Using flags:\n  worksome worker-custom-field-values update --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"appliesTo\": \"<id>\",\n    \"values\": [\n      {\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ]\n  }",
+		Short:   "Update custom field values for a fieldable entity as a worker, a staffing agency, a supplier or, for a hire, the company that owns it. Accepts a collection of field values in a single payload. Workers can only update fields with 'workerInputAllowed: true'. Partial updates are supported - fields not included are ignored.",
+		Example: "  # Using a JSON input file:\n  worksome worker-custom-field-values update --input payload.json\n\n  # Using flags:\n  worksome worker-custom-field-values update --applies-to \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"appliesTo\": \"<id>\",\n    \"values\": [\n      {\n        \"boolean\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": false\n        },\n        \"date\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"fileUpload\": {\n          \"fileId\": \"<id>\",\n          \"fileIds\": [\n            \"<id>\"\n          ],\n          \"id\": \"<id>\",\n          \"slug\": \"...\"\n        },\n        \"freeText\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"...\"\n        },\n        \"multiSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"values\": [\n            \"<id>\"\n          ]\n        },\n        \"singleSelect\": {\n          \"id\": \"<id>\",\n          \"slug\": \"...\",\n          \"value\": \"<id>\"\n        }\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -21703,7 +22576,7 @@ func newWorkerCustomFieldValuesUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("applies-to", "", "The entity that supports custom fields (e.g., TrustedContact).")
+	cmd.Flags().String("applies-to", "", "The entity that supports custom fields (e.g., TrustedContact or Hire).")
 	return cmd
 }
 

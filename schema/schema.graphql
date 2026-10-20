@@ -1378,6 +1378,24 @@ input BlockTrustedContactInput {
   account: ID!
 }
 """
+An input for a yes/no custom field.
+"""
+input BooleanCustomFieldValueInput {
+  """
+  The ID of the field to set an answer on.
+  """
+  id: ID
+  """
+  A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens
+  to replace spaces. The key is only unique within the same account.
+  """
+  slug: String
+  """
+  The answer. A null value indicates that the field value will be deleted.
+  """
+  value: Boolean
+}
+"""
 A business entity.
 """
 type BusinessEntity {
@@ -2059,6 +2077,40 @@ type Client {
   customFieldValues: [CustomFieldValue!]!
 }
 """
+**Experimental.** A supplier's relation with one client company.
+"""
+interface ClientRelation {
+  """
+  The ID of the relation.
+  """
+  id: ID!
+  """
+  The client company.
+  """
+  client: Company!
+  """
+  When the relation was created.
+  """
+  createdAt: Date!
+  """
+  **Experimental.** How many placements the relation has, counting only the given statuses when set.
+  """
+  hiresCount(
+    """
+    Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  **Experimental.** How many distinct workers the relation has placed at the client.
+  """
+  workersCount: Int!
+  """
+  **Experimental.** When the relation's earliest placement at the client started. Null before the first one.
+  """
+  firstHireStartedAt: Date
+}
+"""
 Sorting clause for the people staffing agencies assign to a client.
 """
 input ClientRelationAgencyOwnerOrderByClauseInput {
@@ -2087,44 +2139,6 @@ enum ClientRelationAgencyOwnerOrderByColumn {
   The name of the staffing agency the person works for.
   """
   STAFFING_AGENCY
-}
-"""
-Sorting clause for the supplier's client list.
-"""
-input ClientRelationOrderByClauseInput {
-  """
-  The field to sort supplier clients by.
-  """
-  field: ClientRelationOrderByColumn
-  """
-  The order to sort supplier clients by.
-  """
-  order: SortOrder = ASC
-}
-"""
-The columns that a supplier's client list can be ordered by.
-"""
-enum ClientRelationOrderByColumn {
-  """
-  The name of the client company.
-  """
-  CLIENT_NAME
-  """
-  The client's market, then its region by name.
-  """
-  CLIENT_LOCATION
-  """
-  The date the client relationship was established.
-  """
-  CLIENT_SINCE
-  """
-  The number of hires the supplier has at the client.
-  """
-  HIRES
-  """
-  The number of staffing agencies the supplier linked to the client.
-  """
-  LINKED_STAFFING_AGENCIES
 }
 """
 Sorting clause for a supplier's own team on a client.
@@ -2361,6 +2375,44 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   ): CompanyRecruiterPaginator!
 }
 """
+Sorting clause for the supplier's client list.
+"""
+input CompanyClientOrderByClauseInput {
+  """
+  The field to sort supplier clients by.
+  """
+  field: CompanyClientOrderByColumn
+  """
+  The order to sort supplier clients by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns that a supplier's client list can be ordered by.
+"""
+enum CompanyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  The client's market, then its region by name.
+  """
+  CLIENT_LOCATION
+  """
+  The date the client relationship was established.
+  """
+  CLIENT_SINCE
+  """
+  The number of hires the supplier has at the client.
+  """
+  HIRES
+  """
+  The number of staffing agencies the supplier linked to the client.
+  """
+  LINKED_STAFFING_AGENCIES
+}
+"""
 The outcome of an external validation check (e.g. KvK, VAT/VIES).
 """
 enum CompanyNumberValidationStatus {
@@ -2588,7 +2640,7 @@ type CompanySettings {
 """
 A link between a client company and a supplier account (Company acting as a staffing agency).
 """
-type CompanySupplier {
+type CompanySupplier implements Ownable & ClientRelation {
   """
   The ID of the company supplier.
   """
@@ -2597,6 +2649,10 @@ type CompanySupplier {
   The client company.
   """
   company: Company!
+  """
+  **Experimental.** The client company; the same as `company`, under the name every client relation shares.
+  """
+  client: Company!
   """
   The supplier account.
   """
@@ -3374,6 +3430,14 @@ enum ComplianceName {
   """
   IDENTIFICATION
   """
+  Required hire custom fields the worker answers before the hire is offered
+  """
+  HIRE_WORKER_CUSTOM_FIELDS_BEFORE_OFFER
+  """
+  Required hire custom fields the worker answers before accepting the contract
+  """
+  HIRE_WORKER_CUSTOM_FIELDS_BEFORE_ACCEPTANCE
+  """
   Verified staffing-agency compliance — company verification of a staffing agency
   """
   VERIFIED_RECRUITER_COMPLIANCE
@@ -3382,9 +3446,17 @@ enum ComplianceName {
   """
   RECRUITER_ONBOARDING
   """
+  Client onboarding — whether any of the account's clients still needs onboarding completed
+  """
+  CLIENT_ONBOARDING
+  """
   End client input for supplier-managed worker classification
   """
   DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT
+  """
+  Worker input for the classification questions about their own hire
+  """
+  DETERMINATION_HIRE_FREELANCER_INPUT
   """
   Supplier awaiting end client classification input
   """
@@ -5084,10 +5156,18 @@ input CreateCustomFieldInput {
   """
   workerInputAllowed: Boolean
   """
+  For hire fields with worker input allowed, when the worker must answer. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Configures the field to allow recruiter (staffing agency) input.
   When enabled, recruiters can provide values for this field through the recruiter API.
   """
   recruiterInputAllowed: Boolean
+  """
+  For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Configures the field to surface its values on client invoices.
   """
@@ -5139,6 +5219,40 @@ input CreateCustomTimesheetInput {
   The custom data for the timesheet.
   """
   data: String!
+}
+"""
+The input for creating an expense.
+"""
+input CreateExpenseInput {
+  """
+  The expense report this expense belongs to.
+  """
+  expenseReport: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
 }
 """
 An input for creating an export.
@@ -5817,49 +5931,49 @@ input CreateWorkflowVariableFieldInput {
   rule: WorkflowVariableFieldRuleInput!
 }
 """
-Currency
+A currency code as defined by ISO 4217.
 """
 enum Currency {
   """
-  CAD
-  """
-  CAD
-  """
-  DKK
-  """
-  DKK
-  """
-  EUR
-  """
-  EUR
-  """
-  GBP
-  """
-  GBP
-  """
-  NOK
-  """
-  NOK
-  """
-  SEK
-  """
-  SEK
-  """
-  USD
-  """
-  USD
+  United Arab Emirates Dirham
   """
   AED
   """
-  AED
-  """
-  SGD
-  """
-  SGD
+  Australian Dollar
   """
   AUD
   """
-  AUD
+  Canadian Dollar
+  """
+  CAD
+  """
+  Danish Krone
+  """
+  DKK
+  """
+  Euro
+  """
+  EUR
+  """
+  Great British Pound
+  """
+  GBP
+  """
+  Norwegian Krone
+  """
+  NOK
+  """
+  Swedish Krona
+  """
+  SEK
+  """
+  Singapore Dollar
+  """
+  SGD
+  """
+  United States Dollar
+  """
+  USD
 }
 """
 A custom field.
@@ -5950,10 +6064,18 @@ type CustomField {
   """
   workerInputAllowed: Boolean!
   """
+  For hire fields the worker answers (on hires whose worker no staffing agency manages), when in the hire they must answer it. Null for every other field.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Whether recruiters (staffing agencies) are allowed to provide values for this field.
   When enabled, recruiters can update field values through the recruiter API.
   """
   recruiterInputAllowed: Boolean!
+  """
+  For hire fields the staffing agency answers for a worker it manages, when in the hire they must answer it. Null for every other field.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Whether values for this field should be surfaced on client invoices.
   """
@@ -5990,6 +6112,10 @@ type CustomField {
   The date and time that the field was deleted.
   """
   deletedAt: DateTime
+  """
+  The date and time that the field was archived.
+  """
+  archivedAt: DateTime
 }
 """
 The settings input for custom fields.
@@ -6091,6 +6217,14 @@ enum CustomFieldType {
   File Upload input field. Used to attach an uploaded file as the field value.
   """
   FILE_UPLOAD
+  """
+  Date input field. Used to collect a single calendar date.
+  """
+  DATE
+  """
+  Boolean input field. Used to collect a yes or no answer.
+  """
+  BOOLEAN
 }
 """
 An input representing a custom field value, tailored to the field type.
@@ -6114,6 +6248,14 @@ input CustomFieldTypeValueInput {
   The input custom field values representation of the `FILE_UPLOAD` field type.
   """
   fileUpload: FileUploadCustomFieldValueInput
+  """
+  The input custom field values representation of the `DATE` field type.
+  """
+  date: DateCustomFieldValueInput
+  """
+  The input custom field values representation of the `BOOLEAN` field type.
+  """
+  boolean: BooleanCustomFieldValueInput
 }
 """
 Something that depends on a custom field or one of its options, and so stops it being removed.
@@ -6177,7 +6319,7 @@ type CustomFieldValue {
   """
   The content of the custom field value in the case of a custom field not using custom field options.
   
-  This will be present for a free-text field type.
+  This will be present for free-text, date (`YYYY-MM-DD`) and boolean (`1` or `0`) field types.
   """
   content: String
   """
@@ -6222,6 +6364,19 @@ enum CustomFieldVisibility {
   WORKER
 }
 """
+When the worker, or the staffing agency managing them, must answer a hire custom field.
+"""
+enum CustomFieldWorkerInputStage {
+  """
+  The worker answers while the hire is a draft, before the company can offer it.
+  """
+  BEFORE_OFFER
+  """
+  The worker answers before they can accept the contract.
+  """
+  BEFORE_ACCEPTANCE
+}
+"""
 The reason a timesheet registration was rejected by Worksome.
 """
 enum CustomTimesheetRejectionReason {
@@ -6242,6 +6397,24 @@ enum CustomTimesheetRejectionReason {
 A scalar type representing a date.
 """
 scalar Date
+"""
+An input for a date custom field.
+"""
+input DateCustomFieldValueInput {
+  """
+  The ID of the field to set a date on.
+  """
+  id: ID
+  """
+  A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens
+  to replace spaces. The key is only unique within the same account.
+  """
+  slug: String
+  """
+  The date, as `YYYY-MM-DD`. A null value indicates that the field value will be deleted.
+  """
+  value: String
+}
 """
 An input for a date range.
 """
@@ -6988,15 +7161,20 @@ type Expense {
   """
   id: ID!
   """
+  The unique reference for the expense.
+  """
+  number: Int!
+  """
   The description of the expense.
   """
   description: String
   """
-  The currency of the expense.
+  The currency of the expense. Taken from the expense report's payment request when it was
+  created, or from its hire when the report wasn't linked to one.
   """
   currency: Currency!
   """
-  The amount of the expense.
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
   """
   amount: Float!
   """
@@ -7011,6 +7189,14 @@ type Expense {
   The date and time that the expense was created.
   """
   createdAt: DateTime!
+  """
+  Custom field values captured against this expense (see the "Expenses custom
+  fields" section of the client account's payment request custom fields).
+  
+  Filtered to Worker-visibility values for any viewer other than the client
+  company the fields belong to.
+  """
+  customFieldValues: [CustomFieldValue!]!
   """
   The files attached to this expense.
   """
@@ -7586,6 +7772,13 @@ type Hire {
   """
   id: ID!
   """
+  **Experimental.** The custom field values held on this hire.
+  
+  These belong to the hire itself, not to the job it came from. Only the fields
+  defined by your own account (or inherited from its organisation) are returned.
+  """
+  customFieldValues: [CustomFieldValue!]!
+  """
   The unique reference for the hire.
   """
   number: String!
@@ -7905,6 +8098,14 @@ type Hire {
   """
   tenure: Int!
   """
+  The hire custom fields the worker, or the staffing agency managing them, is asked to answer on this hire, across every stage.
+  """
+  workerEditableCustomFields: [CustomField!]!
+  """
+  Whether the worker (or the staffing agency managing them) can already see this draft, to answer the questions asked before the offer.
+  """
+  workerInvited: Boolean!
+  """
   The source hire this hire was derived from.
   """
   sourceHire: Hire
@@ -8144,6 +8345,9 @@ input HireInput {
   """
   Additional custom fields for the direct hire.
   
+  Values are routed by where the field is defined: a field that applies to jobs is stored
+  on the job, a field that applies to hires on the hire itself.
+  
   Details specified here are never shown to workers. Depending on each field's sharing
   settings, some may be visible outside your team.
   
@@ -8172,6 +8376,71 @@ input HireInput {
   This description is used on the draft contract.
   """
   hireDescription: String
+}
+"""
+The hire details and questions shown to the worker who answers them.
+"""
+type HireInvitation {
+  """
+  The ID of the hire.
+  """
+  hireId: ID!
+  """
+  The hire number.
+  """
+  number: String!
+  """
+  The name of the worker being hired, so a staffing agency knows who it is answering for.
+  """
+  workerName: String
+  """
+  The hiring company.
+  """
+  company: Company!
+  """
+  The name of the hiring company.
+  """
+  companyName: String
+  """
+  The job title.
+  """
+  jobTitle: String
+  """
+  The job description.
+  """
+  jobDescription: String
+  """
+  The planned start date.
+  """
+  startDate: Date
+  """
+  The planned end date.
+  """
+  endDate: Date
+  """
+  The work location.
+  """
+  workLocation: String
+  """
+  Whether the hire is still a draft.
+  """
+  isDraft: Boolean!
+  """
+  Whether every required custom field of the current stage has an answer.
+  """
+  requiredCustomFieldsComplete: Boolean!
+  """
+  The hire custom fields the worker answers.
+  """
+  customFields: [CustomField!]!
+  """
+  The hire custom fields the worker can still answer; answers lock once their stage has passed.
+  """
+  answerableCustomFields: [CustomField!]!
+  """
+  The answers given so far.
+  """
+  customFieldValues: [CustomFieldValue!]!
 }
 """
 The columns that the hires list can be ordered by.
@@ -8951,15 +9220,20 @@ type Job implements HasURL {
   """
   supplierJob: Job
   """
+  **Experimental.** The pay items this job can offer. On an MSP's copy of a client job,
+  these are the client's, and the list is empty once the client job is deleted.
+  
+  Readable only by the client company owning the job, and by the MSP managing it; on
+  an MSP's copy, only by that MSP. Anyone else reads an empty list.
+  """
+  offerablePayItems: [PayItem!]!
+  """
   **Experimental.** The rate card band that applies to this job.
   
   A band is the client's internal pricing policy, so it is readable only by the
   client company owning the job, and by a company registered as that client's
   supplier that also holds an active share of the job — in practice, the MSP.
   Anyone else, staffing agencies included, reads null.
-  
-  A stub until the resolver lands: it returns the no-match state rather than
-  invented figures.
   """
   rateCardBand(
     """
@@ -8968,9 +9242,7 @@ type Job implements HasURL {
     date: Date
 
     """
-    Resolve against these custom field values instead of the job's stored
-    ones. The job form has no autosave, so the criteria being changed exist
-    only in the form's store until it is saved.
+    Resolve against these custom field values instead of the job's stored ones.
     """
     customFieldValues: [CustomFieldTypeValueInput!]
   ): RateCardBand
@@ -10485,7 +10757,7 @@ type Mutation {
     The assignments to apply.
     """
     input: UpdateCompanySupplierOwnersInput!
-  ): CompanySupplier!
+  ): CompanySupplier! @deprecated(reason: "Use updateOwners, which takes any record with owners.")
   """
   Submit information for a compliance — e.g. a company reviewing a
   worker, or a worker filling in form data. Set exactly one field on
@@ -10544,10 +10816,22 @@ type Mutation {
     input: DeleteCustomFieldInput!
   ): CustomField!
   """
-  Update custom field values for a fieldable entity as a worker.
+  Archive or unarchive a custom field.
+  
+  The field is offered or stops being offered for input, but its existing values stay readable.
+  """
+  setCustomFieldsArchived(
+    """
+    The input for archiving or unarchiving a custom field.
+    """
+    input: SetCustomFieldsArchivedInput!
+  ): [CustomField!]!
+  """
+  Update custom field values for a fieldable entity as a worker, a staffing agency, a supplier
+  or, for a hire, the company that owns it.
   
   Accepts a collection of field values in a single payload.
-  Only fields with `workerInputAllowed: true` can be updated.
+  Workers can only update fields with `workerInputAllowed: true`.
   Partial updates are supported - fields not included are ignored.
   """
   updateWorkerCustomFieldValues(
@@ -10574,6 +10858,24 @@ type Mutation {
     """
     input: OnboardEmploymentInput!
   ): Employment!
+  """
+  Create an expense line item on an expense report.
+  """
+  createExpense(
+    """
+    The details of the expense to create.
+    """
+    input: CreateExpenseInput!
+  ): Expense!
+  """
+  Update an expense line item.
+  """
+  updateExpense(
+    """
+    The details of the expense to update.
+    """
+    input: UpdateExpenseInput!
+  ): Expense!
   """
   Generate temporary upload URLs for files for the given account.
   
@@ -10855,7 +11157,8 @@ type Mutation {
   ): JobCandidate!
   """
   Withdraw an own submitted candidate from the hiring process. Used by
-  suppliers; moves the candidate to the withdrawn step of its current phase.
+  suppliers (staffing agencies and companies acting as suppliers); moves the
+  candidate to the withdrawn step of its current phase.
   """
   withdrawJobCandidate(
     """
@@ -10995,6 +11298,18 @@ type Mutation {
     """
     input: DeleteNoteInput!
   ): Note!
+  """
+  **Experimental.** Replace the set of team members assigned to a record.
+  
+  Only full-access users (account owner or admin) on the account that owns the record can change
+  assignments, and every assignee must be a member of that account.
+  """
+  updateOwners(
+    """
+    The assignments to apply.
+    """
+    input: UpdateOwnersInput!
+  ): Ownable!
   """
   Create a payment request.
   """
@@ -11828,9 +12143,22 @@ enum OvertimeType {
   SEVENTH_DAY
 }
 """
-A record that people can be assigned to as owners.
+**Experimental.** A record that people can be assigned to as owners.
 """
-union Ownable = CompanySupplier | SupplierClient
+interface Ownable {
+  """
+  The record's own ID.
+  """
+  id: ID!
+  """
+  The team members assigned to this record.
+  """
+  owners: [Owner!]!
+  """
+  Whether the viewer may change the owners of this record.
+  """
+  viewerCanManageOwners: Boolean!
+}
 """
 A user assigned as an owner of a record, and what they look after on it.
 """
@@ -11852,9 +12180,9 @@ type Owner {
   """
   assignedAt: DateTime
   """
-  The record this person is assigned to as an owner.
+  The record this person is assigned to as an owner. Null for viewers who are not a party to that record.
   """
-  owned: Ownable!
+  owned: Ownable
 }
 """
 One user's owner assignment on a record.
@@ -12887,6 +13215,16 @@ type Query {
   """
   companyRecruiterRegions: [MarketWithRegions!]!
   """
+  **Experimental.** The markets of the viewer's clients, with all of their regions: the clients of its supplier
+  companies and of its staffing agencies.
+  """
+  clientRelationRegions(
+    """
+    Only the clients of these accounts. Without it, every account the viewer belongs to.
+    """
+    accounts: [ID!]
+  ): [MarketWithRegions!]!
+  """
   Get a specific approval rule by ID.
   """
   approvalRule(
@@ -12970,14 +13308,15 @@ type Query {
     id: ID!
   ): CompanyRecruiter
   """
-  Get a specific client the authenticated company accounts supply to.
+  **Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's relation or a
+  staffing agency's client link, whichever kind the ID is.
   """
-  supplierClient(
+  clientRelation(
     """
-    The ID of the company supplier row.
+    The ID of a company supplier relation or of a staffing agency's client link.
     """
     id: ID!
-  ): CompanySupplier
+  ): ClientRelation
   """
   Get a specific company supplier.
   """
@@ -13098,6 +13437,22 @@ type Query {
     id: ID!
   ): Hire
   """
+  The questions a hire's company asks its worker, with only the hire details needed to answer them.
+  
+  Available to the hire's worker, or the staffing agency managing them. Unlike `hire`, this also
+  works while the hire is a draft waiting on answers, and never exposes commercial terms.
+  """
+  hireInvitation(
+    """
+    The ID of the hire.
+    """
+    id: ID!
+  ): HireInvitation
+  """
+  The draft hires waiting on answers from the viewer (the worker, or the staffing agency managing them).
+  """
+  hireInvitations: [HireInvitation!]!
+  """
   Get a specific industry.
   """
   industry(
@@ -13111,9 +13466,18 @@ type Query {
   """
   invoice(
     """
-    The invoice number on the PDF.
+    The ID of the invoice.
+    
+    Exactly one of `id` or `number` must be supplied.
     """
-    number: String!
+    id: ID
+
+    """
+    The invoice number on the PDF.
+    
+    Exactly one of `id` or `number` must be supplied.
+    """
+    number: String
   ): Invoice
   """
   Get a specific invoice row.
@@ -13680,6 +14044,51 @@ type Query {
     page: Int
   ): SupplierClientPaginator!
   """
+  **Experimental.** The end clients the viewer's staffing agencies work for: one row per client link, direct or
+  through an MSP.
+  """
+  staffingAgencyClients(
+    """
+    Only show the clients of these staffing agency accounts. Without it, every staffing agency the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    Search clients by company name.
+    """
+    search: String
+
+    """
+    Only show direct links (true) or links through an MSP (false).
+    """
+    isDirect: Boolean
+
+    """
+    Filter clients by market and optionally narrow by specific regions.
+    """
+    clientRegions: MarketRegionInput
+
+    """
+    Only show links created within the given date range.
+    """
+    createdAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [StaffingAgencyClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
+  """
   Get a list of company suppliers for the authenticated company accounts.
   """
   companySuppliers(
@@ -13706,9 +14115,9 @@ type Query {
   """
   Get a list of clients the authenticated company accounts supply to.
   
-  The supplier-side view of the same rows companySuppliers reads from the client side.
+  The rows companySuppliers also returns, limited to those where the viewer's company is the supplier.
   """
-  supplierClients(
+  companyClients(
     """
     Only show the clients of these supplier company accounts. Without it, clients of every
     supplier company the viewer belongs to are shown.
@@ -13753,7 +14162,7 @@ type Query {
     """
     Supply a list of column/order pairs for sorting, applied in the provided order.
     """
-    orderBy: [ClientRelationOrderByClauseInput!]
+    orderBy: [CompanyClientOrderByClauseInput!]
 
     """
     Limits number of fetched items.
@@ -13766,17 +14175,17 @@ type Query {
     page: Int
   ): CompanySupplierPaginator!
   """
-  The supplier's own team members assigned to one client relation.
+  The viewer's own team members assigned to one client relation: a supplier company's or a staffing agency's.
   """
   clientRelationOwners(
     """
-    Only when the relation belongs to these supplier company accounts. Without it, any supplier
-    company the viewer belongs to.
+    Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any
+    such account the viewer belongs to.
     """
     accounts: [ID!]
 
     """
-    The client relation to list the assigned team members of.
+    **Experimental.** The client relation to list the assigned team members of: a CompanySupplier or a SupplierClient.
     """
     client: ID!
 
@@ -13806,20 +14215,19 @@ type Query {
     page: Int
   ): OwnerPaginator!
   """
-  The people the relation's staffing agencies have assigned to its client, as owners of their agency links.
-  
-  Covers the agency links the relation's supplier manages at that client; direct links and links
-  managed by anyone else are left out.
+  **Experimental.** The other side's people assigned to one client relation. On a supplier company's relation: the
+  people its staffing agencies assigned to their links at that client. On a staffing agency's managed link: the
+  people the managing company assigned to its own relation with that client. Empty for a direct agency link.
   """
-  clientRelationAgencyOwners(
+  clientRelationCounterpartOwners(
     """
-    Only when the relation belongs to these supplier company accounts. Without it, any supplier
-    company the viewer belongs to.
+    Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any such
+    account the viewer belongs to.
     """
     accounts: [ID!]
 
     """
-    The client relation to list the agency-assigned people of.
+    The client relation: a CompanySupplier or a SupplierClient.
     """
     client: ID!
 
@@ -13829,12 +14237,12 @@ type Query {
     search: String
 
     """
-    Only show recruiters of these staffing agencies.
+    Only show recruiters of these staffing agencies. Ignored on a staffing agency's link.
     """
     staffingAgencies: [ID!]
 
     """
-    Only show recruiters assigned within the given date range.
+    Only show people assigned within the given date range.
     """
     assignedAtDateRange: DateRangeInput
 
@@ -13981,6 +14389,11 @@ type Query {
     appliesTo: [TypeSupportingCustomFieldValues!]
 
     """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -14010,6 +14423,11 @@ type Query {
     A list of entity types supporting custom fields.
     """
     appliesTo: [TypeSupportingCustomFieldValues!]
+
+    """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
 
     """
     Limits number of fetched items.
@@ -14188,6 +14606,12 @@ type Query {
     companies: [ID!]
 
     """
+    **Experimental.** Only hires at these end clients, including placements made through a managed service provider
+    for one of them.
+    """
+    endClients: [ID!]
+
+    """
     Filter hires by worker ids.
     """
     workers: [ID!]
@@ -14243,6 +14667,11 @@ type Query {
     Filter hires by hire contract status.
     """
     contractStatus: [ContractStatus!]
+
+    """
+    **Experimental.** Only hires with a checklist in one of these statuses.
+    """
+    checklistStatus: [ChecklistStatus!]
 
     """
     Filter hires by hire contract type.
@@ -15582,6 +16011,25 @@ type Recruiter implements Account {
   The insurance information for the recruiter.
   """
   insurances: [WorkerInsurance!]!
+  """
+  **Experimental.** The agency's owner and team members, owner first. Only the agency's own users can read it.
+  """
+  teamMembersAndOwners(
+    """
+    Search users by name.
+    """
+    search: String
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): UserPaginator!
 }
 """
 A recruiter candidate relationship.
@@ -16092,6 +16540,19 @@ input SetChecklistCheckStateInput {
   reason: String
 }
 """
+The input for archiving or unarchiving a custom field.
+"""
+input SetCustomFieldsArchivedInput {
+  """
+  The IDs of the custom fields to archive or unarchive.
+  """
+  customFields: [ID!]!
+  """
+  Whether the fields should be archived (true) or unarchived (false)
+  """
+  archived: Boolean!
+}
+"""
 The input used for setting the internal budget on a job.
 """
 input SetInternalBudgetOnJobInput {
@@ -16323,6 +16784,40 @@ enum SourcingDeadlineChoice {
   NONE
 }
 """
+**Experimental.** Sorting clause for a staffing agency's client list.
+"""
+input StaffingAgencyClientOrderByClauseInput {
+  """
+  The field to sort the client links by.
+  """
+  field: StaffingAgencyClientOrderByColumn
+  """
+  The order to sort the client links by.
+  """
+  order: SortOrder = ASC
+}
+"""
+**Experimental.** The columns that a staffing agency's client list can be ordered by.
+"""
+enum StaffingAgencyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  Direct links first, then the name of the MSP the link goes through.
+  """
+  RELATION
+  """
+  The date the link was created.
+  """
+  CLIENT_SINCE
+  """
+  The number of the agency's offered, ready, active, ended, cancelled and terminated hires at the client.
+  """
+  PLACEMENTS
+}
+"""
 The details for updating a bank account details.
 """
 input StoreBankDetailsInput {
@@ -16473,7 +16968,7 @@ A link between a supplier and an end client the supplier works for.
 Row presence is the relationship: direct when the client contracted the supplier itself,
 managed when another company sits in the middle.
 """
-type SupplierClient {
+type SupplierClient implements Ownable & ClientRelation {
   """
   The ID of the supplier-to-client link.
   """
@@ -16487,10 +16982,37 @@ type SupplierClient {
   """
   client: Company!
   """
-  The staffing agency relation this link was contracted under. Null when the supplier is a
-  company rather than a staffing agency.
+  **Experimental.** The company the link was contracted through: the client itself for a direct link, the MSP for a
+  managed one.
+  """
+  managingCompany: Company!
+  """
+  **Experimental.** Whether the client contracted the supplier itself, rather than through a managing company.
+  """
+  isDirect: Boolean!
+  """
+  **Experimental.** The country of the client's registered address, without the rest of the address. Null when
+  the client has no address on file.
+  """
+  clientCountry: Country
+  """
+  **Experimental.** The supplier's team members assigned to this client link.
+  """
+  owners: [Owner!]!
+  """
+  **Experimental.** Whether the viewer may change the owners of this link: the account owner or a full-access member of the agency.
+  """
+  viewerCanManageOwners: Boolean!
+  """
+  The staffing agency relation this link was contracted under, as the managing company keeps it. Null when the
+  supplier is a company rather than a staffing agency, and for viewers outside the managing company.
   """
   companyRecruiter: CompanyRecruiter
+  """
+  **Experimental.** The people at the managing company who look after the client: the owners of the client's
+  relation with it. Empty on a direct link, and for viewers other than the staffing agency the link belongs to.
+  """
+  managingCompanyContacts: [User!]!
   """
   When the link was created.
   """
@@ -16500,9 +17022,23 @@ type SupplierClient {
   """
   updatedAt: Date!
   """
-  The hires the supplier has at the client, in any status.
+  The hires the supplier placed at the client through this link, in any status unless narrowed: for a staffing
+  agency, its own copy of each hire under the managing company.
   """
-  hiresCount: Int!
+  hiresCount(
+    """
+    **Experimental.** Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  **Experimental.** How many distinct workers the link has placed at the client.
+  """
+  workersCount: Int!
+  """
+  **Experimental.** When the link's earliest placement at the client started. Null before the first one.
+  """
+  firstHireStartedAt: Date
 }
 """
 Sorting clause for a client's linked staffing agencies.
@@ -16604,7 +17140,7 @@ Union of types which custom field values may be applied to.
 
 This is closely coupled to the `TypeSupportingCustomFieldValues` enum.
 """
-union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier
+union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier | Expense | Hire
 """
 A tag.
 """
@@ -17401,6 +17937,18 @@ enum TypeSupportingCustomFieldValues {
   A relationship between a client company and one of its suppliers
   """
   COMPANY_SUPPLIER
+  """
+  An Expense
+  """
+  EXPENSE
+  """
+  A Hire
+  """
+  HIRE
+  """
+  The input collected for a worker classification
+  """
+  CLASSIFICATION_INPUT
 }
 """
 A scalar for representing a URL.
@@ -17592,10 +18140,18 @@ input UpdateCustomFieldInput {
   """
   workerInputAllowed: Boolean
   """
+  For hire fields with worker input allowed, when the worker must answer. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Configures the field to allow recruiter (staffing agency) input.
   When enabled, recruiters can provide values for this field through the recruiter API.
   """
   recruiterInputAllowed: Boolean
+  """
+  For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Configures the field to surface its values on client invoices.
   """
@@ -17615,6 +18171,40 @@ input UpdateCustomFieldInput {
   Only applies to some field types (e.g. `SINGLE_SELECT`).
   """
   options: [CustomFieldCustomFieldOptionInput!]
+}
+"""
+The input for updating an expense.
+"""
+input UpdateExpenseInput {
+  """
+  The expense to update.
+  """
+  id: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
 }
 """
 The details for updating the "preferred" status of a job candidate.
@@ -17876,6 +18466,19 @@ input UpdateNoteInput {
   The title of the note to be updated.
   """
   title: String
+}
+"""
+**Experimental.** The full set of owner assignments for one record.
+"""
+input UpdateOwnersInput {
+  """
+  The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).
+  """
+  ownable: ID!
+  """
+  The assignments to keep; team members not listed are unassigned.
+  """
+  owners: [OwnerInput!]!
 }
 """
 The details required to update a user's password.
@@ -18243,7 +18846,7 @@ The input for updating custom field values as a worker.
 """
 input UpdateWorkerCustomFieldValuesInput {
   """
-  The entity that supports custom fields (e.g., TrustedContact).
+  The entity that supports custom fields (e.g., TrustedContact or Hire).
   """
   appliesTo: ID!
   """
@@ -19262,7 +19865,7 @@ type Worker implements Account {
     page: Int
   ): BusinessEntityPaginator!
   """
-  The hires associated with the worker.
+  The hires associated with the worker. Draft hires are only included when filtering by `status: DRAFT`.
   """
   hires(
     """
@@ -19279,6 +19882,11 @@ type Worker implements Account {
     Filter hires by their status.
     """
     status: HireActiveStatus
+
+    """
+    **Experimental.** Only hires with a checklist in one of these statuses.
+    """
+    checklistStatus: [ChecklistStatus!]
 
     """
     Limits number of fetched items.
