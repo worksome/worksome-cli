@@ -41,6 +41,24 @@ ignore_fields:
   # so `company get <id>` returned a null company to every non-member.
   - "Company.usedEngagementTypeSetups"
 
+# Fields to select whenever their type appears nested, keyed by "Type.field".
+#
+# Nested objects carry only the names in safeNestedFields (internal/codegen),
+# chosen to be harmless on any type. Some types are useless without a field
+# that list cannot admit globally. An object or union field listed here
+# expands to its own safe fields, one level deep.
+#
+# Generation fails if an entry here goes stale or is also in ignore_fields.
+nested_fields:
+  # Without these a custom field value came back as a bare id: no value, no
+  # field it belongs to, nothing to say which job, contract or trusted
+  # contact it is set on. Hire and Contract do not expose their values,
+  # so customFields → customFieldValues → appliesTo is the only way to read
+  # them, and that path needs appliesTo.
+  - "CustomFieldValue.displayValue"
+  - "CustomFieldValue.customField"
+  - "CustomFieldValue.appliesTo"
+
 # CLI action names for operations whose derived name collides with another's.
 # Generation fails if an entry here goes stale.
 command_names:

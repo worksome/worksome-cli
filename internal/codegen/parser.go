@@ -24,6 +24,12 @@ type Overrides struct {
 	// strips applied directives, so the schema we parse cannot say which
 	// fields the server access-controls; this records what it cannot tell us.
 	IgnoreFields []string `yaml:"ignore_fields"`
+	// NestedFields lists "Type.field" entries to select whenever Type appears
+	// as a nested object, on top of the safeNestedFields name allow-list. It is
+	// the positive counterpart of IgnoreFields: a field the name list cannot
+	// admit globally, but that is meaningless to leave out on one type. An
+	// object or union field expands to its own safe fields, one level only.
+	NestedFields []string `yaml:"nested_fields"`
 	// Aliases maps a resource name to extra names it also answers to, so a
 	// rename in the API schema doesn't break the old invocation.
 	Aliases map[string][]string `yaml:"aliases"`
@@ -108,11 +114,18 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 		inputs:        make(map[string]bool),
 		paginators:    make(map[string]string),
 		ignoredFields: make(map[string]bool, len(overrides.IgnoreFields)),
+		nestedFields:  make(map[string]bool, len(overrides.NestedFields)),
 	}
 	for _, entry := range overrides.IgnoreFields {
 		p.ignoredFields[entry] = true
 	}
+	for _, entry := range overrides.NestedFields {
+		p.nestedFields[entry] = true
+	}
 	if err := p.validateIgnoredFields(); err != nil {
+		return nil, err
+	}
+	if err := p.validateNestedFields(); err != nil {
 		return nil, err
 	}
 
@@ -127,6 +140,8 @@ type parser struct {
 	paginators map[string]string // PaginatorTypeName -> DataTypeName
 	// ignoredFields is the IgnoreFields override as a "Type.field" set.
 	ignoredFields map[string]bool
+	// nestedFields is the NestedFields override as a "Type.field" set.
+	nestedFields map[string]bool
 
 	overrideErrors []string
 	nameErrors     []string
@@ -164,6 +179,45 @@ func (p *parser) fieldIgnored(def *ast.Definition, fieldName string) bool {
 		return false
 	}
 	return p.ignoredFields[def.Name+"."+fieldName]
+}
+
+// validateNestedFields fails generation on a nested_fields entry that names no
+// field, that the generator could not call without arguments, or that
+// ignore_fields also excludes: each would silently select nothing.
+func (p *parser) validateNestedFields() error {
+	var invalid []string
+	for _, entry := range p.overrides.NestedFields {
+		typeName, fieldName, ok := strings.Cut(entry, ".")
+		if !ok || typeName == "" || fieldName == "" || strings.Contains(fieldName, ".") {
+			invalid = append(invalid, fmt.Sprintf("%q is not in Type.field form", entry))
+			continue
+		}
+		def := p.doc.Types[typeName]
+		if def == nil || def.Fields.ForName(fieldName) == nil {
+			invalid = append(invalid, fmt.Sprintf("%q names no field in the schema", entry))
+			continue
+		}
+		if p.needsArgument(def.Fields.ForName(fieldName)) {
+			invalid = append(invalid, fmt.Sprintf("%q needs an argument, so it cannot be selected by default", entry))
+		}
+		if p.ignoredFields[entry] {
+			invalid = append(invalid, fmt.Sprintf("%q is also in ignore_fields", entry))
+		}
+	}
+	if len(invalid) == 0 {
+		return nil
+	}
+	sort.Strings(invalid)
+	return fmt.Errorf("invalid nested_fields in overrides:\n  %s", strings.Join(invalid, "\n  "))
+}
+
+// fieldNested reports whether "Type.field" is added to nested selections by
+// the overrides.
+func (p *parser) fieldNested(def *ast.Definition, fieldName string) bool {
+	if def == nil {
+		return false
+	}
+	return p.nestedFields[def.Name+"."+fieldName]
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -1429,7 +1483,7 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			}
 			switch nestedDef.Kind {
 			case ast.Object, ast.Interface:
-				nestedFields := p.selectSafeFields(nestedDef)
+				nestedFields := p.nestedSelection(nestedDef)
 				if nestedFields != "" {
 					fields = append(fields, f.Name+" { "+typenamePrefix(nestedDef)+nestedFields+" }")
 				}
@@ -1548,6 +1602,40 @@ func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 	return optional
 }
 
+// nestedSelection is selectSafeFields plus the object and union fields that
+// nested_fields adds for def. Those expand to their own safe fields and stop
+// there, so an override can never recurse.
+func (p *parser) nestedSelection(def *ast.Definition) string {
+	fields := []string{p.selectSafeFields(def)}
+	for _, f := range def.Fields {
+		if !p.fieldNested(def, f.Name) || p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
+			continue
+		}
+		innerType := unwrapType(f.Type)
+		if knownScalars[innerType] || p.enums[innerType] {
+			continue // already in selectSafeFields via nestedFieldSelected
+		}
+		inner := p.doc.Types[innerType]
+		if inner == nil {
+			continue
+		}
+		if _, isPaginator := p.paginators[innerType]; isPaginator {
+			continue
+		}
+		switch inner.Kind {
+		case ast.Object, ast.Interface:
+			if sub := p.selectSafeFields(inner); sub != "" {
+				fields = append(fields, f.Name+" { "+typenamePrefix(inner)+sub+" }")
+			}
+		case ast.Union:
+			if frags := p.unionSafeFields(inner); frags != "" {
+				fields = append(fields, f.Name+" { __typename "+frags+" }")
+			}
+		}
+	}
+	return strings.TrimSpace(strings.Join(fields, " "))
+}
+
 // selectSafeFields returns only safe identifying/display fields for a nested object.
 // This avoids requesting access-restricted fields on types like User, Worker, etc.
 func (p *parser) selectSafeFields(def *ast.Definition) string {
@@ -1570,7 +1658,8 @@ func (p *parser) nestedFieldSelected(def *ast.Definition, f *ast.FieldDefinition
 		return false
 	}
 	innerType := unwrapType(f.Type)
-	return (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name]
+	return (knownScalars[innerType] || p.enums[innerType]) &&
+		(safeNestedFields[f.Name] || p.fieldNested(def, f.Name))
 }
 
 func (p *parser) isSingularGet(f *ast.FieldDefinition) bool {
