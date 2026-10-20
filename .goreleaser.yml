@@ -48,3 +48,7 @@ homebrew_casks:
           if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/worksome"]
           end
+
+release:
+  # A dispatched run tags locally only; this pins the tag GitHub creates to the built commit.
+  target_commitish: "{{ .FullCommit }}"

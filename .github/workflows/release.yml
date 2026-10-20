@@ -37,13 +37,11 @@ jobs:
         run: |
           go run ./cmd/generate/
           git diff --exit-code internal/generated/
-      # After the checks, so a failing commit is never tagged. A tag pushed with
-      # GITHUB_TOKEN does not trigger this workflow again.
+      # After the checks, so a failing commit is never tagged.
       - name: Tag the release
         if: github.event_name == 'workflow_dispatch'
         env:
           BUMP: ${{ inputs.bump }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
           IFS=. read -r major minor patch <<< "${latest#v}"
@@ -52,9 +50,9 @@ jobs:
             minor) tag="v${major}.$((minor + 1)).0" ;;
             patch) tag="v${major}.${minor}.$((patch + 1))" ;;
           esac
+          # Local only: goreleaser creates the remote tag with the release, so a
+          # failed build leaves no tag behind to be skipped by the next bump.
           git tag "$tag"
-          # Via the API: checkout left no credential in .git/config to push with.
-          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
           echo "Tagged \`$GITHUB_SHA\` as \`$tag\` (previous: \`$latest\`)." >> "$GITHUB_STEP_SUMMARY"
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
