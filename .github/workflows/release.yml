@@ -4,12 +4,21 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Part of the latest tag to increment
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: write
 
 jobs:
   release:
+    # A dispatched release tags the commit it runs on, so only main may be tagged.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,6 +37,25 @@ jobs:
         run: |
           go run ./cmd/generate/
           git diff --exit-code internal/generated/
+      # After the checks, so a failing commit is never tagged. A tag pushed with
+      # GITHUB_TOKEN does not trigger this workflow again.
+      - name: Tag the release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "$BUMP" in
+            major) tag="v$((major + 1)).0.0" ;;
+            minor) tag="v${major}.$((minor + 1)).0" ;;
+            patch) tag="v${major}.${minor}.$((patch + 1))" ;;
+          esac
+          git tag "$tag"
+          # Via the API: checkout left no credential in .git/config to push with.
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
+          echo "Tagged \`$GITHUB_SHA\` as \`$tag\` (previous: \`$latest\`)." >> "$GITHUB_STEP_SUMMARY"
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           version: '~> v2'
