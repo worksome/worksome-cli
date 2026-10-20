@@ -74,6 +74,11 @@ make generate       # Regenerates all code
 make test           # Verify everything compiles and passes
 ```
 
+### Cutting a release
+Run the **Release** workflow from `main` (Actions → Release → Run workflow) and pick
+`patch`, `minor` or `major`. It tests, tags the next version and runs goreleaser.
+Pushing a `v*` tag by hand still works the same way.
+
 ### Adding a new built-in command
 Add it to `cmd/worksome/` and register in `newRootCmd()` in `main.go`.
 
