@@ -3420,6 +3420,24 @@ func ValidOwnerResponsibility() []OwnerResponsibility {
 	}
 }
 
+// PayItemAssignmentStatus — Whether a pay item is offered on a job or selected on a contract.
+type PayItemAssignmentStatus string
+
+const (
+	// PayItemAssignmentStatusOffered — The pay item is offered on a job for a contract to select.
+	PayItemAssignmentStatusOffered PayItemAssignmentStatus = "OFFERED"
+	// PayItemAssignmentStatusActive — The pay item is selected and priced on a contract.
+	PayItemAssignmentStatusActive PayItemAssignmentStatus = "ACTIVE"
+)
+
+// ValidPayItemAssignmentStatus returns all valid values for PayItemAssignmentStatus.
+func ValidPayItemAssignmentStatus() []PayItemAssignmentStatus {
+	return []PayItemAssignmentStatus{
+		PayItemAssignmentStatusOffered,
+		PayItemAssignmentStatusActive,
+	}
+}
+
 // PayItemBasis — How a pay item's price is worked out.
 type PayItemBasis string
 

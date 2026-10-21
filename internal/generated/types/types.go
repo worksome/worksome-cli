@@ -235,6 +235,26 @@ type ApproverPaginator struct {
 	Data []*Approver `json:"data"`
 }
 
+// AssignedPayItem — **Experimental.** A catalogue pay item as it appears on a job's or contract's pay items. It has the same ID as the 'PayItem', but leaves out the catalogue price and the owning account, which only the owner and the MSP managing it read through 'payItems' and 'Job.offerablePayItems'.
+type AssignedPayItem struct {
+	// The ID of the pay item, the same as the 'PayItem''s.
+	Id string `json:"id"`
+	// The name of the pay item.
+	Name string `json:"name"`
+	// What kind of pay the pay item is.
+	Role PayItemRole `json:"role"`
+	// How the pay item's price is worked out.
+	Basis PayItemBasis `json:"basis"`
+	// The unit a per-unit pay item is priced in. Absent for flat and percentage pay items.
+	Unit *PayItemUnit `json:"unit,omitempty"`
+	// The name of the unit when the unit is 'OTHER', such as 1,000 words.
+	UnitLabel *string `json:"unitLabel,omitempty"`
+	// The currency a flat or per-unit pay item is priced in. Absent for percentage pay items.
+	Currency *Currency `json:"currency,omitempty"`
+	// Whether the pay item can be used or has been archived.
+	Status PayItemStatus `json:"status"`
+}
+
 // AvailableMarket — A market that an account is available to work in, including the specific regions within that market.
 type AvailableMarket struct {
 	// The market.
@@ -1020,6 +1040,8 @@ type Contract struct {
 	Files []*File `json:"files"`
 	// The contract documents (e.g. KID, onboarding documents) generated for the contract. The Key Information Document is only included for the worker on the contract.
 	ContractDocuments []*ContractDocument `json:"contractDocuments"`
+	// **Experimental.** The pay items selected on this contract, with their prices. Readable by the company on the contract, and by anyone who can read the contract's hire. Anyone else reads an empty list.
+	PayItems []*PayItemAssignment `json:"payItems"`
 	// The latest milestone details at the time of creation of the contract.
 	MilestoneDetails MilestoneDetailPaginator `json:"milestoneDetails"`
 }
@@ -1456,11 +1478,11 @@ type Hire struct {
 	Number string `json:"number"`
 	// The date the worker last submitted a payment request for this hire. Null if no payment request has ever been submitted.
 	LastPaymentRequestDate *string `json:"lastPaymentRequestDate,omitempty"`
-	// The latest contract, not necessarily the active one. The latest contract could for example be a draft, if one of the parties wanted to make changes to the currently active contract. see 'hire.activeContract' for the current active one.
+	// The latest contract, not necessarily the active one. The latest contract could for example be a draft, if one of the parties wanted to make changes to the currently active contract. see 'hire.activeContract' for the current active one. The worker, and a staffing agency managing the worker, do not see a draft while the client's approval is pending; they get the active contract instead, or the draft when the hire has no active contract yet.
 	LatestContract *Contract `json:"latestContract"`
 	// The currently active contract. This has been accepted by all parties and is the active legal document between them.
 	ActiveContract *Contract `json:"activeContract,omitempty"`
-	// The draft contract, if there is one waiting for the other party to accept.
+	// The draft contract, if there is one waiting for the other party to accept. Null for the worker, and for a staffing agency managing the worker, while the client's approval is pending.
 	DraftContract *Contract `json:"draftContract,omitempty"`
 	// If there are pending changes to the contract that are awaiting acceptance by the worker.
 	PendingContractChanges bool `json:"pendingContractChanges"`
@@ -1910,6 +1932,8 @@ type Job struct {
 	SourceJob *Job `json:"sourceJob,omitempty"`
 	// The supplier-side job derived from this source job.
 	SupplierJob *Job `json:"supplierJob,omitempty"`
+	// **Experimental.** The pay items this job offers. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
+	PayItems []*PayItemAssignment `json:"payItems"`
 	// **Experimental.** The pay items this job can offer. On an MSP's copy of a client job, these are the client's, and the list is empty once the client job is deleted. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
 	OfferablePayItems []*PayItem `json:"offerablePayItems"`
 	// **Experimental.** The rate card band that applies to this job. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null.
@@ -2395,6 +2419,24 @@ type PayItem struct {
 	Status PayItemStatus `json:"status"`
 	// The price in force today. Absent when no price has taken effect yet.
 	CurrentPrice *PayItemPrice `json:"currentPrice,omitempty"`
+}
+
+// PayItemAssignment — **Experimental.** A pay item offered on a job, or selected and priced on a contract.
+type PayItemAssignment struct {
+	// The ID of the pay item assignment.
+	Id string `json:"id"`
+	// The pay item from the catalogue, without its catalogue price or owning account: the assignment carries its own price.
+	PayItem *AssignedPayItem `json:"payItem"`
+	// The price of a flat or per-unit pay item. Absent when no price was set, and for percentage pay items.
+	Amount *float64 `json:"amount,omitempty"`
+	// The price of a percentage pay item. Absent when no price was set, and for flat and per-unit pay items.
+	Percentage *float64 `json:"percentage,omitempty"`
+	// The currency of the price. Absent for percentage pay items and when no price was set.
+	Currency *Currency `json:"currency,omitempty"`
+	// Whether the pay item is offered on a job or selected on a contract.
+	Status PayItemAssignmentStatus `json:"status"`
+	// The job offer this contract selection came from, if any. Shown only to those who can read the job's pay items (see 'Job.payItems'); anyone else reads null.
+	SourceAssignment *PayItemAssignment `json:"sourceAssignment,omitempty"`
 }
 
 // PayItemPaginator — A paginated list of PayItem items.
