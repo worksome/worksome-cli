@@ -126,6 +126,14 @@ input AcceptBidInput {
   """
   attachments: [ID!]
   """
+  **Experimental.** The pay items selected on the contract, each with its price. Leave out a
+  price to take the job's price for the pay item, or else its current price.
+  
+  Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
+  """
   An identifier associated with the hire from an external system.
   """
   externalIdentifier: String
@@ -1837,9 +1845,19 @@ type Classification {
   """
   result: ClassificationResultDetails!
   """
-  URL to download the PDF version of this classification (WCR/SDS)
+  URL to download the PDF version of this classification (WCR/SDS).
+  
+  This URL only works in a browser with a signed-in Worksome session. API clients must use `pdfDownloadUrl`.
   """
   pdfUrl: String!
+  """
+  The URL that should be used to download the stored PDF version of this classification (WCR/SDS).
+  
+  The URL is valid for one hour and needs no API token. Do not store it: request the field again
+  for a new URL. It is `null` when the viewer may not download the PDF, when the classification is
+  not accepted, or when no PDF is stored yet.
+  """
+  pdfDownloadUrl: URL
   """
   Whether this classification overrides another classification
   """
@@ -2732,6 +2750,11 @@ type CompanySupplier implements Ownable & ClientRelation {
   Whether supplier self-bills for this client batch on the end client's cadence.
   """
   invoiceBatchingCadenceFollowsClient: Boolean!
+  """
+  Who is emailed the client-side invoices of supplier hires for this client. Only applies when the
+  supplier is a company; always MSP otherwise.
+  """
+  invoiceDelivery: InvoiceDelivery!
   """
   The number of days in the payment terms supplier hires for this client are contracted on:
   the client's own when the relationship follows the client, otherwise the supplier's. Null
@@ -8479,6 +8502,14 @@ input HireInput {
   This description is used on the draft contract.
   """
   hireDescription: String
+  """
+  **Experimental.** The pay items selected on the contract, each with its price. Leave out a
+  price to take the job's price for the pay item, or else its current price.
+  
+  Requires `job`. Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
 }
 """
 The hire details and questions shown to the worker who answers them.
@@ -8898,6 +8929,23 @@ type InvoiceBatchingCadence {
   The weekday the batch runs on.
   """
   weekday: Weekday!
+}
+"""
+Who is emailed the client-side invoices of a mirror-model client relationship
+"""
+enum InvoiceDelivery {
+  """
+  Only the MSP (supplier) is emailed
+  """
+  MSP
+  """
+  Only the end client is emailed
+  """
+  CLIENT
+  """
+  Both the MSP (supplier) and the end client are emailed
+  """
+  BOTH
 }
 """
 The columns that the invoices list can be ordered by.
@@ -12564,6 +12612,21 @@ type PayItemAssignment {
   sourceAssignment: PayItemAssignment
 }
 """
+**Experimental.** A pay item on a job or contract, with the price it is offered or agreed at.
+"""
+input PayItemAssignmentInput {
+  """
+  The ID of the pay item.
+  """
+  payItem: ID!
+  """
+  The price, in the job's or contract's currency. On a job, leave out to offer the pay item
+  without a price. On a contract, leave out to take the job's price for it, or else the
+  pay item's current price.
+  """
+  price: DecimalTwo
+}
+"""
 Whether a pay item is offered on a job or selected on a contract.
 """
 enum PayItemAssignmentStatus {
@@ -16074,6 +16137,48 @@ type RateCardBand {
   amounts above are present.
   """
   noMatchReason: RateCardNoMatchReason
+  """
+  How `rate` (in `rateType`) compares to this band. Null when either argument
+  is omitted. Reports the rate's position relative to the band — whether that
+  position is treated as a warning is a decision made by each surface that
+  consumes this field, not by this field itself.
+  """
+  comparison(
+    """
+    The entered rate to compare against the band.
+    """
+    rate: DecimalTwo
+
+    """
+    The unit `rate` is expressed in.
+    """
+    rateType: RateType
+  ): RateCardComparisonResult
+}
+"""
+How an entered rate compares to a resolved rate card band.
+"""
+enum RateCardComparisonResult {
+  """
+  The rate is within the band.
+  """
+  WITHIN_RANGE
+  """
+  The rate is above the band maximum.
+  """
+  ABOVE_MAXIMUM
+  """
+  The rate is below the band minimum.
+  """
+  BELOW_MINIMUM
+  """
+  The rate's unit differs from the band's, so the two aren't measurable against each other.
+  """
+  UNIT_MISMATCH
+  """
+  Nothing matched a rate card line to compare against.
+  """
+  NO_MATCH
 }
 """
 Why a vacancy or payment request resolved to no rate card band.
@@ -17830,6 +17935,13 @@ type TrustedContact {
   """
   skills: [Skill!]!
   """
+  How many hires the worker has accepted at the trusted contact's company. Draft hires are not counted.
+  
+  In `organisationTrustedContacts`, where each contact stands for the worker across the organisation, this counts
+  the hires at any company in the organisation instead.
+  """
+  acceptedHiresCount: Int!
+  """
   Trusted contact managed status.
   """
   managedStatus: TrustedContactManagedStatus
@@ -18010,7 +18122,7 @@ enum TrustedContactOrderByColumn {
   """
   WORKER_NAME
   """
-  The number of jobs taken by the worker with the viewing company.
+  The number of hires the worker has accepted with the trusted contact's company, or with any company in the organisation for organisation trusted contacts.
   """
   WORKER_JOBS_COUNT
   """
@@ -18502,6 +18614,14 @@ input UpdateJobInput {
   The files to be attached to the job.
   """
   attachments: [ID!]
+  """
+  **Experimental.** The pay items the job offers, each with its price. The list replaces the
+  job's saved pay items. Leave out to keep them as they are.
+  
+  Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
   """
   The project type of the job.
   """

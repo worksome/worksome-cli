@@ -47,6 +47,8 @@ type AcceptBidInput struct {
 	ClosingMessage *string `json:"closingMessage,omitempty"`
 	// Attached documents.
 	Attachments []string `json:"attachments,omitempty"`
+	// **Experimental.** The pay items selected on the contract, each with its price. Leave out a price to take the job's price for the pay item, or else its current price. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 	// An identifier associated with the hire from an external system.
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 }
@@ -1113,6 +1115,8 @@ type HireInput struct {
 	Owners []string `json:"owners,omitempty"`
 	// The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.
 	HireDescription *string `json:"hireDescription,omitempty"`
+	// **Experimental.** The pay items selected on the contract, each with its price. Leave out a price to take the job's price for the pay item, or else its current price. Requires 'job'. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 }
 
 // HireStatusFilterInput — Trusted contact hire status filter input.
@@ -1273,6 +1277,14 @@ type OwnerInput struct {
 	User string `json:"user"`
 	// What this person looks after on the record. Grants no permissions.
 	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
+}
+
+// PayItemAssignmentInput — **Experimental.** A pay item on a job or contract, with the price it is offered or agreed at.
+type PayItemAssignmentInput struct {
+	// The ID of the pay item.
+	PayItem string `json:"payItem"`
+	// The price, in the job's or contract's currency. On a job, leave out to offer the pay item without a price. On a contract, leave out to take the job's price for it, or else the pay item's current price.
+	Price *float64 `json:"price,omitempty"`
 }
 
 // PaymentRequestOrderByClauseInput — Payment request sorting clause input.
@@ -1785,6 +1797,8 @@ type UpdateJobInput struct {
 	Skills []string `json:"skills,omitempty"`
 	// The files to be attached to the job.
 	Attachments []string `json:"attachments,omitempty"`
+	// **Experimental.** The pay items the job offers, each with its price. The list replaces the job's saved pay items. Leave out to keep them as they are. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 	// The project type of the job.
 	Association *Association `json:"association,omitempty"`
 	// The expected experience level required for the job.

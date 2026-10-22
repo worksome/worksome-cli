@@ -525,8 +525,10 @@ type Classification struct {
 	AcceptedStatus bool `json:"acceptedStatus"`
 	// The result of the classification with detailed outcome information
 	Result *ClassificationResultDetails `json:"result"`
-	// URL to download the PDF version of this classification (WCR/SDS)
+	// URL to download the PDF version of this classification (WCR/SDS). This URL only works in a browser with a signed-in Worksome session. API clients must use 'pdfDownloadUrl'.
 	PdfUrl string `json:"pdfUrl"`
+	// The URL that should be used to download the stored PDF version of this classification (WCR/SDS). The URL is valid for one hour and needs no API token. Do not store it: request the field again for a new URL. It is 'null' when the viewer may not download the PDF, when the classification is not accepted, or when no PDF is stored yet.
+	PdfDownloadUrl *string `json:"pdfDownloadUrl,omitempty"`
 	// Whether this classification overrides another classification
 	OverridesAnother bool `json:"overridesAnother"`
 	// The reason provided when this classification was overridden (null if not overridden)
@@ -791,6 +793,8 @@ type CompanySupplier struct {
 	PaymentTermsFollowsClient bool `json:"paymentTermsFollowsClient"`
 	// Whether supplier self-bills for this client batch on the end client's cadence.
 	InvoiceBatchingCadenceFollowsClient bool `json:"invoiceBatchingCadenceFollowsClient"`
+	// Who is emailed the client-side invoices of supplier hires for this client. Only applies when the supplier is a company; always MSP otherwise.
+	InvoiceDelivery InvoiceDelivery `json:"invoiceDelivery"`
 	// The number of days in the payment terms supplier hires for this client are contracted on: the client's own when the relationship follows the client, otherwise the supplier's. Null when the supplier is not a company and follows nobody.
 	PaymentTerm *int `json:"paymentTerm,omitempty"`
 	// How the payment term days are counted, from the same source as paymentTerm.
@@ -2641,6 +2645,8 @@ type RateCardBand struct {
 	RateType *RateType `json:"rateType,omitempty"`
 	// Why nothing matched. Absent when a line matched, which is what says the amounts above are present.
 	NoMatchReason *RateCardNoMatchReason `json:"noMatchReason,omitempty"`
+	// How 'rate' (in 'rateType') compares to this band. Null when either argument is omitted. Reports the rate's position relative to the band — whether that position is treated as a warning is a decision made by each surface that consumes this field, not by this field itself.
+	Comparison *RateCardComparisonResult `json:"comparison,omitempty"`
 }
 
 // Recruiter — A staffing agency account that sources and manages workers on behalf of companies. Staffing agencies can be attributed to hires, manage workers during engagements, and earn fees based on their ownership period. Companies establish relationships with staffing agencies to leverage their talent sourcing capabilities.
@@ -3034,6 +3040,8 @@ type TrustedContact struct {
 	Attachments []*File `json:"attachments"`
 	// Skills associated with the trusted contact.
 	Skills []*Skill `json:"skills"`
+	// How many hires the worker has accepted at the trusted contact's company. Draft hires are not counted. In 'organisationTrustedContacts', where each contact stands for the worker across the organisation, this counts the hires at any company in the organisation instead.
+	AcceptedHiresCount int `json:"acceptedHiresCount"`
 	// Trusted contact managed status.
 	ManagedStatus *TrustedContactManagedStatus `json:"managedStatus,omitempty"`
 	// Status of the trusted contact.
