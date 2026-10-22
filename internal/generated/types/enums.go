@@ -2680,6 +2680,27 @@ func ValidInsuranceType() []InsuranceType {
 	}
 }
 
+// InvoiceDelivery — Who is emailed the client-side invoices of a mirror-model client relationship
+type InvoiceDelivery string
+
+const (
+	// InvoiceDeliveryMsp — Only the MSP (supplier) is emailed
+	InvoiceDeliveryMsp InvoiceDelivery = "MSP"
+	// InvoiceDeliveryClient — Only the end client is emailed
+	InvoiceDeliveryClient InvoiceDelivery = "CLIENT"
+	// InvoiceDeliveryBoth — Both the MSP (supplier) and the end client are emailed
+	InvoiceDeliveryBoth InvoiceDelivery = "BOTH"
+)
+
+// ValidInvoiceDelivery returns all valid values for InvoiceDelivery.
+func ValidInvoiceDelivery() []InvoiceDelivery {
+	return []InvoiceDelivery{
+		InvoiceDeliveryMsp,
+		InvoiceDeliveryClient,
+		InvoiceDeliveryBoth,
+	}
+}
+
 // InvoiceOrderByColumn — The columns that the invoices list can be ordered by.
 type InvoiceOrderByColumn string
 
@@ -3795,6 +3816,33 @@ func ValidProjectStatusFilter() []ProjectStatusFilter {
 	}
 }
 
+// RateCardComparisonResult — How an entered rate compares to a resolved rate card band.
+type RateCardComparisonResult string
+
+const (
+	// RateCardComparisonResultWithinRange — The rate is within the band.
+	RateCardComparisonResultWithinRange RateCardComparisonResult = "WITHIN_RANGE"
+	// RateCardComparisonResultAboveMaximum — The rate is above the band maximum.
+	RateCardComparisonResultAboveMaximum RateCardComparisonResult = "ABOVE_MAXIMUM"
+	// RateCardComparisonResultBelowMinimum — The rate is below the band minimum.
+	RateCardComparisonResultBelowMinimum RateCardComparisonResult = "BELOW_MINIMUM"
+	// RateCardComparisonResultUnitMismatch — The rate's unit differs from the band's, so the two aren't measurable against each other.
+	RateCardComparisonResultUnitMismatch RateCardComparisonResult = "UNIT_MISMATCH"
+	// RateCardComparisonResultNoMatch — Nothing matched a rate card line to compare against.
+	RateCardComparisonResultNoMatch RateCardComparisonResult = "NO_MATCH"
+)
+
+// ValidRateCardComparisonResult returns all valid values for RateCardComparisonResult.
+func ValidRateCardComparisonResult() []RateCardComparisonResult {
+	return []RateCardComparisonResult{
+		RateCardComparisonResultWithinRange,
+		RateCardComparisonResultAboveMaximum,
+		RateCardComparisonResultBelowMinimum,
+		RateCardComparisonResultUnitMismatch,
+		RateCardComparisonResultNoMatch,
+	}
+}
+
 // RateCardNoMatchReason — Why a vacancy or payment request resolved to no rate card band.
 type RateCardNoMatchReason string
 
@@ -4293,7 +4341,7 @@ type TrustedContactOrderByColumn string
 const (
 	// TrustedContactOrderByColumnWorkerName — The name of the worker.
 	TrustedContactOrderByColumnWorkerName TrustedContactOrderByColumn = "WORKER_NAME"
-	// TrustedContactOrderByColumnWorkerJobsCount — The number of jobs taken by the worker with the viewing company.
+	// TrustedContactOrderByColumnWorkerJobsCount — The number of hires the worker has accepted with the trusted contact's company, or with any company in the organisation for organisation trusted contacts.
 	TrustedContactOrderByColumnWorkerJobsCount TrustedContactOrderByColumn = "WORKER_JOBS_COUNT"
 	// TrustedContactOrderByColumnWorkerMarket — The market the worker is on.
 	TrustedContactOrderByColumnWorkerMarket TrustedContactOrderByColumn = "WORKER_MARKET"
