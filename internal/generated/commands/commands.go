@@ -10719,6 +10719,22 @@ func newInvoicesListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("external-identifiers")
 				vars["externalIdentifiers"] = v
 			}
+			if cmd.Flags().Changed("invoice-date-range") {
+				raw, _ := cmd.Flags().GetString("invoice-date-range")
+				v, err := jsonArg("invoice-date-range", "DateRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["invoiceDateRange"] = v
+			}
+			if cmd.Flags().Changed("updated-at-range") {
+				raw, _ := cmd.Flags().GetString("updated-at-range")
+				v, err := jsonArg("updated-at-range", "DateTimeRangeInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["updatedAtRange"] = v
+			}
 			if cmd.Flags().Changed("order-by") {
 				raw, _ := cmd.Flags().GetString("order-by")
 				v, err := jsonArg("order-by", "[QueryInvoicesOrderByOrderByClause!]", raw)
@@ -10804,6 +10820,8 @@ func newInvoicesListCmd() *cobra.Command {
 	cmd.Flags().Bool("has-purchase-order-number", false, "Limit to invoices that either have or do not have payment requests with Purchase Order numbers.")
 	cmd.Flags().StringSlice("currency", nil, "Filter invoices by currency. [AED, AUD, CAD, DKK, EUR, GBP, NOK, SEK, SGD, USD]")
 	cmd.Flags().StringSlice("external-identifiers", nil, "Only show invoices with the specified external identifiers.")
+	cmd.Flags().String("invoice-date-range", "", "Only show invoices whose invoice date falls within the given date range. (JSON for DateRangeInput, e.g. {\"from\":\"2024-01-01\",\"to\":\"2024-01-01\"})")
+	cmd.Flags().String("updated-at-range", "", "Only show invoices last changed within the given range. Use this to fetch new invoices and credit notes on a schedule: pass the start of the current run as 'to' and the start of the previous run as 'from', moved a few minutes earlier so consecutive runs overlap slightly. Times must include fractional seconds and an offset, e.g. '2026-10-14T05:00:00.000000Z' for 07:00 in Amsterdam summer time. Using UTC ('Z') is recommended. An invoice is only returned once it is booked and has a number and a PDF, which can happen some time after it was created, so filtering on the last change rather than the creation time catches invoices booked late. Later changes, such as a recorded payment, also update this time, so an invoice that was already fetched can be returned again; deduplicate on the invoice 'number'. Results are paged by offset, so a change during a run can shift later pages; if 'paginatorInfo.total' drops partway through a run, start again from the first page. (JSON for DateTimeRangeInput, e.g. {\"from\":\"2024-01-01T00:00:00Z\",\"to\":\"2024-01-01T00:00:00Z\"})")
 	cmd.Flags().String("order-by", "", "Order the results by the creation date, invoice date, number, total or due date. (JSON for [QueryInvoicesOrderByOrderByClause!], e.g. [{\"field\":\"CREATED_AT\",\"order\":\"ASC\"}]; field: CREATED_AT | DATE | DUE_DATE | NUMBER | TOTAL_AMOUNT; order: ASC | DESC)")
 
 	return cmd
@@ -14543,6 +14561,14 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
 			}
+			if cmd.Flags().Changed("contact-regions") {
+				raw, _ := cmd.Flags().GetString("contact-regions")
+				v, err := jsonArg("contact-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["contactRegions"] = v
+			}
 			if cmd.Flags().Changed("countries") {
 				v, _ := cmd.Flags().GetStringSlice("countries")
 				vars["countries"] = v
@@ -14690,6 +14716,7 @@ func newOrganisationTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().StringSlice("skills", nil, "Supply a list of skills IDs to filter trusted contact or associated worker having those.")
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, FR, DE, DK, NO, SE, FI, LT, UAE, SG, AU, NL, WW]")
+	cmd.Flags().String("contact-regions", "", "Filter contacts by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput, e.g. {\"includeAutomation\":false,\"users\":[\"<id>\"]})")
@@ -14758,7 +14785,7 @@ func organisationtrustedcontactsFetchAll(cmd *cobra.Command, q *queries.Querier,
 func NewOwnersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "owners",
-		Short: "**Experimental.** Replace the set of team members assigned to a record.",
+		Short: "Replace the set of team members assigned to a record.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -14779,7 +14806,7 @@ var ownersUpdateColumns = []output.Column{
 func newOwnersUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
-		Short:   "**Experimental.** Replace the set of team members assigned to a record. Only full-access users (account owner or admin) on the account that owns the record can change assignments, and every assignee must be a member of that account.",
+		Short:   "Replace the set of team members assigned to a record. Each user can be listed once. Who may change the assignments, and who may be assigned, depends on the record: - Client relations and staffing agency client links: full-access users (account owner or admin)  on the supplier account; every assignee must be a member of that account. - Hires: users who can manage contracts on the hire's company and either see all of its hires or  already own this one; every assignee must be a member of that company, and a hire always keeps  at least one owner.",
 		Example: "  # Using a JSON input file:\n  worksome owners update --input payload.json\n\n  # Using flags:\n  worksome owners update --ownable \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"ownable\": \"<id>\",\n    \"owners\": [\n      {\n        \"responsibility\": \"PRIMARY_CONTACT\",\n        \"user\": \"<id>\"\n      }\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -14838,7 +14865,7 @@ func newOwnersUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("ownable", "", "The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).")
+	cmd.Flags().String("ownable", "", "The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link (SupplierClient) or a hire (Hire).")
 	return cmd
 }
 
@@ -20060,6 +20087,71 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
+var trustedcontactregionsColumns = []output.Column{
+	{Header: "Code", Field: "code"},
+	{Header: "Name", Field: "name"},
+	{Header: "Region Label", Field: "regionLabel"},
+	{Header: "Regions ID", Field: "regions.id"},
+	{Header: "Regions Name", Field: "regions.name"},
+}
+
+// NewTrustedContactRegionsCmd creates the trusted-contact-regions resource command.
+func NewTrustedContactRegionsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "trusted-contact-regions",
+		Short: "**Experimental.** The markets of the viewer's own and organisation-shared trusted contacts, with...",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newTrustedContactRegionsGetCmd())
+
+	return cmd
+}
+
+func newTrustedContactRegionsGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get",
+		Short:   "**Experimental.** The markets of the viewer's own and organisation-shared trusted contacts, with all of their regions.",
+		Example: "  worksome trusted-contact-regions get <id>",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate output format
+			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
+				if outputFlag != "json" && outputFlag != "table" {
+					return fmt.Errorf("invalid output format %q: must be 'json' or 'table'", outputFlag)
+				}
+			}
+
+			vars := make(map[string]any)
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			if dryRun {
+				return printDryRun(cmd, "query", "TrustedContactRegions", vars)
+			}
+
+			q, err := getQuerier()
+			if err != nil {
+				return err
+			}
+
+			result, err := q.TrustedContactRegions(context.Background(), vars)
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, result, trustedcontactregionsColumns)
+		},
+	}
+	cmd.Flags().StringSlice("accounts", nil, "Only the trusted contacts of these accounts. Without it, every account the viewer belongs to.")
+
+	return cmd
+}
+
 var trustedcontactsColumns = []output.Column{
 	{Header: "ID", Field: "id"},
 	{Header: "Worker ID", Field: "worker.id"},
@@ -20177,6 +20269,14 @@ func newTrustedContactsListCmd() *cobra.Command {
 			if cmd.Flags().Changed("markets") {
 				v, _ := cmd.Flags().GetStringSlice("markets")
 				vars["markets"] = v
+			}
+			if cmd.Flags().Changed("contact-regions") {
+				raw, _ := cmd.Flags().GetString("contact-regions")
+				v, err := jsonArg("contact-regions", "MarketRegionInput", raw)
+				if err != nil {
+					return err
+				}
+				vars["contactRegions"] = v
 			}
 			if cmd.Flags().Changed("countries") {
 				v, _ := cmd.Flags().GetStringSlice("countries")
@@ -20341,6 +20441,7 @@ func newTrustedContactsListCmd() *cobra.Command {
 	cmd.Flags().String("search", "", "Supply an input string which will be used to search through.")
 	cmd.Flags().StringSlice("skills", nil, "Supply a list of skills IDs to filter workers having those.")
 	cmd.Flags().StringSlice("markets", nil, "Supply a list of markets codes to filter workers part of related markets. [US, UK, IE, EU, CA, FR, DE, DK, NO, SE, FI, LT, UAE, SG, AU, NL, WW]")
+	cmd.Flags().String("contact-regions", "", "Filter contacts by market and optionally narrow by specific regions. (JSON for MarketRegionInput, e.g. {\"markets\":[\"...\"],\"regionIds\":[0]})")
 	cmd.Flags().StringSlice("countries", nil, "Supply a list of country codes to filter workers part of related countries.")
 	cmd.Flags().StringSlice("states", nil, "Supply a list of states to filter workers in specific states.")
 	cmd.Flags().String("invited-by-users", "", "Supply a list of user IDs to filter workers by the user who has invited them as trusted contact for the company. (JSON for InvitedByInput, e.g. {\"includeAutomation\":false,\"users\":[\"<id>\"]})")

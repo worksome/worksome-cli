@@ -31,7 +31,7 @@ type HasURL interface {
 	IsHasURL()
 }
 
-// Ownable — **Experimental.** A record that people can be assigned to as owners.
+// Ownable — A record that people can be assigned to as owners.
 type Ownable interface {
 	IsOwnable()
 }
@@ -1602,8 +1602,10 @@ type Hire struct {
 	CurrentApprovalState *ApprovalState `json:"currentApprovalState,omitempty"`
 	// Whether the hire has any pending approval request across all triggers.
 	HasPendingApproval bool `json:"hasPendingApproval"`
-	// The owners of the hire.
-	Owners []*User `json:"owners"`
+	// The team members assigned to this hire, and what each of them looks after.
+	Owners []*Owner `json:"owners"`
+	// Whether the viewer may change the owners of this hire.
+	ViewerCanManageOwners bool `json:"viewerCanManageOwners"`
 	// Check if this hire ends within a given number of days.
 	EndsWithinDays bool `json:"endsWithinDays"`
 	// The number of days the hire has been active (tenure).
@@ -1639,6 +1641,8 @@ type Hire struct {
 	// The approvals on a hire.
 	Approvals ApprovalPaginator `json:"approvals"`
 }
+
+func (Hire) IsOwnable() {}
 
 // HireInvitation — The hire details and questions shown to the worker who answers them.
 type HireInvitation struct {
@@ -1730,7 +1734,7 @@ type Invoice struct {
 	PayerDisplayName string `json:"payerDisplayName"`
 	// Human-readable display name of the payee.
 	PayeeDisplayName string `json:"payeeDisplayName"`
-	// The date that the invoice was created.
+	// The date the invoice was issued.
 	Date string `json:"date"`
 	// Checks if the invoice is a batched invoice. A batch invoice aggregates multiple payment requests together in one, summarised invoice over a period of time. This reduces the overhead of processing high volumes of payment requests and corresponding invoices.
 	IsBatched bool `json:"isBatched"`
@@ -1746,6 +1750,10 @@ type Invoice struct {
 	OriginalInvoice *Invoice `json:"originalInvoice,omitempty"`
 	// An external identifier for the invoice, used to reference it in external systems.
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
+	// The time the invoice record was created. This can be earlier than the time the invoice became available through the API, as an invoice is only returned once it is booked and has a number and a PDF.
+	CreatedAt *string `json:"createdAt,omitempty"`
+	// The time the invoice was last changed.
+	UpdatedAt *string `json:"updatedAt,omitempty"`
 	// A paginated list of all the rows on the invoice. This can be used to gather more information about the invoice than just the overall amount.
 	Rows InvoiceRowPaginator `json:"rows"`
 }
@@ -1868,7 +1876,7 @@ type Job struct {
 	Industries []*Industry `json:"industries"`
 	// The number of workers that are required for the job. If excluded, the default is 1 profile.
 	RequiredWorkers *int `json:"requiredWorkers,omitempty"`
-	// The owners of the job posting.
+	// The owners of the job posting. **Will change:** this field will return 'Owner' objects, like 'Hire.owners', so each owner also carries what they look after. Read the person through 'user' once it does. Contact Worksome support if you need help preparing for the change.
 	Owners []*User `json:"owners"`
 	// Additional custom fields values for the job. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team.
 	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
@@ -1940,7 +1948,7 @@ type Job struct {
 	PayItems []*PayItemAssignment `json:"payItems"`
 	// **Experimental.** The pay items this job can offer. On an MSP's copy of a client job, these are the client's, and the list is empty once the client job is deleted. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
 	OfferablePayItems []*PayItem `json:"offerablePayItems"`
-	// **Experimental.** The rate card band that applies to this job. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null.
+	// **Experimental.** The rate card band for this job. By default, this is the band from the rate card in force today. With 'cached: true', it is the band saved on the job. The saved band is checked again when the job's criteria, rate type or currency change, and removed if no line then matches. Changing the rate card does not change it. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null.
 	RateCardBand *RateCardBand `json:"rateCardBand,omitempty"`
 	// The hires made on the job.
 	Hires HirePaginator `json:"hires"`
@@ -2619,7 +2627,7 @@ type Project struct {
 	Spent float64 `json:"spent"`
 	// The date that the project ended. If this is set to 'null', we will assume that the project is not yet ended but active.
 	EndDate *string `json:"endDate,omitempty"`
-	// The owners of the project.
+	// The owners of the project. **Will change:** this field will return 'Owner' objects, like 'Hire.owners', so each owner also carries what they look after. Read the person through 'user' once it does. Contact Worksome support if you need help preparing for the change.
 	Owners []*User `json:"owners"`
 	// An identifier associated with the project from an external system.
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
@@ -2643,6 +2651,8 @@ type RateCardBand struct {
 	Maximum *float64 `json:"maximum,omitempty"`
 	// The unit the band is expressed in.
 	RateType *RateType `json:"rateType,omitempty"`
+	// The currency of the minimum and maximum. Absent when nothing matched.
+	Currency *Currency `json:"currency,omitempty"`
 	// Why nothing matched. Absent when a line matched, which is what says the amounts above are present.
 	NoMatchReason *RateCardNoMatchReason `json:"noMatchReason,omitempty"`
 	// How 'rate' (in 'rateType') compares to this band. Null when either argument is omitted. Reports the rate's position relative to the band — whether that position is treated as a warning is a decision made by each surface that consumes this field, not by this field itself.
