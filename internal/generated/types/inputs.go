@@ -841,6 +841,14 @@ type DateRangeInput struct {
 	To *string `json:"to,omitempty"`
 }
 
+// DateTimeRangeInput — An input for a range of points in time. Both bounds are inclusive.
+type DateTimeRangeInput struct {
+	// The start of the range, inclusive.
+	From *string `json:"from,omitempty"`
+	// The end of the range, inclusive.
+	To *string `json:"to,omitempty"`
+}
+
 // DeleteCompanyRecruiterInput — The details for deleting a recruiter relationship.
 type DeleteCompanyRecruiterInput struct {
 	// The recruiter relationship to delete.
@@ -1885,9 +1893,9 @@ type UpdateNoteInput struct {
 	Title *string `json:"title,omitempty"`
 }
 
-// UpdateOwnersInput — **Experimental.** The full set of owner assignments for one record.
+// UpdateOwnersInput — The full set of owner assignments for one record.
 type UpdateOwnersInput struct {
-	// The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).
+	// The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link (SupplierClient) or a hire (Hire).
 	Ownable string `json:"ownable"`
 	// The assignments to keep; team members not listed are unassigned.
 	Owners []OwnerInput `json:"owners"`

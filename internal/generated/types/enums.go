@@ -3420,7 +3420,7 @@ func ValidOvertimeType() []OvertimeType {
 	}
 }
 
-// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
+// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner.
 type OwnerResponsibility string
 
 const (

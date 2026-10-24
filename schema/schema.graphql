@@ -6552,6 +6552,19 @@ A date formatted as YYYY-MM-DDTHH:mm:ss.SSSSSSZ (2022-10-30T23:00:00.000000Z).
 """
 scalar DateTime
 """
+An input for a range of points in time. Both bounds are inclusive.
+"""
+input DateTimeRangeInput {
+  """
+  The start of the range, inclusive.
+  """
+  from: DateTime
+  """
+  The end of the range, inclusive.
+  """
+  to: DateTime
+}
+"""
 A scalar for representing a decimal value.
 
 It is always limited to a maximum of 2 decimal points.
@@ -7885,7 +7898,7 @@ contracts attached to the hire (`Hire.contracts`, `Hire.activeContract`) are the
 A hire progresses through a lifecycle: `DRAFT` → `OFFERED` → `READY` → `ACTIVE` → `ENDED`.
 It may also be `CANCELLED` (before activation) or `TERMINATED` (ended early by the company).
 """
-type Hire {
+type Hire implements Ownable {
   """
   The ID of the hire.
   """
@@ -8207,9 +8220,13 @@ type Hire {
   """
   hasPendingApproval: Boolean!
   """
-  The owners of the hire.
+  The team members assigned to this hire, and what each of them looks after.
   """
-  owners: [User!]!
+  owners: [Owner!]!
+  """
+  Whether the viewer may change the owners of this hire.
+  """
+  viewerCanManageOwners: Boolean!
   """
   Check if this hire ends within a given number of days.
   """
@@ -8862,7 +8879,7 @@ type Invoice {
   """
   payeeDisplayName: String!
   """
-  The date that the invoice was created.
+  The date the invoice was issued.
   """
   date: Date!
   """
@@ -8896,6 +8913,17 @@ type Invoice {
   An external identifier for the invoice, used to reference it in external systems.
   """
   externalIdentifier: String
+  """
+  The time the invoice record was created.
+  
+  This can be earlier than the time the invoice became available through the API, as an invoice is only returned once
+  it is booked and has a number and a PDF.
+  """
+  createdAt: DateTime
+  """
+  The time the invoice was last changed.
+  """
+  updatedAt: DateTime
   """
   A paginated list of all the rows on the invoice.
   
@@ -9232,6 +9260,10 @@ type Job implements HasURL {
   requiredWorkers: Int
   """
   The owners of the job posting.
+  
+  **Will change:** this field will return `Owner` objects, like `Hire.owners`, so each owner also carries
+  what they look after. Read the person through `user` once it does. Contact Worksome support if you need
+  help preparing for the change.
   """
   owners: [User!]!
   """
@@ -9386,7 +9418,10 @@ type Job implements HasURL {
   """
   offerablePayItems: [PayItem!]!
   """
-  **Experimental.** The rate card band that applies to this job.
+  **Experimental.** The rate card band for this job. By default, this is the band from
+  the rate card in force today. With `cached: true`, it is the band saved on the job. The
+  saved band is checked again when the job's criteria, rate type or currency change, and
+  removed if no line then matches. Changing the rate card does not change it.
   
   A band is the client's internal pricing policy, so it is readable only by the
   client company owning the job, and by a company registered as that client's
@@ -9395,14 +9430,22 @@ type Job implements HasURL {
   """
   rateCardBand(
     """
-    The date to resolve the band on. Defaults to today.
+    The date to look up the band on. Defaults to today. Not used with `cached: true`.
     """
     date: Date
 
     """
-    Resolve against these custom field values instead of the job's stored ones.
+    Look up the band with these custom field values instead of the job's saved ones.
+    Not used with `cached: true`.
     """
     customFieldValues: [CustomFieldTypeValueInput!]
+
+    """
+    Return the band saved on the job instead of today's band. For a job derived from a
+    source job, this is the source job's band. Returns `NO_RATE_CARD` when the job has
+    no saved band.
+    """
+    cached: Boolean = false
   ): RateCardBand
   """
   The hires made on the job.
@@ -11457,10 +11500,15 @@ type Mutation {
     input: DeleteNoteInput!
   ): Note!
   """
-  **Experimental.** Replace the set of team members assigned to a record.
+  Replace the set of team members assigned to a record. Each user can be listed once.
   
-  Only full-access users (account owner or admin) on the account that owns the record can change
-  assignments, and every assignee must be a member of that account.
+  Who may change the assignments, and who may be assigned, depends on the record:
+  
+  - Client relations and staffing agency client links: full-access users (account owner or admin)
+    on the supplier account; every assignee must be a member of that account.
+  - Hires: users who can manage contracts on the hire's company and either see all of its hires or
+    already own this one; every assignee must be a member of that company, and a hire always keeps
+    at least one owner.
   """
   updateOwners(
     """
@@ -12335,7 +12383,7 @@ enum OvertimeType {
   SEVENTH_DAY
 }
 """
-**Experimental.** A record that people can be assigned to as owners.
+A record that people can be assigned to as owners.
 """
 interface Ownable {
   """
@@ -12403,7 +12451,7 @@ type OwnerPaginator {
   data: [Owner!]!
 }
 """
-What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
+What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner.
 """
 enum OwnerResponsibility {
   """
@@ -13407,6 +13455,10 @@ type Project {
   endDate: Date
   """
   The owners of the project.
+  
+  **Will change:** this field will return `Owner` objects, like `Hire.owners`, so each owner also carries
+  what they look after. Read the person through `user` once it does. Contact Worksome support if you need
+  help preparing for the change.
   """
   owners: [User!]!
   """
@@ -13476,6 +13528,16 @@ type Query {
   clientRelationRegions(
     """
     Only the clients of these accounts. Without it, every account the viewer belongs to.
+    """
+    accounts: [ID!]
+  ): [MarketWithRegions!]!
+  """
+  **Experimental.** The markets of the viewer's own and organisation-shared trusted contacts, with all of their
+  regions.
+  """
+  trustedContactRegions(
+    """
+    Only the trusted contacts of these accounts. Without it, every account the viewer belongs to.
     """
     accounts: [ID!]
   ): [MarketWithRegions!]!
@@ -15055,6 +15117,27 @@ type Query {
     externalIdentifiers: [String!]
 
     """
+    Only show invoices whose invoice date falls within the given date range.
+    """
+    invoiceDateRange: DateRangeInput
+
+    """
+    Only show invoices last changed within the given range.
+    
+    Use this to fetch new invoices and credit notes on a schedule: pass the start of the current run as `to` and
+    the start of the previous run as `from`, moved a few minutes earlier so consecutive runs overlap slightly.
+    Times must include fractional seconds and an offset, e.g. `2026-10-14T05:00:00.000000Z` for 07:00 in
+    Amsterdam summer time. Using UTC (`Z`) is recommended.
+    
+    An invoice is only returned once it is booked and has a number and a PDF, which can happen some time after it
+    was created, so filtering on the last change rather than the creation time catches invoices booked late. Later
+    changes, such as a recorded payment, also update this time, so an invoice that was already fetched can be
+    returned again; deduplicate on the invoice `number`. Results are paged by offset, so a change during a run
+    can shift later pages; if `paginatorInfo.total` drops partway through a run, start again from the first page.
+    """
+    updatedAtRange: DateTimeRangeInput
+
+    """
     Order the results by the creation date, invoice date, number, total or due date.
     """
     orderBy: [QueryInvoicesOrderByOrderByClause!]
@@ -15745,6 +15828,11 @@ type Query {
     markets: [MarketCode!]
 
     """
+    Filter contacts by market and optionally narrow by specific regions.
+    """
+    contactRegions: MarketRegionInput
+
+    """
     Supply a list of country codes to filter workers part of related countries.
     """
     countries: [String!]
@@ -15861,6 +15949,11 @@ type Query {
     Supply a list of markets codes to filter workers part of related markets.
     """
     markets: [MarketCode!]
+
+    """
+    Filter contacts by market and optionally narrow by specific regions.
+    """
+    contactRegions: MarketRegionInput
 
     """
     Supply a list of country codes to filter workers part of related countries.
@@ -16132,6 +16225,10 @@ type RateCardBand {
   The unit the band is expressed in.
   """
   rateType: RateType
+  """
+  The currency of the minimum and maximum. Absent when nothing matched.
+  """
+  currency: Currency
   """
   Why nothing matched. Absent when a line matched, which is what says the
   amounts above are present.
@@ -18797,11 +18894,12 @@ input UpdateNoteInput {
   title: String
 }
 """
-**Experimental.** The full set of owner assignments for one record.
+The full set of owner assignments for one record.
 """
 input UpdateOwnersInput {
   """
-  The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).
+  The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link
+  (SupplierClient) or a hire (Hire).
   """
   ownable: ID!
   """
