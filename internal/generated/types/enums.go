@@ -3420,7 +3420,7 @@ func ValidOvertimeType() []OvertimeType {
 	}
 }
 
-// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner, as used on jobs, hires and projects.
+// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner.
 type OwnerResponsibility string
 
 const (
@@ -4588,6 +4588,16 @@ const (
 	WebhookEventTypeCreditNoteCreated WebhookEventType = "CREDIT_NOTE_CREATED"
 	// WebhookEventTypeClassificationAccepted — Triggered when a worker classification is accepted.
 	WebhookEventTypeClassificationAccepted WebhookEventType = "CLASSIFICATION_ACCEPTED"
+	// WebhookEventTypeJobShared — Triggered when a job is shared with a staffing agency.
+	WebhookEventTypeJobShared WebhookEventType = "JOB_SHARED"
+	// WebhookEventTypeJobShareRemoved — Triggered when a job share is removed.
+	WebhookEventTypeJobShareRemoved WebhookEventType = "JOB_SHARE_REMOVED"
+	// WebhookEventTypeJobUpdated — Triggered when the details of a job change.
+	WebhookEventTypeJobUpdated WebhookEventType = "JOB_UPDATED"
+	// WebhookEventTypeJobClosed — Triggered when a job is closed or removed.
+	WebhookEventTypeJobClosed WebhookEventType = "JOB_CLOSED"
+	// WebhookEventTypeJobCandidateUpdated — Triggered when the step of a job candidate changes.
+	WebhookEventTypeJobCandidateUpdated WebhookEventType = "JOB_CANDIDATE_UPDATED"
 )
 
 // ValidWebhookEventType returns all valid values for WebhookEventType.
@@ -4611,6 +4621,11 @@ func ValidWebhookEventType() []WebhookEventType {
 		WebhookEventTypeInvoicePaid,
 		WebhookEventTypeCreditNoteCreated,
 		WebhookEventTypeClassificationAccepted,
+		WebhookEventTypeJobShared,
+		WebhookEventTypeJobShareRemoved,
+		WebhookEventTypeJobUpdated,
+		WebhookEventTypeJobClosed,
+		WebhookEventTypeJobCandidateUpdated,
 	}
 }
 

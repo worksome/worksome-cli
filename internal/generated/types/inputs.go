@@ -725,10 +725,10 @@ type CreateWebhookInput struct {
 	ClientId *string `json:"clientId,omitempty"`
 	// The client URL of the webhook, when using OAuth.
 	ClientUrl *string `json:"clientUrl,omitempty"`
-	// The event types that this webhook should be subscribed to. If null or not provided, the webhook will be subscribed to all event types. If an empty array, the webhook will not receive any events.
+	// The event types that this webhook should be subscribed to. If null or not provided, the webhook receives all event types, except that a staffing agency webhook receives hire lifecycle events only when it lists them. If an empty array, the webhook will not receive any events.
 	SubscribedEvents []WebhookEventType `json:"subscribedEvents,omitempty"`
-	// The company that the webhook is for.
-	Company string `json:"company"`
+	// The account that the webhook is for: a company or a staffing agency. Exactly one of 'account' and 'company' is required.
+	Account *string `json:"account,omitempty"`
 }
 
 // CreateWorkflowApproverInput — An approver node in the workflow tree — assigns user groups to a rule.
@@ -838,6 +838,14 @@ type DateRangeInput struct {
 	// The start date of the range.
 	From *string `json:"from,omitempty"`
 	// The end date of the range.
+	To *string `json:"to,omitempty"`
+}
+
+// DateTimeRangeInput — An input for a range of points in time. Both bounds are inclusive.
+type DateTimeRangeInput struct {
+	// The start of the range, inclusive.
+	From *string `json:"from,omitempty"`
+	// The end of the range, inclusive.
 	To *string `json:"to,omitempty"`
 }
 
@@ -1885,9 +1893,9 @@ type UpdateNoteInput struct {
 	Title *string `json:"title,omitempty"`
 }
 
-// UpdateOwnersInput — **Experimental.** The full set of owner assignments for one record.
+// UpdateOwnersInput — The full set of owner assignments for one record.
 type UpdateOwnersInput struct {
-	// The record to assign team members on: a client relation (CompanySupplier) or a staffing agency's client link (SupplierClient).
+	// The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link (SupplierClient) or a hire (Hire).
 	Ownable string `json:"ownable"`
 	// The assignments to keep; team members not listed are unassigned.
 	Owners []OwnerInput `json:"owners"`
