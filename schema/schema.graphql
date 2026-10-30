@@ -2343,6 +2343,28 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   """
   recruiterManagesMixedMode: Boolean!
   """
+  **Experimental.** The rate card band that applies to a job this company has not
+  saved yet, such as a new brief on the direct-hire page.
+  
+  Readable only by the company itself. Anyone else reads null.
+  """
+  rateCardBand(
+    """
+    The rate type of the unsaved job.
+    """
+    rateType: RateType!
+
+    """
+    The date to resolve the band on. Defaults to today.
+    """
+    date: Date
+
+    """
+    The custom field values of the unsaved job.
+    """
+    customFieldValues: [CustomFieldTypeValueInput!]
+  ): RateCardBand
+  """
   The trusted contacts that the company has.
   """
   trustedContacts(
@@ -3641,6 +3663,7 @@ type Contract {
   rateType: RateType
   """
   The payment amount per specified rate type.
+  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
   """
   rate: Float
   """
@@ -3659,6 +3682,8 @@ type Contract {
   This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might
   change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients
   own system.
+  
+  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker.
   """
   pdfUrl: URL
   """
@@ -3710,6 +3735,7 @@ type Contract {
   company: Company!
   """
   The company contact person for the contract.
+  Null when the contact is outside the viewer's accounts and the contract's company.
   """
   companyContact: User
   """
@@ -4435,7 +4461,7 @@ enum CountryCode {
   """
   HK
   """
-  Heard & McDonald Islands
+  Heard Island & McDonald Islands
   """
   HM
   """
@@ -4847,7 +4873,7 @@ enum CountryCode {
   """
   SG
   """
-  St. Helena
+  St. Helena, Ascension & Tristan da Cunha
   """
   SH
   """
@@ -4915,7 +4941,7 @@ enum CountryCode {
   """
   TD
   """
-  French Southern Territories
+  French Southern and Antarctic Lands
   """
   TF
   """
@@ -5708,7 +5734,7 @@ input CreateSmsMultiFactorInput {
   name: String
 }
 """
-The details for adding and inviting a supplier candidate.
+The details for adding a supplier candidate.
 """
 input CreateSupplierCandidateInput {
   """
@@ -5716,15 +5742,15 @@ input CreateSupplierCandidateInput {
   """
   supplier: ID!
   """
-  The invited candidate first name.
+  The candidate first name.
   """
   firstName: String!
   """
-  The invited candidate middle name.
+  The candidate middle name.
   """
   middleName: String
   """
-  The invited candidate last name.
+  The candidate last name.
   """
   lastName: String!
   """
@@ -5732,11 +5758,11 @@ input CreateSupplierCandidateInput {
   """
   email: String!
   """
-  The invited candidate country of residence.
+  The candidate country of residence.
   """
   country: String
   """
-  The invited candidate country state, if applicable.
+  The candidate country state, if applicable.
   """
   state: String
   """
@@ -6421,8 +6447,9 @@ type CustomFieldValue {
   account: Account!
   """
   The user who created the field value.
+  Null when the user is outside the viewer's accounts and the record's company.
   """
-  user: User!
+  user: User
   """
   The entity to which the custom field value is applying to.
   """
@@ -7813,9 +7840,17 @@ input GenericComplianceInput {
   """
   name: ComplianceName!
   """
-  The raw form data for the compliance.
+  The raw form data for the compliance, as a JSON-encoded object. File
+  references inside it (`file_id`, `file_ids` and `*_file_id(s)` keys) take
+  `File` global IDs of files that belong to the acting account.
   """
   data: JSON!
+  """
+  The hire the compliance belongs to. Required for hire-scoped compliances,
+  such as `NL_SUPPLIER_EMPLOYMENT_CONFIRMATION`, and rejected for the others.
+  You must be the hire's party that the compliance is for.
+  """
+  hireId: ID
 }
 """
 An interface requiring company-specific fields.
@@ -8080,6 +8115,10 @@ type Hire implements Ownable {
   """
   createdAt: Date!
   """
+  The date and time that the hire, its contract or its status was last changed.
+  """
+  updatedAt: DateTime!
+  """
   The date that the hire started.
   """
   startDate: Date
@@ -8113,6 +8152,7 @@ type Hire implements Ownable {
   currency: String!
   """
   The rate for the hire.
+  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
   """
   rate: Float
   """
@@ -8166,6 +8206,7 @@ type Hire implements Ownable {
   canRemindWorkerForBilling: Boolean!
   """
   The user who created the Hire.
+  Null when the user is outside the viewer's accounts and the hire's company.
   """
   user: User
   """
@@ -8223,6 +8264,7 @@ type Hire implements Ownable {
   hasPendingApproval: Boolean!
   """
   The team members assigned to this hire, and what each of them looks after.
+  Empty for viewers outside the hire's company.
   """
   owners: [Owner!]!
   """
@@ -8252,12 +8294,19 @@ type Hire implements Ownable {
   workerInvited: Boolean!
   """
   The source hire this hire was derived from.
+  Only resolved for viewers on the company at either end of the link.
   """
   sourceHire: Hire
   """
   The supplier-side hire derived from this source hire.
+  Only resolved for viewers on the company at either end of the link.
   """
   supplierHire: Hire
+  """
+  The end client of a supplier-mirror hire. Null for other hires.
+  Resolved for viewers on the hire's company or its supplier.
+  """
+  endClient: Company
   """
   True when the `sourceHire` has pending contract changes that haven't
   yet been reflected here. Always false on hires without a `sourceHire`.
@@ -8280,6 +8329,7 @@ type Hire implements Ownable {
   viewerCanCreatePaymentRequest: Boolean!
   """
   The fees associated with this hire.
+  Empty for viewers who may not read them, such as the end client on a supplier hire.
   """
   fees: [Fee!]!
   """
@@ -8628,6 +8678,10 @@ enum HireOrderByColumn {
   """
   CREATED_AT
   """
+  The date and time that the hire, its contract or its status was last changed.
+  """
+  UPDATED_AT
+  """
   The hire engagement type
   """
   ENGAGEMENT_TYPE
@@ -8822,13 +8876,25 @@ type Invoice {
   """
   number: String
   """
-  A URL of the actual invoice.
+  A signed URL to download the PDF of the invoice or credit note. It is `null` when no PDF exists for the invoice.
   
-  This URL will link to a PDF for the invoice. This URL cannot be used for saving in external systems as it might
-  change over time or be regenerated. If a permanent URL is needed for the invoice, it should be stored in the clients
-  own system.
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system. Only parties to the invoice get a URL,
+  the same as in the `invoices` query. Other viewers get `null`.
   """
-  pdfUrl: URL!
+  pdfUrl: URL
+  """
+  A signed URL to download the e-invoicing XML of the invoice or credit note (SETU 1.4, PEPPOL-compatible UBL).
+  
+  This is the same document that is sent by email to accounts that receive XML invoices. It is `null` when no XML
+  has been generated for the invoice. An XML can be generated after the invoice is booked, so do not treat an
+  invoice as delivered while this is `null`.
+  
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system. Only parties to the invoice get a URL,
+  the same as in the `invoices` query. Other viewers get `null`.
+  """
+  xmlUrl: URL
   """
   The type of currency.
   """
@@ -9157,14 +9223,17 @@ type Job implements HasURL {
   rateType: RateType
   """
   The payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   rate: Float
   """
   The minimum payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   minimumRate: Float
   """
   The maximum payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   maximumRate: Float
   """
@@ -9173,10 +9242,12 @@ type Job implements HasURL {
   paymentScheme: PaymentScheme @deprecated(reason: "This field is being phased out as part of our platform simplification efforts. No direct replacement is planned. This field will be removed on `2024-09-29`.")
   """
   The company fee (as a percentage).
+  Only resolved for viewers on the job's owning company.
   """
   companyFee: StrictPercentage
   """
   The worker fee (as a percentage).
+  Only resolved for viewers on the job's owning company and workers hired on the job.
   """
   workerFee: StrictPercentage
   """
@@ -9262,6 +9333,7 @@ type Job implements HasURL {
   requiredWorkers: Int
   """
   The owners of the job posting.
+  Empty for viewers outside the job's owning company.
   
   **Will change:** this field will return `Owner` objects, like `Hire.owners`, so each owner also carries
   what they look after. Read the person through `user` once it does. Contact Worksome support if you need
@@ -9398,12 +9470,19 @@ type Job implements HasURL {
   isAvailable: Boolean
   """
   The source job this job was derived from.
+  Only resolved for viewers on the company at either end of the link.
   """
   sourceJob: Job
   """
   The supplier-side job derived from this source job.
+  Only resolved for viewers on the company that owns the supplier-side job.
   """
   supplierJob: Job
+  """
+  The end client of a supplier-mirror job: the company whose job an MSP copied. Null for other jobs.
+  Resolved for the job's company and for staffing agencies and suppliers with an active share of it.
+  """
+  endClient: Company
   """
   **Experimental.** The pay items this job offers.
   
@@ -9448,6 +9527,12 @@ type Job implements HasURL {
     no saved band.
     """
     cached: Boolean = false
+
+    """
+    Look up the band for this rate type instead of the job's saved one. Not used with
+    `cached: true`.
+    """
+    rateType: RateType
   ): RateCardBand
   """
   The hires made on the job.
@@ -9635,26 +9720,30 @@ type JobCandidate {
   isPreferred: Boolean!
   """
   The user that last changed the job candidate status.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  statusSetByUser: User!
+  statusSetByUser: User
   """
   The user that last changed the job candidate step.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  stepSetByUser: User!
+  stepSetByUser: User
   """
   The date and time that the job candidate was created.
   """
   createdAt: DateTime!
   """
   The user that created the job candidate.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  createdByUser: User!
+  createdByUser: User
   """
   The date and time that the job candidate was last updated.
   """
   updatedAt: DateTime
   """
   The user that last updated the job candidate.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
   updatedByUser: User
   """
@@ -9696,6 +9785,15 @@ type JobCandidate {
   client-side copy of a candidate presented through an MSP mirror flow.
   """
   viewerCanInviteToOnboard: Boolean!
+  """
+  Whether the candidate's worker is already a trusted contact of the job's company.
+  """
+  workerIsTrustedContact: Boolean!
+  """
+  Whether inviting this candidate to onboard will be the first time the worker, or the
+  staffing agency managing them, is asked for the draft hire's before-offer custom fields.
+  """
+  onboardingRequestsHireDetails: Boolean!
   """
   Whether this candidate has been presented (forwarded) to the client job.
   """
@@ -9861,6 +9959,7 @@ type JobCandidateStageHistoryEntry {
   stage: JobCandidateHiringStep!
   """
   The name of the user that made the change, if available.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
   changedByName: String
   """
@@ -9960,6 +10059,10 @@ enum JobOrderByColumn {
   """
   CREATED_AT
   """
+  The job updated at
+  """
+  UPDATED_AT
+  """
   The expected start date
   """
   EXPECTED_START_DATE
@@ -10010,6 +10113,10 @@ type JobShare {
   """
   createdAt: DateTime!
   """
+  The date and time that the job share or its job was last changed.
+  """
+  updatedAt: DateTime!
+  """
   The job that the job share is related to.
   """
   job: Job!
@@ -10035,6 +10142,10 @@ enum JobShareOrderByColumn {
   The date and time that the job share was created.
   """
   CREATED_AT
+  """
+  The date and time that the job share or its job was last changed.
+  """
+  UPDATED_AT
 }
 """
 A paginated list of JobShare items.
@@ -11082,7 +11193,7 @@ type Mutation {
   """
   Generate temporary upload URLs for files for the given account.
   
-  The temporary URL will expire after 1 week.
+  The temporary URL will expire after 1 minute.
   """
   uploadFiles(
     """
@@ -11340,6 +11451,9 @@ type Mutation {
   ): JobCandidate!
   """
   Present a candidate to a linked job with a specified rate.
+  
+  A candidate that was withdrawn from the client job can be presented again. A candidate that is still
+  presented, or that is marked as not eligible, cannot.
   """
   forwardCandidate(
     """
@@ -11384,6 +11498,27 @@ type Mutation {
     """
     input: InviteCandidateToOnboardInput!
   ): JobCandidate!
+  """
+  Submit one or more of a supplier's own candidates to a job that is actively shared with that supplier.
+  
+  The supplier must be one of the authenticated user's accounts, and every worker must be one of that
+  supplier's candidates.
+  The job must be active, and not paused or filled.
+  
+  Submitting is additive: only the candidates in the input are created or updated, and unchanged candidates
+  are kept as they are. The supplier's other submissions on the job are not changed; use withdrawJobCandidate
+  to withdraw one. On a re-submission, a candidate's brief, links, files and availableFrom that are left out
+  keep their current values; send an empty value to clear the brief, links or files.
+  Submitting a withdrawn candidate again puts it back in the APPLIED step. A candidate the
+  client marked as not eligible cannot be submitted again. Withdrawn candidates do not count towards the
+  client's submission limit.
+  """
+  submitJobCandidates(
+    """
+    Input data to submit the candidates.
+    """
+    input: SubmitJobCandidatesInput!
+  ): [JobCandidate!]!
   """
   Create a job share.
   """
@@ -11690,13 +11825,13 @@ type Mutation {
     input: DeleteRecruiterCandidateInput!
   ): RecruiterCandidate
   """
-  Add and invite a new supplier candidate.
+  Add a new supplier candidate.
   
   Only accounts that act as suppliers can add candidates.
   """
   createSupplierCandidate(
     """
-    The details for adding & inviting the candidate.
+    The details for adding the candidate.
     """
     input: CreateSupplierCandidateInput!
   ): SupplierCandidate
@@ -13023,10 +13158,12 @@ type PaymentRequest {
   externalIdentifier: String
   """
   The source payment request this record was derived from.
+  Only resolved for viewers on the company of the source payment request.
   """
   sourcePaymentRequest: PaymentRequest
   """
   The client-side payment request derived from this source.
+  Only resolved for viewers on the company of this payment request.
   """
   clientPaymentRequest: PaymentRequest
   """
@@ -13631,6 +13768,11 @@ type Query {
     id: ID!
   ): CompanyRecruiter
   """
+  Whether client work lists should default to the viewer's own clients: the viewer works for a supplier
+  company without full access and is assigned to at least one of its clients.
+  """
+  defaultClientOwnerFilter: Boolean!
+  """
   **Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's relation or a
   staffing agency's client link, whichever kind the ID is.
   """
@@ -13919,6 +14061,19 @@ type Query {
     """
     id: ID!
   ): Timesheet
+  """
+  Get the distinct list of countries represented among the authenticated user's
+  trusted contacts (talent pool). Used to populate the "locations" filter so it
+  only offers countries that actually have workers, instead of every launched
+  market country.
+  """
+  trustedContactCountries: [String!]!
+  """
+  Get the distinct list of business setups represented among the authenticated
+  user's trusted contacts (talent pool). Used to populate the "business setup"
+  filter so it only offers setups that workers actually have.
+  """
+  trustedContactBusinessSetups: [TrustedContactBusinessSetup!]!
   """
   Get a specific trusted contact.
   """
@@ -14681,6 +14836,11 @@ type Query {
     isOpen: Boolean
 
     """
+    Only show conversations for clients owned by any of the given users, or on jobs those users own.
+    """
+    clientOwners: [ID!]
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -14982,6 +15142,11 @@ type Query {
     createdAtDateRange: DateRangeInput
 
     """
+    Filter hires by the date and time the hire, its contract or its status was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Only show hires with the specified external identifier.
     """
     externalIdentifiers: [String!]
@@ -15025,6 +15190,11 @@ type Query {
     Filter hires by owner.
     """
     owners: [ID!]
+
+    """
+    Only show hires for clients owned by any of the given users, or hires those users own themselves.
+    """
+    clientOwners: [ID!]
 
     """
     Filter hires by if there are associated payment requests.
@@ -15086,7 +15256,12 @@ type Query {
   """
   invoices(
     """
-    Only show invoices for the specified accounts.
+    Only show invoices for the specified company accounts.
+    
+    An invoice matches if it was issued to one of these companies, or contains a payment request supplied by one
+    of them. Results are always limited to invoices you can already see. For example, filtering by a client
+    company you supply returns that client's invoices for work you supplied, and filtering by a company you have
+    no relationship with returns nothing.
     
     If no accounts are supplied then all authenticated accounts will be used.
     """
@@ -15264,6 +15439,11 @@ type Query {
     createdAtDateRange: DateRangeInput
 
     """
+    Filter jobs by the date and time the job was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Filter by unfilled jobs.
     """
     unfilled: Boolean
@@ -15357,6 +15537,11 @@ type Query {
     orderBy: [JobCandidateOrderByClauseInput!]
 
     """
+    Only return job candidates that were last changed within the date and time range.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -15391,9 +15576,19 @@ type Query {
     companies: [ID!]
 
     """
+    Only show job shares for clients owned by any of the given users, or jobs those users own themselves.
+    """
+    clientOwners: [ID!]
+
+    """
     Order the job shares by the specified field and direction.
     """
     orderBy: [JobShareOrderByClauseInput!]
+
+    """
+    Filter job shares by the date and time the share or its job was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
 
     """
     Limits number of fetched items.
@@ -15527,6 +15722,12 @@ type Query {
     companies (matched via the hire's source hire). MSP/supplier view only.
     """
     clients: [ID!]
+
+    """
+    Only show payment requests for clients owned by any of the given users, or on hires those users own.
+    MSP/supplier view only.
+    """
+    clientOwners: [ID!]
 
     """
     Only show payment requests that match the search query.
@@ -17299,6 +17500,77 @@ input SubmitComplianceInput {
   generic: GenericComplianceInput
 }
 """
+The details of one candidate in a supplier submission.
+"""
+input SubmitJobCandidateInput {
+  """
+  The worker to submit. The worker must be one of the supplier's candidates.
+  """
+  worker: ID!
+  """
+  The rate of the candidate.
+  """
+  rate: Float!
+  """
+  The rate type of the rate.
+  """
+  rateType: RateType!
+  """
+  The date from which the candidate is available.
+  """
+  availableFrom: Date
+  """
+  A brief that describes the candidate.
+  """
+  brief: String
+  """
+  External links that are related to the candidate.
+  """
+  links: [String!]
+  """
+  Files to attach, such as the CV. Each file must be owned by the supplier account.
+  """
+  files: [ID!]
+  """
+  Whether the candidate is submitted as managed or referred. Only used when the client allows
+  mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
+  """
+  submissionType: CandidateSubmissionType
+}
+"""
+The details for submitting a supplier's candidates to a job.
+"""
+input SubmitJobCandidatesInput {
+  """
+  The job to submit the candidates to.
+  """
+  job: ID!
+  """
+  The supplier account (Recruiter or Company) that submits the candidates.
+  """
+  supplier: ID!
+  """
+  A message to the client that accompanies the submission.
+  """
+  message: String
+  """
+  The name of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactName: String
+  """
+  The email of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactEmail: String
+  """
+  The phone number of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactPhone: String
+  """
+  The candidates to submit.
+  """
+  candidates: [SubmitJobCandidateInput!]!
+}
+"""
 A supplier candidate — a freelancer managed by a supplier account (Company or Recruiter).
 """
 type SupplierCandidate {
@@ -17612,7 +17884,7 @@ type TemporaryFileUploadResponse {
   """
   The temporary URL to upload the file to.
   
-  The temporary URL will expire after 1 week.
+  The temporary URL will expire after 1 minute.
   """
   url: URL!
 }
@@ -18146,6 +18418,21 @@ type TrustedContact {
     """
     page: Int
   ): NotePaginator!
+}
+"""
+A business setup represented among the authenticated user's trusted contacts.
+Business entity types that share a name across markets (e.g. "Limited company"
+in the UK, Ireland and France) are grouped together.
+"""
+type TrustedContactBusinessSetup {
+  """
+  The translated name of the business setup.
+  """
+  label: String!
+  """
+  The business entity types grouped under this name.
+  """
+  values: [BusinessEntityType!]!
 }
 """
 The options representing the hire history of a Trusted contact

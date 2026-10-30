@@ -1413,7 +1413,7 @@ const (
 	CountryCodeGy CountryCode = "GY"
 	// CountryCodeHk — Hong Kong SAR China
 	CountryCodeHk CountryCode = "HK"
-	// CountryCodeHm — Heard & McDonald Islands
+	// CountryCodeHm — Heard Island & McDonald Islands
 	CountryCodeHm CountryCode = "HM"
 	// CountryCodeHn — Honduras
 	CountryCodeHn CountryCode = "HN"
@@ -1619,7 +1619,7 @@ const (
 	CountryCodeSe CountryCode = "SE"
 	// CountryCodeSg — Singapore
 	CountryCodeSg CountryCode = "SG"
-	// CountryCodeSh — St. Helena
+	// CountryCodeSh — St. Helena, Ascension & Tristan da Cunha
 	CountryCodeSh CountryCode = "SH"
 	// CountryCodeSi — Slovenia
 	CountryCodeSi CountryCode = "SI"
@@ -1653,7 +1653,7 @@ const (
 	CountryCodeTc CountryCode = "TC"
 	// CountryCodeTd — Chad
 	CountryCodeTd CountryCode = "TD"
-	// CountryCodeTf — French Southern Territories
+	// CountryCodeTf — French Southern and Antarctic Lands
 	CountryCodeTf CountryCode = "TF"
 	// CountryCodeTg — Togo
 	CountryCodeTg CountryCode = "TG"
@@ -2614,6 +2614,8 @@ const (
 	HireOrderByColumnHireId HireOrderByColumn = "HIRE_ID"
 	// HireOrderByColumnCreatedAt — The hire created at date
 	HireOrderByColumnCreatedAt HireOrderByColumn = "CREATED_AT"
+	// HireOrderByColumnUpdatedAt — The date and time that the hire, its contract or its status was last changed.
+	HireOrderByColumnUpdatedAt HireOrderByColumn = "UPDATED_AT"
 	// HireOrderByColumnEngagementType — The hire engagement type
 	HireOrderByColumnEngagementType HireOrderByColumn = "ENGAGEMENT_TYPE"
 	// HireOrderByColumnLastPaymentRequestDate — The date the worker last submitted a payment request
@@ -2630,6 +2632,7 @@ func ValidHireOrderByColumn() []HireOrderByColumn {
 		HireOrderByColumnJobName,
 		HireOrderByColumnHireId,
 		HireOrderByColumnCreatedAt,
+		HireOrderByColumnUpdatedAt,
 		HireOrderByColumnEngagementType,
 		HireOrderByColumnLastPaymentRequestDate,
 	}
@@ -2971,6 +2974,8 @@ type JobOrderByColumn string
 const (
 	// JobOrderByColumnCreatedAt — The job created at
 	JobOrderByColumnCreatedAt JobOrderByColumn = "CREATED_AT"
+	// JobOrderByColumnUpdatedAt — The job updated at
+	JobOrderByColumnUpdatedAt JobOrderByColumn = "UPDATED_AT"
 	// JobOrderByColumnExpectedStartDate — The expected start date
 	JobOrderByColumnExpectedStartDate JobOrderByColumn = "EXPECTED_START_DATE"
 	// JobOrderByColumnPublishedDate — The published date
@@ -2985,6 +2990,7 @@ const (
 func ValidJobOrderByColumn() []JobOrderByColumn {
 	return []JobOrderByColumn{
 		JobOrderByColumnCreatedAt,
+		JobOrderByColumnUpdatedAt,
 		JobOrderByColumnExpectedStartDate,
 		JobOrderByColumnPublishedDate,
 		JobOrderByColumnCandidates,
@@ -2998,12 +3004,15 @@ type JobShareOrderByColumn string
 const (
 	// JobShareOrderByColumnCreatedAt — The date and time that the job share was created.
 	JobShareOrderByColumnCreatedAt JobShareOrderByColumn = "CREATED_AT"
+	// JobShareOrderByColumnUpdatedAt — The date and time that the job share or its job was last changed.
+	JobShareOrderByColumnUpdatedAt JobShareOrderByColumn = "UPDATED_AT"
 )
 
 // ValidJobShareOrderByColumn returns all valid values for JobShareOrderByColumn.
 func ValidJobShareOrderByColumn() []JobShareOrderByColumn {
 	return []JobShareOrderByColumn{
 		JobShareOrderByColumnCreatedAt,
+		JobShareOrderByColumnUpdatedAt,
 	}
 }
 
