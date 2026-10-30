@@ -603,21 +603,21 @@ type CreateSmsMultiFactorInput struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// CreateSupplierCandidateInput — The details for adding and inviting a supplier candidate.
+// CreateSupplierCandidateInput — The details for adding a supplier candidate.
 type CreateSupplierCandidateInput struct {
 	// The supplier account that owns this candidate (Company or Recruiter).
 	Supplier string `json:"supplier"`
-	// The invited candidate first name.
+	// The candidate first name.
 	FirstName string `json:"firstName"`
-	// The invited candidate middle name.
+	// The candidate middle name.
 	MiddleName *string `json:"middleName,omitempty"`
-	// The invited candidate last name.
+	// The candidate last name.
 	LastName string `json:"lastName"`
 	// The candidate email.
 	Email string `json:"email"`
-	// The invited candidate country of residence.
+	// The candidate country of residence.
 	Country *string `json:"country,omitempty"`
-	// The invited candidate country state, if applicable.
+	// The candidate country state, if applicable.
 	State *string `json:"state,omitempty"`
 	// The candidate job title.
 	JobTitle *string `json:"jobTitle,omitempty"`
@@ -1071,8 +1071,10 @@ type GeneratePersonalInviteLinkInput struct {
 type GenericComplianceInput struct {
 	// The compliance to update.
 	Name ComplianceName `json:"name"`
-	// The raw form data for the compliance.
+	// The raw form data for the compliance, as a JSON-encoded object. File references inside it ('file_id', 'file_ids' and '*_file_id(s)' keys) take 'File' global IDs of files that belong to the acting account.
 	Data map[string]any `json:"data"`
+	// The hire the compliance belongs to. Required for hire-scoped compliances, such as 'NL_SUPPLIER_EMPLOYMENT_CONFIRMATION', and rejected for the others. You must be the hire's party that the compliance is for.
+	HireId *string `json:"hireId,omitempty"`
 }
 
 // HireHistoryFilterInput — Trusted contact hire history filter input.
@@ -1565,6 +1567,44 @@ type SubmitComplianceInput struct {
 	ReviewRecruiter *ReviewRecruiterInput `json:"reviewRecruiter,omitempty"`
 	// Catch-all for compliances without a dedicated typed input shape. The 'data' JSON must match the compliance's expected form structure.
 	Generic *GenericComplianceInput `json:"generic,omitempty"`
+}
+
+// SubmitJobCandidateInput — The details of one candidate in a supplier submission.
+type SubmitJobCandidateInput struct {
+	// The worker to submit. The worker must be one of the supplier's candidates.
+	Worker string `json:"worker"`
+	// The rate of the candidate.
+	Rate float64 `json:"rate"`
+	// The rate type of the rate.
+	RateType RateType `json:"rateType"`
+	// The date from which the candidate is available.
+	AvailableFrom *string `json:"availableFrom,omitempty"`
+	// A brief that describes the candidate.
+	Brief *string `json:"brief,omitempty"`
+	// External links that are related to the candidate.
+	Links []string `json:"links,omitempty"`
+	// Files to attach, such as the CV. Each file must be owned by the supplier account.
+	Files []string `json:"files,omitempty"`
+	// Whether the candidate is submitted as managed or referred. Only used when the client allows mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
+	SubmissionType *CandidateSubmissionType `json:"submissionType,omitempty"`
+}
+
+// SubmitJobCandidatesInput — The details for submitting a supplier's candidates to a job.
+type SubmitJobCandidatesInput struct {
+	// The job to submit the candidates to.
+	Job string `json:"job"`
+	// The supplier account (Recruiter or Company) that submits the candidates.
+	Supplier string `json:"supplier"`
+	// A message to the client that accompanies the submission.
+	Message *string `json:"message,omitempty"`
+	// The name of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactName *string `json:"contactName,omitempty"`
+	// The email of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactEmail *string `json:"contactEmail,omitempty"`
+	// The phone number of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactPhone *string `json:"contactPhone,omitempty"`
+	// The candidates to submit.
+	Candidates []SubmitJobCandidateInput `json:"candidates"`
 }
 
 // SupplierClientOrderByClauseInput — Sorting clause for a client's linked staffing agencies.

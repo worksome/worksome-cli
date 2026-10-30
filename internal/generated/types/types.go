@@ -667,6 +667,8 @@ type Company struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether staffing agency relationships can be individually configured as managed or referral. When true, each SA relationship can override the company default (staffingAgencyManagesWorker). When false, the company default applies uniformly to all SA relationships.
 	RecruiterManagesMixedMode bool `json:"recruiterManagesMixedMode"`
+	// **Experimental.** The rate card band that applies to a job this company has not saved yet, such as a new brief on the direct-hire page. Readable only by the company itself. Anyone else reads null.
+	RateCardBand *RateCardBand `json:"rateCardBand,omitempty"`
 	// The trusted contacts that the company has.
 	TrustedContacts TrustedContactPaginator `json:"trustedContacts"`
 	// The team members that the company has.
@@ -1002,13 +1004,13 @@ type Contract struct {
 	Currency Currency `json:"currency"`
 	// The unit of time when payment is due.
 	RateType *RateType `json:"rateType,omitempty"`
-	// The payment amount per specified rate type.
+	// The payment amount per specified rate type. On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
 	Rate *float64 `json:"rate,omitempty"`
 	// The Purchase Order (PO) number.
 	PurchaseOrderNumber *string `json:"purchaseOrderNumber,omitempty"`
 	// The company's Central Virksomhed (Company) Registration (CVR) number. For more information, visit: https://datacvr.virk.dk
 	CompanyCvr *string `json:"companyCvr,omitempty"`
-	// A URL of the actual contract. This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients own system.
+	// A URL of the actual contract. This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients own system. On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker.
 	PdfUrl *string `json:"pdfUrl,omitempty"`
 	// The method of payment over the specified term.
 	PaymentTermMethod PaymentTermMethod `json:"paymentTermMethod"`
@@ -1032,7 +1034,7 @@ type Contract struct {
 	Worker *Worker `json:"worker,omitempty"`
 	// The company for which the contract is for.
 	Company *Company `json:"company"`
-	// The company contact person for the contract.
+	// The company contact person for the contract. Null when the contact is outside the viewer's accounts and the contract's company.
 	CompanyContact *User `json:"companyContact,omitempty"`
 	// The business entity associated with the contract.
 	BusinessEntity *BusinessEntity `json:"businessEntity,omitempty"`
@@ -1234,8 +1236,8 @@ type CustomFieldValue struct {
 	Id string `json:"id"`
 	// The account that the field value is owned by.
 	Account *Account `json:"account"`
-	// The user who created the field value.
-	User *User `json:"user"`
+	// The user who created the field value. Null when the user is outside the viewer's accounts and the record's company.
+	User *User `json:"user,omitempty"`
 	// The entity to which the custom field value is applying to.
 	AppliesTo *SupportsCustomFieldValue `json:"appliesTo"`
 	// The field that the field value is valid for.
@@ -1542,6 +1544,8 @@ type Hire struct {
 	Employment *Employment `json:"employment,omitempty"`
 	// The date that the hire was created.
 	CreatedAt string `json:"createdAt"`
+	// The date and time that the hire, its contract or its status was last changed.
+	UpdatedAt string `json:"updatedAt"`
 	// The date that the hire started.
 	StartDate *string `json:"startDate,omitempty"`
 	// The date that the hire ended.
@@ -1558,7 +1562,7 @@ type Hire struct {
 	RecruiterOwnershipDaysLeft *int `json:"recruiterOwnershipDaysLeft,omitempty"`
 	// The currency of the hire.
 	Currency string `json:"currency"`
-	// The rate for the hire.
+	// The rate for the hire. On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
 	Rate *float64 `json:"rate,omitempty"`
 	// The rate type for the hire.
 	RateType *string `json:"rateType,omitempty"`
@@ -1580,7 +1584,7 @@ type Hire struct {
 	CanRemoveRecruiter *bool `json:"canRemoveRecruiter,omitempty"`
 	// Whether the assigned worker can be reminded for billing.
 	CanRemindWorkerForBilling bool `json:"canRemindWorkerForBilling"`
-	// The user who created the Hire.
+	// The user who created the Hire. Null when the user is outside the viewer's accounts and the hire's company.
 	User *User `json:"user,omitempty"`
 	// The current lifecycle status of the hire. Possible values: 'DRAFT', 'OFFERED', 'READY', 'ACTIVE', 'ENDED', 'CANCELLED', 'TERMINATED'.
 	ActiveStatus HireActiveStatus `json:"activeStatus"`
@@ -1602,7 +1606,7 @@ type Hire struct {
 	CurrentApprovalState *ApprovalState `json:"currentApprovalState,omitempty"`
 	// Whether the hire has any pending approval request across all triggers.
 	HasPendingApproval bool `json:"hasPendingApproval"`
-	// The team members assigned to this hire, and what each of them looks after.
+	// The team members assigned to this hire, and what each of them looks after. Empty for viewers outside the hire's company.
 	Owners []*Owner `json:"owners"`
 	// Whether the viewer may change the owners of this hire.
 	ViewerCanManageOwners bool `json:"viewerCanManageOwners"`
@@ -1614,10 +1618,12 @@ type Hire struct {
 	WorkerEditableCustomFields []*CustomField `json:"workerEditableCustomFields"`
 	// Whether the worker (or the staffing agency managing them) can already see this draft, to answer the questions asked before the offer.
 	WorkerInvited bool `json:"workerInvited"`
-	// The source hire this hire was derived from.
+	// The source hire this hire was derived from. Only resolved for viewers on the company at either end of the link.
 	SourceHire *Hire `json:"sourceHire,omitempty"`
-	// The supplier-side hire derived from this source hire.
+	// The supplier-side hire derived from this source hire. Only resolved for viewers on the company at either end of the link.
 	SupplierHire *Hire `json:"supplierHire,omitempty"`
+	// The end client of a supplier-mirror hire. Null for other hires. Resolved for viewers on the hire's company or its supplier.
+	EndClient *Company `json:"endClient,omitempty"`
 	// True when the 'sourceHire' has pending contract changes that haven't yet been reflected here. Always false on hires without a 'sourceHire'.
 	HasUnactedClientChanges bool `json:"hasUnactedClientChanges"`
 	// True when the 'sourceHire' has been ended early and this hire still runs past that date. Always false on hires without a 'sourceHire'.
@@ -1626,7 +1632,7 @@ type Hire struct {
 	ViewerCanAcceptContract bool `json:"viewerCanAcceptContract"`
 	// Whether the current viewer can create a new payment request for this hire. Uses the createBill policy (worker or recruiter with access-placements) plus hire state.
 	ViewerCanCreatePaymentRequest bool `json:"viewerCanCreatePaymentRequest"`
-	// The fees associated with this hire.
+	// The fees associated with this hire. Empty for viewers who may not read them, such as the end client on a supplier hire.
 	Fees []*Fee `json:"fees"`
 	// The staffing agency's markup fee on this hire, when one applies. Visible only to the staffing agency; null otherwise.
 	MarkupFee *Fee `json:"markupFee,omitempty"`
@@ -1708,8 +1714,10 @@ type Invoice struct {
 	Id string `json:"id"`
 	// A number referencing the invoice. This is usually printed on the invoice itself and should be used by booking system and finance departments. The invoice number is in a human readable format.
 	Number *string `json:"number,omitempty"`
-	// A URL of the actual invoice. This URL will link to a PDF for the invoice. This URL cannot be used for saving in external systems as it might change over time or be regenerated. If a permanent URL is needed for the invoice, it should be stored in the clients own system.
-	PdfUrl string `json:"pdfUrl"`
+	// A signed URL to download the PDF of the invoice or credit note. It is 'null' when no PDF exists for the invoice. The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in external systems: download the document and store it in your own system. Only parties to the invoice get a URL, the same as in the 'invoices' query. Other viewers get 'null'.
+	PdfUrl *string `json:"pdfUrl,omitempty"`
+	// A signed URL to download the e-invoicing XML of the invoice or credit note (SETU 1.4, PEPPOL-compatible UBL). This is the same document that is sent by email to accounts that receive XML invoices. It is 'null' when no XML has been generated for the invoice. An XML can be generated after the invoice is booked, so do not treat an invoice as delivered while this is 'null'. The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in external systems: download the document and store it in your own system. Only parties to the invoice get a URL, the same as in the 'invoices' query. Other viewers get 'null'.
+	XmlUrl *string `json:"xmlUrl,omitempty"`
 	// The type of currency.
 	Currency Currency `json:"currency"`
 	// The total amount including taxes etc.
@@ -1826,17 +1834,17 @@ type Job struct {
 	Currency Currency `json:"currency"`
 	// The unit of time when payment is due.
 	RateType *RateType `json:"rateType,omitempty"`
-	// The payment amount per specified rate type.
+	// The payment amount per specified rate type. On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
 	Rate *float64 `json:"rate,omitempty"`
-	// The minimum payment amount per specified rate type.
+	// The minimum payment amount per specified rate type. On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
 	MinimumRate *float64 `json:"minimumRate,omitempty"`
-	// The maximum payment amount per specified rate type.
+	// The maximum payment amount per specified rate type. On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
 	MaximumRate *float64 `json:"maximumRate,omitempty"`
 	// The payment scheme that the job will use.
 	PaymentScheme *PaymentScheme `json:"paymentScheme,omitempty"`
-	// The company fee (as a percentage).
+	// The company fee (as a percentage). Only resolved for viewers on the job's owning company.
 	CompanyFee *float64 `json:"companyFee,omitempty"`
-	// The worker fee (as a percentage).
+	// The worker fee (as a percentage). Only resolved for viewers on the job's owning company and workers hired on the job.
 	WorkerFee *float64 `json:"workerFee,omitempty"`
 	// The project type of the job.
 	Association *Association `json:"association,omitempty"`
@@ -1876,7 +1884,7 @@ type Job struct {
 	Industries []*Industry `json:"industries"`
 	// The number of workers that are required for the job. If excluded, the default is 1 profile.
 	RequiredWorkers *int `json:"requiredWorkers,omitempty"`
-	// The owners of the job posting. **Will change:** this field will return 'Owner' objects, like 'Hire.owners', so each owner also carries what they look after. Read the person through 'user' once it does. Contact Worksome support if you need help preparing for the change.
+	// The owners of the job posting. Empty for viewers outside the job's owning company. **Will change:** this field will return 'Owner' objects, like 'Hire.owners', so each owner also carries what they look after. Read the person through 'user' once it does. Contact Worksome support if you need help preparing for the change.
 	Owners []*User `json:"owners"`
 	// Additional custom fields values for the job. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team.
 	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
@@ -1940,10 +1948,12 @@ type Job struct {
 	IsBrief *bool `json:"isBrief,omitempty"`
 	// Whether the job is available.
 	IsAvailable *bool `json:"isAvailable,omitempty"`
-	// The source job this job was derived from.
+	// The source job this job was derived from. Only resolved for viewers on the company at either end of the link.
 	SourceJob *Job `json:"sourceJob,omitempty"`
-	// The supplier-side job derived from this source job.
+	// The supplier-side job derived from this source job. Only resolved for viewers on the company that owns the supplier-side job.
 	SupplierJob *Job `json:"supplierJob,omitempty"`
+	// The end client of a supplier-mirror job: the company whose job an MSP copied. Null for other jobs. Resolved for the job's company and for staffing agencies and suppliers with an active share of it.
+	EndClient *Company `json:"endClient,omitempty"`
 	// **Experimental.** The pay items this job offers. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
 	PayItems []*PayItemAssignment `json:"payItems"`
 	// **Experimental.** The pay items this job can offer. On an MSP's copy of a client job, these are the client's, and the list is empty once the client job is deleted. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
@@ -2004,17 +2014,17 @@ type JobCandidate struct {
 	StatusComment *string `json:"statusComment,omitempty"`
 	// Whether the candidate has been selected as preferred.
 	IsPreferred bool `json:"isPreferred"`
-	// The user that last changed the job candidate status.
-	StatusSetByUser *User `json:"statusSetByUser"`
-	// The user that last changed the job candidate step.
-	StepSetByUser *User `json:"stepSetByUser"`
+	// The user that last changed the job candidate status. Null when the user is outside the viewer's accounts and the job's owning company.
+	StatusSetByUser *User `json:"statusSetByUser,omitempty"`
+	// The user that last changed the job candidate step. Null when the user is outside the viewer's accounts and the job's owning company.
+	StepSetByUser *User `json:"stepSetByUser,omitempty"`
 	// The date and time that the job candidate was created.
 	CreatedAt string `json:"createdAt"`
-	// The user that created the job candidate.
-	CreatedByUser *User `json:"createdByUser"`
+	// The user that created the job candidate. Null when the user is outside the viewer's accounts and the job's owning company.
+	CreatedByUser *User `json:"createdByUser,omitempty"`
 	// The date and time that the job candidate was last updated.
 	UpdatedAt *string `json:"updatedAt,omitempty"`
-	// The user that last updated the job candidate.
+	// The user that last updated the job candidate. Null when the user is outside the viewer's accounts and the job's owning company.
 	UpdatedByUser *User `json:"updatedByUser,omitempty"`
 	// Whether the viewer can update the job candidate status.
 	ViewerCanUpdateStatus bool `json:"viewerCanUpdateStatus"`
@@ -2032,6 +2042,10 @@ type JobCandidate struct {
 	ViewerCanWithdraw bool `json:"viewerCanWithdraw"`
 	// Whether the current user can invite this candidate to begin onboarding. True only when the viewer has edit-jobs permission on the candidate's job, the candidate has a draft hire, and the candidate is not the client-side copy of a candidate presented through an MSP mirror flow.
 	ViewerCanInviteToOnboard bool `json:"viewerCanInviteToOnboard"`
+	// Whether the candidate's worker is already a trusted contact of the job's company.
+	WorkerIsTrustedContact bool `json:"workerIsTrustedContact"`
+	// Whether inviting this candidate to onboard will be the first time the worker, or the staffing agency managing them, is asked for the draft hire's before-offer custom fields.
+	OnboardingRequestsHireDetails bool `json:"onboardingRequestsHireDetails"`
 	// Whether this candidate has been presented (forwarded) to the client job.
 	PresentedToClient bool `json:"presentedToClient"`
 	// The name of the staffing agency that originally sourced this candidate. Only returned when the candidate was presented to the client by a different agency than the one that originally submitted them.
@@ -2050,7 +2064,7 @@ type JobCandidatePaginator struct {
 type JobCandidateStageHistoryEntry struct {
 	// The stage that was set.
 	Stage JobCandidateHiringStep `json:"stage"`
-	// The name of the user that made the change, if available.
+	// The name of the user that made the change, if available. Null when the user is outside the viewer's accounts and the job's owning company.
 	ChangedByName *string `json:"changedByName,omitempty"`
 	// When the transition occurred.
 	CreatedAt string `json:"createdAt"`
@@ -2074,6 +2088,8 @@ type JobShare struct {
 	IsActive bool `json:"isActive"`
 	// The date and time that the job share was created.
 	CreatedAt string `json:"createdAt"`
+	// The date and time that the job share or its job was last changed.
+	UpdatedAt string `json:"updatedAt"`
 	// The job that the job share is related to.
 	Job *Job `json:"job"`
 }
@@ -2563,9 +2579,9 @@ type PaymentRequest struct {
 	LegacyTimesheet *LegacyTimesheet `json:"legacyTimesheet,omitempty"`
 	// An external identifier for the payment request, used to reference it in external systems.
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
-	// The source payment request this record was derived from.
+	// The source payment request this record was derived from. Only resolved for viewers on the company of the source payment request.
 	SourcePaymentRequest *PaymentRequest `json:"sourcePaymentRequest,omitempty"`
-	// The client-side payment request derived from this source.
+	// The client-side payment request derived from this source. Only resolved for viewers on the company of this payment request.
 	ClientPaymentRequest *PaymentRequest `json:"clientPaymentRequest,omitempty"`
 	// The fees associated with this payment request.
 	Fees []*Fee `json:"fees"`
@@ -2924,7 +2940,7 @@ type TemporaryFileUploadResponse struct {
 	Id string `json:"id"`
 	// The name of the file to be uploaded.
 	Name string `json:"name"`
-	// The temporary URL to upload the file to. The temporary URL will expire after 1 week.
+	// The temporary URL to upload the file to. The temporary URL will expire after 1 minute.
 	Url string `json:"url"`
 }
 
@@ -3084,6 +3100,14 @@ type TrustedContact struct {
 	Tags TagPaginator `json:"tags"`
 	// Notes added to the trusted contact.
 	Notes NotePaginator `json:"notes"`
+}
+
+// TrustedContactBusinessSetup — A business setup represented among the authenticated user's trusted contacts. Business entity types that share a name across markets (e.g. "Limited company" in the UK, Ireland and France) are grouped together.
+type TrustedContactBusinessSetup struct {
+	// The translated name of the business setup.
+	Label string `json:"label"`
+	// The business entity types grouped under this name.
+	Values []BusinessEntityType `json:"values"`
 }
 
 // TrustedContactPaginator — A paginated list of TrustedContact items.
