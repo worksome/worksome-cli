@@ -56,6 +56,11 @@ type ComplianceData interface {
 	IsComplianceData()
 }
 
+// ComplianceStatusValue is a GraphQL union type.
+type ComplianceStatusValue interface {
+	IsComplianceStatusValue()
+}
+
 // JobShareableAccount is a GraphQL union type.
 type JobShareableAccount interface {
 	IsJobShareableAccount()
@@ -543,6 +548,10 @@ type Classification struct {
 	HasUpdatedAnswers bool `json:"hasUpdatedAnswers"`
 	// Whether all questions for the worker has been resolved.
 	HasWorkerCompletedAnswers bool `json:"hasWorkerCompletedAnswers"`
+	// Whether the worker is asked to fill in any classification fields.
+	HasWorkerFields bool `json:"hasWorkerFields"`
+	// Whether the worker has filled in every classification field asked of them, optional ones included.
+	HasWorkerCompletedFields bool `json:"hasWorkerCompletedFields"`
 	// Whether this classification is allowed to be changed
 	CanChange bool `json:"canChange"`
 	// Whether this classification can be overridden
@@ -797,6 +806,8 @@ type CompanySupplier struct {
 	InvoiceBatchingCadenceFollowsClient bool `json:"invoiceBatchingCadenceFollowsClient"`
 	// Who is emailed the client-side invoices of supplier hires for this client. Only applies when the supplier is a company; always MSP otherwise.
 	InvoiceDelivery InvoiceDelivery `json:"invoiceDelivery"`
+	// Whether payment requests on supplier hires for this client follow the end client's payment request period rule instead of the supplier's.
+	PaymentRequestPeriodFollowsClient bool `json:"paymentRequestPeriodFollowsClient"`
 	// The number of days in the payment terms supplier hires for this client are contracted on: the client's own when the relationship follows the client, otherwise the supplier's. Null when the supplier is not a company and follows nobody.
 	PaymentTerm *int `json:"paymentTerm,omitempty"`
 	// How the payment term days are counted, from the same source as paymentTerm.
@@ -926,6 +937,16 @@ type ComplianceDataClassification struct {
 	Questions []*ComplianceClassificationQuestion `json:"questions"`
 }
 
+// ComplianceDataDate — A date held by a compliance, such as when it was last reviewed.
+type ComplianceDataDate struct {
+	// Identifies the date, independently of its label.
+	Key string `json:"key"`
+	// The entry label, translated for display.
+	Label string `json:"label"`
+	// The date, or null when not set.
+	Date *string `json:"date,omitempty"`
+}
+
 // ComplianceDataField — A single label/value pair. Null 'value' is preserved so the UI can render semantically-empty fields (e.g. "Not subject to VAT") rather than hiding them.
 type ComplianceDataField struct {
 	// The field label (e.g. a question or attribute name).
@@ -962,6 +983,14 @@ type ComplianceDataRestrictedDocument struct {
 	RejectionReason *string `json:"rejectionReason,omitempty"`
 	// Whether the current viewer may approve or decline this document.
 	CanReview bool `json:"canReview"`
+}
+
+// ComplianceDataStatus — The review status of a compliance.
+type ComplianceDataStatus struct {
+	// The entry label, translated for display.
+	Label string `json:"label"`
+	// The review status.
+	StatusValue *ComplianceStatusValue `json:"statusValue"`
 }
 
 // ComplianceDataUser — A user associated with a compliance, typically an attribution such as 'Reviewed by'. Wraps the existing 'User' type so the frontend can query avatar, name, etc.
@@ -1004,13 +1033,13 @@ type Contract struct {
 	Currency Currency `json:"currency"`
 	// The unit of time when payment is due.
 	RateType *RateType `json:"rateType,omitempty"`
-	// The payment amount per specified rate type. On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
+	// The payment amount per specified rate type. Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner, such as the end client of a supplier hire.
 	Rate *float64 `json:"rate,omitempty"`
 	// The Purchase Order (PO) number.
 	PurchaseOrderNumber *string `json:"purchaseOrderNumber,omitempty"`
 	// The company's Central Virksomhed (Company) Registration (CVR) number. For more information, visit: https://datacvr.virk.dk
 	CompanyCvr *string `json:"companyCvr,omitempty"`
-	// A URL of the actual contract. This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients own system. On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker.
+	// A signed URL to download the PDF of the contract. It is 'null' when no PDF is stored for the contract. The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in external systems: download the document and store it in your own system. Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner.
 	PdfUrl *string `json:"pdfUrl,omitempty"`
 	// The method of payment over the specified term.
 	PaymentTermMethod PaymentTermMethod `json:"paymentTermMethod"`
@@ -1500,6 +1529,12 @@ type Hire struct {
 	RateChangeDates []string `json:"rateChangeDates"`
 	// The contract whose rate, rate type and currency applied on the given date, or null when no contract applied on it.
 	ContractForDate *Contract `json:"contractForDate,omitempty"`
+	// Whether a payment request on this hire must cover exactly one of paymentRequestPeriods instead of free dates. Milestone payment requests, payment requests for imported timesheets and days before paymentRequestPeriodsStartDate are exempt. When true and the list is empty, no period can be picked yet.
+	RequiresPaymentRequestPeriods bool `json:"requiresPaymentRequestPeriods"`
+	// The periods a payment request on this hire can cover, newest first: one or more ISO 8601 weeks, Monday to Sunday, or a calendar month, from the contract's first period, or the one paymentRequestPeriodsStartDate falls in, up to and including the current period. A period is cut at the contract's start and end, at paymentRequestPeriodsStartDate, at rate changes and at the start of a billing period of either side. Empty when requiresPaymentRequestPeriods is false.
+	PaymentRequestPeriods []*PaymentRequestPeriod `json:"paymentRequestPeriods"`
+	// The first day a payment request on this hire must cover one of paymentRequestPeriods, when that rule starts after the contract does. Days before it are billed with free dates. Null when the rule applies from the contract's start, or when requiresPaymentRequestPeriods is false.
+	PaymentRequestPeriodsStartDate *string `json:"paymentRequestPeriodsStartDate,omitempty"`
 	// The company which the worker will work with.
 	Company *Company `json:"company"`
 	// The job that the hire is on.
@@ -1550,6 +1585,8 @@ type Hire struct {
 	StartDate *string `json:"startDate,omitempty"`
 	// The date that the hire ended.
 	EndDate *string `json:"endDate,omitempty"`
+	// The extension proposed by a draft contract that the worker has not accepted yet.
+	PendingExtension *HirePendingExtension `json:"pendingExtension,omitempty"`
 	// The date that recruiter ownership started.
 	RecruiterOwnershipStartDate *string `json:"recruiterOwnershipStartDate,omitempty"`
 	// The recruiter's fee.
@@ -1578,6 +1615,8 @@ type Hire struct {
 	Compliances []*Compliance `json:"compliances"`
 	// Whether the staffing agency (recruiter or company-as-supplier) manages workers on this hire.
 	RecruiterManagesWorkers *bool `json:"recruiterManagesWorkers,omitempty"`
+	// Whether a staffing agency attributed to this hire manages the worker, even before an agency is attached. Attribution keeps this engagement, so it decides whether a referral fee applies.
+	AttributionManagesWorkers *bool `json:"attributionManagesWorkers,omitempty"`
 	// Whether the supplier's confirmation on this hire is signature-free and auto-accepted (the MSP opted this vendor-managed hire into no-signature confirmation). Drives whether the supplier sees a signature widget.
 	SupplierSignatureWaived *bool `json:"supplierSignatureWaived,omitempty"`
 	// Whether the assigned recruiter can be removed from the hire.
@@ -1690,6 +1729,14 @@ type HirePaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of Hire items.
 	Data []*Hire `json:"data"`
+}
+
+// HirePendingExtension — A proposed change that pushes a hire's end date later.
+type HirePendingExtension struct {
+	// The end date of the active contract.
+	PreviousEndDate string `json:"previousEndDate"`
+	// The end date proposed by the draft contract.
+	NewEndDate string `json:"newEndDate"`
 }
 
 // Industry — An industry.
@@ -2607,6 +2654,20 @@ type PaymentRequestPaginator struct {
 	Data []*PaymentRequest `json:"data"`
 }
 
+// PaymentRequestPeriod — A span of days that a single payment request may cover on a hire: one period of the hire's payment request period rule, which is one or more ISO 8601 weeks, Monday to Sunday, or a calendar month, or a part of one. A period cut at a contract start or end, a rate change or a billing period boundary has several parts.
+type PaymentRequestPeriod struct {
+	// The ISO 8601 week-numbering year of the week the period lies in. Set only when the rule is one week; null otherwise. Set whenever isoWeek is set.
+	IsoYear *int `json:"isoYear,omitempty"`
+	// The ISO 8601 week number, from 1 to 53, of the week the period lies in. Set only when the rule is one week; null otherwise. Set whenever isoYear is set.
+	IsoWeek *int `json:"isoWeek,omitempty"`
+	// Whether a payment request that bills hours, days or weeks already covers a day of the period, on a hire that prevents overlapping payment requests. Such a period is refused for another payment request that bills time. A submitted payment request that bills time marks its own period billed too; the overlap check leaves that payment request out, so editing it can keep the period. Always false when the hire does not prevent overlapping payment requests.
+	IsBilled bool `json:"isBilled"`
+	// The first day of the period.
+	StartDate string `json:"startDate"`
+	// The last day of the period.
+	EndDate string `json:"endDate"`
+}
+
 // Profile — A public-facing profile for a worker or company on Worksome. Profiles contain biographical information, descriptions, and other details that are visible to other users on the platform.
 type Profile struct {
 	// The ID of the profile.
@@ -2671,8 +2732,20 @@ type RateCardBand struct {
 	Currency *Currency `json:"currency,omitempty"`
 	// Why nothing matched. Absent when a line matched, which is what says the amounts above are present.
 	NoMatchReason *RateCardNoMatchReason `json:"noMatchReason,omitempty"`
+	// The matched line's end date. Absent when nothing matched, or when the matched line is open-ended. Always absent for the band saved on the job ('cached: true'), which is how supplier jobs read it.
+	ValidUntil *string `json:"validUntil,omitempty"`
+	// The matched line's criteria, as human-readable label/value pairs. Empty when nothing matched.
+	Criteria []*RateCardCriterion `json:"criteria"`
 	// How 'rate' (in 'rateType') compares to this band. Null when either argument is omitted. Reports the rate's position relative to the band — whether that position is treated as a warning is a decision made by each surface that consumes this field, not by this field itself.
 	Comparison *RateCardComparisonResult `json:"comparison,omitempty"`
+}
+
+// RateCardCriterion — A single label/value pair describing one of a rate card line's matching criteria.
+type RateCardCriterion struct {
+	// The criterion's human-readable label (e.g. a custom field's title).
+	Label string `json:"label"`
+	// The criterion's human-readable value (e.g. a custom field option's value).
+	Value string `json:"value"`
 }
 
 // Recruiter — A staffing agency account that sources and manages workers on behalf of companies. Staffing agencies can be attributed to hires, manage workers during engagements, and earn fees based on their ownership period. Companies establish relationships with staffing agencies to leverage their talent sourcing capabilities.
@@ -2749,6 +2822,12 @@ type RecruiterPaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of Recruiter items.
 	Data []*Recruiter `json:"data"`
+}
+
+// RecruiterStatusValue — The review status of a verified staffing agency.
+type RecruiterStatusValue struct {
+	// The status.
+	Status RecruiterComplianceStatus `json:"status"`
 }
 
 // RejectedCustomTimesheetRegistration — A single rejected timesheet registration with the reason it was not accepted.
@@ -3094,6 +3173,8 @@ type TrustedContact struct {
 	OnboardingDocuments []*OnboardingDocument `json:"onboardingDocuments"`
 	// Compliance requirements for this worker as seen by the trusted contact's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When 'names' is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
 	Compliances []*Compliance `json:"compliances"`
+	// The company's compliance review of this worker, or 'null' when the review does not apply to them or the viewer cannot view the compliance tracker.
+	WorkerReview *TrustedContactWorkerReview `json:"workerReview,omitempty"`
 	// The date that the trusted contact was created.
 	CreatedAt string `json:"createdAt"`
 	// The tags for a trusted contact.
@@ -3116,6 +3197,24 @@ type TrustedContactPaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of TrustedContact items.
 	Data []*TrustedContact `json:"data"`
+}
+
+// TrustedContactWorkerReview — Where a company's compliance review of a worker stands.
+type TrustedContactWorkerReview struct {
+	// The review status, as shown on the compliance tracker.
+	Status VerifiedWorkerComplianceStatus `json:"status"`
+	// How many of the worker's applicable compliances are complete.
+	CompletedCount int `json:"completedCount"`
+	// How many compliances apply to the worker.
+	ApplicableCount int `json:"applicableCount"`
+	// The user who made the latest review decision, if there is one.
+	ReviewedBy *User `json:"reviewedBy,omitempty"`
+	// When the latest review decision was made.
+	ReviewedAt *string `json:"reviewedAt,omitempty"`
+	// When the next review is due.
+	NextReviewAt *string `json:"nextReviewAt,omitempty"`
+	// The note sent to the worker with the latest review decision.
+	WorkerMessage *string `json:"workerMessage,omitempty"`
 }
 
 // UpdateWorkerCustomFieldValuesPayload — The payload returned after updating custom field values as a worker.
@@ -3184,6 +3283,12 @@ type UserPaginator struct {
 	PaginatorInfo *PaginatorInfo `json:"paginatorInfo"`
 	// A list of User items.
 	Data []*User `json:"data"`
+}
+
+// VerifiedWorkerStatusValue — The review status of a verified worker.
+type VerifiedWorkerStatusValue struct {
+	// The status.
+	Status VerifiedWorkerComplianceStatus `json:"status"`
 }
 
 // Wcr — Represents the Worksome Classification Recommendation (WCR) in the system.
