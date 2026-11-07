@@ -385,6 +385,8 @@ type CreateCustomTimesheetInput struct {
 	Schema string `json:"schema"`
 	// The custom data for the timesheet.
 	Data string `json:"data"`
+	// The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.
+	Account *string `json:"account,omitempty"`
 }
 
 // CreateExpenseInput — The input for creating an expense.
@@ -605,7 +607,7 @@ type CreateSmsMultiFactorInput struct {
 
 // CreateSupplierCandidateInput — The details for adding a supplier candidate.
 type CreateSupplierCandidateInput struct {
-	// The supplier account that owns this candidate (Company or Recruiter).
+	// The company that acts as a supplier and owns this candidate. Staffing agencies use 'createRecruiterCandidate' instead.
 	Supplier string `json:"supplier"`
 	// The candidate first name.
 	FirstName string `json:"firstName"`
@@ -1285,7 +1287,7 @@ type OrderByClause struct {
 type OwnerInput struct {
 	// The user to assign as an owner.
 	User string `json:"user"`
-	// What this person looks after on the record. Grants no permissions.
+	// What this person looks after on the record. Grants no permissions. A new owner on a staffing agency's client link sent without one starts with the one their role at the agency suggests.
 	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
 }
 

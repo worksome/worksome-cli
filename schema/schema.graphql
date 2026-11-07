@@ -1110,7 +1110,7 @@ enum BatchActionType {
 """
 An item in a batch.
 """
-union BatchItem = PaymentRequest | Invoice
+union BatchItem = PaymentRequest | Invoice | Timesheet
 """
 A paginated list of BatchItem items.
 """
@@ -1136,6 +1136,10 @@ enum BatchItemStatus {
   Item has been processed.
   """
   PROCESSED
+  """
+  Item has been processed but is blocked, so it needs attention.
+  """
+  BLOCKED
 }
 """
 A paginated list of Batch items.
@@ -1178,6 +1182,10 @@ enum BatchType {
   Journal entries for self-bills that have reached a payment file.
   """
   PAYMENT_JOURNAL
+  """
+  Timesheets uploaded together in one timesheet import.
+  """
+  TIMESHEET_IMPORT
 }
 """
 The BBAN type details.
@@ -1886,6 +1894,14 @@ type Classification {
   Whether all questions for the worker has been resolved.
   """
   hasWorkerCompletedAnswers: Boolean!
+  """
+  Whether the worker is asked to fill in any classification fields.
+  """
+  hasWorkerFields: Boolean!
+  """
+  Whether the worker has filled in every classification field asked of them, optional ones included.
+  """
+  hasWorkerCompletedFields: Boolean!
   """
   Whether this classification is allowed to be changed
   """
@@ -2778,6 +2794,11 @@ type CompanySupplier implements Ownable & ClientRelation {
   """
   invoiceDelivery: InvoiceDelivery!
   """
+  Whether payment requests on supplier hires for this client follow the end client's payment request period
+  rule instead of the supplier's.
+  """
+  paymentRequestPeriodFollowsClient: Boolean!
+  """
   The number of days in the payment terms supplier hires for this client are contracted on:
   the client's own when the relationship follows the client, otherwise the supplier's. Null
   when the supplier is not a company and follows nobody.
@@ -3037,7 +3058,7 @@ the frontend should be able to query a first-class domain type directly.
 `ComplianceDataClassification` is the specialised Q&A shape for determination
 compliances (IR35, NL/Global/US worker classification).
 """
-union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument
+union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument | ComplianceDataStatus | ComplianceDataDate
 """
 An address associated with a compliance (residential address, work location,
 etc.). Wraps the existing `Address` type so the frontend can query any field.
@@ -3093,6 +3114,23 @@ type ComplianceDataClassification {
   The answered questions that make up the classification.
   """
   questions: [ComplianceClassificationQuestion!]!
+}
+"""
+A date held by a compliance, such as when it was last reviewed.
+"""
+type ComplianceDataDate {
+  """
+  Identifies the date, independently of its label.
+  """
+  key: String!
+  """
+  The entry label, translated for display.
+  """
+  label: String!
+  """
+  The date, or null when not set.
+  """
+  date: Date
 }
 """
 A single label/value pair. Null `value` is preserved so the UI can render
@@ -3162,6 +3200,19 @@ type ComplianceDataRestrictedDocument {
   Whether the current viewer may approve or decline this document.
   """
   canReview: Boolean!
+}
+"""
+The review status of a compliance.
+"""
+type ComplianceDataStatus {
+  """
+  The entry label, translated for display.
+  """
+  label: String!
+  """
+  The review status.
+  """
+  statusValue: ComplianceStatusValue!
 }
 """
 A user associated with a compliance, typically an attribution such as
@@ -3560,6 +3611,10 @@ enum ComplianceName {
   SUPPLIER_HIRE_PREPARED
 }
 """
+The review status of a verified worker or a verified staffing agency.
+"""
+union ComplianceStatusValue = VerifiedWorkerStatusValue | RecruiterStatusValue
+"""
 Validation details for a compliance requirement.
 """
 type ComplianceValidationDetails {
@@ -3663,7 +3718,8 @@ type Contract {
   rateType: RateType
   """
   The payment amount per specified rate type.
-  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
+  Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner,
+  such as the end client of a supplier hire.
   """
   rate: Float
   """
@@ -3677,13 +3733,12 @@ type Contract {
   """
   companyCvr: String
   """
-  A URL of the actual contract.
+  A signed URL to download the PDF of the contract. It is `null` when no PDF is stored for the contract.
   
-  This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might
-  change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients
-  own system.
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system.
   
-  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker.
+  Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner.
   """
   pdfUrl: URL
   """
@@ -5323,6 +5378,10 @@ input CreateCustomTimesheetInput {
   The custom data for the timesheet.
   """
   data: String!
+  """
+  The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.
+  """
+  account: ID
 }
 """
 The input for creating an expense.
@@ -5738,7 +5797,8 @@ The details for adding a supplier candidate.
 """
 input CreateSupplierCandidateInput {
   """
-  The supplier account that owns this candidate (Company or Recruiter).
+  The company that acts as a supplier and owns this candidate. Staffing
+  agencies use `createRecruiterCandidate` instead.
   """
   supplier: ID!
   """
@@ -8012,6 +8072,31 @@ type Hire implements Ownable {
     date: Date!
   ): Contract
   """
+  Whether a payment request on this hire must cover exactly one of
+  paymentRequestPeriods instead of free dates. Milestone payment requests,
+  payment requests for imported timesheets and days before
+  paymentRequestPeriodsStartDate are exempt. When true and the list is empty,
+  no period can be picked yet.
+  """
+  requiresPaymentRequestPeriods: Boolean!
+  """
+  The periods a payment request on this hire can cover, newest first: one or
+  more ISO 8601 weeks, Monday to Sunday, or a calendar month, from the
+  contract's first period, or the one paymentRequestPeriodsStartDate falls in,
+  up to and including the current period. A period is cut at the contract's
+  start and end, at paymentRequestPeriodsStartDate, at rate changes and at the
+  start of a billing period of either side. Empty when
+  requiresPaymentRequestPeriods is false.
+  """
+  paymentRequestPeriods: [PaymentRequestPeriod!]!
+  """
+  The first day a payment request on this hire must cover one of
+  paymentRequestPeriods, when that rule starts after the contract does. Days
+  before it are billed with free dates. Null when the rule applies from the
+  contract's start, or when requiresPaymentRequestPeriods is false.
+  """
+  paymentRequestPeriodsStartDate: Date
+  """
   The company which the worker will work with.
   """
   company: Company!
@@ -8127,6 +8212,10 @@ type Hire implements Ownable {
   """
   endDate: Date
   """
+  The extension proposed by a draft contract that the worker has not accepted yet.
+  """
+  pendingExtension: HirePendingExtension
+  """
   The date that recruiter ownership started.
   """
   recruiterOwnershipStartDate: Date
@@ -8190,6 +8279,11 @@ type Hire implements Ownable {
   Whether the staffing agency (recruiter or company-as-supplier) manages workers on this hire.
   """
   recruiterManagesWorkers: Boolean
+  """
+  Whether a staffing agency attributed to this hire manages the worker, even before an agency is attached.
+  Attribution keeps this engagement, so it decides whether a referral fee applies.
+  """
+  attributionManagesWorkers: Boolean
   """
   Whether the supplier's confirmation on this hire is signature-free and
   auto-accepted (the MSP opted this vendor-managed hire into no-signature
@@ -8702,6 +8796,19 @@ type HirePaginator {
   A list of Hire items.
   """
   data: [Hire!]!
+}
+"""
+A proposed change that pushes a hire's end date later.
+"""
+type HirePendingExtension {
+  """
+  The end date of the active contract.
+  """
+  previousEndDate: Date!
+  """
+  The end date proposed by the draft contract.
+  """
+  newEndDate: Date!
 }
 """
 Trusted contact hire status filter input.
@@ -11827,7 +11934,9 @@ type Mutation {
   """
   Add a new supplier candidate.
   
-  Only accounts that act as suppliers can add candidates.
+  Only companies that act as suppliers can add candidates. Staffing agencies
+  must use `createRecruiterCandidate` instead; this mutation returns an error
+  for a staffing agency supplier.
   """
   createSupplierCandidate(
     """
@@ -12575,6 +12684,7 @@ input OwnerInput {
   user: ID!
   """
   What this person looks after on the record. Grants no permissions.
+  A new owner on a staffing agency's client link sent without one starts with the one their role at the agency suggests.
   """
   responsibility: OwnerResponsibility
 }
@@ -12607,6 +12717,10 @@ enum OwnerResponsibility {
   Payments
   """
   PAYMENTS
+  """
+  Recruitment
+  """
+  RECRUITMENT
 }
 """
 Information about pagination using a fully featured paginator.
@@ -13305,6 +13419,41 @@ type PaymentRequestPaginator {
   A list of PaymentRequest items.
   """
   data: [PaymentRequest!]!
+}
+"""
+A span of days that a single payment request may cover on a hire: one period
+of the hire's payment request period rule, which is one or more ISO 8601 weeks,
+Monday to Sunday, or a calendar month, or a part of one. A period cut at a
+contract start or end, a rate change or a billing period boundary has several
+parts.
+"""
+type PaymentRequestPeriod {
+  """
+  The ISO 8601 week-numbering year of the week the period lies in. Set only
+  when the rule is one week; null otherwise. Set whenever isoWeek is set.
+  """
+  isoYear: Int
+  """
+  The ISO 8601 week number, from 1 to 53, of the week the period lies in. Set
+  only when the rule is one week; null otherwise. Set whenever isoYear is set.
+  """
+  isoWeek: Int
+  """
+  Whether a payment request that bills hours, days or weeks already covers a day of the
+  period, on a hire that prevents overlapping payment requests. Such a period is refused for
+  another payment request that bills time. A submitted payment request that bills time marks its
+  own period billed too; the overlap check leaves that payment request out, so editing it can
+  keep the period. Always false when the hire does not prevent overlapping payment requests.
+  """
+  isBilled: Boolean!
+  """
+  The first day of the period.
+  """
+  startDate: Date!
+  """
+  The last day of the period.
+  """
+  endDate: Date!
 }
 """
 The approval status of a payment request from the company's perspective.
@@ -14044,7 +14193,7 @@ type Query {
     id: ID!
   ): RecruiterCandidate
   """
-  Get a specific supplier candidate.
+  Get a specific supplier candidate of any supplier account the user belongs to.
   """
   supplierCandidate(
     """
@@ -15959,9 +16108,16 @@ type Query {
     page: Int
   ): SkillPaginator!
   """
-  Get a list of supplier candidates for the authenticated supplier account.
+  Get a list of supplier candidates of the supplier accounts the user belongs to.
   """
   supplierCandidates(
+    """
+    Supply which supplier accounts to see candidates for.
+    
+    If no accounts are supplied then all supplier accounts of the user will be used.
+    """
+    accounts: [ID!]
+
     """
     Filter by candidate status.
     """
@@ -16442,6 +16598,17 @@ type RateCardBand {
   """
   noMatchReason: RateCardNoMatchReason
   """
+  The matched line's end date. Absent when nothing matched, or when the
+  matched line is open-ended. Always absent for the band saved on the job
+  (`cached: true`), which is how supplier jobs read it.
+  """
+  validUntil: Date
+  """
+  The matched line's criteria, as human-readable label/value pairs. Empty
+  when nothing matched.
+  """
+  criteria: [RateCardCriterion!]!
+  """
   How `rate` (in `rateType`) compares to this band. Null when either argument
   is omitted. Reports the rate's position relative to the band — whether that
   position is treated as a warning is a decision made by each surface that
@@ -16483,6 +16650,19 @@ enum RateCardComparisonResult {
   Nothing matched a rate card line to compare against.
   """
   NO_MATCH
+}
+"""
+A single label/value pair describing one of a rate card line's matching criteria.
+"""
+type RateCardCriterion {
+  """
+  The criterion's human-readable label (e.g. a custom field's title).
+  """
+  label: String!
+  """
+  The criterion's human-readable value (e.g. a custom field option's value).
+  """
+  value: String!
 }
 """
 Why a vacancy or payment request resolved to no rate card band.
@@ -16884,6 +17064,15 @@ enum RecruiterStatus {
   Recruiter invited status.
   """
   INVITED
+}
+"""
+The review status of a verified staffing agency.
+"""
+type RecruiterStatusValue {
+  """
+  The status.
+  """
+  status: RecruiterComplianceStatus!
 }
 """
 The input for resending an invitation to a Trusted Contact.
@@ -18387,6 +18576,11 @@ type TrustedContact {
     cached: Boolean = false
   ): [Compliance!]!
   """
+  The company's compliance review of this worker, or `null` when the review
+  does not apply to them or the viewer cannot view the compliance tracker.
+  """
+  workerReview: TrustedContactWorkerReview
+  """
   The date that the trusted contact was created.
   """
   createdAt: Date!
@@ -18619,6 +18813,39 @@ enum TrustedContactStaffingAgencyStatus {
   A staffing agency does not have ownership of the worker.
   """
   NO_OWNERSHIP
+}
+"""
+Where a company's compliance review of a worker stands.
+"""
+type TrustedContactWorkerReview {
+  """
+  The review status, as shown on the compliance tracker.
+  """
+  status: VerifiedWorkerComplianceStatus!
+  """
+  How many of the worker's applicable compliances are complete.
+  """
+  completedCount: Int!
+  """
+  How many compliances apply to the worker.
+  """
+  applicableCount: Int!
+  """
+  The user who made the latest review decision, if there is one.
+  """
+  reviewedBy: User
+  """
+  When the latest review decision was made.
+  """
+  reviewedAt: DateTime
+  """
+  When the next review is due.
+  """
+  nextReviewAt: DateTime
+  """
+  The note sent to the worker with the latest review decision.
+  """
+  workerMessage: String
 }
 """
 A type that can have an custom field applied to it.
@@ -19973,6 +20200,15 @@ input VerifiedWorkerReviewFilterInput {
   Filter by the users who last reviewed compliance.
   """
   updatedBy: [ID!]
+}
+"""
+The review status of a verified worker.
+"""
+type VerifiedWorkerStatusValue {
+  """
+  The status.
+  """
+  status: VerifiedWorkerComplianceStatus!
 }
 """
 An input for verifying a newly-created SMS multi-factor authentication implementation.

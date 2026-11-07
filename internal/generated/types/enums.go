@@ -243,6 +243,8 @@ const (
 	BatchItemStatusProcessing BatchItemStatus = "PROCESSING"
 	// BatchItemStatusProcessed — Item has been processed.
 	BatchItemStatusProcessed BatchItemStatus = "PROCESSED"
+	// BatchItemStatusBlocked — Item has been processed but is blocked, so it needs attention.
+	BatchItemStatusBlocked BatchItemStatus = "BLOCKED"
 )
 
 // ValidBatchItemStatus returns all valid values for BatchItemStatus.
@@ -250,6 +252,7 @@ func ValidBatchItemStatus() []BatchItemStatus {
 	return []BatchItemStatus{
 		BatchItemStatusProcessing,
 		BatchItemStatusProcessed,
+		BatchItemStatusBlocked,
 	}
 }
 
@@ -269,6 +272,8 @@ const (
 	BatchTypeAccrualsJournal BatchType = "ACCRUALS_JOURNAL"
 	// BatchTypePaymentJournal — Journal entries for self-bills that have reached a payment file.
 	BatchTypePaymentJournal BatchType = "PAYMENT_JOURNAL"
+	// BatchTypeTimesheetImport — Timesheets uploaded together in one timesheet import.
+	BatchTypeTimesheetImport BatchType = "TIMESHEET_IMPORT"
 )
 
 // ValidBatchType returns all valid values for BatchType.
@@ -280,6 +285,7 @@ func ValidBatchType() []BatchType {
 		BatchTypeSelfBillJournal,
 		BatchTypeAccrualsJournal,
 		BatchTypePaymentJournal,
+		BatchTypeTimesheetImport,
 	}
 }
 
@@ -3439,6 +3445,8 @@ const (
 	OwnerResponsibilityCompliance OwnerResponsibility = "COMPLIANCE"
 	// OwnerResponsibilityPayments — Payments
 	OwnerResponsibilityPayments OwnerResponsibility = "PAYMENTS"
+	// OwnerResponsibilityRecruitment — Recruitment
+	OwnerResponsibilityRecruitment OwnerResponsibility = "RECRUITMENT"
 )
 
 // ValidOwnerResponsibility returns all valid values for OwnerResponsibility.
@@ -3447,6 +3455,7 @@ func ValidOwnerResponsibility() []OwnerResponsibility {
 		OwnerResponsibilityPrimaryContact,
 		OwnerResponsibilityCompliance,
 		OwnerResponsibilityPayments,
+		OwnerResponsibilityRecruitment,
 	}
 }
 

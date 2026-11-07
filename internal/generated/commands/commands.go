@@ -2530,8 +2530,8 @@ func newBatchesListCmd() *cobra.Command {
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
 	cmd.Flags().StringSlice("accounts", nil, "Only show batches for the specified accounts.")
-	cmd.Flags().StringSlice("types", nil, "Only show batches of the specified types. [PARTNER_PAYMENT_REQUESTS, INVOICES_FOR_INTEGRATIONS_SERVICE, CUSTOMER_INVOICES, SELF_BILL_JOURNAL, ACCRUALS_JOURNAL, PAYMENT_JOURNAL]")
-	cmd.Flags().StringSlice("contains-items-with-status", nil, "Only show batches that contain at least one item of the specified statuses. [PROCESSING, PROCESSED]")
+	cmd.Flags().StringSlice("types", nil, "Only show batches of the specified types. [PARTNER_PAYMENT_REQUESTS, INVOICES_FOR_INTEGRATIONS_SERVICE, CUSTOMER_INVOICES, SELF_BILL_JOURNAL, ACCRUALS_JOURNAL, PAYMENT_JOURNAL, TIMESHEET_IMPORT]")
+	cmd.Flags().StringSlice("contains-items-with-status", nil, "Only show batches that contain at least one item of the specified statuses. [PROCESSING, PROCESSED, BLOCKED]")
 
 	return cmd
 }
@@ -2651,9 +2651,9 @@ func newBatchesCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("account", "", "The account that the batch is for.")
-	cmd.Flags().String("type", "", "The type of batch to create. [PARTNER_PAYMENT_REQUESTS, INVOICES_FOR_INTEGRATIONS_SERVICE, CUSTOMER_INVOICES, SELF_BILL_JOURNAL, ACCRUALS_JOURNAL, PAYMENT_JOURNAL]")
+	cmd.Flags().String("type", "", "The type of batch to create. [PARTNER_PAYMENT_REQUESTS, INVOICES_FOR_INTEGRATIONS_SERVICE, CUSTOMER_INVOICES, SELF_BILL_JOURNAL, ACCRUALS_JOURNAL, PAYMENT_JOURNAL, TIMESHEET_IMPORT]")
 	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"PARTNER_PAYMENT_REQUESTS", "INVOICES_FOR_INTEGRATIONS_SERVICE", "CUSTOMER_INVOICES", "SELF_BILL_JOURNAL", "ACCRUALS_JOURNAL", "PAYMENT_JOURNAL"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"PARTNER_PAYMENT_REQUESTS", "INVOICES_FOR_INTEGRATIONS_SERVICE", "CUSTOMER_INVOICES", "SELF_BILL_JOURNAL", "ACCRUALS_JOURNAL", "PAYMENT_JOURNAL", "TIMESHEET_IMPORT"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -18675,7 +18675,7 @@ var suppliercandidatesColumns = []output.Column{
 func NewSupplierCandidatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "supplier-candidates",
-		Short: "Get a list of supplier candidates for the authenticated supplier account.",
+		Short: "Get a list of supplier candidates of the supplier accounts the user belongs to.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -18694,7 +18694,7 @@ func NewSupplierCandidatesCmd() *cobra.Command {
 func newSupplierCandidatesGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get <id>",
-		Short:   "Get a specific supplier candidate.",
+		Short:   "Get a specific supplier candidate of any supplier account the user belongs to.",
 		Example: "  worksome supplier-candidates get <id>",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -18732,7 +18732,7 @@ func newSupplierCandidatesGetCmd() *cobra.Command {
 func newSupplierCandidatesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "Get a list of supplier candidates for the authenticated supplier account.",
+		Short:   "Get a list of supplier candidates of the supplier accounts the user belongs to.",
 		Example: "  worksome supplier-candidates list -n 20\n  worksome supplier-candidates list --all\n  worksome supplier-candidates list --watch\n  worksome supplier-candidates list --watch --watch-interval 10",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Apply --filter shorthand before reading individual flags
@@ -18756,6 +18756,10 @@ func newSupplierCandidatesListCmd() *cobra.Command {
 			if cmd.Flags().Changed("page") {
 				page, _ := cmd.Flags().GetInt("page")
 				vars["page"] = page
+			}
+			if cmd.Flags().Changed("accounts") {
+				v, _ := cmd.Flags().GetStringSlice("accounts")
+				vars["accounts"] = v
 			}
 			if cmd.Flags().Changed("status") {
 				v, _ := cmd.Flags().GetString("status")
@@ -18835,6 +18839,7 @@ func newSupplierCandidatesListCmd() *cobra.Command {
 	cmd.Flags().Bool("all", false, "Fetch all pages")
 	cmd.Flags().Bool("watch", false, "Poll and refresh output periodically")
 	cmd.Flags().Int("watch-interval", 5, "Interval in seconds between refreshes (used with --watch)")
+	cmd.Flags().StringSlice("accounts", nil, "Supply which supplier accounts to see candidates for. If no accounts are supplied then all supplier accounts of the user will be used.")
 	cmd.Flags().String("status", "", "Filter by candidate status. [INVITED, ACTIVE, DECLINED, APPLIED, BLOCKED]")
 	cmd.Flags().String("search", "", "Search candidates by email, name, or job title.")
 
@@ -18896,7 +18901,7 @@ var suppliercandidatesCreateColumns = []output.Column{
 func newSupplierCandidatesCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Add a new supplier candidate. Only accounts that act as suppliers can add candidates.",
+		Short:   "Add a new supplier candidate. Only companies that act as suppliers can add candidates. Staffing agencies must use 'createRecruiterCandidate' instead; this mutation returns an error for a staffing agency supplier.",
 		Example: "  # Using a JSON input file:\n  worksome supplier-candidates create --input payload.json\n\n  # Using flags:\n  worksome supplier-candidates create --supplier \\\"value\\\" --first-name \\\"value\\\" --middle-name \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"country\": \"...\",\n    \"currency\": \"...\",\n    \"dailyRate\": 0,\n    \"email\": \"...\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"firstName\": \"...\",\n    \"hourlyRate\": 0,\n    \"jobTitle\": \"...\",\n    \"lastName\": \"...\",\n    \"links\": [\n      \"...\"\n    ],\n    \"middleName\": \"...\",\n    \"monthlyRate\": 0,\n    \"state\": \"...\",\n    \"supplier\": \"<id>\",\n    \"tags\": [\n      \"...\"\n    ]\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -18999,7 +19004,7 @@ func newSupplierCandidatesCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
-	cmd.Flags().String("supplier", "", "The supplier account that owns this candidate (Company or Recruiter).")
+	cmd.Flags().String("supplier", "", "The company that acts as a supplier and owns this candidate. Staffing agencies use 'createRecruiterCandidate' instead.")
 	cmd.Flags().String("first-name", "", "The candidate first name.")
 	cmd.Flags().String("middle-name", "", "The candidate middle name.")
 	cmd.Flags().String("last-name", "", "The candidate last name.")
@@ -19978,7 +19983,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-custom",
 		Short:   "Create a custom timesheet. Use this endpoint to create timesheets in Worksome from a custom data format. The endpoint requires data in a custom format, as defined by the input schema.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets create-custom --input payload.json\n\n  # Using flags:\n  worksome timesheets create-custom --schema \\\"value\\\" --data \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"data\": \"...\",\n    \"schema\": \"...\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome timesheets create-custom --input payload.json\n\n  # Using flags:\n  worksome timesheets create-custom --schema \\\"value\\\" --data \\\"value\\\" --account \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"account\": \"<id>\",\n    \"data\": \"...\",\n    \"schema\": \"...\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -20012,6 +20017,10 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetString("data")
 				inputObj["data"] = v
 			}
+			if cmd.Flags().Changed("account") {
+				v, _ := cmd.Flags().GetString("account")
+				inputObj["account"] = v
+			}
 			vars["input"] = inputObj
 			// Refuse to call the API with an empty input object.
 			if err := requireInput(vars); err != nil {
@@ -20042,6 +20051,7 @@ func newTimesheetsCreateCustomCmd() *cobra.Command {
 	cmd.Flags().String("input", "", "Path to JSON input file (use - for stdin)")
 	cmd.Flags().String("schema", "", "The schema for the data format of the submitted timesheet data. Contact Worksome to obtain information on supported schemas.")
 	cmd.Flags().String("data", "", "The custom data for the timesheet.")
+	cmd.Flags().String("account", "", "The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.")
 	return cmd
 }
 
