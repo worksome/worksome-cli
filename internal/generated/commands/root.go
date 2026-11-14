@@ -88,6 +88,7 @@ func RegisterAll(root *cobra.Command) {
 	root.AddCommand(NewSupplierCandidatesCmd())
 	root.AddCommand(NewSupplierClientLinksCmd())
 	root.AddCommand(NewSupplierSharedCustomFieldsCmd())
+	root.AddCommand(NewTimesheetImportTemplateCmd())
 	root.AddCommand(NewTimesheetRegistrationCmd())
 	root.AddCommand(NewTimesheetsCmd())
 	root.AddCommand(NewTrustedContactBusinessSetupsCmd())
