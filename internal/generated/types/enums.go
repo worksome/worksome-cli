@@ -243,6 +243,8 @@ const (
 	BatchItemStatusProcessing BatchItemStatus = "PROCESSING"
 	// BatchItemStatusProcessed — Item has been processed.
 	BatchItemStatusProcessed BatchItemStatus = "PROCESSED"
+	// BatchItemStatusBlocked — Item has been processed but is blocked, so it needs attention.
+	BatchItemStatusBlocked BatchItemStatus = "BLOCKED"
 )
 
 // ValidBatchItemStatus returns all valid values for BatchItemStatus.
@@ -250,6 +252,7 @@ func ValidBatchItemStatus() []BatchItemStatus {
 	return []BatchItemStatus{
 		BatchItemStatusProcessing,
 		BatchItemStatusProcessed,
+		BatchItemStatusBlocked,
 	}
 }
 
@@ -269,6 +272,8 @@ const (
 	BatchTypeAccrualsJournal BatchType = "ACCRUALS_JOURNAL"
 	// BatchTypePaymentJournal — Journal entries for self-bills that have reached a payment file.
 	BatchTypePaymentJournal BatchType = "PAYMENT_JOURNAL"
+	// BatchTypeTimesheetImport — Timesheets uploaded together in one timesheet import.
+	BatchTypeTimesheetImport BatchType = "TIMESHEET_IMPORT"
 )
 
 // ValidBatchType returns all valid values for BatchType.
@@ -280,6 +285,7 @@ func ValidBatchType() []BatchType {
 		BatchTypeSelfBillJournal,
 		BatchTypeAccrualsJournal,
 		BatchTypePaymentJournal,
+		BatchTypeTimesheetImport,
 	}
 }
 
@@ -670,6 +676,21 @@ func ValidCompanyNumberValidationStatus() []CompanyNumberValidationStatus {
 		CompanyNumberValidationStatusValid,
 		CompanyNumberValidationStatusInvalid,
 		CompanyNumberValidationStatusNotVerified,
+	}
+}
+
+// CompanyOrderByColumn — The columns that a list of companies can be ordered by.
+type CompanyOrderByColumn string
+
+const (
+	// CompanyOrderByColumnCompanyName — The name of the company.
+	CompanyOrderByColumnCompanyName CompanyOrderByColumn = "COMPANY_NAME"
+)
+
+// ValidCompanyOrderByColumn returns all valid values for CompanyOrderByColumn.
+func ValidCompanyOrderByColumn() []CompanyOrderByColumn {
+	return []CompanyOrderByColumn{
+		CompanyOrderByColumnCompanyName,
 	}
 }
 
@@ -2119,6 +2140,30 @@ func ValidCustomFieldWorkerInputStage() []CustomFieldWorkerInputStage {
 	}
 }
 
+// CustomTimesheetFileRejectionReason — The reason Worksome refused a whole timesheet file, so that none of its rows was checked or written.
+type CustomTimesheetFileRejectionReason string
+
+const (
+	// CustomTimesheetFileRejectionReasonHeaderMismatch — The header row does not match the columns of your current timesheet import template.
+	CustomTimesheetFileRejectionReasonHeaderMismatch CustomTimesheetFileRejectionReason = "HEADER_MISMATCH"
+	// CustomTimesheetFileRejectionReasonUnreadableFile — The file could not be read as a CSV file: it is empty, has no header row, is not UTF-8 or holds the replacement character U+FFFD, is not separated by commas or semicolons, or has a line break inside a cell.
+	CustomTimesheetFileRejectionReasonUnreadableFile CustomTimesheetFileRejectionReason = "UNREADABLE_FILE"
+	// CustomTimesheetFileRejectionReasonTooManyRows — The file has more data rows than one import accepts.
+	CustomTimesheetFileRejectionReasonTooManyRows CustomTimesheetFileRejectionReason = "TOO_MANY_ROWS"
+	// CustomTimesheetFileRejectionReasonFileTooLarge — The file is larger than one import accepts.
+	CustomTimesheetFileRejectionReasonFileTooLarge CustomTimesheetFileRejectionReason = "FILE_TOO_LARGE"
+)
+
+// ValidCustomTimesheetFileRejectionReason returns all valid values for CustomTimesheetFileRejectionReason.
+func ValidCustomTimesheetFileRejectionReason() []CustomTimesheetFileRejectionReason {
+	return []CustomTimesheetFileRejectionReason{
+		CustomTimesheetFileRejectionReasonHeaderMismatch,
+		CustomTimesheetFileRejectionReasonUnreadableFile,
+		CustomTimesheetFileRejectionReasonTooManyRows,
+		CustomTimesheetFileRejectionReasonFileTooLarge,
+	}
+}
+
 // CustomTimesheetRejectionReason — The reason a timesheet registration was rejected by Worksome.
 type CustomTimesheetRejectionReason string
 
@@ -2129,6 +2174,26 @@ const (
 	CustomTimesheetRejectionReasonHireNotFound CustomTimesheetRejectionReason = "HIRE_NOT_FOUND"
 	// CustomTimesheetRejectionReasonDateOutsideContractPeriod — The reportedDate falls outside the hire's contract start/end dates.
 	CustomTimesheetRejectionReasonDateOutsideContractPeriod CustomTimesheetRejectionReason = "DATE_OUTSIDE_CONTRACT_PERIOD"
+	// CustomTimesheetRejectionReasonDuplicateRow — Another row in the same submission has the same hire and reportedDate, or the same hire, externalId and reportedDate. Every copy is rejected.
+	CustomTimesheetRejectionReasonDuplicateRow CustomTimesheetRejectionReason = "DUPLICATE_ROW"
+	// CustomTimesheetRejectionReasonHoursAlreadyRegistered — The hire already has hours registered on the reportedDate, and this import only adds hours.
+	CustomTimesheetRejectionReasonHoursAlreadyRegistered CustomTimesheetRejectionReason = "HOURS_ALREADY_REGISTERED"
+	// CustomTimesheetRejectionReasonLivePaymentRequestInWeek — The hire already has a live payment request in the week of the reportedDate, and this import only adds hours.
+	CustomTimesheetRejectionReasonLivePaymentRequestInWeek CustomTimesheetRejectionReason = "LIVE_PAYMENT_REQUEST_IN_WEEK"
+	// CustomTimesheetRejectionReasonOtherRowInWeekRejected — Another row for the same hire and week was rejected, so no row of that week is written.
+	CustomTimesheetRejectionReasonOtherRowInWeekRejected CustomTimesheetRejectionReason = "OTHER_ROW_IN_WEEK_REJECTED"
+	// CustomTimesheetRejectionReasonNoHireIdentifier — The CSV row fills in none of its hire identifier columns.
+	CustomTimesheetRejectionReasonNoHireIdentifier CustomTimesheetRejectionReason = "NO_HIRE_IDENTIFIER"
+	// CustomTimesheetRejectionReasonMultipleHiresMatched — A hire identifier on the CSV row matches several hires. The two hires of a mirrored engagement count as one.
+	CustomTimesheetRejectionReasonMultipleHiresMatched CustomTimesheetRejectionReason = "MULTIPLE_HIRES_MATCHED"
+	// CustomTimesheetRejectionReasonHireIdentifiersMismatch — The hire identifiers on the CSV row point to different hires.
+	CustomTimesheetRejectionReasonHireIdentifiersMismatch CustomTimesheetRejectionReason = "HIRE_IDENTIFIERS_MISMATCH"
+	// CustomTimesheetRejectionReasonUnreadableLine — A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD, a payable value that is not yes or no, or a line field value its field cannot take.
+	CustomTimesheetRejectionReasonUnreadableLine CustomTimesheetRejectionReason = "UNREADABLE_LINE"
+	// CustomTimesheetRejectionReasonRoarWorkerNotIdentified — No worker was found for the row's CSID. The row is stored without a worker and is never billed.
+	CustomTimesheetRejectionReasonRoarWorkerNotIdentified CustomTimesheetRejectionReason = "ROAR_WORKER_NOT_IDENTIFIED"
+	// CustomTimesheetRejectionReasonRoarMultipleActiveHires — The worker has several active hires on the reportedDate. The row is stored without a hire and is never billed.
+	CustomTimesheetRejectionReasonRoarMultipleActiveHires CustomTimesheetRejectionReason = "ROAR_MULTIPLE_ACTIVE_HIRES"
 )
 
 // ValidCustomTimesheetRejectionReason returns all valid values for CustomTimesheetRejectionReason.
@@ -2137,6 +2202,37 @@ func ValidCustomTimesheetRejectionReason() []CustomTimesheetRejectionReason {
 		CustomTimesheetRejectionReasonMissingRequiredField,
 		CustomTimesheetRejectionReasonHireNotFound,
 		CustomTimesheetRejectionReasonDateOutsideContractPeriod,
+		CustomTimesheetRejectionReasonDuplicateRow,
+		CustomTimesheetRejectionReasonHoursAlreadyRegistered,
+		CustomTimesheetRejectionReasonLivePaymentRequestInWeek,
+		CustomTimesheetRejectionReasonOtherRowInWeekRejected,
+		CustomTimesheetRejectionReasonNoHireIdentifier,
+		CustomTimesheetRejectionReasonMultipleHiresMatched,
+		CustomTimesheetRejectionReasonHireIdentifiersMismatch,
+		CustomTimesheetRejectionReasonUnreadableLine,
+		CustomTimesheetRejectionReasonRoarWorkerNotIdentified,
+		CustomTimesheetRejectionReasonRoarMultipleActiveHires,
+	}
+}
+
+// CustomTimesheetRowStatus — What happens, or would happen with write set to false, to one submitted timesheet row.
+type CustomTimesheetRowStatus string
+
+const (
+	// CustomTimesheetRowStatusAccepted — The row is accepted for processing: written, or would be written. On a Roar dry run, the reason says when the row would be stored but never billed, or cannot be processed.
+	CustomTimesheetRowStatusAccepted CustomTimesheetRowStatus = "ACCEPTED"
+	// CustomTimesheetRowStatusRejected — The row is not written. The reason says why.
+	CustomTimesheetRowStatusRejected CustomTimesheetRowStatus = "REJECTED"
+	// CustomTimesheetRowStatusDeleted — The row removes the hours it reports: a Roar row with the status unsubmitted or rejected, or with Deleted set to true.
+	CustomTimesheetRowStatusDeleted CustomTimesheetRowStatus = "DELETED"
+)
+
+// ValidCustomTimesheetRowStatus returns all valid values for CustomTimesheetRowStatus.
+func ValidCustomTimesheetRowStatus() []CustomTimesheetRowStatus {
+	return []CustomTimesheetRowStatus{
+		CustomTimesheetRowStatusAccepted,
+		CustomTimesheetRowStatusRejected,
+		CustomTimesheetRowStatusDeleted,
 	}
 }
 
@@ -3439,6 +3535,8 @@ const (
 	OwnerResponsibilityCompliance OwnerResponsibility = "COMPLIANCE"
 	// OwnerResponsibilityPayments — Payments
 	OwnerResponsibilityPayments OwnerResponsibility = "PAYMENTS"
+	// OwnerResponsibilityRecruitment — Recruitment
+	OwnerResponsibilityRecruitment OwnerResponsibility = "RECRUITMENT"
 )
 
 // ValidOwnerResponsibility returns all valid values for OwnerResponsibility.
@@ -3447,6 +3545,7 @@ func ValidOwnerResponsibility() []OwnerResponsibility {
 		OwnerResponsibilityPrimaryContact,
 		OwnerResponsibilityCompliance,
 		OwnerResponsibilityPayments,
+		OwnerResponsibilityRecruitment,
 	}
 }
 
