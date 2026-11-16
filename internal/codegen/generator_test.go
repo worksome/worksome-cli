@@ -640,9 +640,9 @@ type Job {
 	}
 }
 
-// The querier passes each query's on-request selections to the client, and
-// mutations keep the plain Execute.
-func TestGeneratedQuerierPassesOptionalSelections(t *testing.T) {
+// The querier passes each query's item type and the field schema to the
+// client, and mutations keep the plain Execute.
+func TestGeneratedQuerierPassesFieldSchema(t *testing.T) {
 	schema := `
 type Query {
 	"List user groups."
@@ -677,9 +677,25 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 		t.Fatal(err)
 	}
 	q := string(queries)
-	want := `q.Client.ExecuteWithOptional(ctx, query, map[string]string{"users": "users { paginatorInfo { total } data { id name } }"}, vars, &result)`
+	want := `q.Client.ExecuteFor(ctx, query, FieldSchema, "UserGroup", vars, &result)`
 	if !strings.Contains(q, want) {
-		t.Errorf("generated querier should pass the on-request selection:\n%s", want)
+		t.Errorf("generated querier should pass the item type:\n%s", want)
+	}
+	fieldSchema, err := os.ReadFile(filepath.Join(outputDir, "queries", "fieldschema.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"UserGroup": {`,
+		`"users": {Type: "User", Paginated: true},`,
+		`Nested: "id name",`,
+	} {
+		if !strings.Contains(string(fieldSchema), want) {
+			t.Errorf("fieldschema.go should contain %s:\n%s", want, fieldSchema)
+		}
+	}
+	if strings.Contains(string(fieldSchema), `"UserGroupPaginator"`) {
+		t.Error("fieldschema.go should leave paginator wrappers out")
 	}
 	if !strings.Contains(q, "q.Client.Execute(ctx, query, vars, &result)") {
 		t.Error("mutations should keep the plain Execute")
