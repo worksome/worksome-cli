@@ -421,6 +421,48 @@ func filterMap(m map[string]any, fields []string) map[string]any {
 	return out
 }
 
+// isPaginated reports whether m is a paginated relation: items under data,
+// with paginatorInfo beside them.
+func isPaginated(m map[string]any) bool {
+	_, hasInfo := m["paginatorInfo"]
+	_, hasData := m["data"]
+	return hasInfo && hasData && len(m) == 2
+}
+
+// filterPaginated applies paths to a paginated relation's items, so
+// "registrations.date" reads like "registrations.data.date". paginatorInfo is
+// kept whole: it is what says whether the items are complete.
+func filterPaginated(m map[string]any, fields []string) map[string]any {
+	out := map[string]any{"paginatorInfo": m["paginatorInfo"]}
+	var items []string
+	onlyInfo := true
+	for _, f := range fields {
+		head, rest, nested := strings.Cut(f, ".")
+		if head != "paginatorInfo" {
+			onlyInfo = false
+		}
+		switch {
+		case head == "paginatorInfo":
+		case head == "data" && !nested:
+			out["data"] = m["data"]
+			return out
+		case head == "data":
+			items = append(items, rest)
+		default:
+			items = append(items, f)
+		}
+	}
+	if onlyInfo {
+		return out
+	}
+	if len(items) == 0 {
+		out["data"] = m["data"]
+		return out
+	}
+	out["data"] = filterValue(m["data"], items)
+	return out
+}
+
 // filterValue applies nested field paths to a value, descending into maps and
 // through lists. A value with no sub-structure to filter is returned unchanged
 // rather than dropped — a silently missing field yields a report that is
@@ -428,6 +470,9 @@ func filterMap(m map[string]any, fields []string) map[string]any {
 func filterValue(val any, fields []string) any {
 	switch v := val.(type) {
 	case map[string]any:
+		if isPaginated(v) {
+			return filterPaginated(v, fields)
+		}
 		return filterMap(v, fields)
 	case []any:
 		out := make([]any, len(v))

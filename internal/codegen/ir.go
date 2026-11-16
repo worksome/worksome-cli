@@ -12,6 +12,26 @@ type Schema struct {
 	Interfaces []Interface
 	Unions     []Union
 	Scalars    []string
+	// Selectable is every object, interface and union type --fields can
+	// resolve a path against, in schema order.
+	Selectable []SelectableType
+}
+
+// SelectableType is a type whose fields --fields may name.
+type SelectableType struct {
+	Name   string
+	Union  bool
+	Fields []SelectableField
+	// Nested is the selection used when the type is named without subfields.
+	Nested string
+}
+
+// SelectableField is one field of a SelectableType.
+type SelectableField struct {
+	Name      string
+	Type      string // named composite type, or the item type of a paginator; empty for leaves
+	Paginated bool
+	NeedsArgs bool
 }
 
 // Resource represents a CLI resource group (e.g., "hires", "jobs") with its
@@ -44,10 +64,9 @@ type Operation struct {
 	Arguments    []Argument
 	ReturnType   TypeRef
 	SelectionSet string // Pre-computed GraphQL selection set for the return type
-	// Optional holds sub-selections the default query leaves out and offers on
-	// request through --fields: paginated relations, which cost the server one
-	// query per row. Keyed by field name; the value is the full selection.
-	Optional         map[string]string
+	// ItemType is the type --fields paths resolve against for a query: the
+	// items of a paginated result, or the returned object.
+	ItemType         string
 	Deprecated       bool
 	DeprecatedReason string
 	InputTypeName    string        // For mutations: the GraphQL input type name, e.g., "CreateJobInput"
@@ -77,13 +96,13 @@ type Argument struct {
 
 // TypeRef represents a reference to a GraphQL type, with nullability and list info.
 type TypeRef struct {
-	Name          string // Base type name, e.g., "String", "Hire", "HirePaginator"
-	GoType        string // Go type, e.g., "string", "*string", "[]Hire"
-	IsRequired    bool
-	IsList        bool
-	ListItem      *TypeRef // For list types, the element type
-	IsEnum        bool
-	EnumValues    []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
+	Name       string // Base type name, e.g., "String", "Hire", "HirePaginator"
+	GoType     string // Go type, e.g., "string", "*string", "[]Hire"
+	IsRequired bool
+	IsList     bool
+	ListItem   *TypeRef // For list types, the element type
+	IsEnum     bool
+	EnumValues []string // For enum types, all valid values (e.g., ["ACTIVE", "DRAFT", ...])
 	// InputExample is a compact JSON example of an input object, and
 	// InputEnumHint the allowed values of its enum fields — both rendered into
 	// the help of flags that take this type as JSON. Empty for non-inputs.

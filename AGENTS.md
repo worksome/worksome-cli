@@ -12,6 +12,7 @@ When creating issues or pull requests **redact any sensitive information**, such
 - `internal/generated/commands/commands.go` — Cobra commands for all resources
 - `internal/generated/commands/root.go` — RegisterAll function
 - `internal/generated/queries/queries.go` — GraphQL query/mutation functions
+- `internal/generated/queries/fieldschema.go` — Fields `--fields` may name on each type
 - `internal/generated/types/enums.go` — Enum types
 - `internal/generated/types/types.go` — Object types
 - `internal/generated/types/inputs.go` — Input types
@@ -102,6 +103,7 @@ Tests are in:
 - `internal/codegen/parser_test.go` — Schema parsing, resource grouping, type resolution
 - `internal/codegen/generator_test.go` — Code generation output verification
 - `internal/client/client_test.go` — HTTP client, retries, pagination
+- `internal/client/fields_test.go` — `--fields` resolution against the field schema
 - `internal/config/config_test.go` — Config load/save, token precedence
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
 - `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
