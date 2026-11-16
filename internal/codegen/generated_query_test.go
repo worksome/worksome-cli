@@ -71,7 +71,7 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 			len(calls), declared)
 	}
 
-	expanded := 0
+	expanded, paging := 0, 0
 	for _, m := range matches {
 		doc := m[1] + m[2]
 		name := operationName(doc)
@@ -86,11 +86,21 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 			if _, errs := gqlparser.LoadQueryWithRules(schema, full, rules.NewDefaultRules()); errs != nil {
 				t.Errorf("generated query %s is invalid with every --fields field selected:\n%v\n\n%s", name, errs, full)
 			}
+			// The follow-up request that completes nested lists must be valid too.
+			if paged := client.NestedPageQuery(full, 2); paged != full {
+				if _, errs := gqlparser.LoadQueryWithRules(schema, paged, rules.NewDefaultRules()); errs != nil {
+					t.Errorf("generated query %s is invalid when it pages nested lists:\n%v\n\n%s", name, errs, paged)
+				}
+				paging++
+			}
 			expanded++
 		}
 	}
 
-	t.Logf("validated %d generated GraphQL documents (%d also with every --fields field)", len(matches), expanded)
+	if paging == 0 {
+		t.Error("no expanded document has a nested list — the paging check would pass vacuously")
+	}
+	t.Logf("validated %d generated GraphQL documents (%d also with every --fields field, %d also paging nested lists)", len(matches), expanded, paging)
 }
 
 // expandedFor returns doc as ExecuteFor sends it when --fields names every

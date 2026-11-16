@@ -165,7 +165,7 @@ func TestExecuteFor_SendsSelectedFields(t *testing.T) {
 	if err := c.ExecuteFor(context.Background(), timesheetsQuery, testSchema, "Timesheet", nil, nil); err != nil {
 		t.Fatalf("ExecuteFor() error = %v", err)
 	}
-	if !strings.Contains(wire[0], "data { id registrations { paginatorInfo { total } data { date } } }") {
+	if !strings.Contains(wire[0], "data { id registrations(first: 100) { paginatorInfo { total hasMorePages } data { date } } }") {
 		t.Errorf("wire query = %s, want registrations selected", wire[0])
 	}
 

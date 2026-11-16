@@ -104,6 +104,7 @@ Tests are in:
 - `internal/codegen/generator_test.go` — Code generation output verification
 - `internal/client/client_test.go` — HTTP client, retries, pagination
 - `internal/client/fields_test.go` — `--fields` resolution against the field schema
+- `internal/client/nested_test.go` — completing nested paginated lists
 - `internal/config/config_test.go` — Config load/save, token precedence
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
 - `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
