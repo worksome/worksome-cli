@@ -1739,9 +1739,9 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 	}
 }
 
-// Paginated relations are offered on request rather than selected by default
-// (one server query per row each); union-typed nested fields are selected by
-// default, since they are a single object. Neither was reachable before.
+// Paginated relations are left out of the default selection (one server query
+// per row each) and recorded in the field schema for --fields; union-typed
+// nested fields are selected by default, since they are a single object.
 func TestPaginatedRelationsAreOptionalAndUnionsSelected(t *testing.T) {
 	schema := `
 type Query {
@@ -1808,13 +1808,27 @@ type PaginatorInfo {
 		if strings.Contains(op.SelectionSet, "users") {
 			t.Errorf("%s: the default selection must not include the paginated relation: %s", op.Name, op.SelectionSet)
 		}
-		want := "users { paginatorInfo { total } data { id name email } }"
-		if got := op.Optional["users"]; got != want {
-			t.Errorf("%s: Optional[users] = %q, want %q", op.Name, got, want)
+		if op.ItemType != "UserGroup" {
+			t.Errorf("%s: ItemType = %q, want UserGroup", op.Name, op.ItemType)
 		}
-		if _, ok := op.Optional["audits"]; ok {
-			t.Errorf("%s: a relation with a required argument cannot be offered", op.Name)
+	}
+
+	fields := map[string]SelectableField{}
+	for _, st := range parsed.Selectable {
+		if st.Name == "UserGroupPaginator" {
+			t.Error("paginator wrappers must not be selectable types")
 		}
+		if st.Name == "UserGroup" {
+			for _, f := range st.Fields {
+				fields[f.Name] = f
+			}
+		}
+	}
+	if got := fields["users"]; got != (SelectableField{Name: "users", Type: "User", Paginated: true}) {
+		t.Errorf("users = %+v, want a paginated relation of User", got)
+	}
+	if got := fields["audits"]; !got.NeedsArgs {
+		t.Errorf("audits = %+v, want NeedsArgs: its argument has no default", got)
 	}
 
 	approvals := byName["approval-approvables"]
@@ -1824,8 +1838,10 @@ type PaginatorInfo {
 	if want := "approvable { __typename ... on Hire { id number status } }"; !strings.Contains(approvals.ListQuery.SelectionSet, want) {
 		t.Errorf("union field should be selected by default; selection = %s", approvals.ListQuery.SelectionSet)
 	}
-	if approvals.ListQuery.Optional != nil {
-		t.Errorf("no paginated relations on ApprovalApprovable, Optional should be nil, got %v", approvals.ListQuery.Optional)
+	for _, st := range parsed.Selectable {
+		if st.Name == "Approvable" && (!st.Union || st.Nested != "__typename ... on Hire { id number status }") {
+			t.Errorf("Approvable = %+v, want a union selecting its members' safe fields", st)
+		}
 	}
 }
 
