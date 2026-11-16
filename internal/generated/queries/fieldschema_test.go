@@ -18,6 +18,45 @@ import (
 	"github.com/worksome/worksome-cli/internal/client"
 )
 
+// capture serves an empty timesheets page and records the query sent.
+func capture(t *testing.T, sent *string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decoding request: %v", err)
+		}
+		*sent = req.Query
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"timesheets":{"paginatorInfo":{"hasMorePages":false},"data":[]}}}`))
+	}))
+}
+
+// The default selection leaves a nested worker's contact details out; naming
+// them in --fields still selects them.
+func TestTimesheetsWorkerContactDetailsOnlyOnRequest(t *testing.T) {
+	var sent string
+	srv := capture(t, &sent)
+	defer srv.Close()
+
+	if _, err := NewQuerier(client.New(srv.URL, "token")).Timesheets(context.Background(), map[string]any{"first": 10}); err != nil {
+		t.Fatalf("Timesheets() error = %v", err)
+	}
+	if strings.Contains(sent, "email") || strings.Contains(sent, "phone") {
+		t.Errorf("default query selects contact details: %s", sent)
+	}
+
+	q := NewQuerier(client.New(srv.URL, "token", client.WithFields([]string{"id", "worker.email", "worker.phone"})))
+	if _, err := q.Timesheets(context.Background(), map[string]any{"first": 10}); err != nil {
+		t.Fatalf("Timesheets() error = %v", err)
+	}
+	if !strings.Contains(sent, "worker { email phone }") {
+		t.Errorf("--fields worker.email,worker.phone should select them: %s", sent)
+	}
+}
+
 // The acceptance case for --fields on timesheets: registration items, and the
 // hire's job and company, none of which the default query selects.
 func TestTimesheetsFieldsReachTheWholeSchema(t *testing.T) {

@@ -1099,9 +1099,7 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 
 	// Build selection set from return type
 	op.SelectionSet = p.buildSelectionSet(f.Type, 1)
-	if opType == OperationQuery {
-		op.ItemType = p.itemType(f.Type)
-	}
+	op.ItemType = p.itemType(f.Type)
 
 	// For mutations with a single input argument, resolve the input type's fields as CLI flags
 	if opType == OperationMutation {
@@ -1431,11 +1429,15 @@ func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) 
 // "state" admits an approval's workflow state and an address's geographic one
 // alike. Type-scoped keys ("Type.field") would match on meaning rather than
 // spelling; not needed while every entry here is safe on all its homonyms.
+//
+// Personal contact details (email, phone) are left out: a list of timesheets
+// should not copy every worker's email into a report by default. --fields
+// still selects them on request (worker.email).
 var safeNestedFields = map[string]bool{
-	"id": true, "name": true, "email": true, "avatar": true,
+	"id": true, "name": true, "avatar": true,
 	"status": true, "type": true, "currency": true, "market": true,
 	"number": true, "description": true, "firstName": true, "lastName": true,
-	"middleName": true, "phone": true, "initials": true, "subject": true,
+	"middleName": true, "initials": true, "subject": true,
 	"url": true, "title": true, "label": true, "slug": true, "code": true,
 	"createdAt": true, "updatedAt": true, "startDate": true, "endDate": true,
 	// State fields. Without these a nested row is unreadable — a hire's
