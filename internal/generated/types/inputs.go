@@ -271,6 +271,14 @@ type CompanyClientOrderByClauseInput struct {
 	Order *SortOrder `json:"order,omitempty"`
 }
 
+// CompanyOrderByClauseInput — Sorting clause for a list of companies.
+type CompanyOrderByClauseInput struct {
+	// The field to sort a list of companies by.
+	Field *CompanyOrderByColumn `json:"field,omitempty"`
+	// The order to sort a list of companies by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
 // CreateApprovalInput — The input for creating a new approval flow. After creating the approval, use 'createApprovalRule' to add conditions and then 'createApprover' to assign user groups who will review matching items. Alternatively, use 'createWorkflow' to create the entire approval flow (root, rules, and approvers) in a single operation.
 type CreateApprovalInput struct {
 	// The display name for the approval flow.
@@ -385,6 +393,10 @@ type CreateCustomTimesheetInput struct {
 	Schema string `json:"schema"`
 	// The custom data for the timesheet.
 	Data string `json:"data"`
+	// The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.
+	Account *string `json:"account,omitempty"`
+	// Whether to write the timesheets. With false, the call is a dry run: it checks every row as a real call would and returns the result of each row in 'rows', without writing or queueing anything. A dry run checks at most 5,000 rows, and a request can hold one dry run. The default-csv schema checks every row during the request on a write too, so it refuses a file of more than 5,000 rows or 5 MB, and a request can hold one default-csv call, dry run or write. A roar-json dry run needs permission to see all hires in each of your companies. Defaults to true.
+	Write *bool `json:"write,omitempty"`
 }
 
 // CreateExpenseInput — The input for creating an expense.
@@ -605,7 +617,7 @@ type CreateSmsMultiFactorInput struct {
 
 // CreateSupplierCandidateInput — The details for adding a supplier candidate.
 type CreateSupplierCandidateInput struct {
-	// The supplier account that owns this candidate (Company or Recruiter).
+	// The company that acts as a supplier and owns this candidate. Staffing agencies use 'createRecruiterCandidate' instead.
 	Supplier string `json:"supplier"`
 	// The candidate first name.
 	FirstName string `json:"firstName"`
@@ -811,7 +823,7 @@ type CustomFieldTypeValueInput struct {
 	FileUpload *FileUploadCustomFieldValueInput `json:"fileUpload,omitempty"`
 	// The input custom field values representation of the 'DATE' field type.
 	Date *DateCustomFieldValueInput `json:"date,omitempty"`
-	// The input custom field values representation of the 'BOOLEAN' field type.
+	// The input custom field values representation of the 'BOOLEAN' field type. When filtering by a 'FILE_UPLOAD' field, 'true' matches records with at least one attached file and 'false' matches records with none.
 	Boolean *BooleanCustomFieldValueInput `json:"boolean,omitempty"`
 }
 
@@ -1285,7 +1297,7 @@ type OrderByClause struct {
 type OwnerInput struct {
 	// The user to assign as an owner.
 	User string `json:"user"`
-	// What this person looks after on the record. Grants no permissions.
+	// What this person looks after on the record. Grants no permissions. A new owner on a staffing agency's client link sent without one starts with the one their role at the agency suggests.
 	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
 }
 
