@@ -399,6 +399,12 @@ worksome timesheets list --fields id,startDate,registrations.date,registrations.
 - A paginated relation is read through its items, so `registrations.date` and
   `registrations.data.date` are the same path. The relation keeps its
   `paginatorInfo { total }`.
+- Nested lists are returned complete. The CLI asks for 100 items per nested
+  list and sends follow-up requests for any list that has more, up to 5,000
+  items per list. If a list still cannot be completed (more items than that,
+  a list inside another nested list, or rows that changed between requests),
+  the CLI prints a `warning:` on stderr that names the list and how many of
+  its items were fetched.
 - Paths reach at most four objects below the listed item, and cannot pass
   through one paginated relation into another.
 - An unknown field is an error that lists the fields valid at that level.

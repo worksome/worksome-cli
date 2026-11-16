@@ -307,8 +307,33 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 	return c.execute(ctx, query, variables, result)
 }
 
-// execute sends query as is.
+// execute sends query as is, completing nested paginated lists of a read
+// query, and decodes the data into result.
 func (c *Client) execute(ctx context.Context, query string, variables map[string]any, result any) error {
+	plan := planNestedPages(query)
+	if plan != nil {
+		query = plan.query
+	}
+	data, err := c.fetch(ctx, query, variables)
+	if err != nil {
+		return err
+	}
+	if plan != nil && hasData(data) {
+		if data, err = c.completeNested(ctx, plan, variables, data); err != nil {
+			return err
+		}
+	}
+	if result != nil && data != nil {
+		if err := json.Unmarshal(data, result); err != nil {
+			return fmt.Errorf("decoding data: %w", err)
+		}
+	}
+	return nil
+}
+
+// fetch sends query and returns the response's data, from the cache when one
+// is configured and holds it.
+func (c *Client) fetch(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
 	cacheable := c.cache != nil && isQuery(query)
 
 	// Check cache before making a network request.
@@ -317,12 +342,7 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 			if c.verbose {
 				log.Printf("[graphql] cache hit for query")
 			}
-			if result != nil {
-				if err := json.Unmarshal(data, result); err != nil {
-					return fmt.Errorf("decoding cached data: %w", err)
-				}
-			}
-			return nil
+			return data, nil
 		}
 	}
 
@@ -333,7 +353,7 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("marshaling request: %w", err)
+		return nil, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	if c.verbose {
@@ -347,17 +367,17 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 		if lastErr != nil {
 			// Don't retry non-transient errors (HTTP status codes, context cancellation).
 			if ctx.Err() != nil {
-				return fmt.Errorf("request cancelled: %w", ctx.Err())
+				return nil, fmt.Errorf("request cancelled: %w", ctx.Err())
 			}
 			var he *httpError
 			if errors.As(lastErr, &he) {
-				return lastErr
+				return nil, lastErr
 			}
 			// A certificate that doesn't verify won't start verifying on
 			// attempt three. Common in slim containers with no CA bundle.
 			var cve *tls.CertificateVerificationError
 			if errors.As(lastErr, &cve) {
-				return lastErr
+				return nil, lastErr
 			}
 			if c.verbose {
 				log.Printf("[graphql] attempt %d/%d failed: %v", attempt+1, maxRetries, lastErr)
@@ -367,7 +387,7 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 			case <-time.After(backoff):
 				continue
 			case <-ctx.Done():
-				return fmt.Errorf("request cancelled during backoff: %w", ctx.Err())
+				return nil, fmt.Errorf("request cancelled during backoff: %w", ctx.Err())
 			}
 		}
 
@@ -377,7 +397,7 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 
 		var gqlResp graphqlResponse
 		if err := json.Unmarshal(respBody, &gqlResp); err != nil {
-			return fmt.Errorf("decoding response: %w", err)
+			return nil, fmt.Errorf("decoding response: %w", err)
 		}
 
 		// GraphQL reports field-level failures in "errors" while still
@@ -387,7 +407,7 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 		// success: surface the failures on stderr and hand back the data.
 		partial := len(gqlResp.Errors) > 0
 		if partial && !hasData(gqlResp.Data) {
-			return gqlResp.Errors
+			return nil, gqlResp.Errors
 		}
 		if partial {
 			_, _ = fmt.Fprint(c.warnw, gqlResp.Errors.Warning())
@@ -400,16 +420,10 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 			c.cache.Set(query, variables, gqlResp.Data)
 		}
 
-		if result != nil && gqlResp.Data != nil {
-			if err := json.Unmarshal(gqlResp.Data, result); err != nil {
-				return fmt.Errorf("decoding data: %w", err)
-			}
-		}
-
-		return nil
+		return gqlResp.Data, nil
 	}
 
-	return fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // httpError is a non-retryable error indicating an unexpected HTTP status code.
