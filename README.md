@@ -314,6 +314,9 @@ worksome timesheets list --fields id,startDate,registrations.date,registrations.
 
 - Naming an object without subfields (`worker`, `hire.job`) selects its
   identifying fields.
+- Nested objects leave out personal contact details (`email`, `phone`) unless
+  you name them: `--fields id,worker.name,worker.email`. The listed item keeps
+  its own (`viewer get` still shows the viewer's email).
 - A paginated relation is read through its items, so `registrations.date` and
   `registrations.data.date` are the same path. The relation keeps its
   `paginatorInfo { total }`.

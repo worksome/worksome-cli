@@ -386,7 +386,7 @@ var FieldSchema = client.Schema{
 			"compliances":                  {Type: "Compliance"},
 			"notes":                        {Type: "Note", Paginated: true},
 		},
-		Nested: "id email status",
+		Nested: "id status",
 	},
 	"CompanySettings": {
 		Fields: map[string]client.FieldInfo{
@@ -713,7 +713,7 @@ var FieldSchema = client.Schema{
 			"displayValue":      {},
 			"file":              {Type: "File"},
 		},
-		Nested: "id displayValue appliesTo { __typename ... on Job { id name description market startDate endDate completed url updatedAt } ... on Contract { id startDate endDate } ... on TrustedContact { id } ... on CompanyRecruiter { id email } ... on CompanySupplier { id } ... on Expense { id description } ... on Hire { id title updatedAt startDate endDate } } customField { id title slug description createdAt updatedAt }",
+		Nested: "id displayValue appliesTo { __typename ... on Job { id name description market startDate endDate completed url updatedAt } ... on Contract { id startDate endDate } ... on TrustedContact { id } ... on CompanyRecruiter { id } ... on CompanySupplier { id } ... on Expense { id description } ... on Hire { id title updatedAt startDate endDate } } customField { id title slug description createdAt updatedAt }",
 	},
 	"CustomTimesheetFileRejection": {
 		Fields: map[string]client.FieldInfo{
@@ -1298,7 +1298,7 @@ var FieldSchema = client.Schema{
 		Nested: "__typename ... on ApprovalRule { id createdAt updatedAt }",
 	},
 	"Notable": {
-		Nested: "__typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on TrustedContact { id } ... on CompanyRecruiter { id email }",
+		Nested: "__typename ... on Job { id number name description market currency startDate endDate completed url updatedAt } ... on TrustedContact { id } ... on CompanyRecruiter { id }",
 	},
 	"Note": {
 		Fields: map[string]client.FieldInfo{
@@ -1590,7 +1590,7 @@ var FieldSchema = client.Schema{
 			"relationshipLabel": {},
 			"files":             {Type: "File", Paginated: true},
 		},
-		Nested: "id email status state",
+		Nested: "id status state",
 	},
 	"RecruiterStatusValue": {
 		Fields: map[string]client.FieldInfo{
@@ -1656,7 +1656,7 @@ var FieldSchema = client.Schema{
 			"tags":     {Type: "Tag"},
 			"files":    {Type: "File", Paginated: true},
 		},
-		Nested: "id email status",
+		Nested: "id status",
 	},
 	"SupplierClient": {
 		Fields: map[string]client.FieldInfo{
@@ -1688,7 +1688,7 @@ var FieldSchema = client.Schema{
 		Nested: "id number",
 	},
 	"SupportsCustomFieldValue": {
-		Nested: "__typename ... on Job { id name description market startDate endDate completed url updatedAt } ... on Contract { id startDate endDate } ... on TrustedContact { id } ... on CompanyRecruiter { id email } ... on CompanySupplier { id } ... on Expense { id description } ... on Hire { id title updatedAt startDate endDate }",
+		Nested: "__typename ... on Job { id name description market startDate endDate completed url updatedAt } ... on Contract { id startDate endDate } ... on TrustedContact { id } ... on CompanyRecruiter { id } ... on CompanySupplier { id } ... on Expense { id description } ... on Hire { id title updatedAt startDate endDate }",
 	},
 	"Tag": {
 		Fields: map[string]client.FieldInfo{
@@ -1852,7 +1852,7 @@ var FieldSchema = client.Schema{
 			"createdAt":                          {},
 			"updatedAt":                          {},
 		},
-		Nested: "id name email phone avatar createdAt updatedAt",
+		Nested: "id name avatar createdAt updatedAt",
 	},
 	"UserGroup": {
 		Fields: map[string]client.FieldInfo{
@@ -1972,7 +1972,7 @@ var FieldSchema = client.Schema{
 			"businessEntities":       {Type: "BusinessEntity", Paginated: true},
 			"hires":                  {Type: "Hire", Paginated: true, NeedsArgs: true},
 		},
-		Nested: "id name firstName lastName middleName email phone avatar initials currency",
+		Nested: "id name firstName lastName middleName avatar initials currency",
 	},
 	"WorkerIdentification": {
 		Fields: map[string]client.FieldInfo{
