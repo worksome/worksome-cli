@@ -435,8 +435,12 @@ func isPaginated(m map[string]any) bool {
 func filterPaginated(m map[string]any, fields []string) map[string]any {
 	out := map[string]any{"paginatorInfo": m["paginatorInfo"]}
 	var items []string
+	onlyInfo := true
 	for _, f := range fields {
 		head, rest, nested := strings.Cut(f, ".")
+		if head != "paginatorInfo" {
+			onlyInfo = false
+		}
 		switch {
 		case head == "paginatorInfo":
 		case head == "data" && !nested:
@@ -447,6 +451,9 @@ func filterPaginated(m map[string]any, fields []string) map[string]any {
 		default:
 			items = append(items, f)
 		}
+	}
+	if onlyInfo {
+		return out
 	}
 	if len(items) == 0 {
 		out["data"] = m["data"]

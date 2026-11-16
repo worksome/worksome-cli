@@ -1078,3 +1078,14 @@ func TestFilterFields_paginatedRelation(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterFields_paginatorInfoOnly(t *testing.T) {
+	data := map[string]any{"registrations": map[string]any{
+		"paginatorInfo": map[string]any{"total": float64(2)},
+		"data":          []any{map[string]any{"date": "d"}},
+	}}
+	want := map[string]any{"registrations": map[string]any{"paginatorInfo": map[string]any{"total": float64(2)}}}
+	if got := FilterFields(data, []string{"registrations.paginatorInfo.total"}); !reflect.DeepEqual(got, want) {
+		t.Errorf("FilterFields() = %#v, want %#v", got, want)
+	}
+}

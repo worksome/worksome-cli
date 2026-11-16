@@ -72,6 +72,17 @@ func TestSelectFields_PaginatorInfoFields(t *testing.T) {
 	}
 }
 
+// Naming only paginatorInfo counts the items without fetching them, and the
+// relation itself plus a paginatorInfo field keeps both.
+func TestSelectFields_PaginatorInfoOnly(t *testing.T) {
+	if got := mustSelect(t, "registrations.paginatorInfo.total"); !strings.Contains(got, "data { registrations { paginatorInfo { total } } }") {
+		t.Errorf("selectFields() = %s, want no items fetched", got)
+	}
+	if got := mustSelect(t, "registrations.paginatorInfo", "registrations.paginatorInfo.hasMorePages"); !strings.Contains(got, "registrations { paginatorInfo { total hasMorePages } }") {
+		t.Errorf("selectFields() = %s, want hasMorePages merged into the leaf paginatorInfo", got)
+	}
+}
+
 func TestSelectFields_ObjectKeepsDefaultSubtreeAndMerges(t *testing.T) {
 	if got := mustSelect(t, "worker"); !strings.Contains(got, "data { worker { id name } }") {
 		t.Errorf("selectFields(worker) = %s, want the default worker subtree", got)

@@ -186,31 +186,35 @@ func resolvePaginated(schema Schema, def *selection, name, itemType string, tail
 			itemTails = append(itemTails, t)
 		}
 	}
-	if len(itemTails) == 0 {
-		itemTails = [][]string{{}}
-	}
-
-	items, err := resolveObject(schema, childrenOf(defData), itemType, itemTails, path, depth, true)
-	if err != nil {
-		return nil, err
+	// Only paginatorInfo named: the items are not fetched at all.
+	var items []*selection
+	if len(itemTails) > 0 || len(infoTails) == 0 {
+		if len(itemTails) == 0 {
+			itemTails = [][]string{{}}
+		}
+		var err error
+		if items, err = resolveObject(schema, childrenOf(defData), itemType, itemTails, path, depth, true); err != nil {
+			return nil, err
+		}
 	}
 
 	info := defInfo
 	if info == nil {
 		info = &selection{head: "paginatorInfo", key: "paginatorInfo", children: []*selection{{head: "total", key: "total"}}}
 	}
-	if len(infoTails) > 0 && !hasLeaf(infoTails) {
-		extra, err := resolveFields(schema, nil, paginatorInfoType, infoTails, path+".paginatorInfo.", depth, true)
+	if deeper := nonEmpty(infoTails); len(deeper) > 0 {
+		extra, err := resolveFields(schema, nil, paginatorInfoType, deeper, path+".paginatorInfo.", depth, true)
 		if err != nil {
 			return nil, err
 		}
 		info = &selection{head: info.head, key: info.key, children: mergeSelections(info.children, extra)}
 	}
 
-	return &selection{head: headOf(def, name), key: name, children: []*selection{
-		info,
-		{head: "data", key: "data", children: items},
-	}}, nil
+	children := []*selection{info}
+	if len(items) > 0 {
+		children = append(children, &selection{head: "data", key: "data", children: items})
+	}
+	return &selection{head: headOf(def, name), key: name, children: children}, nil
 }
 
 // keepDefault narrows a default selection that has no schema entry.
