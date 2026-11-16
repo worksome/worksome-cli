@@ -60,7 +60,7 @@ func TestSelectFields_DataSegmentIsOptional(t *testing.T) {
 
 func TestSelectFields_RelationWithoutSubfieldsUsesNestedSelection(t *testing.T) {
 	got := mustSelect(t, "registrations")
-	if !strings.Contains(got, "data { registrations { paginatorInfo { total } data { id type } } }") {
+	if !strings.Contains(got, "data { registrations { paginatorInfo { total } data { id type } } id }") {
 		t.Errorf("selectFields() = %s, want the registration's nested selection", got)
 	}
 }
@@ -75,7 +75,7 @@ func TestSelectFields_PaginatorInfoFields(t *testing.T) {
 // Naming only paginatorInfo counts the items without fetching them, and the
 // relation itself plus a paginatorInfo field keeps both.
 func TestSelectFields_PaginatorInfoOnly(t *testing.T) {
-	if got := mustSelect(t, "registrations.paginatorInfo.total"); !strings.Contains(got, "data { registrations { paginatorInfo { total } } }") {
+	if got := mustSelect(t, "registrations.paginatorInfo.total"); !strings.Contains(got, "data { registrations { paginatorInfo { total } } id }") {
 		t.Errorf("selectFields() = %s, want no items fetched", got)
 	}
 	if got := mustSelect(t, "registrations.paginatorInfo", "registrations.paginatorInfo.hasMorePages"); !strings.Contains(got, "registrations { paginatorInfo { total hasMorePages } }") {
@@ -165,7 +165,7 @@ func TestExecuteFor_SendsSelectedFields(t *testing.T) {
 	if err := c.ExecuteFor(context.Background(), timesheetsQuery, testSchema, "Timesheet", nil, nil); err != nil {
 		t.Fatalf("ExecuteFor() error = %v", err)
 	}
-	if !strings.Contains(wire[0], "data { id registrations { paginatorInfo { total } data { date } } }") {
+	if !strings.Contains(wire[0], "data { id registrations(first: 100) { paginatorInfo { total hasMorePages } data { date } } }") {
 		t.Errorf("wire query = %s, want registrations selected", wire[0])
 	}
 
@@ -188,5 +188,16 @@ func TestParseOperation_DataFieldWithoutPaginatorInfo(t *testing.T) {
 	}
 	if want := `query Compliance($id: ID!) { compliance(id: $id) { name } }`; got != want {
 		t.Errorf("pruneQuery() = %s, want %s", got, want)
+	}
+}
+
+// A paginated relation brings its row's id along, so later pages can be
+// matched to the row (JIRA-18748); the output filter drops it again.
+func TestSelectFields_RelationAddsRowID(t *testing.T) {
+	if got := mustSelect(t, "registrations.date"); !strings.Contains(got, "data { registrations { paginatorInfo { total } data { date } } id }") {
+		t.Errorf("selectFields() = %s, want id added beside registrations", got)
+	}
+	if got := mustSelect(t, "startDate"); strings.Contains(got, "data { startDate id }") {
+		t.Errorf("selectFields() = %s, want id only beside a paginated relation", got)
 	}
 }
