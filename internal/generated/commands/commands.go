@@ -2358,9 +2358,9 @@ var batchesColumns = []output.Column{
 	{Header: "Type", Field: "type"},
 	{Header: "Account ID", Field: "account.id"},
 	{Header: "Account Name", Field: "account.name"},
+	{Header: "Writes Finished At", Field: "writesFinishedAt"},
 	{Header: "Created At", Field: "createdAt"},
 	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Deleted At", Field: "deletedAt"},
 }
 
 // NewBatchesCmd creates the batches resource command.
@@ -2579,9 +2579,9 @@ var batchesCreateColumns = []output.Column{
 	{Header: "Type", Field: "type"},
 	{Header: "Account ID", Field: "account.id"},
 	{Header: "Account Name", Field: "account.name"},
+	{Header: "Writes Finished At", Field: "writesFinishedAt"},
 	{Header: "Created At", Field: "createdAt"},
 	{Header: "Updated At", Field: "updatedAt"},
-	{Header: "Deleted At", Field: "deletedAt"},
 }
 
 func newBatchesCreateCmd() *cobra.Command {
@@ -7141,7 +7141,7 @@ func NewDefaultClientOwnerFilterCmd() *cobra.Command {
 func newDefaultClientOwnerFilterGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get",
-		Short:   "Whether client work lists should default to the viewer's own clients: the viewer works for a supplier company without full access and is assigned to at least one of its clients.",
+		Short:   "Whether client work lists should default to the viewer's own clients: the viewer works for a supplier company or staffing agency without full access and is assigned to at least one of its clients.",
 		Example: "  worksome default-client-owner-filter get <id>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
@@ -20071,6 +20071,8 @@ var timesheetsCreateCustomColumns = []output.Column{
 	{Header: "Provided Registrations", Field: "providedRegistrations"},
 	{Header: "Successful Registrations", Field: "successfulRegistrations"},
 	{Header: "Rows Status", Field: "rows.status"},
+	{Header: "Batch ID", Field: "batch.id"},
+	{Header: "Batch Name", Field: "batch.name"},
 }
 
 func newTimesheetsCreateCustomCmd() *cobra.Command {
@@ -20169,7 +20171,7 @@ func newTimesheetsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",
 		Short:   "Create a timesheet. Only workers can create timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome timesheets create --input payload.json\n\n  # Using flags:\n  worksome timesheets create --worker \\\"value\\\" --hire \\\"value\\\" --start-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"hire\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"payItem\": \"<id>\",\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\",\n    \"worker\": \"<id>\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
@@ -20338,7 +20340,7 @@ func newTimesheetsUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Short:   "Update a timesheet. Only workers can update timesheets.",
-		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
+		Example: "  # Using a JSON input file:\n  worksome timesheets update --input payload.json\n\n  # Using flags:\n  worksome timesheets update --id \\\"value\\\" --start-date \\\"value\\\" --end-date \\\"value\\\"\n\n  # Example payload.json:\n  {\n    \"endDate\": \"2024-01-01\",\n    \"files\": [\n      \"<id>\"\n    ],\n    \"id\": \"<id>\",\n    \"registrations\": [\n      {\n        \"comments\": \"...\",\n        \"customFieldValues\": [\n          {\n            \"boolean\": {},\n            \"date\": {},\n            \"fileUpload\": {},\n            \"freeText\": {},\n            \"multiSelect\": {},\n            \"singleSelect\": {}\n          }\n        ],\n        \"date\": \"2024-01-01\",\n        \"duration\": 0,\n        \"endTime\": \"12:00:00\",\n        \"externalIdentifier\": \"...\",\n        \"invoiceReferenceNumber\": \"...\",\n        \"isBillable\": false,\n        \"payItem\": \"<id>\",\n        \"startTime\": \"12:00:00\",\n        \"type\": \"DAY\",\n        \"unit\": \"HOURS\"\n      }\n    ],\n    \"startDate\": \"2024-01-01\"\n  }",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate output format
 			if outputFlag, _ := cmd.Flags().GetString("output"); outputFlag != "" {
