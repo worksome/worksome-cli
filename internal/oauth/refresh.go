@@ -20,6 +20,10 @@ func NeedsRefresh(p config.Profile, now time.Time) bool {
 	if p.RefreshToken == "" {
 		return false
 	}
+	// No expires_in was issued: renewing on every command would gain nothing, so use the token as is.
+	if p.ExpiresAt == "" {
+		return false
+	}
 	expiry, ok := p.Expiry()
 	if !ok {
 		// An OAuth session with an unreadable expiry: refresh, which either

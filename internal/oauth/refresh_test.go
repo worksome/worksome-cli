@@ -23,6 +23,7 @@ func TestNeedsRefresh(t *testing.T) {
 		{"inside the leeway", config.Profile{Token: "a", RefreshToken: "r", ExpiresAt: stamp(RefreshLeeway - time.Minute)}, true},
 		{"already expired", config.Profile{Token: "a", RefreshToken: "r", ExpiresAt: stamp(-time.Minute)}, true},
 		{"session with unreadable expiry", config.Profile{Token: "a", RefreshToken: "r", ExpiresAt: "yesterday"}, true},
+		{"session issued without expires_in", config.Profile{Token: "a", RefreshToken: "r"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
