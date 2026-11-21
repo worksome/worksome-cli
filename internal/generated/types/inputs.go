@@ -1673,6 +1673,8 @@ type TimesheetRegistrationInput struct {
 	IsBillable *bool `json:"isBillable,omitempty"`
 	// The custom fields for the timesheet registration.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
+	// **Experimental.** The pay item the time on this line is logged against. Only a 'LINE' registration can have one. It must be billable and logged in the unit of the hire's contract in force on the line's date: hours on an hourly contract, days on a daily one. A newly chosen pay item must be on that contract, priced per hour or per day to match. A line can keep a pay item that the timesheet's saved lines carry on dates under the same contract.
+	PayItem *string `json:"payItem,omitempty"`
 }
 
 // TrustedContactOrderByClauseInput — Trusted contact sorting clause input.

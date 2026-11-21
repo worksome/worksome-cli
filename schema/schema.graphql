@@ -1047,6 +1047,10 @@ type Batch {
     status: [BatchItemStatus!]!
   ): Int!
   """
+  For a timesheet-import batch, when its timesheets finished being written; until then the import is still writing. Null for other batch types.
+  """
+  writesFinishedAt: DateTime
+  """
   The date and time when the batch was created.
   """
   createdAt: DateTime!
@@ -2359,6 +2363,12 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   """
   recruiterManagesMixedMode: Boolean!
   """
+  Whether referral staffing agencies' referral fees for this company's jobs are handled in Worksome.
+  
+  When false, referral fees are handled outside Worksome, so none can be set on staffing agency relationships, candidate submissions or hires.
+  """
+  referralFeesAllowed: Boolean!
+  """
   **Experimental.** The rate card band that applies to a job this company has not
   saved yet, such as a new brief on the direct-hire page.
   
@@ -3133,6 +3143,10 @@ recorded answer (if any).
 """
 type ComplianceDataClassification {
   """
+  The heading for this group of questions, such as who answers them. Null when the questions are not grouped.
+  """
+  title: String
+  """
   The answered questions that make up the classification.
   """
   questions: [ComplianceClassificationQuestion!]!
@@ -3843,6 +3857,23 @@ type Contract {
   hire. Anyone else reads an empty list.
   """
   payItems: [PayItemAssignment!]!
+  """
+  **Experimental.** The pay items a line on a Worksome timesheet under this contract can carry,
+  with the contract's price: its per-unit pay items in the unit it is logged in, hours on an
+  hourly contract and days on a daily one. Empty for a contract on another rate type.
+  
+  With a timesheet of this contract's hire, a pay item that a saved line of the timesheet carries
+  on a date under this contract stays in the list after the contract drops it, without a price.
+  
+  Readable by those who can read payItems. Anyone else reads an empty list.
+  """
+  timesheetLinePayItems(
+    """
+    A timesheet of this contract's hire whose saved lines keep their pay items. A timesheet of
+    another hire is ignored.
+    """
+    timesheet: ID
+  ): [TimesheetLinePayItem!]!
   """
   The latest milestone details at the time of creation of the contract.
   """
@@ -5393,6 +5424,10 @@ type CreateCustomTimeSheetResponse {
   Why the whole file was refused. Null when the submission was accepted for checking. When set, `rows` is empty and nothing was written. Only the default-csv schema refuses a whole file.
   """
   fileRejection: CustomTimesheetFileRejection
+  """
+  The timesheet-import batch this call created. Its items are the timesheets the call writes, which are written after the call returns. Null for a dry run, for a call that writes no row, and for the roar-json schema.
+  """
+  batch: Batch
 }
 """
 An input for creating a custom timesheet.
@@ -6656,7 +6691,7 @@ enum CustomTimesheetFileRejectionReason {
   FILE_TOO_LARGE
 }
 """
-The reason a timesheet registration was rejected by Worksome.
+The reason a timesheet registration was rejected, or a timesheet was blocked, by Worksome.
 """
 enum CustomTimesheetRejectionReason {
   """
@@ -6671,6 +6706,30 @@ enum CustomTimesheetRejectionReason {
   The reportedDate falls outside the hire's contract start/end dates.
   """
   DATE_OUTSIDE_CONTRACT_PERIOD
+  """
+  The timesheet's billing period overlaps another live payment request on the hire.
+  """
+  OVERLAPS_LIVE_PAYMENT_REQUEST
+  """
+  Another payment request already bills days in this period on the same hire.
+  """
+  PERIOD_ALREADY_BILLED
+  """
+  The timesheet's week crosses a contract rate change that can't be billed automatically.
+  """
+  RATE_CHANGE_CANNOT_BE_SPLIT
+  """
+  The contract in effect for the timesheet has a rate type that isn't supported.
+  """
+  UNSUPPORTED_RATE_TYPE
+  """
+  The payment request calculated from the timesheet would total zero.
+  """
+  ZERO_TOTAL_AMOUNT
+  """
+  An unexpected error prevented the timesheet from being processed, or an import row from being written. Nothing was written for that import row’s hire and week.
+  """
+  PROCESSING_FAILED
   """
   Another row in the same submission has the same hire and reportedDate, or the same hire, externalId and reportedDate. Every copy is rejected.
   """
@@ -6700,7 +6759,7 @@ enum CustomTimesheetRejectionReason {
   """
   HIRE_IDENTIFIERS_MISMATCH
   """
-  A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD, a payable value that is not yes or no, or a line field value its field cannot take.
+  A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD or a payable value that is not yes or no.
   """
   UNREADABLE_LINE
   """
@@ -6711,6 +6770,22 @@ enum CustomTimesheetRejectionReason {
   The worker has several active hires on the reportedDate. The row is stored without a hire and is never billed.
   """
   ROAR_MULTIPLE_ACTIVE_HIRES
+  """
+  The timesheet is, or will be, blocked (WIP corrected, not payroll, already blocked, or already has a payment request), so no new or changed hours on it are billed until someone reviews it.
+  """
+  TIMESHEET_BLOCKED
+  """
+  An earlier import is still processing the same hire and week. Send the row again once that import has finished.
+  """
+  STILL_PROCESSING
+  """
+  A timesheet line custom field of the row's hire has a value it cannot take, such as a label that is not one of its options, or a required one has no value. The row's `customField` names the field.
+  """
+  INVALID_CUSTOM_FIELD_VALUE
+  """
+  The row's hire requires a timesheet line custom field that an import cannot fill: a multi-select or file-upload field, or a field without a slug, which has no template column. None of the hire's rows can be imported. The row's `customField` names the field.
+  """
+  REQUIRED_FIELD_CANNOT_BE_IMPORTED
 }
 """
 The result of one submitted timesheet row.
@@ -6752,6 +6827,10 @@ type CustomTimesheetRowResult {
   Human-readable explanation, suitable for logs or display to the client's operator. Set whenever `reason` is set.
   """
   message: String
+  """
+  The timesheet line custom field the reason refers to: set when the reason is `INVALID_CUSTOM_FIELD_VALUE` or `REQUIRED_FIELD_CANNOT_BE_IMPORTED`, null otherwise. A problem that rejects every row of the hire (two line fields sharing a slug, or a required field the import cannot fill) names its own field, before any value is checked. Otherwise, when several fields of the row fail, the first in template column order.
+  """
+  customField: TimesheetImportCustomField
 }
 """
 What happens, or would happen with write set to false, to one submitted timesheet row.
@@ -8464,6 +8543,10 @@ type Hire implements Ownable {
   """
   supplierSignatureWaived: Boolean
   """
+  Whether a staffing agency referral fee can be set on this hire. When false, the client handles referral fees outside Worksome.
+  """
+  referralFeesAllowed: Boolean!
+  """
   Whether the assigned recruiter can be removed from the hire.
   """
   canRemoveRecruiter: Boolean
@@ -8569,6 +8652,16 @@ type Hire implements Ownable {
   Only resolved for viewers on the company at either end of the link.
   """
   supplierHire: Hire
+  """
+  The client relation between the hire's company (the client) and the company supplying it (the MSP).
+  Both sides get the same relation. Null unless a company supplies the hire, or when the viewer is on neither side.
+  """
+  clientRelation: CompanySupplier
+  """
+  The hiring company's relation with the hire's staffing agency.
+  Null without an agency, and only resolved for viewers on the hiring company.
+  """
+  staffingAgencyRelation: CompanyRecruiter
   """
   The end client of a supplier-mirror hire. Null for other hires.
   Resolved for viewers on the hire's company or its supplier.
@@ -14096,7 +14189,7 @@ type Query {
   ): CompanyRecruiter
   """
   Whether client work lists should default to the viewer's own clients: the viewer works for a supplier
-  company without full access and is assigned to at least one of its clients.
+  company or staffing agency without full access and is assigned to at least one of its clients.
   """
   defaultClientOwnerFilter: Boolean!
   """
@@ -18355,6 +18448,11 @@ type Timesheet {
   """
   createdAt: DateTime!
   """
+  The reasons the timesheet is blocked from automatic payment request creation. Empty when the
+  timesheet isn't blocked.
+  """
+  blockingReasons: [TimesheetBlockingReason!]!
+  """
   The payment requests created on the timesheet.
   """
   paymentRequests(
@@ -18412,6 +18510,24 @@ type Timesheet {
   ): OvertimePaginator!
 }
 """
+A reason an imported timesheet is blocked from automatic payment request creation.
+"""
+type TimesheetBlockingReason {
+  """
+  The reason the timesheet is blocked.
+  """
+  reason: CustomTimesheetRejectionReason!
+  """
+  The payment request this reason refers to, scoped to the viewer. Null when the reason doesn't
+  refer to a payment request, or the viewer is an end client with no payment request of their own.
+  """
+  paymentRequest: PaymentRequest
+  """
+  The date this reason refers to, when relevant.
+  """
+  date: Date
+}
+"""
 A custom field as a timesheet import shows it: only its ID, title and slug, never its values.
 """
 type TimesheetImportCustomField {
@@ -18424,7 +18540,7 @@ type TimesheetImportCustomField {
   """
   title: String!
   """
-  The slug of the custom field, used in its template column name. Unique only within the account that owns the field.
+  The slug of the custom field, used in its template column name. Unique only within the account that owns the field. Empty for a field without a slug, which has no template column.
   """
   slug: String!
 }
@@ -18460,6 +18576,28 @@ type TimesheetImportTemplate {
   The hire custom field options whose slug another option has. A template with one of them as its extra hire identifier cannot be downloaded, because its column would name more than one field.
   """
   hireFieldOptionsSharingSlug: [TimesheetImportCustomField!]!
+}
+"""
+**Experimental.** A pay item a timesheet line can carry, with the price the contract pays for it.
+"""
+type TimesheetLinePayItem {
+  """
+  The pay item.
+  """
+  payItem: AssignedPayItem!
+  """
+  The price the contract pays per unit, in currency. Absent when the contract sets no price or no
+  longer offers the pay item.
+  """
+  amount: DecimalTwo
+  """
+  The currency of the price. Absent when there is no price.
+  """
+  currency: Currency
+  """
+  The unit a line with this pay item is logged in.
+  """
+  unit: TimesheetRegistrationDurationUnit!
 }
 """
 A paginated list of Timesheet items.
@@ -18526,6 +18664,11 @@ type TimesheetRegistration {
   The custom fields values for the timesheet registration.
   """
   customFieldValues: [CustomFieldValue!]!
+  """
+  **Experimental.** The pay item the time on this line is logged against, or null when the
+  registration has none.
+  """
+  payItem: AssignedPayItem
 }
 """
 The unit of a duration for a timesheet registration.
@@ -18588,6 +18731,14 @@ input TimesheetRegistrationInput {
   The custom fields for the timesheet registration.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
+  """
+  **Experimental.** The pay item the time on this line is logged against. Only a `LINE`
+  registration can have one. It must be billable and logged in the unit of the hire's
+  contract in force on the line's date: hours on an hourly contract, days on a daily one. A
+  newly chosen pay item must be on that contract, priced per hour or per day to match. A line
+  can keep a pay item that the timesheet's saved lines carry on dates under the same contract.
+  """
+  payItem: ID
 }
 """
 A paginated list of TimesheetRegistration items.
@@ -21066,6 +21217,16 @@ type Worker implements Account {
     """
     account: ID!
   ): Boolean!
+  """
+  Names of the other divisions in the given company's organisations that have an active hire with the worker.
+  Empty unless the organisation shares trusted contacts and active hires between its divisions.
+  """
+  hiredByOtherDivisions(
+    """
+    The ID of the viewer's company account.
+    """
+    account: ID!
+  ): [String!]!
   """
   A list of relations between the worker and a company as seen from the workers perspective.
   """

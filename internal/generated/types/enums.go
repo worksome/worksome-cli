@@ -2164,7 +2164,7 @@ func ValidCustomTimesheetFileRejectionReason() []CustomTimesheetFileRejectionRea
 	}
 }
 
-// CustomTimesheetRejectionReason — The reason a timesheet registration was rejected by Worksome.
+// CustomTimesheetRejectionReason — The reason a timesheet registration was rejected, or a timesheet was blocked, by Worksome.
 type CustomTimesheetRejectionReason string
 
 const (
@@ -2174,6 +2174,18 @@ const (
 	CustomTimesheetRejectionReasonHireNotFound CustomTimesheetRejectionReason = "HIRE_NOT_FOUND"
 	// CustomTimesheetRejectionReasonDateOutsideContractPeriod — The reportedDate falls outside the hire's contract start/end dates.
 	CustomTimesheetRejectionReasonDateOutsideContractPeriod CustomTimesheetRejectionReason = "DATE_OUTSIDE_CONTRACT_PERIOD"
+	// CustomTimesheetRejectionReasonOverlapsLivePaymentRequest — The timesheet's billing period overlaps another live payment request on the hire.
+	CustomTimesheetRejectionReasonOverlapsLivePaymentRequest CustomTimesheetRejectionReason = "OVERLAPS_LIVE_PAYMENT_REQUEST"
+	// CustomTimesheetRejectionReasonPeriodAlreadyBilled — Another payment request already bills days in this period on the same hire.
+	CustomTimesheetRejectionReasonPeriodAlreadyBilled CustomTimesheetRejectionReason = "PERIOD_ALREADY_BILLED"
+	// CustomTimesheetRejectionReasonRateChangeCannotBeSplit — The timesheet's week crosses a contract rate change that can't be billed automatically.
+	CustomTimesheetRejectionReasonRateChangeCannotBeSplit CustomTimesheetRejectionReason = "RATE_CHANGE_CANNOT_BE_SPLIT"
+	// CustomTimesheetRejectionReasonUnsupportedRateType — The contract in effect for the timesheet has a rate type that isn't supported.
+	CustomTimesheetRejectionReasonUnsupportedRateType CustomTimesheetRejectionReason = "UNSUPPORTED_RATE_TYPE"
+	// CustomTimesheetRejectionReasonZeroTotalAmount — The payment request calculated from the timesheet would total zero.
+	CustomTimesheetRejectionReasonZeroTotalAmount CustomTimesheetRejectionReason = "ZERO_TOTAL_AMOUNT"
+	// CustomTimesheetRejectionReasonProcessingFailed — An unexpected error prevented the timesheet from being processed, or an import row from being written. Nothing was written for that import row’s hire and week.
+	CustomTimesheetRejectionReasonProcessingFailed CustomTimesheetRejectionReason = "PROCESSING_FAILED"
 	// CustomTimesheetRejectionReasonDuplicateRow — Another row in the same submission has the same hire and reportedDate, or the same hire, externalId and reportedDate. Every copy is rejected.
 	CustomTimesheetRejectionReasonDuplicateRow CustomTimesheetRejectionReason = "DUPLICATE_ROW"
 	// CustomTimesheetRejectionReasonHoursAlreadyRegistered — The hire already has hours registered on the reportedDate, and this import only adds hours.
@@ -2188,12 +2200,20 @@ const (
 	CustomTimesheetRejectionReasonMultipleHiresMatched CustomTimesheetRejectionReason = "MULTIPLE_HIRES_MATCHED"
 	// CustomTimesheetRejectionReasonHireIdentifiersMismatch — The hire identifiers on the CSV row point to different hires.
 	CustomTimesheetRejectionReasonHireIdentifiersMismatch CustomTimesheetRejectionReason = "HIRE_IDENTIFIERS_MISMATCH"
-	// CustomTimesheetRejectionReasonUnreadableLine — A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD, a payable value that is not yes or no, or a line field value its field cannot take.
+	// CustomTimesheetRejectionReasonUnreadableLine — A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD or a payable value that is not yes or no.
 	CustomTimesheetRejectionReasonUnreadableLine CustomTimesheetRejectionReason = "UNREADABLE_LINE"
 	// CustomTimesheetRejectionReasonRoarWorkerNotIdentified — No worker was found for the row's CSID. The row is stored without a worker and is never billed.
 	CustomTimesheetRejectionReasonRoarWorkerNotIdentified CustomTimesheetRejectionReason = "ROAR_WORKER_NOT_IDENTIFIED"
 	// CustomTimesheetRejectionReasonRoarMultipleActiveHires — The worker has several active hires on the reportedDate. The row is stored without a hire and is never billed.
 	CustomTimesheetRejectionReasonRoarMultipleActiveHires CustomTimesheetRejectionReason = "ROAR_MULTIPLE_ACTIVE_HIRES"
+	// CustomTimesheetRejectionReasonTimesheetBlocked — The timesheet is, or will be, blocked (WIP corrected, not payroll, already blocked, or already has a payment request), so no new or changed hours on it are billed until someone reviews it.
+	CustomTimesheetRejectionReasonTimesheetBlocked CustomTimesheetRejectionReason = "TIMESHEET_BLOCKED"
+	// CustomTimesheetRejectionReasonStillProcessing — An earlier import is still processing the same hire and week. Send the row again once that import has finished.
+	CustomTimesheetRejectionReasonStillProcessing CustomTimesheetRejectionReason = "STILL_PROCESSING"
+	// CustomTimesheetRejectionReasonInvalidCustomFieldValue — A timesheet line custom field of the row's hire has a value it cannot take, such as a label that is not one of its options, or a required one has no value. The row's 'customField' names the field.
+	CustomTimesheetRejectionReasonInvalidCustomFieldValue CustomTimesheetRejectionReason = "INVALID_CUSTOM_FIELD_VALUE"
+	// CustomTimesheetRejectionReasonRequiredFieldCannotBeImported — The row's hire requires a timesheet line custom field that an import cannot fill: a multi-select or file-upload field, or a field without a slug, which has no template column. None of the hire's rows can be imported. The row's 'customField' names the field.
+	CustomTimesheetRejectionReasonRequiredFieldCannotBeImported CustomTimesheetRejectionReason = "REQUIRED_FIELD_CANNOT_BE_IMPORTED"
 )
 
 // ValidCustomTimesheetRejectionReason returns all valid values for CustomTimesheetRejectionReason.
@@ -2202,6 +2222,12 @@ func ValidCustomTimesheetRejectionReason() []CustomTimesheetRejectionReason {
 		CustomTimesheetRejectionReasonMissingRequiredField,
 		CustomTimesheetRejectionReasonHireNotFound,
 		CustomTimesheetRejectionReasonDateOutsideContractPeriod,
+		CustomTimesheetRejectionReasonOverlapsLivePaymentRequest,
+		CustomTimesheetRejectionReasonPeriodAlreadyBilled,
+		CustomTimesheetRejectionReasonRateChangeCannotBeSplit,
+		CustomTimesheetRejectionReasonUnsupportedRateType,
+		CustomTimesheetRejectionReasonZeroTotalAmount,
+		CustomTimesheetRejectionReasonProcessingFailed,
 		CustomTimesheetRejectionReasonDuplicateRow,
 		CustomTimesheetRejectionReasonHoursAlreadyRegistered,
 		CustomTimesheetRejectionReasonLivePaymentRequestInWeek,
@@ -2212,6 +2238,10 @@ func ValidCustomTimesheetRejectionReason() []CustomTimesheetRejectionReason {
 		CustomTimesheetRejectionReasonUnreadableLine,
 		CustomTimesheetRejectionReasonRoarWorkerNotIdentified,
 		CustomTimesheetRejectionReasonRoarMultipleActiveHires,
+		CustomTimesheetRejectionReasonTimesheetBlocked,
+		CustomTimesheetRejectionReasonStillProcessing,
+		CustomTimesheetRejectionReasonInvalidCustomFieldValue,
+		CustomTimesheetRejectionReasonRequiredFieldCannotBeImported,
 	}
 }
 

@@ -314,6 +314,8 @@ type Batch struct {
 	Account *Account `json:"account"`
 	// The number of items in the batch that have the specified statuses.
 	ItemsCountByStatus int `json:"itemsCountByStatus"`
+	// For a timesheet-import batch, when its timesheets finished being written; until then the import is still writing. Null for other batch types.
+	WritesFinishedAt *string `json:"writesFinishedAt,omitempty"`
 	// The date and time when the batch was created.
 	CreatedAt string `json:"createdAt"`
 	// The date and time when the batch was last updated.
@@ -676,6 +678,8 @@ type Company struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether staffing agency relationships can be individually configured as managed or referral. When true, each SA relationship can override the company default (staffingAgencyManagesWorker). When false, the company default applies uniformly to all SA relationships.
 	RecruiterManagesMixedMode bool `json:"recruiterManagesMixedMode"`
+	// Whether referral staffing agencies' referral fees for this company's jobs are handled in Worksome. When false, referral fees are handled outside Worksome, so none can be set on staffing agency relationships, candidate submissions or hires.
+	ReferralFeesAllowed bool `json:"referralFeesAllowed"`
 	// **Experimental.** The rate card band that applies to a job this company has not saved yet, such as a new brief on the direct-hire page. Readable only by the company itself. Anyone else reads null.
 	RateCardBand *RateCardBand `json:"rateCardBand,omitempty"`
 	// The trusted contacts that the company has.
@@ -933,6 +937,8 @@ type ComplianceDataBusinessEntity struct {
 
 // ComplianceDataClassification — A determination-style questionnaire result (IR35, NL/Global/US worker classification). Each question carries its text, optional help text, and the recorded answer (if any).
 type ComplianceDataClassification struct {
+	// The heading for this group of questions, such as who answers them. Null when the questions are not grouped.
+	Title *string `json:"title,omitempty"`
 	// The answered questions that make up the classification.
 	Questions []*ComplianceClassificationQuestion `json:"questions"`
 }
@@ -1077,6 +1083,8 @@ type Contract struct {
 	ContractDocuments []*ContractDocument `json:"contractDocuments"`
 	// **Experimental.** The pay items selected on this contract, with their prices. Readable by the company on the contract, and by anyone who can read the contract's hire. Anyone else reads an empty list.
 	PayItems []*PayItemAssignment `json:"payItems"`
+	// **Experimental.** The pay items a line on a Worksome timesheet under this contract can carry, with the contract's price: its per-unit pay items in the unit it is logged in, hours on an hourly contract and days on a daily one. Empty for a contract on another rate type. With a timesheet of this contract's hire, a pay item that a saved line of the timesheet carries on a date under this contract stays in the list after the contract drops it, without a price. Readable by those who can read payItems. Anyone else reads an empty list.
+	TimesheetLinePayItems []*TimesheetLinePayItem `json:"timesheetLinePayItems"`
 	// The latest milestone details at the time of creation of the contract.
 	MilestoneDetails MilestoneDetailPaginator `json:"milestoneDetails"`
 }
@@ -1161,6 +1169,8 @@ type CreateCustomTimeSheetResponse struct {
 	Rows []*CustomTimesheetRowResult `json:"rows"`
 	// Why the whole file was refused. Null when the submission was accepted for checking. When set, 'rows' is empty and nothing was written. Only the default-csv schema refuses a whole file.
 	FileRejection *CustomTimesheetFileRejection `json:"fileRejection,omitempty"`
+	// The timesheet-import batch this call created. Its items are the timesheets the call writes, which are written after the call returns. Null for a dry run, for a call that writes no row, and for the roar-json schema.
+	Batch *Batch `json:"batch,omitempty"`
 }
 
 // CreateExportResponse — A response with data from the export creation.
@@ -1313,6 +1323,8 @@ type CustomTimesheetRowResult struct {
 	Date *string `json:"date,omitempty"`
 	// Human-readable explanation, suitable for logs or display to the client's operator. Set whenever 'reason' is set.
 	Message *string `json:"message,omitempty"`
+	// The timesheet line custom field the reason refers to: set when the reason is 'INVALID_CUSTOM_FIELD_VALUE' or 'REQUIRED_FIELD_CANNOT_BE_IMPORTED', null otherwise. A problem that rejects every row of the hire (two line fields sharing a slug, or a required field the import cannot fill) names its own field, before any value is checked. Otherwise, when several fields of the row fail, the first in template column order.
+	CustomField *TimesheetImportCustomField `json:"customField,omitempty"`
 }
 
 // Employment — An employment record for a worker engaged on payroll through Worksome or an Employer of Record (EoR) partner. Employment records track the formal payroll relationship when a worker is employed rather than operating as an independent contractor. A hire may have an associated employment when the engagement uses a payroll arrangement; not all hires have one.
@@ -1655,6 +1667,8 @@ type Hire struct {
 	AttributionManagesWorkers *bool `json:"attributionManagesWorkers,omitempty"`
 	// Whether the supplier's confirmation on this hire is signature-free and auto-accepted (the MSP opted this vendor-managed hire into no-signature confirmation). Drives whether the supplier sees a signature widget.
 	SupplierSignatureWaived *bool `json:"supplierSignatureWaived,omitempty"`
+	// Whether a staffing agency referral fee can be set on this hire. When false, the client handles referral fees outside Worksome.
+	ReferralFeesAllowed bool `json:"referralFeesAllowed"`
 	// Whether the assigned recruiter can be removed from the hire.
 	CanRemoveRecruiter *bool `json:"canRemoveRecruiter,omitempty"`
 	// Whether the assigned worker can be reminded for billing.
@@ -1697,6 +1711,10 @@ type Hire struct {
 	SourceHire *Hire `json:"sourceHire,omitempty"`
 	// The supplier-side hire derived from this source hire. Only resolved for viewers on the company at either end of the link.
 	SupplierHire *Hire `json:"supplierHire,omitempty"`
+	// The client relation between the hire's company (the client) and the company supplying it (the MSP). Both sides get the same relation. Null unless a company supplies the hire, or when the viewer is on neither side.
+	ClientRelation *CompanySupplier `json:"clientRelation,omitempty"`
+	// The hiring company's relation with the hire's staffing agency. Null without an agency, and only resolved for viewers on the hiring company.
+	StaffingAgencyRelation *CompanyRecruiter `json:"staffingAgencyRelation,omitempty"`
 	// The end client of a supplier-mirror hire. Null for other hires. Resolved for viewers on the hire's company or its supplier.
 	EndClient *Company `json:"endClient,omitempty"`
 	// True when the 'sourceHire' has pending contract changes that haven't yet been reflected here. Always false on hires without a 'sourceHire'.
@@ -3073,6 +3091,8 @@ type Timesheet struct {
 	EndDate *string `json:"endDate,omitempty"`
 	// The date and time that the timesheet was created.
 	CreatedAt string `json:"createdAt"`
+	// The reasons the timesheet is blocked from automatic payment request creation. Empty when the timesheet isn't blocked.
+	BlockingReasons []*TimesheetBlockingReason `json:"blockingReasons"`
 	// The payment requests created on the timesheet.
 	PaymentRequests PaymentRequestPaginator `json:"paymentRequests"`
 	// The timesheet registrations.
@@ -3083,13 +3103,23 @@ type Timesheet struct {
 	Overtimes OvertimePaginator `json:"overtimes"`
 }
 
+// TimesheetBlockingReason — A reason an imported timesheet is blocked from automatic payment request creation.
+type TimesheetBlockingReason struct {
+	// The reason the timesheet is blocked.
+	Reason CustomTimesheetRejectionReason `json:"reason"`
+	// The payment request this reason refers to, scoped to the viewer. Null when the reason doesn't refer to a payment request, or the viewer is an end client with no payment request of their own.
+	PaymentRequest *PaymentRequest `json:"paymentRequest,omitempty"`
+	// The date this reason refers to, when relevant.
+	Date *string `json:"date,omitempty"`
+}
+
 // TimesheetImportCustomField — A custom field as a timesheet import shows it: only its ID, title and slug, never its values.
 type TimesheetImportCustomField struct {
 	// The ID of the custom field, the same as the ID of the CustomField.
 	Id string `json:"id"`
 	// The title of the custom field.
 	Title string `json:"title"`
-	// The slug of the custom field, used in its template column name. Unique only within the account that owns the field.
+	// The slug of the custom field, used in its template column name. Unique only within the account that owns the field. Empty for a field without a slug, which has no template column.
 	Slug string `json:"slug"`
 }
 
@@ -3109,6 +3139,18 @@ type TimesheetImportTemplate struct {
 	ClashingLineFields []*TimesheetImportCustomField `json:"clashingLineFields"`
 	// The hire custom field options whose slug another option has. A template with one of them as its extra hire identifier cannot be downloaded, because its column would name more than one field.
 	HireFieldOptionsSharingSlug []*TimesheetImportCustomField `json:"hireFieldOptionsSharingSlug"`
+}
+
+// TimesheetLinePayItem — **Experimental.** A pay item a timesheet line can carry, with the price the contract pays for it.
+type TimesheetLinePayItem struct {
+	// The pay item.
+	PayItem *AssignedPayItem `json:"payItem"`
+	// The price the contract pays per unit, in currency. Absent when the contract sets no price or no longer offers the pay item.
+	Amount *float64 `json:"amount,omitempty"`
+	// The currency of the price. Absent when there is no price.
+	Currency *Currency `json:"currency,omitempty"`
+	// The unit a line with this pay item is logged in.
+	Unit TimesheetRegistrationDurationUnit `json:"unit"`
 }
 
 // TimesheetPaginator — A paginated list of Timesheet items.
@@ -3145,6 +3187,8 @@ type TimesheetRegistration struct {
 	IsBillable *bool `json:"isBillable,omitempty"`
 	// The custom fields values for the timesheet registration.
 	CustomFieldValues []*CustomFieldValue `json:"customFieldValues"`
+	// **Experimental.** The pay item the time on this line is logged against, or null when the registration has none.
+	PayItem *AssignedPayItem `json:"payItem,omitempty"`
 }
 
 // TimesheetRegistrationPaginator — A paginated list of TimesheetRegistration items.
@@ -3535,6 +3579,8 @@ type Worker struct {
 	EngagedViaSupplierName *string `json:"engagedViaSupplierName,omitempty"`
 	// Determines if the worker is currently hired by the given company.
 	IsCurrentlyHired bool `json:"isCurrentlyHired"`
+	// Names of the other divisions in the given company's organisations that have an active hire with the worker. Empty unless the organisation shares trusted contacts and active hires between its divisions.
+	HiredByOtherDivisions []string `json:"hiredByOtherDivisions"`
 	// A list of relations between the worker and a company as seen from the workers perspective.
 	Clients []*Client `json:"clients"`
 	// The insurance information for the worker.
