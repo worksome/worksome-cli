@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +111,9 @@ func TestAuthorizeURLCarriesPKCEAndState(t *testing.T) {
 	u, err := cfg.authorizeURL("st8", "chal")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got, _ := url.Parse(u); got.Query().Get("prompt") != "consent" {
+		t.Errorf("authorize URL must force the consent screen with prompt=consent: %s", u)
 	}
 	for _, want := range []string{
 		"client_id=cli-client", "response_type=code", "state=st8",

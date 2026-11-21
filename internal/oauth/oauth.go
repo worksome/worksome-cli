@@ -86,6 +86,8 @@ func (c Config) authorizeURL(state, challenge string) (string, error) {
 	q.Set("state", state)
 	q.Set("code_challenge", challenge)
 	q.Set("code_challenge_method", "S256")
+	// Passport silently re-approves a client the user already granted; force the screen so no page can mint a code unseen.
+	q.Set("prompt", "consent")
 	// Scopes are not enforced by the platform yet; an empty scope asks for
 	// everything the user can do, which is what a token has always meant here.
 	q.Set("scope", "")
