@@ -587,3 +587,39 @@ func TestLockIsExclusive(t *testing.T) {
 		t.Fatal("the second lock was not granted after release")
 	}
 }
+
+// A writer that loaded earlier must not restore a refresh token another process has since rotated.
+func TestUpdateWorksOnTheCurrentFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	initial := &Config{Profiles: map[string]Profile{"stage": {Token: "a", RefreshToken: "ref-0"}}}
+	if err := initial.Save(); err != nil {
+		t.Fatal(err)
+	}
+	rotated := &Config{Profiles: map[string]Profile{"stage": {Token: "b", RefreshToken: "ref-1"}}}
+	if err := rotated.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Update(func(c *Config) error {
+		c.Profiles["new"] = Profile{Token: "n"}
+		c.CurrentProfile = "new"
+		return nil
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Profiles["stage"].RefreshToken != "ref-1" || got.Profiles["new"].Token != "n" || got.CurrentProfile != "new" {
+		t.Errorf("config after Update = %+v", got)
+	}
+
+	if err := Update(func(c *Config) error { return os.ErrNotExist }); err != os.ErrNotExist {
+		t.Errorf("Update must return fn's error as is, got %v", err)
+	}
+}

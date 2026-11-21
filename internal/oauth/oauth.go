@@ -39,8 +39,8 @@ type Token struct {
 	ExpiresAt    time.Time
 }
 
-// checkURL requires https, except on loopback hosts where nothing crosses the network.
-func checkURL(raw string) (*url.URL, error) {
+// CheckURL requires https, except on loopback hosts where nothing crosses the network.
+func CheckURL(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL %q: %w", raw, err)
@@ -51,7 +51,7 @@ func checkURL(raw string) (*url.URL, error) {
 	case u.Scheme == "http" && isLoopback(u.Hostname()):
 		return u, nil
 	}
-	return nil, fmt.Errorf("refusing OAuth URL %q: it must use https", raw)
+	return nil, fmt.Errorf("refusing %q: it must use https", raw)
 }
 
 func isLoopback(host string) bool {
@@ -75,7 +75,7 @@ func noDowngrade(req *http.Request, via []*http.Request) error {
 
 // authorizeURL builds the consent URL for one login attempt.
 func (c Config) authorizeURL(state, challenge string) (string, error) {
-	u, err := checkURL(c.AuthorizeURL)
+	u, err := CheckURL(c.AuthorizeURL)
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +130,7 @@ type tokenResponse struct {
 }
 
 func (c Config) token(ctx context.Context, form url.Values) (Token, error) {
-	if _, err := checkURL(c.TokenURL); err != nil {
+	if _, err := CheckURL(c.TokenURL); err != nil {
 		return Token{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.TokenURL, strings.NewReader(form.Encode()))

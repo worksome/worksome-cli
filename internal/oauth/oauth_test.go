@@ -141,9 +141,9 @@ func TestOAuthURLsRequireHTTPSExceptLoopback(t *testing.T) {
 		{"https:///oauth/token", false},
 	}
 	for _, tt := range tests {
-		_, err := checkURL(tt.url)
+		_, err := CheckURL(tt.url)
 		if (err == nil) != tt.want {
-			t.Errorf("checkURL(%q) error = %v, want accepted=%v", tt.url, err, tt.want)
+			t.Errorf("CheckURL(%q) error = %v, want accepted=%v", tt.url, err, tt.want)
 		}
 	}
 

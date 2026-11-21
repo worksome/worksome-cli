@@ -169,6 +169,27 @@ func (c *Config) SaveTo(path string) error {
 	return nil
 }
 
+// Update applies fn to a freshly loaded config and saves it, all under the config lock, so concurrent writers do not undo each other.
+func Update(fn func(*Config) error) error {
+	unlock, err := Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	if err := fn(cfg); err != nil {
+		return err
+	}
+	if err := cfg.Save(); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
+}
+
 // Lock takes an exclusive advisory lock next to the config file and returns its release.
 func Lock() (unlock func(), err error) {
 	path, err := configPath()

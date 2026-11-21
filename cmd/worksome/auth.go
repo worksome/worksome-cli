@@ -113,6 +113,10 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 
 			// Browser sign-in is opt-in; --no-browser implies it.
 			if useBrowser || noBrowser {
+				// The new session token is validated against endpoint, so it must not travel in clear.
+				if _, err := oauth.CheckURL(endpoint); err != nil {
+					return fmt.Errorf("API endpoint: %w", err)
+				}
 				ocfg := oauthConfig(endpoint)
 				open := oauth.OpenBrowser
 				if noBrowser {
@@ -187,19 +191,17 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 				fmt.Fprintln(os.Stderr, "OK!")
 			}
 
-			// Save to config
-			if cfg.Profiles == nil {
-				cfg.Profiles = make(map[string]config.Profile)
-			}
 			profile := config.Profile{Token: token, Endpoint: endpoint}
 			if session != nil {
 				profile = *session
 			}
-			cfg.Profiles[profileName] = profile
-			cfg.CurrentProfile = profileName
-
-			if err := cfg.Save(); err != nil {
-				return fmt.Errorf("saving config: %w", err)
+			// Re-read under the lock: a renewal since the load above must not be written back over.
+			if err := config.Update(func(c *config.Config) error {
+				c.Profiles[profileName] = profile
+				c.CurrentProfile = profileName
+				return nil
+			}); err != nil {
+				return err
 			}
 
 			if session != nil {
@@ -307,23 +309,19 @@ func newAuthSwitchCmd() *cobra.Command {
 		Short: "Switch to a different profile",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-
 			profileName := args[0]
-			if _, ok := cfg.Profiles[profileName]; !ok {
-				available := make([]string, 0, len(cfg.Profiles))
-				for name := range cfg.Profiles {
-					available = append(available, name)
+			if err := config.Update(func(cfg *config.Config) error {
+				if _, ok := cfg.Profiles[profileName]; !ok {
+					available := make([]string, 0, len(cfg.Profiles))
+					for name := range cfg.Profiles {
+						available = append(available, name)
+					}
+					return fmt.Errorf("profile %q not found. Available: %s", profileName, strings.Join(available, ", "))
 				}
-				return fmt.Errorf("profile %q not found. Available: %s", profileName, strings.Join(available, ", "))
-			}
-
-			cfg.CurrentProfile = profileName
-			if err := cfg.Save(); err != nil {
-				return fmt.Errorf("saving config: %w", err)
+				cfg.CurrentProfile = profileName
+				return nil
+			}); err != nil {
+				return err
 			}
 
 			fmt.Printf("Switched to profile %q\n", profileName)
@@ -339,33 +337,30 @@ func newAuthLogoutCmd() *cobra.Command {
 		Long:  "Remove a profile from the configuration. Defaults to the current profile if no name is given.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
-			if err != nil {
+			var profileName string
+			if err := config.Update(func(cfg *config.Config) error {
+				// Resolve profile like the client factory: flag > WORKSOME_PROFILE > config
+				profileFlag, _ := cmd.Root().PersistentFlags().GetString("profile")
+				profileName = cfg.ResolveProfile(profileFlag)
+				if len(args) > 0 {
+					profileName = args[0]
+				}
+
+				if profileName == "" {
+					return fmt.Errorf("no profile specified and no current profile set")
+				}
+
+				if _, ok := cfg.Profiles[profileName]; !ok {
+					return fmt.Errorf("profile %q not found", profileName)
+				}
+
+				delete(cfg.Profiles, profileName)
+				if cfg.CurrentProfile == profileName {
+					cfg.CurrentProfile = ""
+				}
+				return nil
+			}); err != nil {
 				return err
-			}
-
-			// Resolve profile like the client factory: flag > WORKSOME_PROFILE > config
-			profileFlag, _ := cmd.Root().PersistentFlags().GetString("profile")
-			profileName := cfg.ResolveProfile(profileFlag)
-			if len(args) > 0 {
-				profileName = args[0]
-			}
-
-			if profileName == "" {
-				return fmt.Errorf("no profile specified and no current profile set")
-			}
-
-			if _, ok := cfg.Profiles[profileName]; !ok {
-				return fmt.Errorf("profile %q not found", profileName)
-			}
-
-			delete(cfg.Profiles, profileName)
-			if cfg.CurrentProfile == profileName {
-				cfg.CurrentProfile = ""
-			}
-
-			if err := cfg.Save(); err != nil {
-				return fmt.Errorf("saving config: %w", err)
 			}
 
 			fmt.Fprintf(os.Stderr, "Profile %q removed\n", profileName)

@@ -173,3 +173,11 @@ func TestAuthLoginBrowserFlagsExcludeTokenFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthLoginBrowserRefusesPlaintextEndpoint(t *testing.T) {
+	setupTestEnv(t)
+	err := runRootCmd("auth", "login", "--no-browser", "--endpoint", "http://platform.example.test/web-api/v2/graphql")
+	if err == nil || !strings.Contains(err.Error(), "must use https") {
+		t.Errorf("error = %v, want the plaintext endpoint refused before sign-in", err)
+	}
+}
