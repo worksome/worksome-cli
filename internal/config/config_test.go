@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadSaveRoundTrip(t *testing.T) {
@@ -186,8 +187,9 @@ func TestMaskToken(t *testing.T) {
 		{"", ""},
 		{"ab", "**"},
 		{"abcd", "****"},
-		{"abcde", "*bcde"}, // 5 chars: 1 star + last 4
-		{"super-secret-token-1234", "*******************1234"},
+		{"abcde", "****bcde"}, // fixed 4-star prefix + last 4
+		{"super-secret-token-1234", "****1234"},
+		{strings.Repeat("x", 900) + "QDR8", "****QDR8"}, // OAuth-sized token stays short
 	}
 
 	for _, tc := range tests {
@@ -231,7 +233,7 @@ func TestMaskTokenEdgeCases(t *testing.T) {
 		{"empty string", "", ""},
 		{"3 char fully masked", "abc", "***"},
 		{"4 char fully masked", "abcd", "****"},
-		{"5 char shows last 4", "abcde", "*bcde"},
+		{"5 char shows last 4", "abcde", "****bcde"},
 	}
 
 	for _, tc := range tests {
@@ -462,5 +464,162 @@ func TestLoadDoesNotCreateConfigDirectory(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(home, configDir)); !os.IsNotExist(err) {
 		t.Errorf("Load created %s; it must only be created when saving", configDir)
+	}
+}
+
+func TestProfileSessionRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	expires := time.Date(2026, 9, 26, 10, 30, 0, 0, time.FixedZone("CEST", 2*3600))
+	var p Profile
+	p.Endpoint = "https://api.example.test/graphql"
+	p.SetSession("acc", "ref", expires)
+
+	cfg := &Config{CurrentProfile: "default", Profiles: map[string]Profile{"default": p}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := loaded.Profiles["default"]
+	if !got.IsOAuth() || got.Token != "acc" || got.RefreshToken != "ref" {
+		t.Errorf("loaded profile = %+v", got)
+	}
+	exp, ok := got.Expiry()
+	if !ok || !exp.Equal(expires) {
+		t.Errorf("Expiry() = %v, %v; want %v", exp, ok, expires)
+	}
+	if got.ExpiresAt != "2026-09-26T08:30:00Z" {
+		t.Errorf("expiry should be stored in UTC RFC 3339, got %q", got.ExpiresAt)
+	}
+
+	// A personal access token profile has no session fields and is not OAuth.
+	pat := Profile{Token: "pat"}
+	if pat.IsOAuth() {
+		t.Error("a PAT profile must not report as OAuth")
+	}
+	if _, ok := pat.Expiry(); ok {
+		t.Error("a PAT profile has no expiry")
+	}
+}
+
+// An existing file keeps its mode under os.WriteFile, so Save must tighten it.
+func TestSaveTightensExistingFilePermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("profiles: {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Profiles: map[string]Profile{"default": {Token: "secret"}}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatalf("SaveTo failed: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+}
+
+func TestProfileStoresOAuthIssuer(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	cfg := &Config{Profiles: map[string]Profile{
+		"stage": {Token: "a", RefreshToken: "r", OAuthTokenURL: "https://stage.example.test/oauth/token", OAuthClientID: "cid"},
+		"pat":   {Token: "p"},
+	}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.Profiles["stage"]; got.OAuthTokenURL != "https://stage.example.test/oauth/token" || got.OAuthClientID != "cid" {
+		t.Errorf("OAuth issuer not round-tripped: %+v", got)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(data), "oauth_token_url") != 1 {
+		t.Errorf("a PAT profile must not carry empty OAuth fields:\n%s", data)
+	}
+}
+
+func TestLockIsExclusive(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "config.lock")
+	unlock, err := LockAt(path)
+	if err != nil {
+		t.Fatalf("LockAt: %v", err)
+	}
+
+	acquired := make(chan struct{})
+	go func() {
+		second, err := LockAt(path)
+		if err != nil {
+			t.Errorf("second LockAt: %v", err)
+			close(acquired)
+			return
+		}
+		close(acquired)
+		second()
+	}()
+
+	select {
+	case <-acquired:
+		t.Fatal("a second lock was granted while the first was held")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	unlock()
+	select {
+	case <-acquired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the second lock was not granted after release")
+	}
+}
+
+// A writer that loaded earlier must not restore a refresh token another process has since rotated.
+func TestUpdateWorksOnTheCurrentFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	initial := &Config{Profiles: map[string]Profile{"stage": {Token: "a", RefreshToken: "ref-0"}}}
+	if err := initial.Save(); err != nil {
+		t.Fatal(err)
+	}
+	rotated := &Config{Profiles: map[string]Profile{"stage": {Token: "b", RefreshToken: "ref-1"}}}
+	if err := rotated.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Update(func(c *Config) error {
+		c.Profiles["new"] = Profile{Token: "n"}
+		c.CurrentProfile = "new"
+		return nil
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Profiles["stage"].RefreshToken != "ref-1" || got.Profiles["new"].Token != "n" || got.CurrentProfile != "new" {
+		t.Errorf("config after Update = %+v", got)
+	}
+
+	if err := Update(func(c *Config) error { return os.ErrNotExist }); err != os.ErrNotExist {
+		t.Errorf("Update must return fn's error as is, got %v", err)
 	}
 }

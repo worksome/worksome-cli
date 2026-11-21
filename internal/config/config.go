@@ -5,14 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	defaultEndpoint = "https://api.worksome.com/graphql"
+	defaultEndpoint = DefaultEndpoint
 	configDir       = ".worksome"
 	configFile      = "config.yaml"
+	lockFile        = "config.lock"
 	envToken        = "WORKSOME_API_TOKEN"
 	envEndpoint     = "WORKSOME_ENDPOINT"
 	envProfile      = "WORKSOME_PROFILE"
@@ -25,9 +27,49 @@ type Config struct {
 }
 
 // Profile stores credentials and endpoint for a single environment.
+//
+// Token is always the bearer token sent to the API. For a personal access
+// token that is all there is. For an OAuth session (browser login) the
+// profile also carries the refresh token and the access token's expiry, so
+// the CLI can renew it without asking the user to sign in again.
 type Profile struct {
-	Token    string `yaml:"token,omitempty"`
-	Endpoint string `yaml:"endpoint,omitempty"`
+	Token        string `yaml:"token,omitempty"`
+	Endpoint     string `yaml:"endpoint,omitempty"`
+	RefreshToken string `yaml:"refresh_token,omitempty"`
+	ExpiresAt    string `yaml:"expires_at,omitempty"` // RFC 3339, UTC
+	// OAuthTokenURL and OAuthClientID record where the session was issued, so it is renewed there.
+	OAuthTokenURL string `yaml:"oauth_token_url,omitempty"`
+	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
+}
+
+// IsOAuth reports whether the profile holds a browser-login session rather
+// than a personal access token.
+func (p Profile) IsOAuth() bool {
+	return p.RefreshToken != ""
+}
+
+// Expiry returns when the access token expires. ok is false when the profile
+// carries no (or an unreadable) expiry.
+func (p Profile) Expiry() (expiry time.Time, ok bool) {
+	if p.ExpiresAt == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, p.ExpiresAt)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// SetSession records an OAuth session on the profile.
+func (p *Profile) SetSession(accessToken, refreshToken string, expiresAt time.Time) {
+	p.Token = accessToken
+	p.RefreshToken = refreshToken
+	if expiresAt.IsZero() {
+		p.ExpiresAt = ""
+	} else {
+		p.ExpiresAt = expiresAt.UTC().Format(time.RFC3339)
+	}
 }
 
 // configPath returns the full path to the config file.
@@ -119,8 +161,61 @@ func (c *Config) SaveTo(path string) error {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("writing config file: %w", err)
 	}
+	// WriteFile keeps the mode of an existing file, which may be wider than 0600.
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("restricting config file permissions: %w", err)
+	}
 
 	return nil
+}
+
+// Update applies fn to a freshly loaded config and saves it, all under the config lock, so concurrent writers do not undo each other.
+func Update(fn func(*Config) error) error {
+	unlock, err := Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	cfg, err := Load()
+	if err != nil {
+		return err
+	}
+	if err := fn(cfg); err != nil {
+		return err
+	}
+	if err := cfg.Save(); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
+}
+
+// Lock takes an exclusive advisory lock next to the config file and returns its release.
+func Lock() (unlock func(), err error) {
+	path, err := configPath()
+	if err != nil {
+		return nil, err
+	}
+	return LockAt(filepath.Join(filepath.Dir(path), lockFile))
+}
+
+// LockAt takes an exclusive advisory lock on path, blocking until it is free.
+func LockAt(path string) (unlock func(), err error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, fmt.Errorf("creating config directory: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("opening lock file: %w", err)
+	}
+	if err := lockFileExclusive(f); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("locking %s: %w", path, err)
+	}
+	return func() {
+		_ = unlockFile(f)
+		_ = f.Close()
+	}, nil
 }
 
 // ActiveProfile returns the profile indicated by CurrentProfile.
@@ -193,7 +288,13 @@ func (c *Config) ResolveEndpoint(flagValue string) string {
 	return defaultEndpoint
 }
 
-// MaskToken masks all but the last 4 characters of a token for display.
+// DefaultEndpoint is the production GraphQL endpoint used when nothing else
+// names one.
+const DefaultEndpoint = "https://api.worksome.com/graphql"
+
+// MaskToken masks a token for display as a fixed-width prefix of four stars
+// followed by its last 4 characters, whatever its length. OAuth access tokens
+// run to ~1 KB, so a one-star-per-character mask would swamp the output.
 // Tokens with 4 or fewer characters are fully masked.
 func MaskToken(token string) string {
 	if token == "" {
@@ -204,5 +305,5 @@ func MaskToken(token string) string {
 		return strings.Repeat("*", len(token))
 	}
 
-	return strings.Repeat("*", len(token)-4) + token[len(token)-4:]
+	return "****" + token[len(token)-4:]
 }

@@ -102,7 +102,9 @@ Tests are in:
 - `internal/codegen/parser_test.go` — Schema parsing, resource grouping, type resolution
 - `internal/codegen/generator_test.go` — Code generation output verification
 - `internal/client/client_test.go` — HTTP client, retries, pagination
-- `internal/config/config_test.go` — Config load/save, token precedence
+- `internal/config/config_test.go` — Config load/save, token precedence, file permissions, the config lock
+- `internal/oauth/*_test.go` — Browser sign-in: PKCE, loopback listener, token exchange and refresh, https-only URLs
+- `cmd/worksome/oauth_config_test.go` — OAuth URLs per endpoint, where a session renews, concurrent renewal, `auth login` flags
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
 - `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
 
