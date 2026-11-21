@@ -19,10 +19,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
-      # Public OAuth client for browser sign-in. Set in the release workflow's
-      # environment once the client exists; an empty value builds fine.
-      - -X main.oauthClientID={{ envOrDefault "WORKSOME_OAUTH_CLIENT_ID" "" }}
+      - -s -w -X github.com/worksome/worksome-cli/internal/buildinfo.Version={{.Version}} -X github.com/worksome/worksome-cli/internal/buildinfo.Commit={{.Commit}}
 
 archives:
   - formats: [tar.gz]
@@ -51,3 +48,7 @@ homebrew_casks:
           if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/worksome"]
           end
+
+release:
+  # A dispatched run tags locally only; this pins the tag GitHub creates to the built commit.
+  target_commitish: "{{ .FullCommit }}"

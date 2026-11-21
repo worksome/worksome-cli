@@ -126,6 +126,14 @@ input AcceptBidInput {
   """
   attachments: [ID!]
   """
+  **Experimental.** The pay items selected on the contract, each with its price. Leave out a
+  price to take the job's price for the pay item, or else its current price.
+  
+  Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
+  """
   An identifier associated with the hire from an external system.
   """
   externalIdentifier: String
@@ -760,6 +768,15 @@ type ApproverPaginator {
   data: [Approver!]!
 }
 """
+**Experimental.** The input for archiving a pay item.
+"""
+input ArchivePayItemInput {
+  """
+  The ID of the pay item to archive.
+  """
+  payItem: ID!
+}
+"""
 An input for additional arguments for the export.
 """
 input ArgsInput {
@@ -779,6 +796,45 @@ input ArgsInput {
   Additional information and metadata.
   """
   meta: String
+}
+"""
+**Experimental.** A catalogue pay item as it appears on a job's or contract's pay items. It has
+the same ID as the `PayItem`, but leaves out the catalogue price and the owning account, which
+only the owner and the MSP managing it read through `payItems` and `Job.offerablePayItems`.
+"""
+type AssignedPayItem {
+  """
+  The ID of the pay item, the same as the `PayItem`'s.
+  """
+  id: ID!
+  """
+  The name of the pay item.
+  """
+  name: String!
+  """
+  What kind of pay the pay item is.
+  """
+  role: PayItemRole!
+  """
+  How the pay item's price is worked out.
+  """
+  basis: PayItemBasis!
+  """
+  The unit a per-unit pay item is priced in. Absent for flat and percentage pay items.
+  """
+  unit: PayItemUnit
+  """
+  The name of the unit when the unit is `OTHER`, such as 1,000 words.
+  """
+  unitLabel: String
+  """
+  The currency a flat or per-unit pay item is priced in. Absent for percentage pay items.
+  """
+  currency: Currency
+  """
+  Whether the pay item can be used or has been archived.
+  """
+  status: PayItemStatus!
 }
 """
 The estimated commitment of a job.
@@ -991,6 +1047,10 @@ type Batch {
     status: [BatchItemStatus!]!
   ): Int!
   """
+  For a timesheet-import batch, when its timesheets finished being written; until then the import is still writing. Null for other batch types.
+  """
+  writesFinishedAt: DateTime
+  """
   The date and time when the batch was created.
   """
   createdAt: DateTime!
@@ -1054,7 +1114,7 @@ enum BatchActionType {
 """
 An item in a batch.
 """
-union BatchItem = PaymentRequest | Invoice
+union BatchItem = PaymentRequest | Invoice | Timesheet
 """
 A paginated list of BatchItem items.
 """
@@ -1080,6 +1140,10 @@ enum BatchItemStatus {
   Item has been processed.
   """
   PROCESSED
+  """
+  Item has been processed but is blocked, so it needs attention.
+  """
+  BLOCKED
 }
 """
 A paginated list of Batch items.
@@ -1122,6 +1186,10 @@ enum BatchType {
   Journal entries for self-bills that have reached a payment file.
   """
   PAYMENT_JOURNAL
+  """
+  Timesheets uploaded together in one timesheet import.
+  """
+  TIMESHEET_IMPORT
 }
 """
 The BBAN type details.
@@ -1378,6 +1446,24 @@ input BlockTrustedContactInput {
   account: ID!
 }
 """
+An input for a yes/no custom field.
+"""
+input BooleanCustomFieldValueInput {
+  """
+  The ID of the field to set an answer on.
+  """
+  id: ID
+  """
+  A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens
+  to replace spaces. The key is only unique within the same account.
+  """
+  slug: String
+  """
+  The answer. A null value indicates that the field value will be deleted.
+  """
+  value: Boolean
+}
+"""
 A business entity.
 """
 type BusinessEntity {
@@ -1572,6 +1658,156 @@ input ChangeEmailInput {
   email: String!
 }
 """
+**Experimental.** A checklist applied to a hire, made from a checklist template.
+"""
+type Checklist {
+  """
+  The checklist's ID.
+  """
+  id: ID!
+  """
+  The template this checklist was made from.
+  """
+  template: ChecklistTemplate!
+  """
+  Whether every check is done, or a required check is still pending.
+  """
+  status: ChecklistStatus
+  """
+  How many checks this checklist has, and how far they have got.
+  """
+  checkCounts: ChecklistCheckCounts!
+  """
+  The checks on this checklist, in the order they were applied.
+  """
+  checks: [ChecklistCheck!]!
+  """
+  Whether the viewer may confirm the checks on this checklist or mark them not applicable.
+  """
+  viewerCanDecide: Boolean!
+}
+"""
+**Experimental.** A single check on a checklist, confirmed by a person or marked not applicable.
+"""
+type ChecklistCheck {
+  """
+  The check's ID.
+  """
+  id: ID!
+  """
+  The checklist this check belongs to.
+  """
+  checklist: Checklist!
+  """
+  What to check, worded as it was when the checklist was applied.
+  """
+  label: String!
+  """
+  How to carry out the check, worded as it was when the checklist was applied.
+  """
+  helpText: String
+  """
+  Whether this check must be done before the offer can be sent.
+  """
+  blocking: Boolean!
+  """
+  Whether this check may be marked not applicable.
+  """
+  allowsNotApplicable: Boolean!
+  """
+  How many days a confirmation lasts before the check is due again. Null when it never expires.
+  """
+  repeatsAfterDays: Int
+  """
+  Whether the check is pending, confirmed or not applicable.
+  """
+  state: ChecklistCheckState!
+  """
+  The reason given when the check was marked not applicable.
+  """
+  notApplicableReason: String
+  """
+  When the check was last confirmed or marked not applicable.
+  """
+  decidedAt: DateTime
+  """
+  Who last confirmed the check or marked it not applicable. Null when nobody has, or when that person's account has been deleted.
+  """
+  decidedBy: User
+}
+"""
+**Experimental.** How many checks a checklist has, and how far they have got.
+"""
+type ChecklistCheckCounts {
+  """
+  How many checks the checklist has.
+  """
+  total: Int!
+  """
+  How many checks are confirmed or marked not applicable.
+  """
+  done: Int!
+  """
+  How many checks are marked not applicable.
+  """
+  notApplicable: Int!
+  """
+  How many blocking checks are still pending.
+  """
+  blockingPending: Int!
+}
+"""
+**Experimental.** Where a check on a checklist stands.
+"""
+enum ChecklistCheckState {
+  """
+  Still to be confirmed or marked not applicable.
+  """
+  PENDING
+  """
+  Someone looked at the evidence and confirmed the check.
+  """
+  CONFIRMED
+  """
+  Someone judged that the check does not apply here, and gave a reason.
+  """
+  NOT_APPLICABLE
+}
+"""
+**Experimental.** Whether the checks on a checklist are done.
+"""
+enum ChecklistStatus {
+  """
+  Every check has been confirmed or marked not applicable.
+  """
+  COMPLETE
+  """
+  A check that blocks progress is still pending.
+  """
+  BLOCKED
+  """
+  Checks are still pending, but none of them block progress.
+  """
+  OPEN
+}
+"""
+**Experimental.** A named list of checks that an organisation or company defines once and applies to hires.
+"""
+type ChecklistTemplate {
+  """
+  The template's ID.
+  """
+  id: ID!
+  """
+  The template's name.
+  """
+  name: String!
+  """
+  The name of the organisation or company that defined this template.
+  """
+  ownerName: String
+}
+"""
 A classification represents a worker classification (SDS/WCR) for a hire.
 This can be various types of classifications like IR35, US Worker Classification, etc.
 """
@@ -1621,9 +1857,19 @@ type Classification {
   """
   result: ClassificationResultDetails!
   """
-  URL to download the PDF version of this classification (WCR/SDS)
+  URL to download the PDF version of this classification (WCR/SDS).
+  
+  This URL only works in a browser with a signed-in Worksome session. API clients must use `pdfDownloadUrl`.
   """
   pdfUrl: String!
+  """
+  The URL that should be used to download the stored PDF version of this classification (WCR/SDS).
+  
+  The URL is valid for one hour and needs no API token. Do not store it: request the field again
+  for a new URL. It is `null` when the viewer may not download the PDF, when the classification is
+  not accepted, or when no PDF is stored yet.
+  """
+  pdfDownloadUrl: URL
   """
   Whether this classification overrides another classification
   """
@@ -1652,6 +1898,14 @@ type Classification {
   Whether all questions for the worker has been resolved.
   """
   hasWorkerCompletedAnswers: Boolean!
+  """
+  Whether the worker is asked to fill in any classification fields.
+  """
+  hasWorkerFields: Boolean!
+  """
+  Whether the worker has filled in every classification field asked of them, optional ones included.
+  """
+  hasWorkerCompletedFields: Boolean!
   """
   Whether this classification is allowed to be changed
   """
@@ -1701,6 +1955,14 @@ type Classification {
   Whether the end client has completed their classification input (always true for non-supplier hires)
   """
   endClientInputComplete: Boolean!
+  """
+  Whether every answer needed to produce a classification result has been given.
+  """
+  canCreateResult: Boolean!
+  """
+  Whether any answer on record is "Don't know". Unanswered questions do not count.
+  """
+  hasDontKnowAnswers: Boolean!
   """
   The date and time the classification was created.
   """
@@ -1901,6 +2163,122 @@ type Client {
   customFieldValues: [CustomFieldValue!]!
 }
 """
+**Experimental.** A supplier's relation with one client company.
+"""
+interface ClientRelation {
+  """
+  The ID of the relation.
+  """
+  id: ID!
+  """
+  The client company.
+  """
+  client: Company!
+  """
+  When the relation was created.
+  """
+  createdAt: Date!
+  """
+  **Experimental.** How many placements the relation has, counting only the given statuses when set.
+  """
+  hiresCount(
+    """
+    Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  **Experimental.** How many distinct workers the relation has placed at the client.
+  """
+  workersCount: Int!
+  """
+  **Experimental.** When the relation's earliest placement at the client started. Null before the first one.
+  """
+  firstHireStartedAt: Date
+}
+"""
+Sorting clause for the people staffing agencies assign to a client.
+"""
+input ClientRelationAgencyOwnerOrderByClauseInput {
+  """
+  The field to sort the people by.
+  """
+  field: ClientRelationAgencyOwnerOrderByColumn
+  """
+  The order to sort the people by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns the people staffing agencies assign to a client can be ordered by.
+"""
+enum ClientRelationAgencyOwnerOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  When the person was assigned.
+  """
+  ASSIGNED_AT
+  """
+  The name of the staffing agency the person works for.
+  """
+  STAFFING_AGENCY
+}
+"""
+Sorting clause for a supplier's own team on a client.
+"""
+input ClientRelationOwnerOrderByClauseInput {
+  """
+  The field to sort the people by.
+  """
+  field: ClientRelationOwnerOrderByColumn
+  """
+  The order to sort the people by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a supplier's own team on a client can be ordered by.
+"""
+enum ClientRelationOwnerOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  When the person was assigned.
+  """
+  ASSIGNED_AT
+}
+"""
+Sorting clause for a client company's team.
+"""
+input ClientRelationTeamOrderByClauseInput {
+  """
+  The field to sort the team by.
+  """
+  field: ClientRelationTeamOrderByColumn
+  """
+  The order to sort the team by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a client company's team can be ordered by.
+"""
+enum ClientRelationTeamOrderByColumn {
+  """
+  The name of the person.
+  """
+  NAME
+  """
+  The account owner before the members.
+  """
+  ACCOUNT_ROLE
+}
+"""
 A company account — the primary hiring entity on Worksome.
 
 Companies create jobs, manage a Talent Pool of trusted contacts, make hires, and process payments.
@@ -1923,6 +2301,10 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   The market that the company is in.
   """
   market: MarketCode!
+  """
+  The region within its market the company is located in, when it has set one.
+  """
+  region: MarketRegion
   """
   The avatar (or profile picture) for the company.
   """
@@ -1950,6 +2332,14 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   """
   address: Address
   """
+  The user who owns the company account. Visible to the company's own members and to its suppliers.
+  """
+  owner: User
+  """
+  The company's primary business entity, which carries its registration number.
+  """
+  primaryBusinessEntity: BusinessEntity
+  """
   If the account has active webhooks.
   """
   hasActiveWebhooks: Boolean!
@@ -1972,6 +2362,34 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   When false, the company default applies uniformly to all SA relationships.
   """
   recruiterManagesMixedMode: Boolean!
+  """
+  Whether referral staffing agencies' referral fees for this company's jobs are handled in Worksome.
+  
+  When false, referral fees are handled outside Worksome, so none can be set on staffing agency relationships, candidate submissions or hires.
+  """
+  referralFeesAllowed: Boolean!
+  """
+  **Experimental.** The rate card band that applies to a job this company has not
+  saved yet, such as a new brief on the direct-hire page.
+  
+  Readable only by the company itself. Anyone else reads null.
+  """
+  rateCardBand(
+    """
+    The rate type of the unsaved job.
+    """
+    rateType: RateType!
+
+    """
+    The date to resolve the band on. Defaults to today.
+    """
+    date: Date
+
+    """
+    The custom field values of the unsaved job.
+    """
+    customFieldValues: [CustomFieldTypeValueInput!]
+  ): RateCardBand
   """
   The trusted contacts that the company has.
   """
@@ -2001,11 +2419,12 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
     page: Int
   ): UserPaginator!
   """
-  The team members and owners that the company has.
+  The team members and owners that the company has. Its own members see everyone;
+  a supplier of the company sees the owner and the members who have accepted.
   """
   teamMembersAndOwners(
     """
-    Search users by name.
+    Search users by name or email.
     """
     search: String
 
@@ -2070,6 +2489,44 @@ type Company implements Account & HasCompanyInformation & HasCustomFields {
   ): CompanyRecruiterPaginator!
 }
 """
+Sorting clause for the supplier's client list.
+"""
+input CompanyClientOrderByClauseInput {
+  """
+  The field to sort supplier clients by.
+  """
+  field: CompanyClientOrderByColumn
+  """
+  The order to sort supplier clients by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns that a supplier's client list can be ordered by.
+"""
+enum CompanyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  The client's market, then its region by name.
+  """
+  CLIENT_LOCATION
+  """
+  The date the client relationship was established.
+  """
+  CLIENT_SINCE
+  """
+  The number of hires the supplier has at the client.
+  """
+  HIRES
+  """
+  The number of staffing agencies the supplier linked to the client.
+  """
+  LINKED_STAFFING_AGENCIES
+}
+"""
 The outcome of an external validation check (e.g. KvK, VAT/VIES).
 """
 enum CompanyNumberValidationStatus {
@@ -2089,6 +2546,28 @@ enum CompanyNumberValidationStatus {
   Validation was attempted but the external authority was unavailable or returned an error.
   """
   NOT_VERIFIED
+}
+"""
+Sorting clause for a list of companies.
+"""
+input CompanyOrderByClauseInput {
+  """
+  The field to sort a list of companies by.
+  """
+  field: CompanyOrderByColumn
+  """
+  The order to sort a list of companies by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns that a list of companies can be ordered by.
+"""
+enum CompanyOrderByColumn {
+  """
+  The name of the company.
+  """
+  COMPANY_NAME
 }
 """
 A paginated list of Company items.
@@ -2141,6 +2620,10 @@ type CompanyRecruiter {
   """
   recruiterOwnershipDaysLeft: Int
   """
+  The maximum number of candidates this staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   Whether the recruiter manages workers for this company relationship.
   
   Resolved from the per-relationship override if set, otherwise falls back to the company-level default.
@@ -2170,6 +2653,21 @@ type CompanyRecruiter {
   The custom field values for the company recruiter.
   """
   customFieldValues: [CustomFieldValue!]!
+  """
+  The end clients this staffing agency works for, whether engaged by them directly or through
+  a supplier that manages the agency.
+  """
+  endClients(
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
   """
   Whether the company requires onboarding for this staffing agency relationship.
   """
@@ -2278,7 +2776,7 @@ type CompanySettings {
 """
 A link between a client company and a supplier account (Company acting as a staffing agency).
 """
-type CompanySupplier {
+type CompanySupplier implements Ownable & ClientRelation {
   """
   The ID of the company supplier.
   """
@@ -2288,6 +2786,10 @@ type CompanySupplier {
   """
   company: Company!
   """
+  **Experimental.** The client company; the same as `company`, under the name every client relation shares.
+  """
+  client: Company!
+  """
   The supplier account.
   """
   supplier: Account
@@ -2295,6 +2797,92 @@ type CompanySupplier {
   The supplier-side team members assigned to this client relationship.
   """
   owners: [Owner!]!
+  """
+  Whether the viewer may change the owners of this client relationship: the account owner or an
+  admin on the supplier company.
+  """
+  viewerCanManageOwners: Boolean!
+  """
+  The custom field values the supplier stores about this client relationship.
+  
+  Only readable by the supplier that owns the fields; empty for the client.
+  """
+  customFieldValues: [CustomFieldValue!]!
+  """
+  When the client relationship was established.
+  """
+  createdAt: Date!
+  """
+  Whether supplier hires for this client copy the end client's payment terms.
+  """
+  paymentTermsFollowsClient: Boolean!
+  """
+  Whether supplier self-bills for this client batch on the end client's cadence.
+  """
+  invoiceBatchingCadenceFollowsClient: Boolean!
+  """
+  Who is emailed the client-side invoices of supplier hires for this client. Only applies when the
+  supplier is a company; always MSP otherwise.
+  """
+  invoiceDelivery: InvoiceDelivery!
+  """
+  Whether payment requests on supplier hires for this client follow the end client's payment request period
+  rule instead of the supplier's.
+  """
+  paymentRequestPeriodFollowsClient: Boolean!
+  """
+  The number of days in the payment terms supplier hires for this client are contracted on:
+  the client's own when the relationship follows the client, otherwise the supplier's. Null
+  when the supplier is not a company and follows nobody.
+  """
+  paymentTerm: Int
+  """
+  How the payment term days are counted, from the same source as paymentTerm.
+  """
+  paymentTermMethod: PaymentTermMethod
+  """
+  The cadence self-billing invoices for this client are batched on: the client's own when the
+  relationship follows the client, otherwise the supplier's. Null when the supplier is not a
+  company and follows nobody.
+  """
+  invoiceBatchingCadence: InvoiceBatchingCadence
+  """
+  Whether the viewer may link and unlink staffing agencies on this client: the manage-recruiters
+  team permission on the supplier company. Reading the linked agencies needs no permission.
+  """
+  viewerCanManageStaffingAgencies: Boolean!
+  """
+  The staffing agencies the supplier has linked to this client.
+  """
+  linkedStaffingAgencies(
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanyRecruiterPaginator!
+  """
+  Hires the supplier has at this client, in any status. Narrow by status when needed.
+  """
+  hiresCount(
+    """
+    Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  Distinct workers the supplier has placed at this client.
+  """
+  workersCount: Int!
+  """
+  When the supplier's earliest hire at this client started. Often predates
+  createdAt, which only records when the relation row itself appeared.
+  """
+  firstHireStartedAt: Date
 }
 """
 A paginated list of CompanySupplier items.
@@ -2308,6 +2896,50 @@ type CompanySupplierPaginator {
   A list of CompanySupplier items.
   """
   data: [CompanySupplier!]!
+}
+"""
+One person on a company's team, and whether they own the account or are a member of it.
+"""
+type CompanyTeamMember {
+  """
+  Identifies this row, not a record: the client company plus the person, so one person on two teams
+  has two IDs. No query or mutation accepts it.
+  """
+  id: ID!
+  """
+  The person.
+  """
+  user: User!
+  """
+  Whether the person owns the company account or is a member of it. Not a permission role.
+  """
+  accountRole: CompanyTeamRole!
+}
+"""
+A paginated list of CompanyTeamMember items.
+"""
+type CompanyTeamMemberPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of CompanyTeamMember items.
+  """
+  data: [CompanyTeamMember!]!
+}
+"""
+Whether a person on a company team owns the company account or is a member of it.
+"""
+enum CompanyTeamRole {
+  """
+  Owner
+  """
+  OWNER
+  """
+  Member
+  """
+  MEMBER
 }
 """
 A compliance requirement that must be met for business processes to proceed.
@@ -2443,6 +3075,10 @@ type ComplianceClassificationQuestion {
   The recorded answer. Null when the question is unanswered.
   """
   answer: ComplianceClassificationAnswer
+  """
+  Why the person answered this way, in their own words. Null when they gave no reason.
+  """
+  explanation: String
 }
 """
 Union of typed data a compliance can emit. Compose atomic `ComplianceDataField`
@@ -2454,7 +3090,7 @@ the frontend should be able to query a first-class domain type directly.
 `ComplianceDataClassification` is the specialised Q&A shape for determination
 compliances (IR35, NL/Global/US worker classification).
 """
-union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification
+union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument | ComplianceDataStatus | ComplianceDataDate
 """
 An address associated with a compliance (residential address, work location,
 etc.). Wraps the existing `Address` type so the frontend can query any field.
@@ -2507,9 +3143,30 @@ recorded answer (if any).
 """
 type ComplianceDataClassification {
   """
+  The heading for this group of questions, such as who answers them. Null when the questions are not grouped.
+  """
+  title: String
+  """
   The answered questions that make up the classification.
   """
   questions: [ComplianceClassificationQuestion!]!
+}
+"""
+A date held by a compliance, such as when it was last reviewed.
+"""
+type ComplianceDataDate {
+  """
+  Identifies the date, independently of its label.
+  """
+  key: String!
+  """
+  The entry label, translated for display.
+  """
+  label: String!
+  """
+  The date, or null when not set.
+  """
+  date: Date
 }
 """
 A single label/value pair. Null `value` is preserved so the UI can render
@@ -2553,6 +3210,45 @@ type ComplianceDataGroup {
   The fields in the group.
   """
   fields: [ComplianceDataField!]!
+}
+"""
+A restricted document associated with a compliance, such as a passport scan or
+a work permit, together with the compliance reviewer's decision on it.
+"""
+type ComplianceDataRestrictedDocument {
+  """
+  The document itself, in the same shape the worker's own view reads it in.
+  """
+  document: WorkerRightToWorkDocument!
+  """
+  Review state of this document: Awaiting review, Approved, Declined or Expired.
+  """
+  status: String!
+  """
+  When a compliance reviewer approved it, or null if not yet approved.
+  """
+  approvedAt: DateTime
+  """
+  Why a compliance reviewer declined it, where they gave a reason.
+  """
+  rejectionReason: String
+  """
+  Whether the current viewer may approve or decline this document.
+  """
+  canReview: Boolean!
+}
+"""
+The review status of a compliance.
+"""
+type ComplianceDataStatus {
+  """
+  The entry label, translated for display.
+  """
+  label: String!
+  """
+  The review status.
+  """
+  statusValue: ComplianceStatusValue!
 }
 """
 A user associated with a compliance, typically an attribution such as
@@ -2842,6 +3538,10 @@ enum ComplianceName {
   """
   CONTRACT_START_AND_END_DATE
   """
+  **Experimental.** Checklists compliance
+  """
+  CHECKLISTS
+  """
   Payroll currency compliance
   """
   PAYROLL_CURRENCY
@@ -2910,6 +3610,14 @@ enum ComplianceName {
   """
   IDENTIFICATION
   """
+  Required hire custom fields the worker answers before the hire is offered
+  """
+  HIRE_WORKER_CUSTOM_FIELDS_BEFORE_OFFER
+  """
+  Required hire custom fields the worker answers before accepting the contract
+  """
+  HIRE_WORKER_CUSTOM_FIELDS_BEFORE_ACCEPTANCE
+  """
   Verified staffing-agency compliance — company verification of a staffing agency
   """
   VERIFIED_RECRUITER_COMPLIANCE
@@ -2918,9 +3626,17 @@ enum ComplianceName {
   """
   RECRUITER_ONBOARDING
   """
+  Client onboarding — whether any of the account's clients still needs onboarding completed
+  """
+  CLIENT_ONBOARDING
+  """
   End client input for supplier-managed worker classification
   """
   DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT
+  """
+  Worker input for the classification questions about their own hire
+  """
+  DETERMINATION_HIRE_FREELANCER_INPUT
   """
   Supplier awaiting end client classification input
   """
@@ -2930,6 +3646,10 @@ enum ComplianceName {
   """
   SUPPLIER_HIRE_PREPARED
 }
+"""
+The review status of a verified worker or a verified staffing agency.
+"""
+union ComplianceStatusValue = VerifiedWorkerStatusValue | RecruiterStatusValue
 """
 Validation details for a compliance requirement.
 """
@@ -3034,6 +3754,8 @@ type Contract {
   rateType: RateType
   """
   The payment amount per specified rate type.
+  Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner,
+  such as the end client of a supplier hire.
   """
   rate: Float
   """
@@ -3047,11 +3769,12 @@ type Contract {
   """
   companyCvr: String
   """
-  A URL of the actual contract.
+  A signed URL to download the PDF of the contract. It is `null` when no PDF is stored for the contract.
   
-  This URL will link to a PDF for the contract. This URL cannot be used for saving in external systems as it might
-  change over time or be regenerated. If a permanent URL is needed for the contract, it should be stored in the clients
-  own system.
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system.
+  
+  Null for viewers other than the hire's company, staffing agency, supplier, worker and employer-of-record partner.
   """
   pdfUrl: URL
   """
@@ -3103,6 +3826,7 @@ type Contract {
   company: Company!
   """
   The company contact person for the contract.
+  Null when the contact is outside the viewer's accounts and the contract's company.
   """
   companyContact: User
   """
@@ -3126,6 +3850,30 @@ type Contract {
   The Key Information Document is only included for the worker on the contract.
   """
   contractDocuments: [ContractDocument!]!
+  """
+  **Experimental.** The pay items selected on this contract, with their prices.
+  
+  Readable by the company on the contract, and by anyone who can read the contract's
+  hire. Anyone else reads an empty list.
+  """
+  payItems: [PayItemAssignment!]!
+  """
+  **Experimental.** The pay items a line on a Worksome timesheet under this contract can carry,
+  with the contract's price: its per-unit pay items in the unit it is logged in, hours on an
+  hourly contract and days on a daily one. Empty for a contract on another rate type.
+  
+  With a timesheet of this contract's hire, a pay item that a saved line of the timesheet carries
+  on a date under this contract stays in the list after the contract drops it, without a price.
+  
+  Readable by those who can read payItems. Anyone else reads an empty list.
+  """
+  timesheetLinePayItems(
+    """
+    A timesheet of this contract's hire whose saved lines keep their pay items. A timesheet of
+    another hire is ignored.
+    """
+    timesheet: ID
+  ): [TimesheetLinePayItem!]!
   """
   The latest milestone details at the time of creation of the contract.
   """
@@ -3821,7 +4569,7 @@ enum CountryCode {
   """
   HK
   """
-  Heard & McDonald Islands
+  Heard Island & McDonald Islands
   """
   HM
   """
@@ -4233,7 +4981,7 @@ enum CountryCode {
   """
   SG
   """
-  St. Helena
+  St. Helena, Ascension & Tristan da Cunha
   """
   SH
   """
@@ -4301,7 +5049,7 @@ enum CountryCode {
   """
   TD
   """
-  French Southern Territories
+  French Southern and Antarctic Lands
   """
   TF
   """
@@ -4561,6 +5309,10 @@ input CreateCompanyRecruiterInput {
   """
   managesWorkers: Boolean
   """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   The custom fields for the company recruiter.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
@@ -4616,10 +5368,18 @@ input CreateCustomFieldInput {
   """
   workerInputAllowed: Boolean
   """
+  For hire fields with worker input allowed, when the worker must answer. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Configures the field to allow recruiter (staffing agency) input.
   When enabled, recruiters can provide values for this field through the recruiter API.
   """
   recruiterInputAllowed: Boolean
+  """
+  For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Configures the field to surface its values on client invoices.
   """
@@ -4656,6 +5416,18 @@ type CreateCustomTimeSheetResponse {
   Per-registration errors for any registrations that were not accepted. Each entry corresponds to a single rejected registration.
   """
   rejectedRegistrations: [RejectedCustomTimesheetRegistration!]!
+  """
+  The result of each submitted row, in input order. The same with and without `write`.
+  """
+  rows: [CustomTimesheetRowResult!]!
+  """
+  Why the whole file was refused. Null when the submission was accepted for checking. When set, `rows` is empty and nothing was written. Only the default-csv schema refuses a whole file.
+  """
+  fileRejection: CustomTimesheetFileRejection
+  """
+  The timesheet-import batch this call created. Its items are the timesheets the call writes, which are written after the call returns. Null for a dry run, for a call that writes no row, and for the roar-json schema.
+  """
+  batch: Batch
 }
 """
 An input for creating a custom timesheet.
@@ -4671,6 +5443,48 @@ input CreateCustomTimesheetInput {
   The custom data for the timesheet.
   """
   data: String!
+  """
+  The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.
+  """
+  account: ID
+  """
+  Whether to write the timesheets. With false, the call is a dry run: it checks every row as a real call would and returns the result of each row in `rows`, without writing or queueing anything. A dry run checks at most 5,000 rows, and a request can hold one dry run. The default-csv schema checks every row during the request on a write too, so it refuses a file of more than 5,000 rows or 5 MB, and a request can hold one default-csv call, dry run or write. A roar-json dry run needs permission to see all hires in each of your companies. Defaults to true.
+  """
+  write: Boolean = true
+}
+"""
+The input for creating an expense.
+"""
+input CreateExpenseInput {
+  """
+  The expense report this expense belongs to.
+  """
+  expenseReport: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
 }
 """
 An input for creating an export.
@@ -4847,6 +5661,47 @@ input CreatePasswordInput {
   password: String!
 }
 """
+**Experimental.** The input for creating a pay item.
+"""
+input CreatePayItemInput {
+  """
+  The company or organisation whose catalogue the pay item is added to.
+  """
+  account: ID!
+  """
+  The name of the pay item.
+  """
+  name: String!
+  """
+  What kind of pay the pay item is.
+  """
+  role: PayItemRole!
+  """
+  How the pay item's price is worked out. Must be `FLAT` or `PER_UNIT`.
+  """
+  basis: PayItemBasis!
+  """
+  The unit a per-unit pay item is priced in. Required for per-unit pay items, and must be absent for flat ones.
+  """
+  unit: PayItemUnit
+  """
+  The name of the unit, such as 1,000 words. Required when the unit is `OTHER`, and must be absent otherwise.
+  """
+  unitLabel: String
+  """
+  The currency the pay item is priced in.
+  """
+  currency: Currency!
+  """
+  The pay item's starting price, in its currency. Leave out to price it later.
+  """
+  price: DecimalTwo
+  """
+  The date the starting price takes effect. Defaults to today, and cannot be in the past.
+  """
+  effectiveAt: Date
+}
+"""
 An input for creating a payment request.
 """
 input CreatePaymentRequestInput {
@@ -5007,23 +5862,24 @@ input CreateSmsMultiFactorInput {
   name: String
 }
 """
-The details for adding and inviting a supplier candidate.
+The details for adding a supplier candidate.
 """
 input CreateSupplierCandidateInput {
   """
-  The supplier account that owns this candidate (Company or Recruiter).
+  The company that acts as a supplier and owns this candidate. Staffing
+  agencies use `createRecruiterCandidate` instead.
   """
   supplier: ID!
   """
-  The invited candidate first name.
+  The candidate first name.
   """
   firstName: String!
   """
-  The invited candidate middle name.
+  The candidate middle name.
   """
   middleName: String
   """
-  The invited candidate last name.
+  The candidate last name.
   """
   lastName: String!
   """
@@ -5031,11 +5887,11 @@ input CreateSupplierCandidateInput {
   """
   email: String!
   """
-  The invited candidate country of residence.
+  The candidate country of residence.
   """
   country: String
   """
-  The invited candidate country state, if applicable.
+  The candidate country state, if applicable.
   """
   state: String
   """
@@ -5240,14 +6096,16 @@ input CreateWebhookInput {
   """
   The event types that this webhook should be subscribed to.
   
-  If null or not provided, the webhook will be subscribed to all event types.
+  If null or not provided, the webhook receives all event types, except that a staffing agency
+  webhook receives hire lifecycle events only when it lists them.
   If an empty array, the webhook will not receive any events.
   """
   subscribedEvents: [WebhookEventType!]
   """
-  The company that the webhook is for.
+  The account that the webhook is for: a company or a staffing agency.
+  Exactly one of `account` and `company` is required.
   """
-  company: ID!
+  account: ID
 }
 """
 An approver node in the workflow tree — assigns user groups to a rule.
@@ -5349,49 +6207,49 @@ input CreateWorkflowVariableFieldInput {
   rule: WorkflowVariableFieldRuleInput!
 }
 """
-Currency
+A currency code as defined by ISO 4217.
 """
 enum Currency {
   """
-  CAD
-  """
-  CAD
-  """
-  DKK
-  """
-  DKK
-  """
-  EUR
-  """
-  EUR
-  """
-  GBP
-  """
-  GBP
-  """
-  NOK
-  """
-  NOK
-  """
-  SEK
-  """
-  SEK
-  """
-  USD
-  """
-  USD
+  United Arab Emirates Dirham
   """
   AED
   """
-  AED
-  """
-  SGD
-  """
-  SGD
+  Australian Dollar
   """
   AUD
   """
-  AUD
+  Canadian Dollar
+  """
+  CAD
+  """
+  Danish Krone
+  """
+  DKK
+  """
+  Euro
+  """
+  EUR
+  """
+  Great British Pound
+  """
+  GBP
+  """
+  Norwegian Krone
+  """
+  NOK
+  """
+  Swedish Krona
+  """
+  SEK
+  """
+  Singapore Dollar
+  """
+  SGD
+  """
+  United States Dollar
+  """
+  USD
 }
 """
 A custom field.
@@ -5482,10 +6340,18 @@ type CustomField {
   """
   workerInputAllowed: Boolean!
   """
+  For hire fields the worker answers (on hires whose worker no staffing agency manages), when in the hire they must answer it. Null for every other field.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Whether recruiters (staffing agencies) are allowed to provide values for this field.
   When enabled, recruiters can update field values through the recruiter API.
   """
   recruiterInputAllowed: Boolean!
+  """
+  For hire fields the staffing agency answers for a worker it manages, when in the hire they must answer it. Null for every other field.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Whether values for this field should be surfaced on client invoices.
   """
@@ -5522,6 +6388,10 @@ type CustomField {
   The date and time that the field was deleted.
   """
   deletedAt: DateTime
+  """
+  The date and time that the field was archived.
+  """
+  archivedAt: DateTime
 }
 """
 The settings input for custom fields.
@@ -5564,6 +6434,13 @@ type CustomFieldOption {
   The value of the field option.
   """
   value: String!
+  """
+  What stops this option being removed from its custom field. Empty when it can be removed.
+  
+  This can reveal how the client prices work, so only the account owning the custom field
+  reads it. Anyone else, staffing agencies included, reads an empty list.
+  """
+  removalBlockedBy: [CustomFieldUsage!]!
 }
 """
 A paginated list of CustomField items.
@@ -5616,6 +6493,14 @@ enum CustomFieldType {
   File Upload input field. Used to attach an uploaded file as the field value.
   """
   FILE_UPLOAD
+  """
+  Date input field. Used to collect a single calendar date.
+  """
+  DATE
+  """
+  Boolean input field. Used to collect a yes or no answer.
+  """
+  BOOLEAN
 }
 """
 An input representing a custom field value, tailored to the field type.
@@ -5639,6 +6524,26 @@ input CustomFieldTypeValueInput {
   The input custom field values representation of the `FILE_UPLOAD` field type.
   """
   fileUpload: FileUploadCustomFieldValueInput
+  """
+  The input custom field values representation of the `DATE` field type.
+  """
+  date: DateCustomFieldValueInput
+  """
+  The input custom field values representation of the `BOOLEAN` field type.
+  
+  When filtering by a `FILE_UPLOAD` field, `true` matches records with at least one attached file
+  and `false` matches records with none.
+  """
+  boolean: BooleanCustomFieldValueInput
+}
+"""
+Something that depends on a custom field or one of its options, and so stops it being removed.
+"""
+enum CustomFieldUsage {
+  """
+  The option is used by a rate card, so it cannot be removed.
+  """
+  RATE_CARD_LINES
 }
 """
 Enum of available validation rules applicable to CustomFields
@@ -5674,8 +6579,9 @@ type CustomFieldValue {
   account: Account!
   """
   The user who created the field value.
+  Null when the user is outside the viewer's accounts and the record's company.
   """
-  user: User!
+  user: User
   """
   The entity to which the custom field value is applying to.
   """
@@ -5693,7 +6599,7 @@ type CustomFieldValue {
   """
   The content of the custom field value in the case of a custom field not using custom field options.
   
-  This will be present for a free-text field type.
+  This will be present for free-text, date (`YYYY-MM-DD`) and boolean (`1` or `0`) field types.
   """
   content: String
   """
@@ -5738,7 +6644,54 @@ enum CustomFieldVisibility {
   WORKER
 }
 """
-The reason a timesheet registration was rejected by Worksome.
+When the worker, or the staffing agency managing them, must answer a hire custom field.
+"""
+enum CustomFieldWorkerInputStage {
+  """
+  The worker answers while the hire is a draft, before the company can offer it.
+  """
+  BEFORE_OFFER
+  """
+  The worker answers before they can accept the contract.
+  """
+  BEFORE_ACCEPTANCE
+}
+"""
+Why a whole timesheet file was refused.
+"""
+type CustomTimesheetFileRejection {
+  """
+  Machine-readable reason the file was refused.
+  """
+  reason: CustomTimesheetFileRejectionReason!
+  """
+  Human-readable explanation, suitable for logs or display to the client's operator.
+  """
+  message: String!
+}
+"""
+The reason Worksome refused a whole timesheet file, so that none of its rows was checked or written.
+"""
+enum CustomTimesheetFileRejectionReason {
+  """
+  The header row does not match the columns of your current timesheet import template.
+  """
+  HEADER_MISMATCH
+  """
+  The file could not be read as a CSV file: it is empty, has no header row, is not UTF-8 or holds the replacement character U+FFFD, is not separated by commas or semicolons, or has a line break inside a cell.
+  """
+  UNREADABLE_FILE
+  """
+  The file has more data rows than one import accepts.
+  """
+  TOO_MANY_ROWS
+  """
+  The file is larger than one import accepts.
+  """
+  FILE_TOO_LARGE
+}
+"""
+The reason a timesheet registration was rejected, or a timesheet was blocked, by Worksome.
 """
 enum CustomTimesheetRejectionReason {
   """
@@ -5753,11 +6706,171 @@ enum CustomTimesheetRejectionReason {
   The reportedDate falls outside the hire's contract start/end dates.
   """
   DATE_OUTSIDE_CONTRACT_PERIOD
+  """
+  The timesheet's billing period overlaps another live payment request on the hire.
+  """
+  OVERLAPS_LIVE_PAYMENT_REQUEST
+  """
+  Another payment request already bills days in this period on the same hire.
+  """
+  PERIOD_ALREADY_BILLED
+  """
+  The timesheet's week crosses a contract rate change that can't be billed automatically.
+  """
+  RATE_CHANGE_CANNOT_BE_SPLIT
+  """
+  The contract in effect for the timesheet has a rate type that isn't supported.
+  """
+  UNSUPPORTED_RATE_TYPE
+  """
+  The payment request calculated from the timesheet would total zero.
+  """
+  ZERO_TOTAL_AMOUNT
+  """
+  An unexpected error prevented the timesheet from being processed, or an import row from being written. Nothing was written for that import row’s hire and week.
+  """
+  PROCESSING_FAILED
+  """
+  Another row in the same submission has the same hire and reportedDate, or the same hire, externalId and reportedDate. Every copy is rejected.
+  """
+  DUPLICATE_ROW
+  """
+  The hire already has hours registered on the reportedDate, and this import only adds hours.
+  """
+  HOURS_ALREADY_REGISTERED
+  """
+  The hire already has a live payment request in the week of the reportedDate, and this import only adds hours.
+  """
+  LIVE_PAYMENT_REQUEST_IN_WEEK
+  """
+  Another row for the same hire and week was rejected, so no row of that week is written.
+  """
+  OTHER_ROW_IN_WEEK_REJECTED
+  """
+  The CSV row fills in none of its hire identifier columns.
+  """
+  NO_HIRE_IDENTIFIER
+  """
+  A hire identifier on the CSV row matches several hires. The two hires of a mirrored engagement count as one.
+  """
+  MULTIPLE_HIRES_MATCHED
+  """
+  The hire identifiers on the CSV row point to different hires.
+  """
+  HIRE_IDENTIFIERS_MISMATCH
+  """
+  A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD or a payable value that is not yes or no.
+  """
+  UNREADABLE_LINE
+  """
+  No worker was found for the row's CSID. The row is stored without a worker and is never billed.
+  """
+  ROAR_WORKER_NOT_IDENTIFIED
+  """
+  The worker has several active hires on the reportedDate. The row is stored without a hire and is never billed.
+  """
+  ROAR_MULTIPLE_ACTIVE_HIRES
+  """
+  The timesheet is, or will be, blocked (WIP corrected, not payroll, already blocked, or already has a payment request), so no new or changed hours on it are billed until someone reviews it.
+  """
+  TIMESHEET_BLOCKED
+  """
+  An earlier import is still processing the same hire and week. Send the row again once that import has finished.
+  """
+  STILL_PROCESSING
+  """
+  A timesheet line custom field of the row's hire has a value it cannot take, such as a label that is not one of its options, or a required one has no value. The row's `customField` names the field.
+  """
+  INVALID_CUSTOM_FIELD_VALUE
+  """
+  The row's hire requires a timesheet line custom field that an import cannot fill: a multi-select or file-upload field, or a field without a slug, which has no template column. None of the hire's rows can be imported. The row's `customField` names the field.
+  """
+  REQUIRED_FIELD_CANNOT_BE_IMPORTED
+}
+"""
+The result of one submitted timesheet row.
+"""
+type CustomTimesheetRowResult {
+  """
+  The row's record number in a CSV file, where the header is 1, or its 1-based position in a JSON payload.
+  """
+  lineNumber: Int!
+  """
+  The externalId from the submitted payload, if one was provided. May be null if the registration was malformed.
+  """
+  externalId: String
+  """
+  Whether the row is accepted, rejected or deleted.
+  """
+  status: CustomTimesheetRowStatus!
+  """
+  The worker the row matched. Null when the row did not identify one, and always for the Roar schema.
+  """
+  worker: Worker
+  """
+  The hire the row matched: the hire its hireId names. Null when the row did not identify one, when a worker's hire list does not show the hire (draft or cancelled), and always for the Roar schema.
+  """
+  hire: Hire
+  """
+  Machine-readable reason for the rejection. Set when the row is rejected. On a Roar dry run, also set on an accepted row that is stored but never billed, and on an accepted or deleted row that cannot be processed.
+  """
+  reason: CustomTimesheetRejectionReason
+  """
+  The payment request the reason refers to, if any, as the payment request of the matched hire: for the client hire of a mirrored hire, the client's payment request.
+  """
+  paymentRequest: PaymentRequest
+  """
+  The date the reason refers to, if any.
+  """
+  date: Date
+  """
+  Human-readable explanation, suitable for logs or display to the client's operator. Set whenever `reason` is set.
+  """
+  message: String
+  """
+  The timesheet line custom field the reason refers to: set when the reason is `INVALID_CUSTOM_FIELD_VALUE` or `REQUIRED_FIELD_CANNOT_BE_IMPORTED`, null otherwise. A problem that rejects every row of the hire (two line fields sharing a slug, or a required field the import cannot fill) names its own field, before any value is checked. Otherwise, when several fields of the row fail, the first in template column order.
+  """
+  customField: TimesheetImportCustomField
+}
+"""
+What happens, or would happen with write set to false, to one submitted timesheet row.
+"""
+enum CustomTimesheetRowStatus {
+  """
+  The row is accepted for processing: written, or would be written. On a Roar dry run, the reason says when the row would be stored but never billed, or cannot be processed.
+  """
+  ACCEPTED
+  """
+  The row is not written. The reason says why.
+  """
+  REJECTED
+  """
+  The row removes the hours it reports: a Roar row with the status unsubmitted or rejected, or with Deleted set to true.
+  """
+  DELETED
 }
 """
 A scalar type representing a date.
 """
 scalar Date
+"""
+An input for a date custom field.
+"""
+input DateCustomFieldValueInput {
+  """
+  The ID of the field to set a date on.
+  """
+  id: ID
+  """
+  A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens
+  to replace spaces. The key is only unique within the same account.
+  """
+  slug: String
+  """
+  The date, as `YYYY-MM-DD`. A null value indicates that the field value will be deleted.
+  """
+  value: String
+}
 """
 An input for a date range.
 """
@@ -5775,6 +6888,19 @@ input DateRangeInput {
 A date formatted as YYYY-MM-DDTHH:mm:ss.SSSSSSZ (2022-10-30T23:00:00.000000Z).
 """
 scalar DateTime
+"""
+An input for a range of points in time. Both bounds are inclusive.
+"""
+input DateTimeRangeInput {
+  """
+  The start of the range, inclusive.
+  """
+  from: DateTime
+  """
+  The end of the range, inclusive.
+  """
+  to: DateTime
+}
 """
 A scalar for representing a decimal value.
 
@@ -5916,6 +7042,15 @@ The input for deleting a webhook.
 input DeleteWebhookInput {
   """
   The ID of the webhook to be deleted.
+  """
+  id: ID!
+}
+"""
+A right-to-work document to remove.
+"""
+input DeleteWorkerRightToWorkDocumentInput {
+  """
+  The document to remove.
   """
   id: ID!
 }
@@ -6280,6 +7415,45 @@ input EndJobInput {
   accountId: ID!
 }
 """
+A job that was skipped when ending multiple jobs at once.
+"""
+type EndJobSkipped {
+  """
+  The job that was skipped.
+  """
+  job: Job!
+  """
+  A human-readable explanation of why the job was skipped.
+  """
+  reason: String!
+}
+"""
+The input for ending multiple jobs at once.
+"""
+input EndJobsInput {
+  """
+  The IDs of the jobs to end.
+  """
+  jobIds: [ID!]!
+  """
+  The ID of the account performing the action.
+  """
+  accountId: ID!
+}
+"""
+The result of ending multiple jobs at once.
+"""
+type EndJobsResult {
+  """
+  Jobs that were successfully ended.
+  """
+  ended: [Job!]!
+  """
+  Jobs that could not be ended, with the reason why.
+  """
+  skipped: [EndJobSkipped!]!
+}
+"""
 An input for ending an existing project.
 """
 input EndProjectInput {
@@ -6456,15 +7630,20 @@ type Expense {
   """
   id: ID!
   """
+  The unique reference for the expense.
+  """
+  number: Int!
+  """
   The description of the expense.
   """
   description: String
   """
-  The currency of the expense.
+  The currency of the expense. Taken from the expense report's payment request when it was
+  created, or from its hire when the report wasn't linked to one.
   """
   currency: Currency!
   """
-  The amount of the expense.
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
   """
   amount: Float!
   """
@@ -6479,6 +7658,14 @@ type Expense {
   The date and time that the expense was created.
   """
   createdAt: DateTime!
+  """
+  Custom field values captured against this expense (see the "Expenses custom
+  fields" section of the client account's payment request custom fields).
+  
+  Filtered to Worker-visibility values for any viewer other than the client
+  company the fields belong to.
+  """
+  customFieldValues: [CustomFieldValue!]!
   """
   The files attached to this expense.
   """
@@ -6961,9 +8148,17 @@ input GenericComplianceInput {
   """
   name: ComplianceName!
   """
-  The raw form data for the compliance.
+  The raw form data for the compliance, as a JSON-encoded object. File
+  references inside it (`file_id`, `file_ids` and `*_file_id(s)` keys) take
+  `File` global IDs of files that belong to the acting account.
   """
   data: JSON!
+  """
+  The hire the compliance belongs to. Required for hire-scoped compliances,
+  such as `NL_SUPPLIER_EMPLOYMENT_CONFIRMATION`, and rejected for the others.
+  You must be the hire's party that the compliance is for.
+  """
+  hireId: ID
 }
 """
 An interface requiring company-specific fields.
@@ -7048,11 +8243,18 @@ contracts attached to the hire (`Hire.contracts`, `Hire.activeContract`) are the
 A hire progresses through a lifecycle: `DRAFT` → `OFFERED` → `READY` → `ACTIVE` → `ENDED`.
 It may also be `CANCELLED` (before activation) or `TERMINATED` (ended early by the company).
 """
-type Hire {
+type Hire implements Ownable {
   """
   The ID of the hire.
   """
   id: ID!
+  """
+  **Experimental.** The custom field values held on this hire.
+  
+  These belong to the hire itself, not to the job it came from. Only the fields
+  defined by your own account (or inherited from its organisation) are returned.
+  """
+  customFieldValues: [CustomFieldValue!]!
   """
   The unique reference for the hire.
   """
@@ -7067,6 +8269,10 @@ type Hire {
   
   The latest contract could for example be a draft, if one of the parties wanted to make changes to the currently
   active contract. see `hire.activeContract` for the current active one.
+  
+  The worker, and a staffing agency managing the worker, do not see a draft while the client's
+  approval is pending; they get the active contract instead, or the draft when the hire has no
+  active contract yet.
   """
   latestContract: Contract!
   """
@@ -7077,6 +8283,9 @@ type Hire {
   activeContract: Contract
   """
   The draft contract, if there is one waiting for the other party to accept.
+  
+  Null for the worker, and for a staffing agency managing the worker, while the client's
+  approval is pending.
   """
   draftContract: Contract
   """
@@ -7095,6 +8304,47 @@ type Hire {
   """
   hasSignedScheduledChange: Boolean!
   """
+  Dates on which this hire's rate, rate type or currency changed or will
+  change, in date order. Includes a signed scheduled change that hasn't
+  taken effect yet.
+  """
+  rateChangeDates: [Date!]!
+  """
+  The contract whose rate, rate type and currency applied on the given date,
+  or null when no contract applied on it.
+  """
+  contractForDate(
+    """
+    The date to find the contract for.
+    """
+    date: Date!
+  ): Contract
+  """
+  Whether a payment request on this hire must cover exactly one of
+  paymentRequestPeriods instead of free dates. Milestone payment requests,
+  payment requests for imported timesheets and days before
+  paymentRequestPeriodsStartDate are exempt. When true and the list is empty,
+  no period can be picked yet.
+  """
+  requiresPaymentRequestPeriods: Boolean!
+  """
+  The periods a payment request on this hire can cover, newest first: one or
+  more ISO 8601 weeks, Monday to Sunday, or a calendar month, from the
+  contract's first period, or the one paymentRequestPeriodsStartDate falls in,
+  up to and including the current period. A period is cut at the contract's
+  start and end, at paymentRequestPeriodsStartDate, at rate changes and at the
+  start of a billing period of either side. Empty when
+  requiresPaymentRequestPeriods is false.
+  """
+  paymentRequestPeriods: [PaymentRequestPeriod!]!
+  """
+  The first day a payment request on this hire must cover one of
+  paymentRequestPeriods, when that rule starts after the contract does. Days
+  before it are billed with free dates. Null when the rule applies from the
+  contract's start, or when requiresPaymentRequestPeriods is false.
+  """
+  paymentRequestPeriodsStartDate: Date
+  """
   The company which the worker will work with.
   """
   company: Company!
@@ -7102,6 +8352,10 @@ type Hire {
   The job that the hire is on.
   """
   job: Job!
+  """
+  The title of the hire. Once the hire has been accepted, a changed title shows here when the updated contract takes effect.
+  """
+  title: String
   """
   The recruiter attributed to the hire.
   """
@@ -7177,7 +8431,8 @@ type Hire {
   """
   classificationPdfUrl: String! @deprecated(reason: "Decoupling classification from hire in future versions.")
   """
-  The worker which the company is hiring.
+  The worker which the company is hiring. A worker can only delete their account while their hires
+  are still drafts; such a worker resolves here anonymised rather than failing.
   """
   worker: Worker!
   """
@@ -7197,6 +8452,10 @@ type Hire {
   """
   createdAt: Date!
   """
+  The date and time that the hire, its contract or its status was last changed.
+  """
+  updatedAt: DateTime!
+  """
   The date that the hire started.
   """
   startDate: Date
@@ -7204,6 +8463,10 @@ type Hire {
   The date that the hire ended.
   """
   endDate: Date
+  """
+  The extension proposed by a draft contract that the worker has not accepted yet.
+  """
+  pendingExtension: HirePendingExtension
   """
   The date that recruiter ownership started.
   """
@@ -7230,6 +8493,7 @@ type Hire {
   currency: String!
   """
   The rate for the hire.
+  On a supplier hire, null for viewers other than its company, staffing agency, supplier and worker, such as the end client.
   """
   rate: Float
   """
@@ -7268,11 +8532,20 @@ type Hire {
   """
   recruiterManagesWorkers: Boolean
   """
+  Whether a staffing agency attributed to this hire manages the worker, even before an agency is attached.
+  Attribution keeps this engagement, so it decides whether a referral fee applies.
+  """
+  attributionManagesWorkers: Boolean
+  """
   Whether the supplier's confirmation on this hire is signature-free and
   auto-accepted (the MSP opted this vendor-managed hire into no-signature
   confirmation). Drives whether the supplier sees a signature widget.
   """
   supplierSignatureWaived: Boolean
+  """
+  Whether a staffing agency referral fee can be set on this hire. When false, the client handles referral fees outside Worksome.
+  """
+  referralFeesAllowed: Boolean!
   """
   Whether the assigned recruiter can be removed from the hire.
   """
@@ -7283,6 +8556,7 @@ type Hire {
   canRemindWorkerForBilling: Boolean!
   """
   The user who created the Hire.
+  Null when the user is outside the viewer's accounts and the hire's company.
   """
   user: User
   """
@@ -7339,9 +8613,14 @@ type Hire {
   """
   hasPendingApproval: Boolean!
   """
-  The owners of the hire.
+  The team members assigned to this hire, and what each of them looks after.
+  Empty for viewers outside the hire's company.
   """
-  owners: [User!]!
+  owners: [Owner!]!
+  """
+  Whether the viewer may change the owners of this hire.
+  """
+  viewerCanManageOwners: Boolean!
   """
   Check if this hire ends within a given number of days.
   """
@@ -7356,18 +8635,48 @@ type Hire {
   """
   tenure: Int!
   """
+  The hire custom fields the worker, or the staffing agency managing them, is asked to answer on this hire, across every stage.
+  """
+  workerEditableCustomFields: [CustomField!]!
+  """
+  Whether the worker (or the staffing agency managing them) can already see this draft, to answer the questions asked before the offer.
+  """
+  workerInvited: Boolean!
+  """
   The source hire this hire was derived from.
+  Only resolved for viewers on the company at either end of the link.
   """
   sourceHire: Hire
   """
   The supplier-side hire derived from this source hire.
+  Only resolved for viewers on the company at either end of the link.
   """
   supplierHire: Hire
+  """
+  The client relation between the hire's company (the client) and the company supplying it (the MSP).
+  Both sides get the same relation. Null unless a company supplies the hire, or when the viewer is on neither side.
+  """
+  clientRelation: CompanySupplier
+  """
+  The hiring company's relation with the hire's staffing agency.
+  Null without an agency, and only resolved for viewers on the hiring company.
+  """
+  staffingAgencyRelation: CompanyRecruiter
+  """
+  The end client of a supplier-mirror hire. Null for other hires.
+  Resolved for viewers on the hire's company or its supplier.
+  """
+  endClient: Company
   """
   True when the `sourceHire` has pending contract changes that haven't
   yet been reflected here. Always false on hires without a `sourceHire`.
   """
   hasUnactedClientChanges: Boolean!
+  """
+  True when the `sourceHire` has been ended early and this hire still runs
+  past that date. Always false on hires without a `sourceHire`.
+  """
+  hasUnactedClientTermination: Boolean!
   """
   Checks if the current viewer has the correct permissions to be able to accept the contract
   and that all blocking actions have been completed.
@@ -7380,6 +8689,7 @@ type Hire {
   viewerCanCreatePaymentRequest: Boolean!
   """
   The fees associated with this hire.
+  Empty for viewers who may not read them, such as the end client on a supplier hire.
   """
   fees: [Fee!]!
   """
@@ -7387,6 +8697,10 @@ type Hire {
   Visible only to the staffing agency; null otherwise.
   """
   markupFee: Fee
+  """
+  **Experimental.** The checklists applied to this hire, in the order they were added.
+  """
+  checklists: [Checklist!]!
   """
   The contracts for the hire.
   
@@ -7586,6 +8900,9 @@ input HireInput {
   """
   Additional custom fields for the direct hire.
   
+  Values are routed by where the field is defined: a field that applies to jobs is stored
+  on the job, a field that applies to hires on the hire itself.
+  
   Details specified here are never shown to workers. Depending on each field's sharing
   settings, some may be visible outside your team.
   
@@ -7614,6 +8931,79 @@ input HireInput {
   This description is used on the draft contract.
   """
   hireDescription: String
+  """
+  **Experimental.** The pay items selected on the contract, each with its price. Leave out a
+  price to take the job's price for the pay item, or else its current price.
+  
+  Requires `job`. Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
+}
+"""
+The hire details and questions shown to the worker who answers them.
+"""
+type HireInvitation {
+  """
+  The ID of the hire.
+  """
+  hireId: ID!
+  """
+  The hire number.
+  """
+  number: String!
+  """
+  The name of the worker being hired, so a staffing agency knows who it is answering for.
+  """
+  workerName: String
+  """
+  The hiring company.
+  """
+  company: Company!
+  """
+  The name of the hiring company.
+  """
+  companyName: String
+  """
+  The job title.
+  """
+  jobTitle: String
+  """
+  The job description.
+  """
+  jobDescription: String
+  """
+  The planned start date.
+  """
+  startDate: Date
+  """
+  The planned end date.
+  """
+  endDate: Date
+  """
+  The work location.
+  """
+  workLocation: String
+  """
+  Whether the hire is still a draft.
+  """
+  isDraft: Boolean!
+  """
+  Whether every required custom field of the current stage has an answer.
+  """
+  requiredCustomFieldsComplete: Boolean!
+  """
+  The hire custom fields the worker answers.
+  """
+  customFields: [CustomField!]!
+  """
+  The hire custom fields the worker can still answer; answers lock once their stage has passed.
+  """
+  answerableCustomFields: [CustomField!]!
+  """
+  The answers given so far.
+  """
+  customFieldValues: [CustomFieldValue!]!
 }
 """
 The columns that the hires list can be ordered by.
@@ -7648,6 +9038,10 @@ enum HireOrderByColumn {
   """
   CREATED_AT
   """
+  The date and time that the hire, its contract or its status was last changed.
+  """
+  UPDATED_AT
+  """
   The hire engagement type
   """
   ENGAGEMENT_TYPE
@@ -7668,6 +9062,19 @@ type HirePaginator {
   A list of Hire items.
   """
   data: [Hire!]!
+}
+"""
+A proposed change that pushes a hire's end date later.
+"""
+type HirePendingExtension {
+  """
+  The end date of the active contract.
+  """
+  previousEndDate: Date!
+  """
+  The end date proposed by the draft contract.
+  """
+  newEndDate: Date!
 }
 """
 Trusted contact hire status filter input.
@@ -7802,6 +9209,10 @@ input InviteCompanyRecruiterInput {
   When null, the company-level default is used.
   """
   managesWorkers: Boolean
+  """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
 }
 """
 Trusted contact invited by users filter input.
@@ -7838,13 +9249,25 @@ type Invoice {
   """
   number: String
   """
-  A URL of the actual invoice.
+  A signed URL to download the PDF of the invoice or credit note. It is `null` when no PDF exists for the invoice.
   
-  This URL will link to a PDF for the invoice. This URL cannot be used for saving in external systems as it might
-  change over time or be regenerated. If a permanent URL is needed for the invoice, it should be stored in the clients
-  own system.
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system. Only parties to the invoice get a URL,
+  the same as in the `invoices` query. Other viewers get `null`.
   """
-  pdfUrl: URL!
+  pdfUrl: URL
+  """
+  A signed URL to download the e-invoicing XML of the invoice or credit note (SETU 1.4, PEPPOL-compatible UBL).
+  
+  This is the same document that is sent by email to accounts that receive XML invoices. It is `null` when no XML
+  has been generated for the invoice. An XML can be generated after the invoice is booked, so do not treat an
+  invoice as delivered while this is `null`.
+  
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the document and store it in your own system. Only parties to the invoice get a URL,
+  the same as in the `invoices` query. Other viewers get `null`.
+  """
+  xmlUrl: URL
   """
   The type of currency.
   """
@@ -7897,7 +9320,7 @@ type Invoice {
   """
   payeeDisplayName: String!
   """
-  The date that the invoice was created.
+  The date the invoice was issued.
   """
   date: Date!
   """
@@ -7932,6 +9355,17 @@ type Invoice {
   """
   externalIdentifier: String
   """
+  The time the invoice record was created.
+  
+  This can be earlier than the time the invoice became available through the API, as an invoice is only returned once
+  it is booked and has a number and a PDF.
+  """
+  createdAt: DateTime
+  """
+  The time the invoice was last changed.
+  """
+  updatedAt: DateTime
+  """
   A paginated list of all the rows on the invoice.
   
   This can be used to gather more information about the invoice than just the overall amount.
@@ -7947,6 +9381,65 @@ type Invoice {
     """
     page: Int
   ): InvoiceRowPaginator!
+}
+"""
+How often self-billing invoices are batched, and on which day the batch runs.
+"""
+type InvoiceBatchingCadence {
+  """
+  Whether self-billing invoices are batched at all; the schedule below only applies when they are.
+  """
+  enabled: Boolean!
+  """
+  The number of weeks between batch runs.
+  """
+  intervalWeeks: Int!
+  """
+  The weekday the batch runs on.
+  """
+  weekday: Weekday!
+}
+"""
+Who is emailed the client-side invoices of a mirror-model client relationship
+"""
+enum InvoiceDelivery {
+  """
+  Only the MSP (supplier) is emailed
+  """
+  MSP
+  """
+  Only the end client is emailed
+  """
+  CLIENT
+  """
+  Both the MSP (supplier) and the end client are emailed
+  """
+  BOTH
+}
+"""
+The columns that the invoices list can be ordered by.
+"""
+enum InvoiceOrderByColumn {
+  """
+  The date that the invoice was created.
+  """
+  CREATED_AT
+  """
+  The date that the invoice was issued.
+  """
+  DATE
+  """
+  The due date of the invoice.
+  """
+  DUE_DATE
+  """
+  The invoice number.
+  """
+  NUMBER
+  """
+  The net total of the invoice.
+  """
+  TOTAL_AMOUNT
 }
 """
 A paginated list of Invoice items.
@@ -8034,27 +9527,6 @@ enum InvoiceTransactionType {
   BATCH_INVOICE
 }
 """
-The columns that invoices can be ordered by.
-"""
-enum InvoicesOrderByColumn {
-  """
-  The date the invoice was created.
-  """
-  DATE
-  """
-  The due date.
-  """
-  DUE_DATE
-  """
-  The invoice number.
-  """
-  NUMBER
-  """
-  The net total.
-  """
-  TOTAL_AMOUNT
-}
-"""
 A scalar for representing JSON data.
 """
 scalar JSON
@@ -8124,14 +9596,17 @@ type Job implements HasURL {
   rateType: RateType
   """
   The payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   rate: Float
   """
   The minimum payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   minimumRate: Float
   """
   The maximum payment amount per specified rate type.
+  On a supplier job, null for viewers other than its company, staffing agencies, suppliers, workers it is shared with and hired workers, such as the end client.
   """
   maximumRate: Float
   """
@@ -8140,10 +9615,12 @@ type Job implements HasURL {
   paymentScheme: PaymentScheme @deprecated(reason: "This field is being phased out as part of our platform simplification efforts. No direct replacement is planned. This field will be removed on `2024-09-29`.")
   """
   The company fee (as a percentage).
+  Only resolved for viewers on the job's owning company.
   """
   companyFee: StrictPercentage
   """
   The worker fee (as a percentage).
+  Only resolved for viewers on the job's owning company and workers hired on the job.
   """
   workerFee: StrictPercentage
   """
@@ -8229,6 +9706,11 @@ type Job implements HasURL {
   requiredWorkers: Int
   """
   The owners of the job posting.
+  Empty for viewers outside the job's owning company.
+  
+  **Will change:** this field will return `Owner` objects, like `Hire.owners`, so each owner also carries
+  what they look after. Read the person through `user` once it does. Contact Worksome support if you need
+  help preparing for the change.
   """
   owners: [User!]!
   """
@@ -8303,6 +9785,10 @@ type Job implements HasURL {
   """
   viewerCanShare: Boolean!
   """
+  The maximum number of candidates the viewing staffing agency may submit on this job. Null means no limit.
+  """
+  viewerCandidateSubmissionLimit: Int
+  """
   Whether the viewer is able to create a job candidate.
   """
   viewerCanCreateJobCandidate: Boolean!
@@ -8331,6 +9817,10 @@ type Job implements HasURL {
   """
   isForMarketplace: Boolean!
   """
+  The date a supplier last submitted a candidate to this job.
+  """
+  lastCandidateSubmittedAt: Date
+  """
   An identifier associated with the job from an external system.
   """
   externalIdentifier: String
@@ -8353,12 +9843,70 @@ type Job implements HasURL {
   isAvailable: Boolean
   """
   The source job this job was derived from.
+  Only resolved for viewers on the company at either end of the link.
   """
   sourceJob: Job
   """
   The supplier-side job derived from this source job.
+  Only resolved for viewers on the company that owns the supplier-side job.
   """
   supplierJob: Job
+  """
+  The end client of a supplier-mirror job: the company whose job an MSP copied. Null for other jobs.
+  Resolved for the job's company and for staffing agencies and suppliers with an active share of it.
+  """
+  endClient: Company
+  """
+  **Experimental.** The pay items this job offers.
+  
+  Readable only by the client company owning the job, and by the MSP managing it; on
+  an MSP's copy, only by that MSP. Anyone else reads an empty list.
+  """
+  payItems: [PayItemAssignment!]!
+  """
+  **Experimental.** The pay items this job can offer. On an MSP's copy of a client job,
+  these are the client's, and the list is empty once the client job is deleted.
+  
+  Readable only by the client company owning the job, and by the MSP managing it; on
+  an MSP's copy, only by that MSP. Anyone else reads an empty list.
+  """
+  offerablePayItems: [PayItem!]!
+  """
+  **Experimental.** The rate card band for this job. By default, this is the band from
+  the rate card in force today. With `cached: true`, it is the band saved on the job. The
+  saved band is checked again when the job's criteria, rate type or currency change, and
+  removed if no line then matches. Changing the rate card does not change it.
+  
+  A band is the client's internal pricing policy, so it is readable only by the
+  client company owning the job, and by a company registered as that client's
+  supplier that also holds an active share of the job — in practice, the MSP.
+  Anyone else, staffing agencies included, reads null.
+  """
+  rateCardBand(
+    """
+    The date to look up the band on. Defaults to today. Not used with `cached: true`.
+    """
+    date: Date
+
+    """
+    Look up the band with these custom field values instead of the job's saved ones.
+    Not used with `cached: true`.
+    """
+    customFieldValues: [CustomFieldTypeValueInput!]
+
+    """
+    Return the band saved on the job instead of today's band. For a job derived from a
+    source job, this is the source job's band. Returns `NO_RATE_CARD` when the job has
+    no saved band.
+    """
+    cached: Boolean = false
+
+    """
+    Look up the band for this rate type instead of the job's saved one. Not used with
+    `cached: true`.
+    """
+    rateType: RateType
+  ): RateCardBand
   """
   The hires made on the job.
   """
@@ -8545,26 +10093,30 @@ type JobCandidate {
   isPreferred: Boolean!
   """
   The user that last changed the job candidate status.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  statusSetByUser: User!
+  statusSetByUser: User
   """
   The user that last changed the job candidate step.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  stepSetByUser: User!
+  stepSetByUser: User
   """
   The date and time that the job candidate was created.
   """
   createdAt: DateTime!
   """
   The user that created the job candidate.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
-  createdByUser: User!
+  createdByUser: User
   """
   The date and time that the job candidate was last updated.
   """
   updatedAt: DateTime
   """
   The user that last updated the job candidate.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
   updatedByUser: User
   """
@@ -8606,6 +10158,15 @@ type JobCandidate {
   client-side copy of a candidate presented through an MSP mirror flow.
   """
   viewerCanInviteToOnboard: Boolean!
+  """
+  Whether the candidate's worker is already a trusted contact of the job's company.
+  """
+  workerIsTrustedContact: Boolean!
+  """
+  Whether inviting this candidate to onboard will be the first time the worker, or the
+  staffing agency managing them, is asked for the draft hire's before-offer custom fields.
+  """
+  onboardingRequestsHireDetails: Boolean!
   """
   Whether this candidate has been presented (forwarded) to the client job.
   """
@@ -8771,6 +10332,7 @@ type JobCandidateStageHistoryEntry {
   stage: JobCandidateHiringStep!
   """
   The name of the user that made the change, if available.
+  Null when the user is outside the viewer's accounts and the job's owning company.
   """
   changedByName: String
   """
@@ -8870,6 +10432,10 @@ enum JobOrderByColumn {
   """
   CREATED_AT
   """
+  The job updated at
+  """
+  UPDATED_AT
+  """
   The expected start date
   """
   EXPECTED_START_DATE
@@ -8881,6 +10447,10 @@ enum JobOrderByColumn {
   Order by the number of candidates on the job.
   """
   CANDIDATES
+  """
+  The date a supplier last submitted a candidate to the job
+  """
+  LAST_CANDIDATE_SUBMITTED_AT
 }
 """
 A paginated list of Job items.
@@ -8916,6 +10486,10 @@ type JobShare {
   """
   createdAt: DateTime!
   """
+  The date and time that the job share or its job was last changed.
+  """
+  updatedAt: DateTime!
+  """
   The job that the job share is related to.
   """
   job: Job!
@@ -8941,6 +10515,10 @@ enum JobShareOrderByColumn {
   The date and time that the job share was created.
   """
   CREATED_AT
+  """
+  The date and time that the job share or its job was last changed.
+  """
+  UPDATED_AT
 }
 """
 A paginated list of JobShare items.
@@ -9721,6 +11299,16 @@ type Mutation {
     input: RunBatchActionInput!
   ): RunBatchActionResponse!
   """
+  **Experimental.** Confirm a check, mark it not applicable, or set it back to pending. Records who
+  made the decision and when.
+  """
+  setChecklistCheckState(
+    """
+    The check to change, and its new state.
+    """
+    input: SetChecklistCheckStateInput!
+  ): ChecklistCheck!
+  """
   Generate the company invite link token.
   """
   generateInviteLink(
@@ -9811,6 +11399,30 @@ type Mutation {
     input: DeleteCompanyRecruiterInput!
   ): CompanyRecruiter
   """
+  Link or unlink a set of agencies against a set of the company's clients.
+  
+  One request for the whole selection: linking creates or revives each pair, unlinking
+  withdraws it. Already-correct pairs are left alone, so it is safe to re-send.
+  """
+  setSupplierClientLinks(
+    """
+    The agencies, the clients, and whether they should be linked.
+    """
+    input: SetSupplierClientLinksInput!
+  ): [SupplierClient!]!
+  """
+  Link or unlink suppliers for one of the company's clients.
+  
+  Unlinking withdraws the link without dropping the row, and linking again revives that same
+  row, so the relationship keeps its history either way.
+  """
+  updateSupplierClientLinks(
+    """
+    The links to update, and whether they should be linked.
+    """
+    input: UpdateSupplierClientLinksInput!
+  ): [SupplierClient!]!
+  """
   Invite an existing recruiter.
   
   Only companies can invite the recruiter.
@@ -9832,7 +11444,7 @@ type Mutation {
     The assignments to apply.
     """
     input: UpdateCompanySupplierOwnersInput!
-  ): CompanySupplier!
+  ): CompanySupplier! @deprecated(reason: "Use updateOwners, which takes any record with owners.")
   """
   Submit information for a compliance — e.g. a company reviewing a
   worker, or a worker filling in form data. Set exactly one field on
@@ -9845,6 +11457,19 @@ type Mutation {
     """
     input: SubmitComplianceInput!
   ): Compliance!
+  """
+  Record a compliance reviewer's decision on a single right-to-work document.
+  
+  Requires the `manage-compliance-tracker` permission at a company that both
+  engages the worker and requires the checks. Returns the document as it now
+  appears in the compliance review.
+  """
+  reviewRightToWorkDocument(
+    """
+    The decision to record.
+    """
+    input: ReviewRightToWorkDocumentInput!
+  ): ComplianceDataRestrictedDocument!
   """
   Create a custom field.
   """
@@ -9878,10 +11503,22 @@ type Mutation {
     input: DeleteCustomFieldInput!
   ): CustomField!
   """
-  Update custom field values for a fieldable entity as a worker.
+  Archive or unarchive a custom field.
+  
+  The field is offered or stops being offered for input, but its existing values stay readable.
+  """
+  setCustomFieldsArchived(
+    """
+    The input for archiving or unarchiving a custom field.
+    """
+    input: SetCustomFieldsArchivedInput!
+  ): [CustomField!]!
+  """
+  Update custom field values for a fieldable entity as a worker, a staffing agency, a supplier
+  or, for a hire, the company that owns it.
   
   Accepts a collection of field values in a single payload.
-  Only fields with `workerInputAllowed: true` can be updated.
+  Workers can only update fields with `workerInputAllowed: true`.
   Partial updates are supported - fields not included are ignored.
   """
   updateWorkerCustomFieldValues(
@@ -9909,9 +11546,27 @@ type Mutation {
     input: OnboardEmploymentInput!
   ): Employment!
   """
+  Create an expense line item on an expense report.
+  """
+  createExpense(
+    """
+    The details of the expense to create.
+    """
+    input: CreateExpenseInput!
+  ): Expense!
+  """
+  Update an expense line item.
+  """
+  updateExpense(
+    """
+    The details of the expense to update.
+    """
+    input: UpdateExpenseInput!
+  ): Expense!
+  """
   Generate temporary upload URLs for files for the given account.
   
-  The temporary URL will expire after 1 week.
+  The temporary URL will expire after 1 minute.
   """
   uploadFiles(
     """
@@ -9983,6 +11638,9 @@ type Mutation {
   ): Hire!
   """
   Terminate a hire.
+  
+  Only the hire's company can terminate the hire. Requires the `manage-contracts`
+  team permission on the hire's company.
   """
   terminateHire(
     """
@@ -9993,7 +11651,9 @@ type Mutation {
   """
   Cancel a hire.
   
-  Only companies can cancel their hires.
+  Only the hire's company can cancel the hire. Requires the `manage-contracts`
+  team permission on the hire's company. A worker never cancels a hire;
+  declining an offered hire is `rejectHire`.
   """
   cancelHire(
     """
@@ -10083,6 +11743,17 @@ type Mutation {
     input: EndJobInput!
   ): Job!
   """
+  End multiple jobs at once.
+  
+  Only companies can end jobs. Jobs that cannot be ended are skipped.
+  """
+  endJobs(
+    """
+    The details of the jobs to end.
+    """
+    input: EndJobsInput!
+  ): EndJobsResult!
+  """
   Set the internal budget of a job.
   
   Only companies can set the internal budget on the job.
@@ -10158,6 +11829,9 @@ type Mutation {
   ): JobCandidate!
   """
   Present a candidate to a linked job with a specified rate.
+  
+  A candidate that was withdrawn from the client job can be presented again. A candidate that is still
+  presented, or that is marked as not eligible, cannot.
   """
   forwardCandidate(
     """
@@ -10178,7 +11852,8 @@ type Mutation {
   ): JobCandidate!
   """
   Withdraw an own submitted candidate from the hiring process. Used by
-  suppliers; moves the candidate to the withdrawn step of its current phase.
+  suppliers (staffing agencies and companies acting as suppliers); moves the
+  candidate to the withdrawn step of its current phase.
   """
   withdrawJobCandidate(
     """
@@ -10201,6 +11876,27 @@ type Mutation {
     """
     input: InviteCandidateToOnboardInput!
   ): JobCandidate!
+  """
+  Submit one or more of a supplier's own candidates to a job that is actively shared with that supplier.
+  
+  The supplier must be one of the authenticated user's accounts, and every worker must be one of that
+  supplier's candidates.
+  The job must be active, and not paused or filled.
+  
+  Submitting is additive: only the candidates in the input are created or updated, and unchanged candidates
+  are kept as they are. The supplier's other submissions on the job are not changed; use withdrawJobCandidate
+  to withdraw one. On a re-submission, a candidate's brief, links, files and availableFrom that are left out
+  keep their current values; send an empty value to clear the brief, links or files.
+  Submitting a withdrawn candidate again puts it back in the APPLIED step. A candidate the
+  client marked as not eligible cannot be submitted again. Withdrawn candidates do not count towards the
+  client's submission limit.
+  """
+  submitJobCandidates(
+    """
+    Input data to submit the candidates.
+    """
+    input: SubmitJobCandidatesInput!
+  ): [JobCandidate!]!
   """
   Create a job share.
   """
@@ -10318,6 +12014,57 @@ type Mutation {
     """
     input: DeleteNoteInput!
   ): Note!
+  """
+  Replace the set of team members assigned to a record. Each user can be listed once.
+  
+  Who may change the assignments, and who may be assigned, depends on the record:
+  
+  - Client relations and staffing agency client links: full-access users (account owner or admin)
+    on the supplier account; every assignee must be a member of that account.
+  - Hires: users who can manage contracts on the hire's company and either see all of its hires or
+    already own this one; every assignee must be a member of that company, and a hire always keeps
+    at least one owner.
+  """
+  updateOwners(
+    """
+    The assignments to apply.
+    """
+    input: UpdateOwnersInput!
+  ): Ownable!
+  """
+  **Experimental.** Add a pay item to an account's catalogue.
+  
+  The pay item starts active. Its role, basis, unit and currency cannot be changed
+  afterwards: a different one is a new pay item.
+  """
+  createPayItem(
+    """
+    The input for creating a pay item.
+    """
+    input: CreatePayItemInput!
+  ): PayItem!
+  """
+  **Experimental.** Give a pay item a new price from a date.
+  
+  The previous price is kept, and stays in force until the new one takes effect.
+  """
+  repricePayItem(
+    """
+    The input for repricing a pay item.
+    """
+    input: RepricePayItemInput!
+  ): PayItem!
+  """
+  **Experimental.** Archive a pay item so it can no longer be offered or selected.
+  
+  Jobs and contracts that already use it keep it.
+  """
+  archivePayItem(
+    """
+    The input for archiving a pay item.
+    """
+    input: ArchivePayItemInput!
+  ): PayItem!
   """
   Create a payment request.
   """
@@ -10456,13 +12203,15 @@ type Mutation {
     input: DeleteRecruiterCandidateInput!
   ): RecruiterCandidate
   """
-  Add and invite a new supplier candidate.
+  Add a new supplier candidate.
   
-  Only accounts that act as suppliers can add candidates.
+  Only companies that act as suppliers can add candidates. Staffing agencies
+  must use `createRecruiterCandidate` instead; this mutation returns an error
+  for a staffing agency supplier.
   """
   createSupplierCandidate(
     """
-    The details for adding & inviting the candidate.
+    The details for adding the candidate.
     """
     input: CreateSupplierCandidateInput!
   ): SupplierCandidate
@@ -10713,7 +12462,11 @@ type Mutation {
   """
   Create a webhook.
   
-  Only companies can create webhooks.
+  Companies and staffing agencies can create webhooks.
+  
+  A staffing agency webhook receives job events for jobs shared with it and job candidate events for
+  candidates it submitted. It receives hire lifecycle events for hires it supplies only when it lists
+  them in `subscribedEvents`.
   """
   createWebhook(
     """
@@ -10768,6 +12521,15 @@ type Mutation {
     """
     input: UpdateWorkerIdentificationInput!
   ): WorkerIdentification!
+  """
+  Remove a right-to-work document. Soft-deleted, so the audit trail is kept.
+  """
+  deleteWorkerRightToWorkDocument(
+    """
+    The document to remove.
+    """
+    input: DeleteWorkerRightToWorkDocumentInput!
+  ): Boolean!
   """
   Create an approval workflow as a complete tree in a single operation.
   
@@ -11142,21 +12904,46 @@ enum OvertimeType {
   SEVENTH_DAY
 }
 """
-A user assigned as an owner of a record, and the part they play on it.
+A record that people can be assigned to as owners.
 """
-type Owner {
+interface Ownable {
   """
-  The owner's user ID.
+  The record's own ID.
   """
   id: ID!
   """
-  The owner's name.
+  The team members assigned to this record.
   """
-  name: String!
+  owners: [Owner!]!
   """
-  The part this person plays on the record, e.g. the primary contact.
+  Whether the viewer may change the owners of this record.
   """
-  role: OwnerRole
+  viewerCanManageOwners: Boolean!
+}
+"""
+A user assigned as an owner of a record, and what they look after on it.
+"""
+type Owner {
+  """
+  The ID of this assignment: one per user per record.
+  """
+  id: ID!
+  """
+  The user who owns the record.
+  """
+  user: User!
+  """
+  What this person looks after on the record. Grants no permissions.
+  """
+  responsibility: OwnerResponsibility
+  """
+  When the user was assigned.
+  """
+  assignedAt: DateTime
+  """
+  The record this person is assigned to as an owner. Null for viewers who are not a party to that record.
+  """
+  owned: Ownable
 }
 """
 One user's owner assignment on a record.
@@ -11167,26 +12954,44 @@ input OwnerInput {
   """
   user: ID!
   """
-  The part this person plays on the record, e.g. the primary contact.
+  What this person looks after on the record. Grants no permissions.
+  A new owner on a staffing agency's client link sent without one starts with the one their role at the agency suggests.
   """
-  role: OwnerRole
+  responsibility: OwnerResponsibility
 }
 """
-The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
+A paginated list of Owner items.
 """
-enum OwnerRole {
+type OwnerPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of Owner items.
+  """
+  data: [Owner!]!
+}
+"""
+What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner.
+"""
+enum OwnerResponsibility {
   """
   Primary contact
   """
   PRIMARY_CONTACT
   """
-  Compliance owner
+  Compliance
   """
   COMPLIANCE
   """
-  Payments owner
+  Payments
   """
   PAYMENTS
+  """
+  Recruitment
+  """
+  RECRUITMENT
 }
 """
 Information about pagination using a fully featured paginator.
@@ -11298,6 +13103,218 @@ type Partner implements Account {
   The primary profile of the partner.
   """
   primaryProfile: Profile
+}
+"""
+**Experimental.** A pay item in a company's or organisation's catalogue, such as a
+shift premium or a standby allowance.
+"""
+type PayItem {
+  """
+  The ID of the pay item.
+  """
+  id: ID!
+  """
+  The account that owns the pay item.
+  """
+  account: Account!
+  """
+  The name of the pay item.
+  """
+  name: String!
+  """
+  What kind of pay the pay item is.
+  """
+  role: PayItemRole!
+  """
+  How the pay item's price is worked out.
+  """
+  basis: PayItemBasis!
+  """
+  The unit a per-unit pay item is priced in. Absent for flat and percentage pay items.
+  """
+  unit: PayItemUnit
+  """
+  The name of the unit when the unit is `OTHER`, such as 1,000 words.
+  """
+  unitLabel: String
+  """
+  The currency a flat or per-unit pay item is priced in. Absent for percentage pay items.
+  """
+  currency: Currency
+  """
+  Whether the pay item can be used or has been archived.
+  """
+  status: PayItemStatus!
+  """
+  The price in force today. Absent when no price has taken effect yet.
+  """
+  currentPrice: PayItemPrice
+}
+"""
+**Experimental.** A pay item offered on a job, or selected and priced on a contract.
+"""
+type PayItemAssignment {
+  """
+  The ID of the pay item assignment.
+  """
+  id: ID!
+  """
+  The pay item from the catalogue, without its catalogue price or owning account: the
+  assignment carries its own price.
+  """
+  payItem: AssignedPayItem!
+  """
+  The price of a flat or per-unit pay item. Absent when no price was set, and for percentage pay items.
+  """
+  amount: DecimalTwo
+  """
+  The price of a percentage pay item. Absent when no price was set, and for flat and per-unit pay items.
+  """
+  percentage: Percentage
+  """
+  The currency of the price. Absent for percentage pay items and when no price was set.
+  """
+  currency: Currency
+  """
+  Whether the pay item is offered on a job or selected on a contract.
+  """
+  status: PayItemAssignmentStatus!
+  """
+  The job offer this contract selection came from, if any. Shown only to those who can
+  read the job's pay items (see `Job.payItems`); anyone else reads null.
+  """
+  sourceAssignment: PayItemAssignment
+}
+"""
+**Experimental.** A pay item on a job or contract, with the price it is offered or agreed at.
+"""
+input PayItemAssignmentInput {
+  """
+  The ID of the pay item.
+  """
+  payItem: ID!
+  """
+  The price, in the job's or contract's currency. On a job, leave out to offer the pay item
+  without a price. On a contract, leave out to take the job's price for it, or else the
+  pay item's current price.
+  """
+  price: DecimalTwo
+}
+"""
+Whether a pay item is offered on a job or selected on a contract.
+"""
+enum PayItemAssignmentStatus {
+  """
+  The pay item is offered on a job for a contract to select.
+  """
+  OFFERED
+  """
+  The pay item is selected and priced on a contract.
+  """
+  ACTIVE
+}
+"""
+How a pay item's price is worked out.
+"""
+enum PayItemBasis {
+  """
+  A fixed amount each time the item is charged.
+  """
+  FLAT
+  """
+  An amount per unit, such as per hour, per shift or per 1,000 words.
+  """
+  PER_UNIT
+  """
+  A percentage on top of the base pay.
+  """
+  PERCENTAGE
+}
+"""
+A paginated list of PayItem items.
+"""
+type PayItemPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of PayItem items.
+  """
+  data: [PayItem!]!
+}
+"""
+**Experimental.** One version of a pay item's price, in force from its effective date
+until a later version takes effect.
+"""
+type PayItemPrice {
+  """
+  The price of a flat or per-unit pay item, in the pay item's currency. Absent for percentage pay items.
+  """
+  amount: DecimalTwo
+  """
+  The price of a percentage pay item. Absent for flat and per-unit pay items.
+  """
+  percentage: Percentage
+  """
+  The date the price takes effect.
+  """
+  effectiveAt: Date!
+}
+"""
+What kind of pay a pay item is.
+"""
+enum PayItemRole {
+  """
+  Pay for the work itself.
+  """
+  BASE_PAY
+  """
+  Pay on top of the base pay, such as a shift or weekend premium.
+  """
+  PREMIUM
+}
+"""
+Whether a pay item can be used or has been archived.
+"""
+enum PayItemStatus {
+  """
+  The pay item can be offered and charged.
+  """
+  ACTIVE
+  """
+  The pay item has been archived.
+  """
+  ARCHIVED
+}
+"""
+The unit a per-unit pay item is priced in.
+"""
+enum PayItemUnit {
+  """
+  Per hour.
+  """
+  HOUR
+  """
+  Per day.
+  """
+  DAY
+  """
+  Per shift.
+  """
+  SHIFT
+  """
+  Per week.
+  """
+  WEEK
+  """
+  Per month.
+  """
+  MONTH
+  """
+  Per a unit the client names, such as 1,000 words, held in the item's unit label.
+  """
+  OTHER
 }
 """
 A payment request.
@@ -11526,10 +13543,12 @@ type PaymentRequest {
   externalIdentifier: String
   """
   The source payment request this record was derived from.
+  Only resolved for viewers on the company of the source payment request.
   """
   sourcePaymentRequest: PaymentRequest
   """
   The client-side payment request derived from this source.
+  Only resolved for viewers on the company of this payment request.
   """
   clientPaymentRequest: PaymentRequest
   """
@@ -11671,6 +13690,41 @@ type PaymentRequestPaginator {
   A list of PaymentRequest items.
   """
   data: [PaymentRequest!]!
+}
+"""
+A span of days that a single payment request may cover on a hire: one period
+of the hire's payment request period rule, which is one or more ISO 8601 weeks,
+Monday to Sunday, or a calendar month, or a part of one. A period cut at a
+contract start or end, a rate change or a billing period boundary has several
+parts.
+"""
+type PaymentRequestPeriod {
+  """
+  The ISO 8601 week-numbering year of the week the period lies in. Set only
+  when the rule is one week; null otherwise. Set whenever isoWeek is set.
+  """
+  isoYear: Int
+  """
+  The ISO 8601 week number, from 1 to 53, of the week the period lies in. Set
+  only when the rule is one week; null otherwise. Set whenever isoYear is set.
+  """
+  isoWeek: Int
+  """
+  Whether a payment request that bills hours, days or weeks already covers a day of the
+  period, on a hire that prevents overlapping payment requests. Such a period is refused for
+  another payment request that bills time. A submitted payment request that bills time marks its
+  own period billed too; the overlap check leaves that payment request out, so editing it can
+  keep the period. Always false when the hire does not prevent overlapping payment requests.
+  """
+  isBilled: Boolean!
+  """
+  The first day of the period.
+  """
+  startDate: Date!
+  """
+  The last day of the period.
+  """
+  endDate: Date!
 }
 """
 The approval status of a payment request from the company's perspective.
@@ -11908,6 +13962,10 @@ type Profile implements HasURL {
   """
   url: URL!
   """
+  The account's own description of itself, as shown on its profile page. Plain text.
+  """
+  description: String
+  """
   The links for the profile
   """
   links: [Link!]!
@@ -11960,6 +14018,10 @@ type Project {
   endDate: Date
   """
   The owners of the project.
+  
+  **Will change:** this field will return `Owner` objects, like `Hire.owners`, so each owner also carries
+  what they look after. Read the person through `user` once it does. Contact Worksome support if you need
+  help preparing for the change.
   """
   owners: [User!]!
   """
@@ -12022,6 +14084,26 @@ type Query {
   Scoped to the authenticated user's companies.
   """
   companyRecruiterRegions: [MarketWithRegions!]!
+  """
+  **Experimental.** The markets of the viewer's clients, with all of their regions: the clients of its supplier
+  companies and of its staffing agencies.
+  """
+  clientRelationRegions(
+    """
+    Only the clients of these accounts. Without it, every account the viewer belongs to.
+    """
+    accounts: [ID!]
+  ): [MarketWithRegions!]!
+  """
+  **Experimental.** The markets of the viewer's own and organisation-shared trusted contacts, with all of their
+  regions.
+  """
+  trustedContactRegions(
+    """
+    Only the trusted contacts of these accounts. Without it, every account the viewer belongs to.
+    """
+    accounts: [ID!]
+  ): [MarketWithRegions!]!
   """
   Get a specific approval rule by ID.
   """
@@ -12105,6 +14187,21 @@ type Query {
     """
     id: ID!
   ): CompanyRecruiter
+  """
+  Whether client work lists should default to the viewer's own clients: the viewer works for a supplier
+  company or staffing agency without full access and is assigned to at least one of its clients.
+  """
+  defaultClientOwnerFilter: Boolean!
+  """
+  **Experimental.** Get one client relation of the viewer's supplier accounts: a supplier company's relation or a
+  staffing agency's client link, whichever kind the ID is.
+  """
+  clientRelation(
+    """
+    The ID of a company supplier relation or of a staffing agency's client link.
+    """
+    id: ID!
+  ): ClientRelation
   """
   Get a specific company supplier.
   """
@@ -12225,6 +14322,22 @@ type Query {
     id: ID!
   ): Hire
   """
+  The questions a hire's company asks its worker, with only the hire details needed to answer them.
+  
+  Available to the hire's worker, or the staffing agency managing them. Unlike `hire`, this also
+  works while the hire is a draft waiting on answers, and never exposes commercial terms.
+  """
+  hireInvitation(
+    """
+    The ID of the hire.
+    """
+    id: ID!
+  ): HireInvitation
+  """
+  The draft hires waiting on answers from the viewer (the worker, or the staffing agency managing them).
+  """
+  hireInvitations: [HireInvitation!]!
+  """
   Get a specific industry.
   """
   industry(
@@ -12238,9 +14351,18 @@ type Query {
   """
   invoice(
     """
-    The invoice number on the PDF.
+    The ID of the invoice.
+    
+    Exactly one of `id` or `number` must be supplied.
     """
-    number: String!
+    id: ID
+
+    """
+    The invoice number on the PDF.
+    
+    Exactly one of `id` or `number` must be supplied.
+    """
+    number: String
   ): Invoice
   """
   Get a specific invoice row.
@@ -12342,7 +14464,7 @@ type Query {
     id: ID!
   ): RecruiterCandidate
   """
-  Get a specific supplier candidate.
+  Get a specific supplier candidate of any supplier account the user belongs to.
   """
   supplierCandidate(
     """
@@ -12359,6 +14481,30 @@ type Query {
     """
     id: ID!
   ): Timesheet
+  """
+  The CSV template for importing timesheets into an account: the hire custom fields it can identify hires by, and how the last downloaded template compares with a fresh one.
+  
+  Refused when the account is not one of the user's, when the account's timesheet import is off, or, for a staffing agency, when the user cannot access its placements.
+  """
+  timesheetImportTemplate(
+    """
+    The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to.
+    """
+    account: ID!
+  ): TimesheetImportTemplate!
+  """
+  Get the distinct list of countries represented among the authenticated user's
+  trusted contacts (talent pool). Used to populate the "locations" filter so it
+  only offers countries that actually have workers, instead of every launched
+  market country.
+  """
+  trustedContactCountries: [String!]!
+  """
+  Get the distinct list of business setups represented among the authenticated
+  user's trusted contacts (talent pool). Used to populate the "business setup"
+  filter so it only offers setups that workers actually have.
+  """
+  trustedContactBusinessSetups: [TrustedContactBusinessSetup!]!
   """
   Get a specific trusted contact.
   """
@@ -12681,6 +14827,21 @@ type Query {
     externalIdentifiers: [String!]
 
     """
+    Only show companies that are divisions of these organisations.
+    """
+    organisations: [ID!]
+
+    """
+    Search companies by name.
+    """
+    search: String
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [CompanyOrderByClauseInput!]
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -12747,6 +14908,11 @@ type Query {
     verifiedRecruiterReview: VerifiedRecruiterReviewFilterInput
 
     """
+    Only show staffing agencies linked to any of the given end-client companies.
+    """
+    endClients: [ID!]
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -12756,6 +14922,96 @@ type Query {
     """
     page: Int
   ): CompanyRecruiterPaginator!
+  """
+  The suppliers contracted for one of the company's clients.
+  """
+  clientSuppliers(
+    """
+    Only show links managed by these company accounts. Without it, every company the viewer
+    manages staffing agencies for.
+    """
+    accounts: [ID!]
+
+    """
+    The client company to list contracted suppliers for.
+    """
+    client: ID!
+
+    """
+    Supply an input string which will be used to search through supplier names.
+    """
+    search: String
+
+    """
+    Filter by the status of the supplier relation itself.
+    """
+    supplierStatuses: [RecruiterStatus!]
+
+    """
+    Filter by the date the supplier was linked to this client.
+    """
+    linkedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, ordering will be applied in the provided order.
+    """
+    orderBy: [SupplierClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
+  """
+  **Experimental.** The end clients the viewer's staffing agencies work for: one row per client link, direct or
+  through an MSP.
+  """
+  staffingAgencyClients(
+    """
+    Only show the clients of these staffing agency accounts. Without it, every staffing agency the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    Search clients by company name.
+    """
+    search: String
+
+    """
+    Only show direct links (true) or links through an MSP (false).
+    """
+    isDirect: Boolean
+
+    """
+    Filter clients by market and optionally narrow by specific regions.
+    """
+    clientRegions: MarketRegionInput
+
+    """
+    Only show links created within the given date range.
+    """
+    createdAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [StaffingAgencyClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): SupplierClientPaginator!
   """
   Get a list of company suppliers for the authenticated company accounts.
   """
@@ -12780,6 +15036,200 @@ type Query {
     """
     page: Int
   ): CompanySupplierPaginator!
+  """
+  Get a list of clients the authenticated company accounts supply to.
+  
+  The rows companySuppliers also returns, limited to those where the viewer's company is the supplier.
+  """
+  companyClients(
+    """
+    Only show the clients of these supplier company accounts. Without it, clients of every
+    supplier company the viewer belongs to are shown.
+    """
+    accounts: [ID!]
+
+    """
+    Search clients by company name.
+    """
+    search: String
+
+    """
+    Filter clients by market and optionally narrow by specific regions.
+    """
+    clientRegions: MarketRegionInput
+
+    """
+    Only show clients whose relationship was established within the given date range.
+    """
+    createdAtDateRange: DateRangeInput
+
+    """
+    Only show clients whose supplier hires copy (or do not copy) the client's payment terms.
+    """
+    paymentTermsFollowsClient: Boolean
+
+    """
+    Only show clients with (or without) staffing agencies linked to them by the supplier.
+    """
+    hasLinkedStaffingAgencies: Boolean
+
+    """
+    Only show clients linked to any of the given staffing-agency relations.
+    """
+    linkedStaffingAgencies: [ID!]
+
+    """
+    Only show clients owned by any of the given users.
+    """
+    owners: [ID!]
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [CompanyClientOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanySupplierPaginator!
+  """
+  The viewer's own team members assigned to one client relation: a supplier company's or a staffing agency's.
+  """
+  clientRelationOwners(
+    """
+    Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any
+    such account the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    **Experimental.** The client relation to list the assigned team members of: a CompanySupplier or a SupplierClient.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show people assigned within the given date range.
+    """
+    assignedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationOwnerOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): OwnerPaginator!
+  """
+  **Experimental.** The other side's people assigned to one client relation. On a supplier company's relation: the
+  people its staffing agencies assigned to their links at that client. On a staffing agency's managed link: the
+  people the managing company assigned to its own relation with that client. Empty for a direct agency link.
+  """
+  clientRelationCounterpartOwners(
+    """
+    Only when the relation belongs to these supplier company or staffing agency accounts. Without it, any such
+    account the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    The client relation: a CompanySupplier or a SupplierClient.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show recruiters of these staffing agencies. Ignored on a staffing agency's link.
+    """
+    staffingAgencies: [ID!]
+
+    """
+    Only show people assigned within the given date range.
+    """
+    assignedAtDateRange: DateRangeInput
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationAgencyOwnerOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): OwnerPaginator!
+  """
+  The client company's team behind one relation: its owner and the members who have accepted.
+  """
+  clientRelationTeam(
+    """
+    Only when the relation belongs to these supplier company accounts. Without it, any supplier
+    company the viewer belongs to.
+    """
+    accounts: [ID!]
+
+    """
+    The client relation whose client company's team to list.
+    """
+    client: ID!
+
+    """
+    Search people by name or email.
+    """
+    search: String
+
+    """
+    Only show people with one of these account roles.
+    """
+    accountRoles: [CompanyTeamRole!]
+
+    """
+    Only show people with (or without) a phone number.
+    """
+    hasPhone: Boolean
+
+    """
+    Supply a list of column/order pairs for sorting, applied in the provided order.
+    """
+    orderBy: [ClientRelationTeamOrderByClauseInput!]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): CompanyTeamMemberPaginator!
   """
   Get a list of contracts.
   """
@@ -12832,6 +15282,11 @@ type Query {
     isOpen: Boolean
 
     """
+    Only show conversations for clients owned by any of the given users, or on jobs those users own.
+    """
+    clientOwners: [ID!]
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -12863,6 +15318,11 @@ type Query {
     appliesTo: [TypeSupportingCustomFieldValues!]
 
     """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -12892,6 +15352,11 @@ type Query {
     A list of entity types supporting custom fields.
     """
     appliesTo: [TypeSupportingCustomFieldValues!]
+
+    """
+    Supply true to also include archived fields. Defaults to excluding them.
+    """
+    includeArchived: Boolean
 
     """
     Limits number of fetched items.
@@ -13070,12 +15535,30 @@ type Query {
     companies: [ID!]
 
     """
+    **Experimental.** Only hires at these end clients, including placements made through a managed service provider
+    for one of them.
+    """
+    endClients: [ID!]
+
+    """
     Filter hires by worker ids.
     """
     workers: [ID!]
 
     """
-    Filter hires by recruiter ids.
+    Filter hires by the staffing agencies that supplied them.
+    
+    Includes hires supplied through a managed service provider, where the staffing
+    agency is recorded on the provider's copy of the hire rather than on this one.
+    """
+    staffingAgencies: [ID!]
+
+    """
+    Filter hires by the staffing agency recorded on the hire itself.
+    
+    Unlike `staffingAgencies`, this ignores hires supplied through a managed service
+    provider, where the staffing agency is recorded only on the provider's copy. Both
+    return the same hires for work supplied directly.
     """
     recruiters: [ID!]
 
@@ -13105,6 +15588,11 @@ type Query {
     createdAtDateRange: DateRangeInput
 
     """
+    Filter hires by the date and time the hire, its contract or its status was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Only show hires with the specified external identifier.
     """
     externalIdentifiers: [String!]
@@ -13113,6 +15601,11 @@ type Query {
     Filter hires by hire contract status.
     """
     contractStatus: [ContractStatus!]
+
+    """
+    **Experimental.** Only hires with a checklist in one of these statuses.
+    """
+    checklistStatus: [ChecklistStatus!]
 
     """
     Filter hires by hire contract type.
@@ -13143,6 +15636,11 @@ type Query {
     Filter hires by owner.
     """
     owners: [ID!]
+
+    """
+    Only show hires for clients owned by any of the given users, or hires those users own themselves.
+    """
+    clientOwners: [ID!]
 
     """
     Filter hires by if there are associated payment requests.
@@ -13204,11 +15702,27 @@ type Query {
   """
   invoices(
     """
-    Only show invoices for the specified accounts.
+    Only show invoices for the specified company accounts.
+    
+    An invoice matches if it was issued to one of these companies, or contains a payment request supplied by one
+    of them. Results are always limited to invoices you can already see. For example, filtering by a client
+    company you supply returns that client's invoices for work you supplied, and filtering by a company you have
+    no relationship with returns nothing.
     
     If no accounts are supplied then all authenticated accounts will be used.
     """
     accounts: [ID!]
+
+    """
+    Only show invoices issued to the specified client companies.
+    
+    For suppliers and MSPs: returns each client's invoices for work you supplied. Results are always limited to
+    invoices you can already see, so a company you have no relationship with returns nothing. Unlike `accounts`,
+    this matches only the company the invoice is issued to, not companies that supplied a payment request on it.
+    
+    An empty list applies no client filter.
+    """
+    clients: [ID!]
 
     """
     Only show invoices which have the supplied status.
@@ -13241,7 +15755,28 @@ type Query {
     externalIdentifiers: [String!]
 
     """
-    Order the results by the invoice date, number, total or due date.
+    Only show invoices whose invoice date falls within the given date range.
+    """
+    invoiceDateRange: DateRangeInput
+
+    """
+    Only show invoices last changed within the given range.
+    
+    Use this to fetch new invoices and credit notes on a schedule: pass the start of the current run as `to` and
+    the start of the previous run as `from`, moved a few minutes earlier so consecutive runs overlap slightly.
+    Times must include fractional seconds and an offset, e.g. `2026-10-14T05:00:00.000000Z` for 07:00 in
+    Amsterdam summer time. Using UTC (`Z`) is recommended.
+    
+    An invoice is only returned once it is booked and has a number and a PDF, which can happen some time after it
+    was created, so filtering on the last change rather than the creation time catches invoices booked late. Later
+    changes, such as a recorded payment, also update this time, so an invoice that was already fetched can be
+    returned again; deduplicate on the invoice `number`. Results are paged by offset, so a change during a run
+    can shift later pages; if `paginatorInfo.total` drops partway through a run, start again from the first page.
+    """
+    updatedAtRange: DateTimeRangeInput
+
+    """
+    Order the results by the creation date, invoice date, number, total or due date.
     """
     orderBy: [QueryInvoicesOrderByOrderByClause!]
 
@@ -13361,6 +15896,11 @@ type Query {
     createdAtDateRange: DateRangeInput
 
     """
+    Filter jobs by the date and time the job was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Filter by unfilled jobs.
     """
     unfilled: Boolean
@@ -13454,6 +15994,11 @@ type Query {
     orderBy: [JobCandidateOrderByClauseInput!]
 
     """
+    Only return job candidates that were last changed within the date and time range.
+    """
+    updatedAtDateRange: DateTimeRangeInput
+
+    """
     Limits number of fetched items.
     """
     first: Int! = 10
@@ -13488,9 +16033,19 @@ type Query {
     companies: [ID!]
 
     """
+    Only show job shares for clients owned by any of the given users, or jobs those users own themselves.
+    """
+    clientOwners: [ID!]
+
+    """
     Order the job shares by the specified field and direction.
     """
     orderBy: [JobShareOrderByClauseInput!]
+
+    """
+    Filter job shares by the date and time the share or its job was last changed.
+    """
+    updatedAtDateRange: DateTimeRangeInput
 
     """
     Limits number of fetched items.
@@ -13553,6 +16108,34 @@ type Query {
     page: Int
   ): MultiFactorPaginator!
   """
+  **Experimental.** Get a list of pay items in the catalogue of the authenticated accounts.
+  
+  Archived pay items are left out unless `includeArchived` is true.
+  """
+  payItems(
+    """
+    Supply which accounts to see pay items for.
+    
+    If no accounts are supplied, then all authenticated accounts will be used.
+    """
+    accounts: [ID!]
+
+    """
+    Supply true to include archived pay items.
+    """
+    includeArchived: Boolean = false
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): PayItemPaginator!
+  """
   Get a list of payment requests.
   """
   paymentRequests(
@@ -13596,6 +16179,12 @@ type Query {
     companies (matched via the hire's source hire). MSP/supplier view only.
     """
     clients: [ID!]
+
+    """
+    Only show payment requests for clients owned by any of the given users, or on hires those users own.
+    MSP/supplier view only.
+    """
+    clientOwners: [ID!]
 
     """
     Only show payment requests that match the search query.
@@ -13827,9 +16416,16 @@ type Query {
     page: Int
   ): SkillPaginator!
   """
-  Get a list of supplier candidates for the authenticated supplier account.
+  Get a list of supplier candidates of the supplier accounts the user belongs to.
   """
   supplierCandidates(
+    """
+    Supply which supplier accounts to see candidates for.
+    
+    If no accounts are supplied then all supplier accounts of the user will be used.
+    """
+    accounts: [ID!]
+
     """
     Filter by candidate status.
     """
@@ -13901,6 +16497,11 @@ type Query {
     Supply a list of markets codes to filter workers part of related markets.
     """
     markets: [MarketCode!]
+
+    """
+    Filter contacts by market and optionally narrow by specific regions.
+    """
+    contactRegions: MarketRegionInput
 
     """
     Supply a list of country codes to filter workers part of related countries.
@@ -14019,6 +16620,11 @@ type Query {
     Supply a list of markets codes to filter workers part of related markets.
     """
     markets: [MarketCode!]
+
+    """
+    Filter contacts by market and optionally narrow by specific regions.
+    """
+    contactRegions: MarketRegionInput
 
     """
     Supply a list of country codes to filter workers part of related countries.
@@ -14258,17 +16864,134 @@ type Query {
   ): WorkflowVariablePaginator!
 }
 """
-Order by clause for Query.invoices.orderBy.
+Invoice sorting clause input.
 """
 input QueryInvoicesOrderByOrderByClause {
   """
-  The column that is used for ordering.
+  The field to sort invoices by.
   """
-  column: InvoicesOrderByColumn!
+  field: InvoiceOrderByColumn
   """
-  The direction that is used for ordering.
+  The order to sort invoices by.
   """
-  order: SortOrder!
+  order: SortOrder! = ASC
+}
+"""
+The rate card band that applies to a job.
+
+A band is a minimum and a maximum for a given rate type. A fixed rate is a band
+whose minimum and maximum are equal. When nothing matched, `noMatchReason`
+says why and the amounts are absent — they are never invented.
+"""
+type RateCardBand {
+  """
+  The minimum of the band, in the rate card's currency.
+  """
+  minimum: DecimalTwo
+  """
+  The maximum of the band. Equal to the minimum when the line is a fixed rate.
+  """
+  maximum: DecimalTwo
+  """
+  The unit the band is expressed in.
+  """
+  rateType: RateType
+  """
+  The currency of the minimum and maximum. Absent when nothing matched.
+  """
+  currency: Currency
+  """
+  Why nothing matched. Absent when a line matched, which is what says the
+  amounts above are present.
+  """
+  noMatchReason: RateCardNoMatchReason
+  """
+  The matched line's end date. Absent when nothing matched, or when the
+  matched line is open-ended. Always absent for the band saved on the job
+  (`cached: true`), which is how supplier jobs read it.
+  """
+  validUntil: Date
+  """
+  The matched line's criteria, as human-readable label/value pairs. Empty
+  when nothing matched.
+  """
+  criteria: [RateCardCriterion!]!
+  """
+  How `rate` (in `rateType`) compares to this band. Null when either argument
+  is omitted. Reports the rate's position relative to the band — whether that
+  position is treated as a warning is a decision made by each surface that
+  consumes this field, not by this field itself.
+  """
+  comparison(
+    """
+    The entered rate to compare against the band.
+    """
+    rate: DecimalTwo
+
+    """
+    The unit `rate` is expressed in.
+    """
+    rateType: RateType
+  ): RateCardComparisonResult
+}
+"""
+How an entered rate compares to a resolved rate card band.
+"""
+enum RateCardComparisonResult {
+  """
+  The rate is within the band.
+  """
+  WITHIN_RANGE
+  """
+  The rate is above the band maximum.
+  """
+  ABOVE_MAXIMUM
+  """
+  The rate is below the band minimum.
+  """
+  BELOW_MINIMUM
+  """
+  The rate's unit differs from the band's, so the two aren't measurable against each other.
+  """
+  UNIT_MISMATCH
+  """
+  Nothing matched a rate card line to compare against.
+  """
+  NO_MATCH
+}
+"""
+A single label/value pair describing one of a rate card line's matching criteria.
+"""
+type RateCardCriterion {
+  """
+  The criterion's human-readable label (e.g. a custom field's title).
+  """
+  label: String!
+  """
+  The criterion's human-readable value (e.g. a custom field option's value).
+  """
+  value: String!
+}
+"""
+Why a vacancy or payment request resolved to no rate card band.
+"""
+enum RateCardNoMatchReason {
+  """
+  The owner has no rate card in the required currency.
+  """
+  NO_RATE_CARD
+  """
+  The rate type is unknown or absent, so no band can apply.
+  """
+  UNSUPPORTED_RATE_TYPE
+  """
+  The card has no line in force on the date requested.
+  """
+  NO_LINE_IN_FORCE
+  """
+  A line was in force, but none matched the criteria supplied.
+  """
+  NO_LINE_MATCHED_CRITERIA
 }
 """
 An input for the rate.
@@ -14377,6 +17100,25 @@ type Recruiter implements Account {
   The insurance information for the recruiter.
   """
   insurances: [WorkerInsurance!]!
+  """
+  **Experimental.** The agency's owner and team members, owner first. Only the agency's own users can read it.
+  """
+  teamMembersAndOwners(
+    """
+    Search users by name.
+    """
+    search: String
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): UserPaginator!
 }
 """
 A recruiter candidate relationship.
@@ -14632,6 +17374,15 @@ enum RecruiterStatus {
   INVITED
 }
 """
+The review status of a verified staffing agency.
+"""
+type RecruiterStatusValue {
+  """
+  The status.
+  """
+  status: RecruiterComplianceStatus!
+}
+"""
 The input for resending an invitation to a Trusted Contact.
 """
 input ReinviteTrustedContactInput {
@@ -14724,6 +17475,23 @@ input RemoveRecruiterOnboardingDocumentsInput {
   documents: [ID!]!
 }
 """
+**Experimental.** The input for repricing a pay item.
+"""
+input RepricePayItemInput {
+  """
+  The ID of the pay item to reprice.
+  """
+  payItem: ID!
+  """
+  The new price, in the pay item's currency.
+  """
+  price: DecimalTwo!
+  """
+  The date the new price takes effect. Cannot be in the past.
+  """
+  effectiveAt: Date!
+}
+"""
 The input for retrying a webhook event.
 """
 input RetryWebhookEventInput {
@@ -14759,6 +17527,23 @@ input ReviewRecruiterInput {
   recruiterMessage: String
 }
 """
+A compliance reviewer's decision on a right-to-work document.
+"""
+input ReviewRightToWorkDocumentInput {
+  """
+  The document being reviewed.
+  """
+  id: ID!
+  """
+  True to approve, false to decline.
+  """
+  approved: Boolean!
+  """
+  Why the document was declined. Required when declining.
+  """
+  rejectionReason: String
+}
+"""
 Input for recording a company's compliance review of a worker.
 
 The reviewer is the authenticated user; the company is the user's
@@ -14783,6 +17568,27 @@ input ReviewWorkerInput {
   Also shown to the reviewer on subsequent reviews for continuity.
   """
   workerMessage: String
+}
+"""
+A category of right-to-work evidence a worker may be required to provide.
+"""
+enum RightToWorkDocumentType {
+  """
+  A passport or national identity document evidencing identity and nationality.
+  """
+  IDENTITY_DOCUMENT
+  """
+  A permit authorising the holder to work in the jurisdiction.
+  """
+  WORK_PERMIT
+  """
+  A permit authorising the holder to reside in the jurisdiction.
+  """
+  RESIDENCE_PERMIT
+  """
+  Evidence of authorisation to work, where that is issued separately from a permit.
+  """
+  WORK_AUTHORIZATION
 }
 """
 The input used for running an action on a batch.
@@ -14832,6 +17638,36 @@ type RunBatchActionResponse {
   resultUrl: String
 }
 """
+**Experimental.** The input for changing where a check on a checklist stands.
+"""
+input SetChecklistCheckStateInput {
+  """
+  The check to change.
+  """
+  check: ID!
+  """
+  The check's new state.
+  """
+  state: ChecklistCheckState!
+  """
+  Why the check does not apply. Required when marking it not applicable.
+  """
+  reason: String
+}
+"""
+The input for archiving or unarchiving a custom field.
+"""
+input SetCustomFieldsArchivedInput {
+  """
+  The IDs of the custom fields to archive or unarchive.
+  """
+  customFields: [ID!]!
+  """
+  Whether the fields should be archived (true) or unarchived (false)
+  """
+  archived: Boolean!
+}
+"""
 The input used for setting the internal budget on a job.
 """
 input SetInternalBudgetOnJobInput {
@@ -14845,6 +17681,24 @@ input SetInternalBudgetOnJobInput {
   Up to 2 decimal points are stored, the rest is omitted.
   """
   amount: Float!
+}
+"""
+The details for linking or unlinking a set of agencies against a set of clients.
+"""
+input SetSupplierClientLinksInput {
+  """
+  The agency relations to link or unlink.
+  """
+  companyRecruiterIds: [ID!]!
+  """
+  The client companies to link them against.
+  """
+  clientIds: [ID!]!
+  """
+  Whether the pairs should be linked. Unlinking withdraws them; linking revives a
+  withdrawn pair rather than creating a second one.
+  """
+  linked: Boolean!
 }
 """
 The details for sharing candidates with the linked partner account.
@@ -15045,6 +17899,40 @@ enum SourcingDeadlineChoice {
   NONE
 }
 """
+**Experimental.** Sorting clause for a staffing agency's client list.
+"""
+input StaffingAgencyClientOrderByClauseInput {
+  """
+  The field to sort the client links by.
+  """
+  field: StaffingAgencyClientOrderByColumn
+  """
+  The order to sort the client links by.
+  """
+  order: SortOrder = ASC
+}
+"""
+**Experimental.** The columns that a staffing agency's client list can be ordered by.
+"""
+enum StaffingAgencyClientOrderByColumn {
+  """
+  The name of the client company.
+  """
+  CLIENT_NAME
+  """
+  Direct links first, then the name of the MSP the link goes through.
+  """
+  RELATION
+  """
+  The date the link was created.
+  """
+  CLIENT_SINCE
+  """
+  The number of the agency's offered, ready, active, ended, cancelled and terminated hires at the client.
+  """
+  PLACEMENTS
+}
+"""
 The details for updating a bank account details.
 """
 input StoreBankDetailsInput {
@@ -15107,6 +17995,77 @@ input SubmitComplianceInput {
   `data` JSON must match the compliance's expected form structure.
   """
   generic: GenericComplianceInput
+}
+"""
+The details of one candidate in a supplier submission.
+"""
+input SubmitJobCandidateInput {
+  """
+  The worker to submit. The worker must be one of the supplier's candidates.
+  """
+  worker: ID!
+  """
+  The rate of the candidate.
+  """
+  rate: Float!
+  """
+  The rate type of the rate.
+  """
+  rateType: RateType!
+  """
+  The date from which the candidate is available.
+  """
+  availableFrom: Date
+  """
+  A brief that describes the candidate.
+  """
+  brief: String
+  """
+  External links that are related to the candidate.
+  """
+  links: [String!]
+  """
+  Files to attach, such as the CV. Each file must be owned by the supplier account.
+  """
+  files: [ID!]
+  """
+  Whether the candidate is submitted as managed or referred. Only used when the client allows
+  mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
+  """
+  submissionType: CandidateSubmissionType
+}
+"""
+The details for submitting a supplier's candidates to a job.
+"""
+input SubmitJobCandidatesInput {
+  """
+  The job to submit the candidates to.
+  """
+  job: ID!
+  """
+  The supplier account (Recruiter or Company) that submits the candidates.
+  """
+  supplier: ID!
+  """
+  A message to the client that accompanies the submission.
+  """
+  message: String
+  """
+  The name of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactName: String
+  """
+  The email of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactEmail: String
+  """
+  The phone number of the supplier's contact person. Required when the job is owned by an MSP.
+  """
+  contactPhone: String
+  """
+  The candidates to submit.
+  """
+  candidates: [SubmitJobCandidateInput!]!
 }
 """
 A supplier candidate — a freelancer managed by a supplier account (Company or Recruiter).
@@ -15191,6 +18150,134 @@ type SupplierCandidatePaginator {
   data: [SupplierCandidate!]!
 }
 """
+A link between a supplier and an end client the supplier works for.
+Row presence is the relationship: direct when the client contracted the supplier itself,
+managed when another company sits in the middle.
+"""
+type SupplierClient implements Ownable & ClientRelation {
+  """
+  The ID of the supplier-to-client link.
+  """
+  id: ID!
+  """
+  The supplier working for the client — a staffing agency or a company.
+  """
+  supplier: Account!
+  """
+  The end client the supplier works for.
+  """
+  client: Company!
+  """
+  **Experimental.** The company the link was contracted through: the client itself for a direct link, the MSP for a
+  managed one.
+  """
+  managingCompany: Company!
+  """
+  **Experimental.** Whether the client contracted the supplier itself, rather than through a managing company.
+  """
+  isDirect: Boolean!
+  """
+  **Experimental.** The country of the client's registered address, without the rest of the address. Null when
+  the client has no address on file.
+  """
+  clientCountry: Country
+  """
+  **Experimental.** The supplier's team members assigned to this client link.
+  """
+  owners: [Owner!]!
+  """
+  **Experimental.** Whether the viewer may change the owners of this link: the account owner or a full-access member of the agency.
+  """
+  viewerCanManageOwners: Boolean!
+  """
+  The staffing agency relation this link was contracted under, as the managing company keeps it. Null when the
+  supplier is a company rather than a staffing agency, and for viewers outside the managing company.
+  """
+  companyRecruiter: CompanyRecruiter
+  """
+  **Experimental.** The people at the managing company who look after the client: the owners of the client's
+  relation with it. Empty on a direct link, and for viewers other than the staffing agency the link belongs to.
+  """
+  managingCompanyContacts: [User!]!
+  """
+  When the link was created.
+  """
+  createdAt: Date!
+  """
+  When the link was last changed.
+  """
+  updatedAt: Date!
+  """
+  The hires the supplier placed at the client through this link, in any status unless narrowed: for a staffing
+  agency, its own copy of each hire under the managing company.
+  """
+  hiresCount(
+    """
+    **Experimental.** Count only hires currently in one of these statuses.
+    """
+    status: [HireActiveStatus!]
+  ): Int!
+  """
+  **Experimental.** How many distinct workers the link has placed at the client.
+  """
+  workersCount: Int!
+  """
+  **Experimental.** When the link's earliest placement at the client started. Null before the first one.
+  """
+  firstHireStartedAt: Date
+}
+"""
+Sorting clause for a client's linked staffing agencies.
+"""
+input SupplierClientOrderByClauseInput {
+  """
+  The field to sort the linked suppliers by.
+  """
+  field: SupplierClientOrderByColumn
+  """
+  The order to sort the linked suppliers by.
+  """
+  order: SortOrder = ASC
+}
+"""
+The columns a client's linked suppliers can be ordered by.
+"""
+enum SupplierClientOrderByColumn {
+  """
+  The name of the supplier.
+  """
+  SUPPLIER_NAME
+  """
+  The date the supplier was linked to this client.
+  """
+  LINKED_AT
+  """
+  The date the link last changed.
+  """
+  UPDATED_AT
+  """
+  The date the supplier was added as a contracted supplier.
+  """
+  SUPPLIER_SINCE
+  """
+  The number of placements the supplier and the client share.
+  """
+  PLACEMENTS
+}
+"""
+A paginated list of SupplierClient items.
+"""
+type SupplierClientPaginator {
+  """
+  Pagination information about the list of items.
+  """
+  paginatorInfo: PaginatorInfo!
+  """
+  A list of SupplierClient items.
+  """
+  data: [SupplierClient!]!
+}
+"""
 A supplier invoice.
 
 The invoice defines the amount due and is to be paid to the worker.
@@ -15239,7 +18326,7 @@ Union of types which custom field values may be applied to.
 
 This is closely coupled to the `TypeSupportingCustomFieldValues` enum.
 """
-union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter
+union SupportsCustomFieldValue = Job | Contract | TrustedContact | CompanyRecruiter | CompanySupplier | Expense | Hire
 """
 A tag.
 """
@@ -15294,7 +18381,7 @@ type TemporaryFileUploadResponse {
   """
   The temporary URL to upload the file to.
   
-  The temporary URL will expire after 1 week.
+  The temporary URL will expire after 1 minute.
   """
   url: URL!
 }
@@ -15361,6 +18448,11 @@ type Timesheet {
   """
   createdAt: DateTime!
   """
+  The reasons the timesheet is blocked from automatic payment request creation. Empty when the
+  timesheet isn't blocked.
+  """
+  blockingReasons: [TimesheetBlockingReason!]!
+  """
   The payment requests created on the timesheet.
   """
   paymentRequests(
@@ -15416,6 +18508,96 @@ type Timesheet {
     """
     page: Int
   ): OvertimePaginator!
+}
+"""
+A reason an imported timesheet is blocked from automatic payment request creation.
+"""
+type TimesheetBlockingReason {
+  """
+  The reason the timesheet is blocked.
+  """
+  reason: CustomTimesheetRejectionReason!
+  """
+  The payment request this reason refers to, scoped to the viewer. Null when the reason doesn't
+  refer to a payment request, or the viewer is an end client with no payment request of their own.
+  """
+  paymentRequest: PaymentRequest
+  """
+  The date this reason refers to, when relevant.
+  """
+  date: Date
+}
+"""
+A custom field as a timesheet import shows it: only its ID, title and slug, never its values.
+"""
+type TimesheetImportCustomField {
+  """
+  The ID of the custom field, the same as the ID of the CustomField.
+  """
+  id: ID!
+  """
+  The title of the custom field.
+  """
+  title: String!
+  """
+  The slug of the custom field, used in its template column name. Unique only within the account that owns the field. Empty for a field without a slug, which has no template column.
+  """
+  slug: String!
+}
+"""
+The CSV template for a timesheet import, as the account's whole hire set gives it. Every user of the account gets the same template.
+"""
+type TimesheetImportTemplate {
+  """
+  The hire custom fields the template can add as an extra hire identifier column. Multi-select and file-upload fields are left out, because a cell cannot match them.
+  """
+  hireFieldOptions: [TimesheetImportCustomField!]!
+  """
+  The hire custom field in the last downloaded template. Null when that template had none, or when the field is no longer one of the options.
+  """
+  savedHireField: TimesheetImportCustomField
+  """
+  The columns of the last downloaded template, in file order. Empty before the first download.
+  """
+  savedColumns: [String!]!
+  """
+  The columns a template downloaded now with the saved hire custom field would have, in file order.
+  """
+  currentColumns: [String!]!
+  """
+  Whether a template was downloaded and its columns differ from the current ones, for example because a timesheet line custom field was added or removed. False before the first download.
+  """
+  isOutOfDate: Boolean!
+  """
+  The timesheet line custom fields that share a slug with another line field of the same hire, so their column names clash. A template cannot be downloaded while there are any, whatever hire custom field is selected. Line fields of different hires may share a column.
+  """
+  clashingLineFields: [TimesheetImportCustomField!]!
+  """
+  The hire custom field options whose slug another option has. A template with one of them as its extra hire identifier cannot be downloaded, because its column would name more than one field.
+  """
+  hireFieldOptionsSharingSlug: [TimesheetImportCustomField!]!
+}
+"""
+**Experimental.** A pay item a timesheet line can carry, with the price the contract pays for it.
+"""
+type TimesheetLinePayItem {
+  """
+  The pay item.
+  """
+  payItem: AssignedPayItem!
+  """
+  The price the contract pays per unit, in currency. Absent when the contract sets no price or no
+  longer offers the pay item.
+  """
+  amount: DecimalTwo
+  """
+  The currency of the price. Absent when there is no price.
+  """
+  currency: Currency
+  """
+  The unit a line with this pay item is logged in.
+  """
+  unit: TimesheetRegistrationDurationUnit!
 }
 """
 A paginated list of Timesheet items.
@@ -15482,6 +18664,11 @@ type TimesheetRegistration {
   The custom fields values for the timesheet registration.
   """
   customFieldValues: [CustomFieldValue!]!
+  """
+  **Experimental.** The pay item the time on this line is logged against, or null when the
+  registration has none.
+  """
+  payItem: AssignedPayItem
 }
 """
 The unit of a duration for a timesheet registration.
@@ -15544,6 +18731,14 @@ input TimesheetRegistrationInput {
   The custom fields for the timesheet registration.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
+  """
+  **Experimental.** The pay item the time on this line is logged against. Only a `LINE`
+  registration can have one. It must be billable and logged in the unit of the hire's
+  contract in force on the line's date: hours on an hourly contract, days on a daily one. A
+  newly chosen pay item must be on that contract, priced per hour or per day to match. A line
+  can keep a pay item that the timesheet's saved lines carry on dates under the same contract.
+  """
+  payItem: ID
 }
 """
 A paginated list of TimesheetRegistration items.
@@ -15720,6 +18915,13 @@ type TrustedContact {
   """
   skills: [Skill!]!
   """
+  How many hires the worker has accepted at the trusted contact's company. Draft hires are not counted.
+  
+  In `organisationTrustedContacts`, where each contact stands for the worker across the organisation, this counts
+  the hires at any company in the organisation instead.
+  """
+  acceptedHiresCount: Int!
+  """
   Trusted contact managed status.
   """
   managedStatus: TrustedContactManagedStatus
@@ -15790,6 +18992,11 @@ type TrustedContact {
     cached: Boolean = false
   ): [Compliance!]!
   """
+  The company's compliance review of this worker, or `null` when the review
+  does not apply to them or the viewer cannot view the compliance tracker.
+  """
+  workerReview: TrustedContactWorkerReview
+  """
   The date that the trusted contact was created.
   """
   createdAt: Date!
@@ -15821,6 +19028,21 @@ type TrustedContact {
     """
     page: Int
   ): NotePaginator!
+}
+"""
+A business setup represented among the authenticated user's trusted contacts.
+Business entity types that share a name across markets (e.g. "Limited company"
+in the UK, Ireland and France) are grouped together.
+"""
+type TrustedContactBusinessSetup {
+  """
+  The translated name of the business setup.
+  """
+  label: String!
+  """
+  The business entity types grouped under this name.
+  """
+  values: [BusinessEntityType!]!
 }
 """
 The options representing the hire history of a Trusted contact
@@ -15900,7 +19122,7 @@ enum TrustedContactOrderByColumn {
   """
   WORKER_NAME
   """
-  The number of jobs taken by the worker with the viewing company.
+  The number of hires the worker has accepted with the trusted contact's company, or with any company in the organisation for organisation trusted contacts.
   """
   WORKER_JOBS_COUNT
   """
@@ -16009,6 +19231,39 @@ enum TrustedContactStaffingAgencyStatus {
   NO_OWNERSHIP
 }
 """
+Where a company's compliance review of a worker stands.
+"""
+type TrustedContactWorkerReview {
+  """
+  The review status, as shown on the compliance tracker.
+  """
+  status: VerifiedWorkerComplianceStatus!
+  """
+  How many of the worker's applicable compliances are complete.
+  """
+  completedCount: Int!
+  """
+  How many compliances apply to the worker.
+  """
+  applicableCount: Int!
+  """
+  The user who made the latest review decision, if there is one.
+  """
+  reviewedBy: User
+  """
+  When the latest review decision was made.
+  """
+  reviewedAt: DateTime
+  """
+  When the next review is due.
+  """
+  nextReviewAt: DateTime
+  """
+  The note sent to the worker with the latest review decision.
+  """
+  workerMessage: String
+}
+"""
 A type that can have an custom field applied to it.
 """
 enum TypeSupportingCustomFieldValues {
@@ -16032,6 +19287,22 @@ enum TypeSupportingCustomFieldValues {
   A Company Recruiter relationship
   """
   COMPANY_RECRUITER
+  """
+  A relationship between a client company and one of its suppliers
+  """
+  COMPANY_SUPPLIER
+  """
+  An Expense
+  """
+  EXPENSE
+  """
+  A Hire
+  """
+  HIRE
+  """
+  The input collected for a worker classification
+  """
+  CLASSIFICATION_INPUT
 }
 """
 A scalar for representing a URL.
@@ -16153,6 +19424,10 @@ input UpdateCompanyRecruiterInput {
   """
   managesWorkers: Boolean
   """
+  The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+  """
+  maxCandidateSubmissions: Int
+  """
   The custom fields for the company recruiter.
   """
   customFieldValues: [CustomFieldTypeValueInput!]
@@ -16219,10 +19494,18 @@ input UpdateCustomFieldInput {
   """
   workerInputAllowed: Boolean
   """
+  For hire fields with worker input allowed, when the worker must answer. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  workerInputStage: CustomFieldWorkerInputStage
+  """
   Configures the field to allow recruiter (staffing agency) input.
   When enabled, recruiters can provide values for this field through the recruiter API.
   """
   recruiterInputAllowed: Boolean
+  """
+  For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to `BEFORE_ACCEPTANCE`.
+  """
+  recruiterInputStage: CustomFieldWorkerInputStage
   """
   Configures the field to surface its values on client invoices.
   """
@@ -16242,6 +19525,40 @@ input UpdateCustomFieldInput {
   Only applies to some field types (e.g. `SINGLE_SELECT`).
   """
   options: [CustomFieldCustomFieldOptionInput!]
+}
+"""
+The input for updating an expense.
+"""
+input UpdateExpenseInput {
+  """
+  The expense to update.
+  """
+  id: ID!
+  """
+  The vendor of the expense.
+  """
+  vendor: String!
+  """
+  The description of the expense.
+  """
+  description: String
+  """
+  The date that the expense was expensed.
+  """
+  expenseAt: Date
+  """
+  The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+  """
+  amount: Float
+  """
+  The IDs of previously-uploaded files (see the `uploadFiles` mutation) to attach.
+  """
+  files: [ID!]
+  """
+  Custom field values to set on this expense (see the "Expenses custom fields"
+  section of the client account's payment request custom fields).
+  """
+  customFieldValues: [CustomFieldTypeValueInput!]
 }
 """
 The details for updating the "preferred" status of a job candidate.
@@ -16330,6 +19647,14 @@ input UpdateJobInput {
   The files to be attached to the job.
   """
   attachments: [ID!]
+  """
+  **Experimental.** The pay items the job offers, each with its price. The list replaces the
+  job's saved pay items. Leave out to keep them as they are.
+  
+  Only pay items the job can offer are accepted (`Job.offerablePayItems`),
+  except percentage pay items, which are not accepted yet.
+  """
+  payItems: [PayItemAssignmentInput!]
   """
   The project type of the job.
   """
@@ -16503,6 +19828,20 @@ input UpdateNoteInput {
   The title of the note to be updated.
   """
   title: String
+}
+"""
+The full set of owner assignments for one record.
+"""
+input UpdateOwnersInput {
+  """
+  The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link
+  (SupplierClient) or a hire (Hire).
+  """
+  ownable: ID!
+  """
+  The assignments to keep; team members not listed are unassigned.
+  """
+  owners: [OwnerInput!]!
 }
 """
 The details required to update a user's password.
@@ -16686,6 +20025,20 @@ input UpdateSupplierCandidateInput {
   files: [ID!]
 }
 """
+The details for linking or unlinking suppliers for one client.
+"""
+input UpdateSupplierClientLinksInput {
+  """
+  The supplier-to-client links to update.
+  """
+  ids: [ID!]!
+  """
+  Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking
+  revives a withdrawn one.
+  """
+  linked: Boolean!
+}
+"""
 The input used for updating a timesheet.
 """
 input UpdateTimesheetInput {
@@ -16856,7 +20209,7 @@ The input for updating custom field values as a worker.
 """
 input UpdateWorkerCustomFieldValuesInput {
   """
-  The entity that supports custom fields (e.g., TrustedContact).
+  The entity that supports custom fields (e.g., TrustedContact or Hire).
   """
   appliesTo: ID!
   """
@@ -17088,6 +20441,11 @@ type User {
   """
   email: String!
   """
+  The phone number of the user, as entered. Visible to the user themselves and their teammates,
+  and to a supplier for people at the clients it supplies and the staffing agencies it manages.
+  """
+  phone: String
+  """
   The avatar (or profile picture) for the user.
   """
   avatar: URL
@@ -17113,7 +20471,7 @@ type User {
   """
   hasVerifiedEmail: Boolean!
   """
-  When the email was verified.
+  When the email was verified. Only visible to the user and people related to them.
   """
   emailVerifiedAt: DateTime
   """
@@ -17260,6 +20618,15 @@ input VerifiedWorkerReviewFilterInput {
   updatedBy: [ID!]
 }
 """
+The review status of a verified worker.
+"""
+type VerifiedWorkerStatusValue {
+  """
+  The status.
+  """
+  status: VerifiedWorkerComplianceStatus!
+}
+"""
 An input for verifying a newly-created SMS multi-factor authentication implementation.
 """
 input VerifySmsMultiFactorInput {
@@ -17358,7 +20725,7 @@ type Webhook {
   """
   description: String
   """
-  The owner of the webhook (company name).
+  The owner of the webhook (company or staffing agency name).
   """
   owner: String!
   """
@@ -17388,7 +20755,8 @@ type Webhook {
   """
   The event types that this webhook is subscribed to.
   
-  If null, the webhook is subscribed to all event types.
+  If null, the webhook receives all event types, except that a staffing agency webhook receives
+  hire lifecycle events only when it lists them.
   If an empty array, the webhook is not subscribed to any events.
   """
   subscribedEvents: [WebhookEventType!]
@@ -17540,7 +20908,7 @@ enum WebhookEventType {
   """
   Triggered when a hire is accepted.
   """
-  HIRE_ACCEPTED
+  HIRE_ACCEPTED @deprecated(reason: "Never delivered. Subscribe to `CONTRACT_ACCEPTED`.")
   """
   Triggered when a hire is cancelled.
   """
@@ -17597,6 +20965,30 @@ enum WebhookEventType {
   Triggered when a credit note is created.
   """
   CREDIT_NOTE_CREATED
+  """
+  Triggered when a worker classification is accepted.
+  """
+  CLASSIFICATION_ACCEPTED
+  """
+  Triggered when a job is shared with a staffing agency.
+  """
+  JOB_SHARED
+  """
+  Triggered when a job share is removed.
+  """
+  JOB_SHARE_REMOVED
+  """
+  Triggered when the details of a job change.
+  """
+  JOB_UPDATED
+  """
+  Triggered when a job is closed or removed.
+  """
+  JOB_CLOSED
+  """
+  Triggered when the step of a job candidate changes.
+  """
+  JOB_CANDIDATE_UPDATED
 }
 """
 A paginated list of Webhook items.
@@ -17610,6 +21002,39 @@ type WebhookPaginator {
   A list of Webhook items.
   """
   data: [Webhook!]!
+}
+"""
+A day of the week.
+"""
+enum Weekday {
+  """
+  Monday.
+  """
+  MONDAY
+  """
+  Tuesday.
+  """
+  TUESDAY
+  """
+  Wednesday.
+  """
+  WEDNESDAY
+  """
+  Thursday.
+  """
+  THURSDAY
+  """
+  Friday.
+  """
+  FRIDAY
+  """
+  Saturday.
+  """
+  SATURDAY
+  """
+  Sunday.
+  """
+  SUNDAY
 }
 """
 The details for withdrawing a forwarded candidate.
@@ -17793,6 +21218,16 @@ type Worker implements Account {
     account: ID!
   ): Boolean!
   """
+  Names of the other divisions in the given company's organisations that have an active hire with the worker.
+  Empty unless the organisation shares trusted contacts and active hires between its divisions.
+  """
+  hiredByOtherDivisions(
+    """
+    The ID of the viewer's company account.
+    """
+    account: ID!
+  ): [String!]!
+  """
   A list of relations between the worker and a company as seen from the workers perspective.
   """
   clients: [Client!]!
@@ -17804,6 +21239,20 @@ type Worker implements Account {
   The worker's identification details.
   """
   identification: WorkerIdentification
+  """
+  The worker's right-to-work requirement, or null when nothing is required.
+  
+  Pass `nationality` to resolve for a nationality the user has selected but
+  not yet saved, so a form can reveal or hide the uploads the moment the
+  dropdown changes. Nationality is self-declared either way, so this widens
+  nothing; the server re-resolves on upload regardless.
+  """
+  rightToWork(
+    """
+    ISO 3166-1 alpha-2 code overriding the worker's saved nationality.
+    """
+    nationality: String
+  ): WorkerRightToWork
   """
   The business entities that the worker has.
   """
@@ -17819,7 +21268,7 @@ type Worker implements Account {
     page: Int
   ): BusinessEntityPaginator!
   """
-  The hires associated with the worker.
+  The hires associated with the worker. Draft hires are only included when filtering by `status: DRAFT`.
   """
   hires(
     """
@@ -17836,6 +21285,11 @@ type Worker implements Account {
     Filter hires by their status.
     """
     status: HireActiveStatus
+
+    """
+    **Experimental.** Only hires with a checklist in one of these statuses.
+    """
+    checklistStatus: [ChecklistStatus!]
 
     """
     Limits number of fetched items.
@@ -17918,6 +21372,88 @@ enum WorkerReviewDecision {
   The reviewer asks the worker to supply or correct information. A note is delivered to the worker.
   """
   CHANGES_REQUESTED
+}
+"""
+Right-to-work evidence a worker must provide before a hire can be finalised.
+
+What is required is a function of the market the work happens in and the
+worker's nationality, never of the individual client, which only decides
+whether the checks apply at all.
+"""
+type WorkerRightToWork {
+  """
+  The documents this worker must provide. Empty means nothing is required,
+  in which case the whole `rightToWork` field is null instead.
+  """
+  requirements: [WorkerRightToWorkRequirement!]!
+  """
+  Documents the worker has provided so far, the current one per type.
+  """
+  documents: [WorkerRightToWorkDocument!]!
+  """
+  True while a client requiring these documents has requested changes in its compliance review, which covers the documents as a whole.
+  """
+  changesRequested: Boolean!
+  """
+  Names of the clients requiring these documents, for the consent copy shown to the worker.
+  """
+  requiredBy: [String!]!
+}
+"""
+One piece of right-to-work evidence.
+
+Carries no file contents and no signed link. `viewUrl` addresses an
+authenticated, policy-checked and audited route, and is null when the viewer may
+not read the document.
+"""
+type WorkerRightToWorkDocument {
+  """
+  Global ID of the document.
+  """
+  id: ID!
+  """
+  Which requirement this document satisfies.
+  """
+  documentType: RightToWorkDocumentType!
+  """
+  Label of the requirement this document satisfies, e.g. 'Passport or national ID'.
+  """
+  label: String!
+  """
+  Original filename.
+  """
+  filename: String!
+  """
+  When the document expires.
+  """
+  expiresAt: Date
+  """
+  When it was uploaded.
+  """
+  uploadedAt: DateTime
+  """
+  Authenticated route serving the document inline, or null if not permitted.
+  """
+  viewUrl: String
+}
+"""
+One document type a worker must provide, with the presentation the form needs,
+so labels and expiry rules live in one place, on the server, instead of being
+restated per client.
+"""
+type WorkerRightToWorkRequirement {
+  """
+  The kind of evidence required.
+  """
+  documentType: RightToWorkDocumentType!
+  """
+  Label to show the worker, e.g. 'Passport or national ID'.
+  """
+  label: String!
+  """
+  Whether an expiry date must be captured alongside the upload.
+  """
+  requiresExpiry: Boolean!
 }
 """
 A workflow — an alternative tree-structured view of an approval flow for hires.

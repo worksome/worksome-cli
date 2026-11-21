@@ -1,6 +1,6 @@
 # worksome-cli
 
-A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — <!-- resources -->78<!-- /resources --> resource groups, <!-- operations -->199<!-- /operations --> operations. Designed for both human users and AI agents.
+A multiplatform CLI for the [Worksome GraphQL API](https://docs.worksome.com/). Full API coverage via code generation from a vendored schema — <!-- resources -->104<!-- /resources --> resource groups, <!-- operations -->229<!-- /operations --> operations. Designed for both human users and AI agents.
 
 ## What is Worksome?
 
@@ -88,7 +88,7 @@ tokens last six months and one token works on any number of machines.
 
 The CLI is designed to be driven programmatically:
 
-- **Discovery is built in.** `worksome --help` lists all <!-- resources -->78<!-- /resources --> resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
+- **Discovery is built in.** `worksome --help` lists all <!-- resources -->104<!-- /resources --> resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
 - **Permissions are documented per action.** Many operations are restricted to one party — company, worker, or recruiter — and the help text says so (e.g. "Only companies can cancel their hires"). A permission error is usually a correct answer about the token's role, not a bug to work around.
 - **JSON without asking.** Output is JSON whenever stdout is not a TTY, so pipelines need no `--output json`. Pass it explicitly if you can't be sure of the environment.
 - **Keep responses small.** `--fields id,worker.name` narrows the GraphQL selection set itself — the server is only asked for those fields — and `--filter status=ACTIVE` narrows results. Useful when a full page of objects would be more than you need. A field name that does not exist is an error, not an empty result — except on the few operations whose shape can't be narrowed, where it is still dropped silently.
@@ -169,8 +169,12 @@ worksome version
 ### Upgrading
 
 ```bash
-worksome version --check
+worksome version --check   # Is there a newer release?
+worksome update            # Upgrade with the tool that installed this binary
 ```
+
+`worksome update` runs that upgrade command for you. A downloaded binary can't
+be upgraded in place, so it points you at the latest release instead.
 
 Reports whether a newer release exists and prints the upgrade command for how
 this binary was actually installed — `brew upgrade --cask worksome`, `go install
@@ -182,6 +186,16 @@ invisible to non-interactive use: the check is skipped entirely unless **both**
 stdout and stderr are terminals, so piped output, scripts and non-interactive
 containers never see it and never pay for it. It is also skipped when `CI` is set, on `dev` builds,
 and when `WORKSOME_NO_UPDATE_CHECK` is set to anything.
+
+## Service Status
+
+```bash
+worksome status           # Overall status, per-service monitors, recent updates
+worksome status -o json   # Same summary as JSON, for scripts and agents
+```
+
+Reads the public feed behind [status.worksome.com](https://status.worksome.com);
+no authentication needed.
 
 ## Quick Start
 
@@ -411,7 +425,7 @@ internal/
   codegen/          Schema parser + code generator
   config/           Profile and token management
   generated/        Generated code (committed, reviewed)
-    commands/       Cobra commands (<!-- resources -->78<!-- /resources --> resource groups)
+    commands/       Cobra commands (<!-- resources -->104<!-- /resources --> resource groups)
     queries/        GraphQL query/mutation functions
     types/          Go types, enums, input objects
   output/           JSON/table formatter with TTY detection

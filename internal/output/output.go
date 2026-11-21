@@ -159,7 +159,7 @@ func ExtractFields(data any, columns []Column) [][]string {
 	v := reflect.ValueOf(data)
 
 	// Dereference pointer.
-	for v.Kind() == reflect.Ptr {
+	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return nil
 		}
@@ -188,7 +188,7 @@ func extractRow(item any, columns []Column) []string {
 	}
 
 	v := reflect.ValueOf(item)
-	for v.Kind() == reflect.Ptr {
+	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return row
 		}
@@ -215,7 +215,7 @@ func resolvePath(v reflect.Value, parts []string) string {
 	cur := v
 	for i, part := range parts {
 		// Dereference pointers/interfaces along the way.
-		for cur.Kind() == reflect.Ptr || cur.Kind() == reflect.Interface {
+		for cur.Kind() == reflect.Pointer || cur.Kind() == reflect.Interface {
 			if cur.IsNil() {
 				return ""
 			}
@@ -249,7 +249,7 @@ func resolvePath(v reflect.Value, parts []string) string {
 	}
 
 	// Final dereference.
-	for cur.Kind() == reflect.Ptr || cur.Kind() == reflect.Interface {
+	for cur.Kind() == reflect.Pointer || cur.Kind() == reflect.Interface {
 		if cur.IsNil() {
 			return ""
 		}

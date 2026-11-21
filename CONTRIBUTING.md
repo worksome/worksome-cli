@@ -16,6 +16,7 @@ by `cmd/generate`. To change it, change what produces it:
 | A command's flags, help text, or behaviour | the templates in `internal/codegen/generator.go` |
 | How operations are grouped into resources | `schema/overrides.yaml` |
 | Which fields a selection set may request | `ignore_fields` in `schema/overrides.yaml` |
+| What a command is called when two operations derive the same name | `command_names` in `schema/overrides.yaml` |
 | How the schema is interpreted (types, scalars, paginators) | `internal/codegen/parser.go` |
 | The API surface itself | nothing here — the schema comes from the API |
 
@@ -50,6 +51,10 @@ should rarely need to run this by hand. If
 introspection ever becomes authenticated, `make sync-schema` fails with an
 `HTTP 401` and honours `WORKSOME_API_TOKEN` again.
 
+Introspection identifies itself to the API as `worksome-cli-introspect`, a
+client name of its own, so scheduled schema syncs can be told apart from human
+CLI use (`worksome-cli`) in the API usage dashboards.
+
 If the API has introduced a scalar we don't know about, generation fails and
 tells you which:
 
@@ -63,6 +68,10 @@ That is the expected way to find out, not a bug.
 If the API renames or regroups something in a way that would break an existing
 command, add an entry to `aliases` in `schema/overrides.yaml` rather than
 accepting the break.
+
+Generation also fails when two operations derive the same command — `endJob`
+and `endJobs` both want `jobs end`. Give the newcomer a name in `command_names`
+so the established command keeps its own.
 
 ## Tests
 
@@ -78,6 +87,15 @@ Standard library `testing` only — no test frameworks.
 - Explain *why* in the commit body; the diff already shows what
 - Keep generated output in the same commit as the change that produces it
 - CI must be green: build, tests, lint, and the generated-code check
+
+## When CI fails and nobody is looking
+
+A failing PR run is visible on the PR. A failing run on `main`, a release, or
+the nightly `Schema drift` job is not, so the `Alerts` workflow posts those to
+`#worksome-cli-alerts` with a link to the run. It needs the
+`SLACK_ALERTS_WEBHOOK` repository secret — an incoming webhook for that channel.
+If the alert step fails with `invalid_token`, the webhook was revoked and needs
+reissuing in Slack.
 
 ## Security
 

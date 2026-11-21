@@ -8,10 +8,11 @@ INTROSPECT_ENDPOINT ?= https://api.worksome.com/graphql
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
-# WORKSOME_OAUTH_CLIENT_ID is the public "Worksome CLI" OAuth client; empty
-# builds still work, with browser sign-in reporting itself unavailable.
-WORKSOME_OAUTH_CLIENT_ID ?=
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.oauthClientID=$(WORKSOME_OAUTH_CLIENT_ID)"
+# Both binaries read these from internal/buildinfo, so one set of stamps covers
+# every entrypoint. -X addresses the symbol by full import path and is silently
+# dropped when that path is wrong, so keep it in step with the package.
+BUILDINFO := $(MODULE)/internal/buildinfo
+LDFLAGS := -ldflags "-X $(BUILDINFO).Version=$(VERSION) -X $(BUILDINFO).Commit=$(COMMIT)"
 
 .PHONY: build test lint generate sync-schema sync clean verify-generated help
 
@@ -56,7 +57,7 @@ ifeq ($(SYNC_MODE),platform)
 	fi
 else
 	@echo "Syncing schema via introspection..."
-	@go run ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) > $(SCHEMA).tmp || { rm -f $(SCHEMA).tmp; exit 1; }
+	@go run $(LDFLAGS) ./cmd/introspect/ --endpoint $(INTROSPECT_ENDPOINT) > $(SCHEMA).tmp || { rm -f $(SCHEMA).tmp; exit 1; }
 	@mv $(SCHEMA).tmp $(SCHEMA)
 	@echo "Schema synced successfully."
 endif

@@ -24,9 +24,18 @@ type Overrides struct {
 	// strips applied directives, so the schema we parse cannot say which
 	// fields the server access-controls; this records what it cannot tell us.
 	IgnoreFields []string `yaml:"ignore_fields"`
+	// NestedFields lists "Type.field" entries to select whenever Type appears
+	// as a nested object, on top of the safeNestedFields name allow-list. It is
+	// the positive counterpart of IgnoreFields: a field the name list cannot
+	// admit globally, but that is meaningless to leave out on one type. An
+	// object or union field expands to its own safe fields, one level only.
+	NestedFields []string `yaml:"nested_fields"`
 	// Aliases maps a resource name to extra names it also answers to, so a
 	// rename in the API schema doesn't break the old invocation.
 	Aliases map[string][]string `yaml:"aliases"`
+	// CommandNames maps an operation name to the CLI action it generates,
+	// for operations whose derived name collides with another's.
+	CommandNames map[string]string `yaml:"command_names"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -105,11 +114,18 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 		inputs:        make(map[string]bool),
 		paginators:    make(map[string]string),
 		ignoredFields: make(map[string]bool, len(overrides.IgnoreFields)),
+		nestedFields:  make(map[string]bool, len(overrides.NestedFields)),
 	}
 	for _, entry := range overrides.IgnoreFields {
 		p.ignoredFields[entry] = true
 	}
+	for _, entry := range overrides.NestedFields {
+		p.nestedFields[entry] = true
+	}
 	if err := p.validateIgnoredFields(); err != nil {
+		return nil, err
+	}
+	if err := p.validateNestedFields(); err != nil {
 		return nil, err
 	}
 
@@ -124,8 +140,13 @@ type parser struct {
 	paginators map[string]string // PaginatorTypeName -> DataTypeName
 	// ignoredFields is the IgnoreFields override as a "Type.field" set.
 	ignoredFields map[string]bool
+	// nestedFields is the NestedFields override as a "Type.field" set.
+	nestedFields map[string]bool
 
-	aliasErrors []string
+	overrideErrors []string
+	nameErrors     []string
+	// usedCommandNames records which command_names overrides were applied.
+	usedCommandNames map[string]bool
 }
 
 // validateIgnoredFields rejects entries that name a field the schema no longer
@@ -158,6 +179,45 @@ func (p *parser) fieldIgnored(def *ast.Definition, fieldName string) bool {
 		return false
 	}
 	return p.ignoredFields[def.Name+"."+fieldName]
+}
+
+// validateNestedFields fails generation on a nested_fields entry that names no
+// field, that the generator could not call without arguments, or that
+// ignore_fields also excludes: each would silently select nothing.
+func (p *parser) validateNestedFields() error {
+	var invalid []string
+	for _, entry := range p.overrides.NestedFields {
+		typeName, fieldName, ok := strings.Cut(entry, ".")
+		if !ok || typeName == "" || fieldName == "" || strings.Contains(fieldName, ".") {
+			invalid = append(invalid, fmt.Sprintf("%q is not in Type.field form", entry))
+			continue
+		}
+		def := p.doc.Types[typeName]
+		if def == nil || def.Fields.ForName(fieldName) == nil {
+			invalid = append(invalid, fmt.Sprintf("%q names no field in the schema", entry))
+			continue
+		}
+		if p.needsArgument(def.Fields.ForName(fieldName)) {
+			invalid = append(invalid, fmt.Sprintf("%q needs an argument, so it cannot be selected by default", entry))
+		}
+		if p.ignoredFields[entry] {
+			invalid = append(invalid, fmt.Sprintf("%q is also in ignore_fields", entry))
+		}
+	}
+	if len(invalid) == 0 {
+		return nil
+	}
+	sort.Strings(invalid)
+	return fmt.Errorf("invalid nested_fields in overrides:\n  %s", strings.Join(invalid, "\n  "))
+}
+
+// fieldNested reports whether "Type.field" is added to nested selections by
+// the overrides.
+func (p *parser) fieldNested(def *ast.Definition, fieldName string) bool {
+	if def == nil {
+		return false
+	}
+	return p.nestedFields[def.Name+"."+fieldName]
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -267,9 +327,14 @@ func (p *parser) parse() (*Schema, error) {
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
 
-	if len(p.aliasErrors) > 0 {
-		return nil, fmt.Errorf("invalid aliases in overrides:\n  %s",
-			strings.Join(p.aliasErrors, "\n  "))
+	if len(p.overrideErrors) > 0 {
+		return nil, fmt.Errorf("invalid overrides:\n  %s",
+			strings.Join(p.overrideErrors, "\n  "))
+	}
+
+	if len(p.nameErrors) > 0 {
+		return nil, fmt.Errorf("colliding command names:\n  %s",
+			strings.Join(p.nameErrors, "\n  "))
 	}
 
 	return schema, nil
@@ -520,7 +585,7 @@ func (p *parser) buildResources() []Resource {
 		for _, mName := range override.Mutations {
 			if f, ok := mutations[mName]; ok {
 				op := p.fieldToOperation(f, OperationMutation, name)
-				op.CLIName = p.deriveMutationCLIName(mName, name)
+				op.CLIName = p.mutationCLIName(mName, name)
 				res.Mutations = append(res.Mutations, op)
 				claimed[mName] = true
 			}
@@ -658,7 +723,7 @@ func (p *parser) buildResources() []Resource {
 			resourceMap[resourceName] = res
 		}
 		op := p.fieldToOperation(f, OperationMutation, resourceName)
-		op.CLIName = p.deriveMutationCLIName(name, resourceName)
+		op.CLIName = p.mutationCLIName(name, resourceName)
 		res.Mutations = append(res.Mutations, op)
 		claimed[name] = true
 	}
@@ -721,6 +786,26 @@ func (p *parser) buildResources() []Resource {
 			return res.Mutations[i].Name < res.Mutations[j].Name
 		})
 
+		// Two operations deriving the same action would generate duplicate Go
+		// identifiers, so fail here rather than emit code that won't compile.
+		// The queries are seeded first: they generate commands of their own.
+		seen := make(map[string]string, len(res.Mutations)+2)
+		if res.GetQuery != nil {
+			seen[res.GetQuery.CLIName] = res.GetQuery.Name
+		}
+		if res.ListQuery != nil {
+			seen[res.ListQuery.CLIName] = res.ListQuery.Name
+		}
+		for _, m := range res.Mutations {
+			if first, dup := seen[m.CLIName]; dup {
+				p.nameErrors = append(p.nameErrors, fmt.Sprintf(
+					"%q and %q both generate %q %q; set command_names in the overrides file",
+					first, m.Name, res.Name, m.CLIName))
+				continue
+			}
+			seen[m.CLIName] = m.Name
+		}
+
 		// Generate table columns from the return type
 		res.TableColumns = p.buildTableColumns(res)
 		res.Aliases = p.overrides.Aliases[res.Name]
@@ -740,18 +825,25 @@ func (p *parser) buildResources() []Resource {
 	}
 	for target, aliases := range p.overrides.Aliases {
 		if !byName[target] {
-			p.aliasErrors = append(p.aliasErrors,
+			p.overrideErrors = append(p.overrideErrors,
 				fmt.Sprintf("alias target %q is not a generated resource", target))
 			continue
 		}
 		for _, a := range aliases {
 			if byName[a] {
-				p.aliasErrors = append(p.aliasErrors,
+				p.overrideErrors = append(p.overrideErrors,
 					fmt.Sprintf("alias %q (for %q) collides with a real resource", a, target))
 			}
 		}
 	}
-	sort.Strings(p.aliasErrors)
+	for name := range p.overrides.CommandNames {
+		if !p.usedCommandNames[name] {
+			p.overrideErrors = append(p.overrideErrors,
+				fmt.Sprintf("command_names entry %q matches no generated operation", name))
+		}
+	}
+	sort.Strings(p.overrideErrors)
+	sort.Strings(p.nameErrors)
 
 	return resources
 }
@@ -1391,7 +1483,7 @@ func (p *parser) selectScalarFields(def *ast.Definition, depth int) string {
 			}
 			switch nestedDef.Kind {
 			case ast.Object, ast.Interface:
-				nestedFields := p.selectSafeFields(nestedDef)
+				nestedFields := p.nestedSelection(nestedDef)
 				if nestedFields != "" {
 					fields = append(fields, f.Name+" { "+typenamePrefix(nestedDef)+nestedFields+" }")
 				}
@@ -1510,6 +1602,40 @@ func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 	return optional
 }
 
+// nestedSelection is selectSafeFields plus the object and union fields that
+// nested_fields adds for def. Those expand to their own safe fields and stop
+// there, so an override can never recurse.
+func (p *parser) nestedSelection(def *ast.Definition) string {
+	fields := []string{p.selectSafeFields(def)}
+	for _, f := range def.Fields {
+		if !p.fieldNested(def, f.Name) || p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
+			continue
+		}
+		innerType := unwrapType(f.Type)
+		if knownScalars[innerType] || p.enums[innerType] {
+			continue // already in selectSafeFields via nestedFieldSelected
+		}
+		inner := p.doc.Types[innerType]
+		if inner == nil {
+			continue
+		}
+		if _, isPaginator := p.paginators[innerType]; isPaginator {
+			continue
+		}
+		switch inner.Kind {
+		case ast.Object, ast.Interface:
+			if sub := p.selectSafeFields(inner); sub != "" {
+				fields = append(fields, f.Name+" { "+typenamePrefix(inner)+sub+" }")
+			}
+		case ast.Union:
+			if frags := p.unionSafeFields(inner); frags != "" {
+				fields = append(fields, f.Name+" { __typename "+frags+" }")
+			}
+		}
+	}
+	return strings.TrimSpace(strings.Join(fields, " "))
+}
+
 // selectSafeFields returns only safe identifying/display fields for a nested object.
 // This avoids requesting access-restricted fields on types like User, Worker, etc.
 func (p *parser) selectSafeFields(def *ast.Definition) string {
@@ -1532,7 +1658,8 @@ func (p *parser) nestedFieldSelected(def *ast.Definition, f *ast.FieldDefinition
 		return false
 	}
 	innerType := unwrapType(f.Type)
-	return (knownScalars[innerType] || p.enums[innerType]) && safeNestedFields[f.Name]
+	return (knownScalars[innerType] || p.enums[innerType]) &&
+		(safeNestedFields[f.Name] || p.fieldNested(def, f.Name))
 }
 
 func (p *parser) isSingularGet(f *ast.FieldDefinition) bool {
@@ -1618,6 +1745,28 @@ func (p *parser) matchMutationToResource(mutationName string, resources map[stri
 
 	// Fallback: use the full mutation name as resource
 	return toKebabCase(mutationName)
+}
+
+// commandNamePattern is what a derived name looks like; an override that does
+// not match reaches Cobra's Use and toPascalCase, where a space or an empty
+// value becomes an invalid Go identifier and go/format fails instead.
+var commandNamePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
+// mutationCLIName is deriveMutationCLIName with the overrides file applied.
+func (p *parser) mutationCLIName(mutationName, resourceName string) string {
+	if name, ok := p.overrides.CommandNames[mutationName]; ok {
+		if p.usedCommandNames == nil {
+			p.usedCommandNames = make(map[string]bool)
+		}
+		p.usedCommandNames[mutationName] = true
+		if !commandNamePattern.MatchString(name) {
+			p.overrideErrors = append(p.overrideErrors, fmt.Sprintf(
+				"command_names value %q for %q is not a kebab-case action name", name, mutationName))
+			return p.deriveMutationCLIName(mutationName, resourceName)
+		}
+		return name
+	}
+	return p.deriveMutationCLIName(mutationName, resourceName)
 }
 
 // deriveMutationCLIName extracts the CLI action name from a mutation name relative to its resource.

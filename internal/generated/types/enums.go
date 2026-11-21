@@ -243,6 +243,8 @@ const (
 	BatchItemStatusProcessing BatchItemStatus = "PROCESSING"
 	// BatchItemStatusProcessed — Item has been processed.
 	BatchItemStatusProcessed BatchItemStatus = "PROCESSED"
+	// BatchItemStatusBlocked — Item has been processed but is blocked, so it needs attention.
+	BatchItemStatusBlocked BatchItemStatus = "BLOCKED"
 )
 
 // ValidBatchItemStatus returns all valid values for BatchItemStatus.
@@ -250,6 +252,7 @@ func ValidBatchItemStatus() []BatchItemStatus {
 	return []BatchItemStatus{
 		BatchItemStatusProcessing,
 		BatchItemStatusProcessed,
+		BatchItemStatusBlocked,
 	}
 }
 
@@ -269,6 +272,8 @@ const (
 	BatchTypeAccrualsJournal BatchType = "ACCRUALS_JOURNAL"
 	// BatchTypePaymentJournal — Journal entries for self-bills that have reached a payment file.
 	BatchTypePaymentJournal BatchType = "PAYMENT_JOURNAL"
+	// BatchTypeTimesheetImport — Timesheets uploaded together in one timesheet import.
+	BatchTypeTimesheetImport BatchType = "TIMESHEET_IMPORT"
 )
 
 // ValidBatchType returns all valid values for BatchType.
@@ -280,6 +285,7 @@ func ValidBatchType() []BatchType {
 		BatchTypeSelfBillJournal,
 		BatchTypeAccrualsJournal,
 		BatchTypePaymentJournal,
+		BatchTypeTimesheetImport,
 	}
 }
 
@@ -424,6 +430,48 @@ func ValidCandidateSubmissionType() []CandidateSubmissionType {
 	}
 }
 
+// ChecklistCheckState — **Experimental.** Where a check on a checklist stands.
+type ChecklistCheckState string
+
+const (
+	// ChecklistCheckStatePending — Still to be confirmed or marked not applicable.
+	ChecklistCheckStatePending ChecklistCheckState = "PENDING"
+	// ChecklistCheckStateConfirmed — Someone looked at the evidence and confirmed the check.
+	ChecklistCheckStateConfirmed ChecklistCheckState = "CONFIRMED"
+	// ChecklistCheckStateNotApplicable — Someone judged that the check does not apply here, and gave a reason.
+	ChecklistCheckStateNotApplicable ChecklistCheckState = "NOT_APPLICABLE"
+)
+
+// ValidChecklistCheckState returns all valid values for ChecklistCheckState.
+func ValidChecklistCheckState() []ChecklistCheckState {
+	return []ChecklistCheckState{
+		ChecklistCheckStatePending,
+		ChecklistCheckStateConfirmed,
+		ChecklistCheckStateNotApplicable,
+	}
+}
+
+// ChecklistStatus — **Experimental.** Whether the checks on a checklist are done.
+type ChecklistStatus string
+
+const (
+	// ChecklistStatusComplete — Every check has been confirmed or marked not applicable.
+	ChecklistStatusComplete ChecklistStatus = "COMPLETE"
+	// ChecklistStatusBlocked — A check that blocks progress is still pending.
+	ChecklistStatusBlocked ChecklistStatus = "BLOCKED"
+	// ChecklistStatusOpen — Checks are still pending, but none of them block progress.
+	ChecklistStatusOpen ChecklistStatus = "OPEN"
+)
+
+// ValidChecklistStatus returns all valid values for ChecklistStatus.
+func ValidChecklistStatus() []ChecklistStatus {
+	return []ChecklistStatus{
+		ChecklistStatusComplete,
+		ChecklistStatusBlocked,
+		ChecklistStatusOpen,
+	}
+}
+
 // ClassificationResult — Determination result
 type ClassificationResult string
 
@@ -523,6 +571,90 @@ func ValidClassificationUsage() []ClassificationUsage {
 	}
 }
 
+// ClientRelationAgencyOwnerOrderByColumn — The columns the people staffing agencies assign to a client can be ordered by.
+type ClientRelationAgencyOwnerOrderByColumn string
+
+const (
+	// ClientRelationAgencyOwnerOrderByColumnName — The name of the person.
+	ClientRelationAgencyOwnerOrderByColumnName ClientRelationAgencyOwnerOrderByColumn = "NAME"
+	// ClientRelationAgencyOwnerOrderByColumnAssignedAt — When the person was assigned.
+	ClientRelationAgencyOwnerOrderByColumnAssignedAt ClientRelationAgencyOwnerOrderByColumn = "ASSIGNED_AT"
+	// ClientRelationAgencyOwnerOrderByColumnStaffingAgency — The name of the staffing agency the person works for.
+	ClientRelationAgencyOwnerOrderByColumnStaffingAgency ClientRelationAgencyOwnerOrderByColumn = "STAFFING_AGENCY"
+)
+
+// ValidClientRelationAgencyOwnerOrderByColumn returns all valid values for ClientRelationAgencyOwnerOrderByColumn.
+func ValidClientRelationAgencyOwnerOrderByColumn() []ClientRelationAgencyOwnerOrderByColumn {
+	return []ClientRelationAgencyOwnerOrderByColumn{
+		ClientRelationAgencyOwnerOrderByColumnName,
+		ClientRelationAgencyOwnerOrderByColumnAssignedAt,
+		ClientRelationAgencyOwnerOrderByColumnStaffingAgency,
+	}
+}
+
+// ClientRelationOwnerOrderByColumn — The columns a supplier's own team on a client can be ordered by.
+type ClientRelationOwnerOrderByColumn string
+
+const (
+	// ClientRelationOwnerOrderByColumnName — The name of the person.
+	ClientRelationOwnerOrderByColumnName ClientRelationOwnerOrderByColumn = "NAME"
+	// ClientRelationOwnerOrderByColumnAssignedAt — When the person was assigned.
+	ClientRelationOwnerOrderByColumnAssignedAt ClientRelationOwnerOrderByColumn = "ASSIGNED_AT"
+)
+
+// ValidClientRelationOwnerOrderByColumn returns all valid values for ClientRelationOwnerOrderByColumn.
+func ValidClientRelationOwnerOrderByColumn() []ClientRelationOwnerOrderByColumn {
+	return []ClientRelationOwnerOrderByColumn{
+		ClientRelationOwnerOrderByColumnName,
+		ClientRelationOwnerOrderByColumnAssignedAt,
+	}
+}
+
+// ClientRelationTeamOrderByColumn — The columns a client company's team can be ordered by.
+type ClientRelationTeamOrderByColumn string
+
+const (
+	// ClientRelationTeamOrderByColumnName — The name of the person.
+	ClientRelationTeamOrderByColumnName ClientRelationTeamOrderByColumn = "NAME"
+	// ClientRelationTeamOrderByColumnAccountRole — The account owner before the members.
+	ClientRelationTeamOrderByColumnAccountRole ClientRelationTeamOrderByColumn = "ACCOUNT_ROLE"
+)
+
+// ValidClientRelationTeamOrderByColumn returns all valid values for ClientRelationTeamOrderByColumn.
+func ValidClientRelationTeamOrderByColumn() []ClientRelationTeamOrderByColumn {
+	return []ClientRelationTeamOrderByColumn{
+		ClientRelationTeamOrderByColumnName,
+		ClientRelationTeamOrderByColumnAccountRole,
+	}
+}
+
+// CompanyClientOrderByColumn — The columns that a supplier's client list can be ordered by.
+type CompanyClientOrderByColumn string
+
+const (
+	// CompanyClientOrderByColumnClientName — The name of the client company.
+	CompanyClientOrderByColumnClientName CompanyClientOrderByColumn = "CLIENT_NAME"
+	// CompanyClientOrderByColumnClientLocation — The client's market, then its region by name.
+	CompanyClientOrderByColumnClientLocation CompanyClientOrderByColumn = "CLIENT_LOCATION"
+	// CompanyClientOrderByColumnClientSince — The date the client relationship was established.
+	CompanyClientOrderByColumnClientSince CompanyClientOrderByColumn = "CLIENT_SINCE"
+	// CompanyClientOrderByColumnHires — The number of hires the supplier has at the client.
+	CompanyClientOrderByColumnHires CompanyClientOrderByColumn = "HIRES"
+	// CompanyClientOrderByColumnLinkedStaffingAgencies — The number of staffing agencies the supplier linked to the client.
+	CompanyClientOrderByColumnLinkedStaffingAgencies CompanyClientOrderByColumn = "LINKED_STAFFING_AGENCIES"
+)
+
+// ValidCompanyClientOrderByColumn returns all valid values for CompanyClientOrderByColumn.
+func ValidCompanyClientOrderByColumn() []CompanyClientOrderByColumn {
+	return []CompanyClientOrderByColumn{
+		CompanyClientOrderByColumnClientName,
+		CompanyClientOrderByColumnClientLocation,
+		CompanyClientOrderByColumnClientSince,
+		CompanyClientOrderByColumnHires,
+		CompanyClientOrderByColumnLinkedStaffingAgencies,
+	}
+}
+
 // CompanyNumberValidationStatus — The outcome of an external validation check (e.g. KvK, VAT/VIES).
 type CompanyNumberValidationStatus string
 
@@ -544,6 +676,39 @@ func ValidCompanyNumberValidationStatus() []CompanyNumberValidationStatus {
 		CompanyNumberValidationStatusValid,
 		CompanyNumberValidationStatusInvalid,
 		CompanyNumberValidationStatusNotVerified,
+	}
+}
+
+// CompanyOrderByColumn — The columns that a list of companies can be ordered by.
+type CompanyOrderByColumn string
+
+const (
+	// CompanyOrderByColumnCompanyName — The name of the company.
+	CompanyOrderByColumnCompanyName CompanyOrderByColumn = "COMPANY_NAME"
+)
+
+// ValidCompanyOrderByColumn returns all valid values for CompanyOrderByColumn.
+func ValidCompanyOrderByColumn() []CompanyOrderByColumn {
+	return []CompanyOrderByColumn{
+		CompanyOrderByColumnCompanyName,
+	}
+}
+
+// CompanyTeamRole — Whether a person on a company team owns the company account or is a member of it.
+type CompanyTeamRole string
+
+const (
+	// CompanyTeamRoleOwner — Owner
+	CompanyTeamRoleOwner CompanyTeamRole = "OWNER"
+	// CompanyTeamRoleMember — Member
+	CompanyTeamRoleMember CompanyTeamRole = "MEMBER"
+)
+
+// ValidCompanyTeamRole returns all valid values for CompanyTeamRole.
+func ValidCompanyTeamRole() []CompanyTeamRole {
+	return []CompanyTeamRole{
+		CompanyTeamRoleOwner,
+		CompanyTeamRoleMember,
 	}
 }
 
@@ -730,6 +895,8 @@ const (
 	ComplianceNameWcrAcceptance ComplianceName = "WCR_ACCEPTANCE"
 	// ComplianceNameContractStartAndEndDate — Contract end date
 	ComplianceNameContractStartAndEndDate ComplianceName = "CONTRACT_START_AND_END_DATE"
+	// ComplianceNameChecklists — **Experimental.** Checklists compliance
+	ComplianceNameChecklists ComplianceName = "CHECKLISTS"
 	// ComplianceNamePayrollCurrency — Payroll currency compliance
 	ComplianceNamePayrollCurrency ComplianceName = "PAYROLL_CURRENCY"
 	// ComplianceNameSoWConfirmation — Statement of Work confirmation compliance
@@ -764,12 +931,20 @@ const (
 	ComplianceNameWorkerOnboarding ComplianceName = "WORKER_ONBOARDING"
 	// ComplianceNameIdentification — Required identification details
 	ComplianceNameIdentification ComplianceName = "IDENTIFICATION"
+	// ComplianceNameHireWorkerCustomFieldsBeforeOffer — Required hire custom fields the worker answers before the hire is offered
+	ComplianceNameHireWorkerCustomFieldsBeforeOffer ComplianceName = "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_OFFER"
+	// ComplianceNameHireWorkerCustomFieldsBeforeAcceptance — Required hire custom fields the worker answers before accepting the contract
+	ComplianceNameHireWorkerCustomFieldsBeforeAcceptance ComplianceName = "HIRE_WORKER_CUSTOM_FIELDS_BEFORE_ACCEPTANCE"
 	// ComplianceNameVerifiedRecruiterCompliance — Verified staffing-agency compliance — company verification of a staffing agency
 	ComplianceNameVerifiedRecruiterCompliance ComplianceName = "VERIFIED_RECRUITER_COMPLIANCE"
 	// ComplianceNameRecruiterOnboarding — Staffing-agency onboarding — review of onboarding documents and required custom fields
 	ComplianceNameRecruiterOnboarding ComplianceName = "RECRUITER_ONBOARDING"
+	// ComplianceNameClientOnboarding — Client onboarding — whether any of the account's clients still needs onboarding completed
+	ComplianceNameClientOnboarding ComplianceName = "CLIENT_ONBOARDING"
 	// ComplianceNameDeterminationSupplierHireClientInput — End client input for supplier-managed worker classification
 	ComplianceNameDeterminationSupplierHireClientInput ComplianceName = "DETERMINATION_SUPPLIER_HIRE_CLIENT_INPUT"
+	// ComplianceNameDeterminationHireFreelancerInput — Worker input for the classification questions about their own hire
+	ComplianceNameDeterminationHireFreelancerInput ComplianceName = "DETERMINATION_HIRE_FREELANCER_INPUT"
 	// ComplianceNameDeterminationSupplierHireAwaitingClient — Supplier awaiting end client classification input
 	ComplianceNameDeterminationSupplierHireAwaitingClient ComplianceName = "DETERMINATION_SUPPLIER_HIRE_AWAITING_CLIENT"
 	// ComplianceNameSupplierHirePrepared — Downstream supplier-mirror hire is out of draft and prepared by the staffing agency
@@ -846,6 +1021,7 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameEmployerOfRecord,
 		ComplianceNameWcrAcceptance,
 		ComplianceNameContractStartAndEndDate,
+		ComplianceNameChecklists,
 		ComplianceNamePayrollCurrency,
 		ComplianceNameSoWConfirmation,
 		ComplianceNameNlWaadiRegistration,
@@ -863,9 +1039,13 @@ func ValidComplianceName() []ComplianceName {
 		ComplianceNameVerifiedWorkerCompliance,
 		ComplianceNameWorkerOnboarding,
 		ComplianceNameIdentification,
+		ComplianceNameHireWorkerCustomFieldsBeforeOffer,
+		ComplianceNameHireWorkerCustomFieldsBeforeAcceptance,
 		ComplianceNameVerifiedRecruiterCompliance,
 		ComplianceNameRecruiterOnboarding,
+		ComplianceNameClientOnboarding,
 		ComplianceNameDeterminationSupplierHireClientInput,
+		ComplianceNameDeterminationHireFreelancerInput,
 		ComplianceNameDeterminationSupplierHireAwaitingClient,
 		ComplianceNameSupplierHirePrepared,
 	}
@@ -1254,7 +1434,7 @@ const (
 	CountryCodeGy CountryCode = "GY"
 	// CountryCodeHk — Hong Kong SAR China
 	CountryCodeHk CountryCode = "HK"
-	// CountryCodeHm — Heard & McDonald Islands
+	// CountryCodeHm — Heard Island & McDonald Islands
 	CountryCodeHm CountryCode = "HM"
 	// CountryCodeHn — Honduras
 	CountryCodeHn CountryCode = "HN"
@@ -1460,7 +1640,7 @@ const (
 	CountryCodeSe CountryCode = "SE"
 	// CountryCodeSg — Singapore
 	CountryCodeSg CountryCode = "SG"
-	// CountryCodeSh — St. Helena
+	// CountryCodeSh — St. Helena, Ascension & Tristan da Cunha
 	CountryCodeSh CountryCode = "SH"
 	// CountryCodeSi — Slovenia
 	CountryCodeSi CountryCode = "SI"
@@ -1494,7 +1674,7 @@ const (
 	CountryCodeTc CountryCode = "TC"
 	// CountryCodeTd — Chad
 	CountryCodeTd CountryCode = "TD"
-	// CountryCodeTf — French Southern Territories
+	// CountryCodeTf — French Southern and Antarctic Lands
 	CountryCodeTf CountryCode = "TF"
 	// CountryCodeTg — Togo
 	CountryCodeTg CountryCode = "TG"
@@ -1819,45 +1999,45 @@ func ValidCountryCode() []CountryCode {
 	}
 }
 
-// Currency — Currency
+// Currency — A currency code as defined by ISO 4217.
 type Currency string
 
 const (
-	// CurrencyCad — CAD
-	CurrencyCad Currency = "CAD"
-	// CurrencyDkk — DKK
-	CurrencyDkk Currency = "DKK"
-	// CurrencyEur — EUR
-	CurrencyEur Currency = "EUR"
-	// CurrencyGbp — GBP
-	CurrencyGbp Currency = "GBP"
-	// CurrencyNok — NOK
-	CurrencyNok Currency = "NOK"
-	// CurrencySek — SEK
-	CurrencySek Currency = "SEK"
-	// CurrencyUsd — USD
-	CurrencyUsd Currency = "USD"
-	// CurrencyAed — AED
+	// CurrencyAed — United Arab Emirates Dirham
 	CurrencyAed Currency = "AED"
-	// CurrencySgd — SGD
-	CurrencySgd Currency = "SGD"
-	// CurrencyAud — AUD
+	// CurrencyAud — Australian Dollar
 	CurrencyAud Currency = "AUD"
+	// CurrencyCad — Canadian Dollar
+	CurrencyCad Currency = "CAD"
+	// CurrencyDkk — Danish Krone
+	CurrencyDkk Currency = "DKK"
+	// CurrencyEur — Euro
+	CurrencyEur Currency = "EUR"
+	// CurrencyGbp — Great British Pound
+	CurrencyGbp Currency = "GBP"
+	// CurrencyNok — Norwegian Krone
+	CurrencyNok Currency = "NOK"
+	// CurrencySek — Swedish Krona
+	CurrencySek Currency = "SEK"
+	// CurrencySgd — Singapore Dollar
+	CurrencySgd Currency = "SGD"
+	// CurrencyUsd — United States Dollar
+	CurrencyUsd Currency = "USD"
 )
 
 // ValidCurrency returns all valid values for Currency.
 func ValidCurrency() []Currency {
 	return []Currency{
+		CurrencyAed,
+		CurrencyAud,
 		CurrencyCad,
 		CurrencyDkk,
 		CurrencyEur,
 		CurrencyGbp,
 		CurrencyNok,
 		CurrencySek,
-		CurrencyUsd,
-		CurrencyAed,
 		CurrencySgd,
-		CurrencyAud,
+		CurrencyUsd,
 	}
 }
 
@@ -1873,6 +2053,10 @@ const (
 	CustomFieldTypeMultiSelect CustomFieldType = "MULTI_SELECT"
 	// CustomFieldTypeFileUpload — File Upload input field. Used to attach an uploaded file as the field value.
 	CustomFieldTypeFileUpload CustomFieldType = "FILE_UPLOAD"
+	// CustomFieldTypeDate — Date input field. Used to collect a single calendar date.
+	CustomFieldTypeDate CustomFieldType = "DATE"
+	// CustomFieldTypeBoolean — Boolean input field. Used to collect a yes or no answer.
+	CustomFieldTypeBoolean CustomFieldType = "BOOLEAN"
 )
 
 // ValidCustomFieldType returns all valid values for CustomFieldType.
@@ -1882,6 +2066,23 @@ func ValidCustomFieldType() []CustomFieldType {
 		CustomFieldTypeFreeText,
 		CustomFieldTypeMultiSelect,
 		CustomFieldTypeFileUpload,
+		CustomFieldTypeDate,
+		CustomFieldTypeBoolean,
+	}
+}
+
+// CustomFieldUsage — Something that depends on a custom field or one of its options, and so stops it being removed.
+type CustomFieldUsage string
+
+const (
+	// CustomFieldUsageRateCardLines — The option is used by a rate card, so it cannot be removed.
+	CustomFieldUsageRateCardLines CustomFieldUsage = "RATE_CARD_LINES"
+)
+
+// ValidCustomFieldUsage returns all valid values for CustomFieldUsage.
+func ValidCustomFieldUsage() []CustomFieldUsage {
+	return []CustomFieldUsage{
+		CustomFieldUsageRateCardLines,
 	}
 }
 
@@ -1921,7 +2122,49 @@ func ValidCustomFieldVisibility() []CustomFieldVisibility {
 	}
 }
 
-// CustomTimesheetRejectionReason — The reason a timesheet registration was rejected by Worksome.
+// CustomFieldWorkerInputStage — When the worker, or the staffing agency managing them, must answer a hire custom field.
+type CustomFieldWorkerInputStage string
+
+const (
+	// CustomFieldWorkerInputStageBeforeOffer — The worker answers while the hire is a draft, before the company can offer it.
+	CustomFieldWorkerInputStageBeforeOffer CustomFieldWorkerInputStage = "BEFORE_OFFER"
+	// CustomFieldWorkerInputStageBeforeAcceptance — The worker answers before they can accept the contract.
+	CustomFieldWorkerInputStageBeforeAcceptance CustomFieldWorkerInputStage = "BEFORE_ACCEPTANCE"
+)
+
+// ValidCustomFieldWorkerInputStage returns all valid values for CustomFieldWorkerInputStage.
+func ValidCustomFieldWorkerInputStage() []CustomFieldWorkerInputStage {
+	return []CustomFieldWorkerInputStage{
+		CustomFieldWorkerInputStageBeforeOffer,
+		CustomFieldWorkerInputStageBeforeAcceptance,
+	}
+}
+
+// CustomTimesheetFileRejectionReason — The reason Worksome refused a whole timesheet file, so that none of its rows was checked or written.
+type CustomTimesheetFileRejectionReason string
+
+const (
+	// CustomTimesheetFileRejectionReasonHeaderMismatch — The header row does not match the columns of your current timesheet import template.
+	CustomTimesheetFileRejectionReasonHeaderMismatch CustomTimesheetFileRejectionReason = "HEADER_MISMATCH"
+	// CustomTimesheetFileRejectionReasonUnreadableFile — The file could not be read as a CSV file: it is empty, has no header row, is not UTF-8 or holds the replacement character U+FFFD, is not separated by commas or semicolons, or has a line break inside a cell.
+	CustomTimesheetFileRejectionReasonUnreadableFile CustomTimesheetFileRejectionReason = "UNREADABLE_FILE"
+	// CustomTimesheetFileRejectionReasonTooManyRows — The file has more data rows than one import accepts.
+	CustomTimesheetFileRejectionReasonTooManyRows CustomTimesheetFileRejectionReason = "TOO_MANY_ROWS"
+	// CustomTimesheetFileRejectionReasonFileTooLarge — The file is larger than one import accepts.
+	CustomTimesheetFileRejectionReasonFileTooLarge CustomTimesheetFileRejectionReason = "FILE_TOO_LARGE"
+)
+
+// ValidCustomTimesheetFileRejectionReason returns all valid values for CustomTimesheetFileRejectionReason.
+func ValidCustomTimesheetFileRejectionReason() []CustomTimesheetFileRejectionReason {
+	return []CustomTimesheetFileRejectionReason{
+		CustomTimesheetFileRejectionReasonHeaderMismatch,
+		CustomTimesheetFileRejectionReasonUnreadableFile,
+		CustomTimesheetFileRejectionReasonTooManyRows,
+		CustomTimesheetFileRejectionReasonFileTooLarge,
+	}
+}
+
+// CustomTimesheetRejectionReason — The reason a timesheet registration was rejected, or a timesheet was blocked, by Worksome.
 type CustomTimesheetRejectionReason string
 
 const (
@@ -1931,6 +2174,46 @@ const (
 	CustomTimesheetRejectionReasonHireNotFound CustomTimesheetRejectionReason = "HIRE_NOT_FOUND"
 	// CustomTimesheetRejectionReasonDateOutsideContractPeriod — The reportedDate falls outside the hire's contract start/end dates.
 	CustomTimesheetRejectionReasonDateOutsideContractPeriod CustomTimesheetRejectionReason = "DATE_OUTSIDE_CONTRACT_PERIOD"
+	// CustomTimesheetRejectionReasonOverlapsLivePaymentRequest — The timesheet's billing period overlaps another live payment request on the hire.
+	CustomTimesheetRejectionReasonOverlapsLivePaymentRequest CustomTimesheetRejectionReason = "OVERLAPS_LIVE_PAYMENT_REQUEST"
+	// CustomTimesheetRejectionReasonPeriodAlreadyBilled — Another payment request already bills days in this period on the same hire.
+	CustomTimesheetRejectionReasonPeriodAlreadyBilled CustomTimesheetRejectionReason = "PERIOD_ALREADY_BILLED"
+	// CustomTimesheetRejectionReasonRateChangeCannotBeSplit — The timesheet's week crosses a contract rate change that can't be billed automatically.
+	CustomTimesheetRejectionReasonRateChangeCannotBeSplit CustomTimesheetRejectionReason = "RATE_CHANGE_CANNOT_BE_SPLIT"
+	// CustomTimesheetRejectionReasonUnsupportedRateType — The contract in effect for the timesheet has a rate type that isn't supported.
+	CustomTimesheetRejectionReasonUnsupportedRateType CustomTimesheetRejectionReason = "UNSUPPORTED_RATE_TYPE"
+	// CustomTimesheetRejectionReasonZeroTotalAmount — The payment request calculated from the timesheet would total zero.
+	CustomTimesheetRejectionReasonZeroTotalAmount CustomTimesheetRejectionReason = "ZERO_TOTAL_AMOUNT"
+	// CustomTimesheetRejectionReasonProcessingFailed — An unexpected error prevented the timesheet from being processed, or an import row from being written. Nothing was written for that import row’s hire and week.
+	CustomTimesheetRejectionReasonProcessingFailed CustomTimesheetRejectionReason = "PROCESSING_FAILED"
+	// CustomTimesheetRejectionReasonDuplicateRow — Another row in the same submission has the same hire and reportedDate, or the same hire, externalId and reportedDate. Every copy is rejected.
+	CustomTimesheetRejectionReasonDuplicateRow CustomTimesheetRejectionReason = "DUPLICATE_ROW"
+	// CustomTimesheetRejectionReasonHoursAlreadyRegistered — The hire already has hours registered on the reportedDate, and this import only adds hours.
+	CustomTimesheetRejectionReasonHoursAlreadyRegistered CustomTimesheetRejectionReason = "HOURS_ALREADY_REGISTERED"
+	// CustomTimesheetRejectionReasonLivePaymentRequestInWeek — The hire already has a live payment request in the week of the reportedDate, and this import only adds hours.
+	CustomTimesheetRejectionReasonLivePaymentRequestInWeek CustomTimesheetRejectionReason = "LIVE_PAYMENT_REQUEST_IN_WEEK"
+	// CustomTimesheetRejectionReasonOtherRowInWeekRejected — Another row for the same hire and week was rejected, so no row of that week is written.
+	CustomTimesheetRejectionReasonOtherRowInWeekRejected CustomTimesheetRejectionReason = "OTHER_ROW_IN_WEEK_REJECTED"
+	// CustomTimesheetRejectionReasonNoHireIdentifier — The CSV row fills in none of its hire identifier columns.
+	CustomTimesheetRejectionReasonNoHireIdentifier CustomTimesheetRejectionReason = "NO_HIRE_IDENTIFIER"
+	// CustomTimesheetRejectionReasonMultipleHiresMatched — A hire identifier on the CSV row matches several hires. The two hires of a mirrored engagement count as one.
+	CustomTimesheetRejectionReasonMultipleHiresMatched CustomTimesheetRejectionReason = "MULTIPLE_HIRES_MATCHED"
+	// CustomTimesheetRejectionReasonHireIdentifiersMismatch — The hire identifiers on the CSV row point to different hires.
+	CustomTimesheetRejectionReasonHireIdentifiersMismatch CustomTimesheetRejectionReason = "HIRE_IDENTIFIERS_MISMATCH"
+	// CustomTimesheetRejectionReasonUnreadableLine — A cell of the CSV row could not be read or imported, for example a date that is not YYYY-MM-DD or a payable value that is not yes or no.
+	CustomTimesheetRejectionReasonUnreadableLine CustomTimesheetRejectionReason = "UNREADABLE_LINE"
+	// CustomTimesheetRejectionReasonRoarWorkerNotIdentified — No worker was found for the row's CSID. The row is stored without a worker and is never billed.
+	CustomTimesheetRejectionReasonRoarWorkerNotIdentified CustomTimesheetRejectionReason = "ROAR_WORKER_NOT_IDENTIFIED"
+	// CustomTimesheetRejectionReasonRoarMultipleActiveHires — The worker has several active hires on the reportedDate. The row is stored without a hire and is never billed.
+	CustomTimesheetRejectionReasonRoarMultipleActiveHires CustomTimesheetRejectionReason = "ROAR_MULTIPLE_ACTIVE_HIRES"
+	// CustomTimesheetRejectionReasonTimesheetBlocked — The timesheet is, or will be, blocked (WIP corrected, not payroll, already blocked, or already has a payment request), so no new or changed hours on it are billed until someone reviews it.
+	CustomTimesheetRejectionReasonTimesheetBlocked CustomTimesheetRejectionReason = "TIMESHEET_BLOCKED"
+	// CustomTimesheetRejectionReasonStillProcessing — An earlier import is still processing the same hire and week. Send the row again once that import has finished.
+	CustomTimesheetRejectionReasonStillProcessing CustomTimesheetRejectionReason = "STILL_PROCESSING"
+	// CustomTimesheetRejectionReasonInvalidCustomFieldValue — A timesheet line custom field of the row's hire has a value it cannot take, such as a label that is not one of its options, or a required one has no value. The row's 'customField' names the field.
+	CustomTimesheetRejectionReasonInvalidCustomFieldValue CustomTimesheetRejectionReason = "INVALID_CUSTOM_FIELD_VALUE"
+	// CustomTimesheetRejectionReasonRequiredFieldCannotBeImported — The row's hire requires a timesheet line custom field that an import cannot fill: a multi-select or file-upload field, or a field without a slug, which has no template column. None of the hire's rows can be imported. The row's 'customField' names the field.
+	CustomTimesheetRejectionReasonRequiredFieldCannotBeImported CustomTimesheetRejectionReason = "REQUIRED_FIELD_CANNOT_BE_IMPORTED"
 )
 
 // ValidCustomTimesheetRejectionReason returns all valid values for CustomTimesheetRejectionReason.
@@ -1939,6 +2222,47 @@ func ValidCustomTimesheetRejectionReason() []CustomTimesheetRejectionReason {
 		CustomTimesheetRejectionReasonMissingRequiredField,
 		CustomTimesheetRejectionReasonHireNotFound,
 		CustomTimesheetRejectionReasonDateOutsideContractPeriod,
+		CustomTimesheetRejectionReasonOverlapsLivePaymentRequest,
+		CustomTimesheetRejectionReasonPeriodAlreadyBilled,
+		CustomTimesheetRejectionReasonRateChangeCannotBeSplit,
+		CustomTimesheetRejectionReasonUnsupportedRateType,
+		CustomTimesheetRejectionReasonZeroTotalAmount,
+		CustomTimesheetRejectionReasonProcessingFailed,
+		CustomTimesheetRejectionReasonDuplicateRow,
+		CustomTimesheetRejectionReasonHoursAlreadyRegistered,
+		CustomTimesheetRejectionReasonLivePaymentRequestInWeek,
+		CustomTimesheetRejectionReasonOtherRowInWeekRejected,
+		CustomTimesheetRejectionReasonNoHireIdentifier,
+		CustomTimesheetRejectionReasonMultipleHiresMatched,
+		CustomTimesheetRejectionReasonHireIdentifiersMismatch,
+		CustomTimesheetRejectionReasonUnreadableLine,
+		CustomTimesheetRejectionReasonRoarWorkerNotIdentified,
+		CustomTimesheetRejectionReasonRoarMultipleActiveHires,
+		CustomTimesheetRejectionReasonTimesheetBlocked,
+		CustomTimesheetRejectionReasonStillProcessing,
+		CustomTimesheetRejectionReasonInvalidCustomFieldValue,
+		CustomTimesheetRejectionReasonRequiredFieldCannotBeImported,
+	}
+}
+
+// CustomTimesheetRowStatus — What happens, or would happen with write set to false, to one submitted timesheet row.
+type CustomTimesheetRowStatus string
+
+const (
+	// CustomTimesheetRowStatusAccepted — The row is accepted for processing: written, or would be written. On a Roar dry run, the reason says when the row would be stored but never billed, or cannot be processed.
+	CustomTimesheetRowStatusAccepted CustomTimesheetRowStatus = "ACCEPTED"
+	// CustomTimesheetRowStatusRejected — The row is not written. The reason says why.
+	CustomTimesheetRowStatusRejected CustomTimesheetRowStatus = "REJECTED"
+	// CustomTimesheetRowStatusDeleted — The row removes the hours it reports: a Roar row with the status unsubmitted or rejected, or with Deleted set to true.
+	CustomTimesheetRowStatusDeleted CustomTimesheetRowStatus = "DELETED"
+)
+
+// ValidCustomTimesheetRowStatus returns all valid values for CustomTimesheetRowStatus.
+func ValidCustomTimesheetRowStatus() []CustomTimesheetRowStatus {
+	return []CustomTimesheetRowStatus{
+		CustomTimesheetRowStatusAccepted,
+		CustomTimesheetRowStatusRejected,
+		CustomTimesheetRowStatusDeleted,
 	}
 }
 
@@ -2416,6 +2740,8 @@ const (
 	HireOrderByColumnHireId HireOrderByColumn = "HIRE_ID"
 	// HireOrderByColumnCreatedAt — The hire created at date
 	HireOrderByColumnCreatedAt HireOrderByColumn = "CREATED_AT"
+	// HireOrderByColumnUpdatedAt — The date and time that the hire, its contract or its status was last changed.
+	HireOrderByColumnUpdatedAt HireOrderByColumn = "UPDATED_AT"
 	// HireOrderByColumnEngagementType — The hire engagement type
 	HireOrderByColumnEngagementType HireOrderByColumn = "ENGAGEMENT_TYPE"
 	// HireOrderByColumnLastPaymentRequestDate — The date the worker last submitted a payment request
@@ -2432,6 +2758,7 @@ func ValidHireOrderByColumn() []HireOrderByColumn {
 		HireOrderByColumnJobName,
 		HireOrderByColumnHireId,
 		HireOrderByColumnCreatedAt,
+		HireOrderByColumnUpdatedAt,
 		HireOrderByColumnEngagementType,
 		HireOrderByColumnLastPaymentRequestDate,
 	}
@@ -2482,6 +2809,54 @@ func ValidInsuranceType() []InsuranceType {
 	}
 }
 
+// InvoiceDelivery — Who is emailed the client-side invoices of a mirror-model client relationship
+type InvoiceDelivery string
+
+const (
+	// InvoiceDeliveryMsp — Only the MSP (supplier) is emailed
+	InvoiceDeliveryMsp InvoiceDelivery = "MSP"
+	// InvoiceDeliveryClient — Only the end client is emailed
+	InvoiceDeliveryClient InvoiceDelivery = "CLIENT"
+	// InvoiceDeliveryBoth — Both the MSP (supplier) and the end client are emailed
+	InvoiceDeliveryBoth InvoiceDelivery = "BOTH"
+)
+
+// ValidInvoiceDelivery returns all valid values for InvoiceDelivery.
+func ValidInvoiceDelivery() []InvoiceDelivery {
+	return []InvoiceDelivery{
+		InvoiceDeliveryMsp,
+		InvoiceDeliveryClient,
+		InvoiceDeliveryBoth,
+	}
+}
+
+// InvoiceOrderByColumn — The columns that the invoices list can be ordered by.
+type InvoiceOrderByColumn string
+
+const (
+	// InvoiceOrderByColumnCreatedAt — The date that the invoice was created.
+	InvoiceOrderByColumnCreatedAt InvoiceOrderByColumn = "CREATED_AT"
+	// InvoiceOrderByColumnDate — The date that the invoice was issued.
+	InvoiceOrderByColumnDate InvoiceOrderByColumn = "DATE"
+	// InvoiceOrderByColumnDueDate — The due date of the invoice.
+	InvoiceOrderByColumnDueDate InvoiceOrderByColumn = "DUE_DATE"
+	// InvoiceOrderByColumnNumber — The invoice number.
+	InvoiceOrderByColumnNumber InvoiceOrderByColumn = "NUMBER"
+	// InvoiceOrderByColumnTotalAmount — The net total of the invoice.
+	InvoiceOrderByColumnTotalAmount InvoiceOrderByColumn = "TOTAL_AMOUNT"
+)
+
+// ValidInvoiceOrderByColumn returns all valid values for InvoiceOrderByColumn.
+func ValidInvoiceOrderByColumn() []InvoiceOrderByColumn {
+	return []InvoiceOrderByColumn{
+		InvoiceOrderByColumnCreatedAt,
+		InvoiceOrderByColumnDate,
+		InvoiceOrderByColumnDueDate,
+		InvoiceOrderByColumnNumber,
+		InvoiceOrderByColumnTotalAmount,
+	}
+}
+
 // InvoiceStatus — The payment status of an invoice issued to a company.
 type InvoiceStatus string
 
@@ -2524,30 +2899,6 @@ func ValidInvoiceTransactionType() []InvoiceTransactionType {
 		InvoiceTransactionTypeInvoice,
 		InvoiceTransactionTypeCreditNote,
 		InvoiceTransactionTypeBatchInvoice,
-	}
-}
-
-// InvoicesOrderByColumn — The columns that invoices can be ordered by.
-type InvoicesOrderByColumn string
-
-const (
-	// InvoicesOrderByColumnDate — The date the invoice was created.
-	InvoicesOrderByColumnDate InvoicesOrderByColumn = "DATE"
-	// InvoicesOrderByColumnDueDate — The due date.
-	InvoicesOrderByColumnDueDate InvoicesOrderByColumn = "DUE_DATE"
-	// InvoicesOrderByColumnNumber — The invoice number.
-	InvoicesOrderByColumnNumber InvoicesOrderByColumn = "NUMBER"
-	// InvoicesOrderByColumnTotalAmount — The net total.
-	InvoicesOrderByColumnTotalAmount InvoicesOrderByColumn = "TOTAL_AMOUNT"
-)
-
-// ValidInvoicesOrderByColumn returns all valid values for InvoicesOrderByColumn.
-func ValidInvoicesOrderByColumn() []InvoicesOrderByColumn {
-	return []InvoicesOrderByColumn{
-		InvoicesOrderByColumnDate,
-		InvoicesOrderByColumnDueDate,
-		InvoicesOrderByColumnNumber,
-		InvoicesOrderByColumnTotalAmount,
 	}
 }
 
@@ -2749,21 +3100,27 @@ type JobOrderByColumn string
 const (
 	// JobOrderByColumnCreatedAt — The job created at
 	JobOrderByColumnCreatedAt JobOrderByColumn = "CREATED_AT"
+	// JobOrderByColumnUpdatedAt — The job updated at
+	JobOrderByColumnUpdatedAt JobOrderByColumn = "UPDATED_AT"
 	// JobOrderByColumnExpectedStartDate — The expected start date
 	JobOrderByColumnExpectedStartDate JobOrderByColumn = "EXPECTED_START_DATE"
 	// JobOrderByColumnPublishedDate — The published date
 	JobOrderByColumnPublishedDate JobOrderByColumn = "PUBLISHED_DATE"
 	// JobOrderByColumnCandidates — Order by the number of candidates on the job.
 	JobOrderByColumnCandidates JobOrderByColumn = "CANDIDATES"
+	// JobOrderByColumnLastCandidateSubmittedAt — The date a supplier last submitted a candidate to the job
+	JobOrderByColumnLastCandidateSubmittedAt JobOrderByColumn = "LAST_CANDIDATE_SUBMITTED_AT"
 )
 
 // ValidJobOrderByColumn returns all valid values for JobOrderByColumn.
 func ValidJobOrderByColumn() []JobOrderByColumn {
 	return []JobOrderByColumn{
 		JobOrderByColumnCreatedAt,
+		JobOrderByColumnUpdatedAt,
 		JobOrderByColumnExpectedStartDate,
 		JobOrderByColumnPublishedDate,
 		JobOrderByColumnCandidates,
+		JobOrderByColumnLastCandidateSubmittedAt,
 	}
 }
 
@@ -2773,12 +3130,15 @@ type JobShareOrderByColumn string
 const (
 	// JobShareOrderByColumnCreatedAt — The date and time that the job share was created.
 	JobShareOrderByColumnCreatedAt JobShareOrderByColumn = "CREATED_AT"
+	// JobShareOrderByColumnUpdatedAt — The date and time that the job share or its job was last changed.
+	JobShareOrderByColumnUpdatedAt JobShareOrderByColumn = "UPDATED_AT"
 )
 
 // ValidJobShareOrderByColumn returns all valid values for JobShareOrderByColumn.
 func ValidJobShareOrderByColumn() []JobShareOrderByColumn {
 	return []JobShareOrderByColumn{
 		JobShareOrderByColumnCreatedAt,
+		JobShareOrderByColumnUpdatedAt,
 	}
 }
 
@@ -3195,24 +3555,132 @@ func ValidOvertimeType() []OvertimeType {
 	}
 }
 
-// OwnerRole — The part a user plays on a record they own. An owner without a role is a plain owner (as used in jobs, hires and projects).
-type OwnerRole string
+// OwnerResponsibility — What an owner looks after on a record they own. Carries no permissions: an owner without one is a plain owner.
+type OwnerResponsibility string
 
 const (
-	// OwnerRolePrimaryContact — Primary contact
-	OwnerRolePrimaryContact OwnerRole = "PRIMARY_CONTACT"
-	// OwnerRoleCompliance — Compliance owner
-	OwnerRoleCompliance OwnerRole = "COMPLIANCE"
-	// OwnerRolePayments — Payments owner
-	OwnerRolePayments OwnerRole = "PAYMENTS"
+	// OwnerResponsibilityPrimaryContact — Primary contact
+	OwnerResponsibilityPrimaryContact OwnerResponsibility = "PRIMARY_CONTACT"
+	// OwnerResponsibilityCompliance — Compliance
+	OwnerResponsibilityCompliance OwnerResponsibility = "COMPLIANCE"
+	// OwnerResponsibilityPayments — Payments
+	OwnerResponsibilityPayments OwnerResponsibility = "PAYMENTS"
+	// OwnerResponsibilityRecruitment — Recruitment
+	OwnerResponsibilityRecruitment OwnerResponsibility = "RECRUITMENT"
 )
 
-// ValidOwnerRole returns all valid values for OwnerRole.
-func ValidOwnerRole() []OwnerRole {
-	return []OwnerRole{
-		OwnerRolePrimaryContact,
-		OwnerRoleCompliance,
-		OwnerRolePayments,
+// ValidOwnerResponsibility returns all valid values for OwnerResponsibility.
+func ValidOwnerResponsibility() []OwnerResponsibility {
+	return []OwnerResponsibility{
+		OwnerResponsibilityPrimaryContact,
+		OwnerResponsibilityCompliance,
+		OwnerResponsibilityPayments,
+		OwnerResponsibilityRecruitment,
+	}
+}
+
+// PayItemAssignmentStatus — Whether a pay item is offered on a job or selected on a contract.
+type PayItemAssignmentStatus string
+
+const (
+	// PayItemAssignmentStatusOffered — The pay item is offered on a job for a contract to select.
+	PayItemAssignmentStatusOffered PayItemAssignmentStatus = "OFFERED"
+	// PayItemAssignmentStatusActive — The pay item is selected and priced on a contract.
+	PayItemAssignmentStatusActive PayItemAssignmentStatus = "ACTIVE"
+)
+
+// ValidPayItemAssignmentStatus returns all valid values for PayItemAssignmentStatus.
+func ValidPayItemAssignmentStatus() []PayItemAssignmentStatus {
+	return []PayItemAssignmentStatus{
+		PayItemAssignmentStatusOffered,
+		PayItemAssignmentStatusActive,
+	}
+}
+
+// PayItemBasis — How a pay item's price is worked out.
+type PayItemBasis string
+
+const (
+	// PayItemBasisFlat — A fixed amount each time the item is charged.
+	PayItemBasisFlat PayItemBasis = "FLAT"
+	// PayItemBasisPerUnit — An amount per unit, such as per hour, per shift or per 1,000 words.
+	PayItemBasisPerUnit PayItemBasis = "PER_UNIT"
+	// PayItemBasisPercentage — A percentage on top of the base pay.
+	PayItemBasisPercentage PayItemBasis = "PERCENTAGE"
+)
+
+// ValidPayItemBasis returns all valid values for PayItemBasis.
+func ValidPayItemBasis() []PayItemBasis {
+	return []PayItemBasis{
+		PayItemBasisFlat,
+		PayItemBasisPerUnit,
+		PayItemBasisPercentage,
+	}
+}
+
+// PayItemRole — What kind of pay a pay item is.
+type PayItemRole string
+
+const (
+	// PayItemRoleBasePay — Pay for the work itself.
+	PayItemRoleBasePay PayItemRole = "BASE_PAY"
+	// PayItemRolePremium — Pay on top of the base pay, such as a shift or weekend premium.
+	PayItemRolePremium PayItemRole = "PREMIUM"
+)
+
+// ValidPayItemRole returns all valid values for PayItemRole.
+func ValidPayItemRole() []PayItemRole {
+	return []PayItemRole{
+		PayItemRoleBasePay,
+		PayItemRolePremium,
+	}
+}
+
+// PayItemStatus — Whether a pay item can be used or has been archived.
+type PayItemStatus string
+
+const (
+	// PayItemStatusActive — The pay item can be offered and charged.
+	PayItemStatusActive PayItemStatus = "ACTIVE"
+	// PayItemStatusArchived — The pay item has been archived.
+	PayItemStatusArchived PayItemStatus = "ARCHIVED"
+)
+
+// ValidPayItemStatus returns all valid values for PayItemStatus.
+func ValidPayItemStatus() []PayItemStatus {
+	return []PayItemStatus{
+		PayItemStatusActive,
+		PayItemStatusArchived,
+	}
+}
+
+// PayItemUnit — The unit a per-unit pay item is priced in.
+type PayItemUnit string
+
+const (
+	// PayItemUnitHour — Per hour.
+	PayItemUnitHour PayItemUnit = "HOUR"
+	// PayItemUnitDay — Per day.
+	PayItemUnitDay PayItemUnit = "DAY"
+	// PayItemUnitShift — Per shift.
+	PayItemUnitShift PayItemUnit = "SHIFT"
+	// PayItemUnitWeek — Per week.
+	PayItemUnitWeek PayItemUnit = "WEEK"
+	// PayItemUnitMonth — Per month.
+	PayItemUnitMonth PayItemUnit = "MONTH"
+	// PayItemUnitOther — Per a unit the client names, such as 1,000 words, held in the item's unit label.
+	PayItemUnitOther PayItemUnit = "OTHER"
+)
+
+// ValidPayItemUnit returns all valid values for PayItemUnit.
+func ValidPayItemUnit() []PayItemUnit {
+	return []PayItemUnit{
+		PayItemUnitHour,
+		PayItemUnitDay,
+		PayItemUnitShift,
+		PayItemUnitWeek,
+		PayItemUnitMonth,
+		PayItemUnitOther,
 	}
 }
 
@@ -3486,6 +3954,57 @@ func ValidProjectStatusFilter() []ProjectStatusFilter {
 	}
 }
 
+// RateCardComparisonResult — How an entered rate compares to a resolved rate card band.
+type RateCardComparisonResult string
+
+const (
+	// RateCardComparisonResultWithinRange — The rate is within the band.
+	RateCardComparisonResultWithinRange RateCardComparisonResult = "WITHIN_RANGE"
+	// RateCardComparisonResultAboveMaximum — The rate is above the band maximum.
+	RateCardComparisonResultAboveMaximum RateCardComparisonResult = "ABOVE_MAXIMUM"
+	// RateCardComparisonResultBelowMinimum — The rate is below the band minimum.
+	RateCardComparisonResultBelowMinimum RateCardComparisonResult = "BELOW_MINIMUM"
+	// RateCardComparisonResultUnitMismatch — The rate's unit differs from the band's, so the two aren't measurable against each other.
+	RateCardComparisonResultUnitMismatch RateCardComparisonResult = "UNIT_MISMATCH"
+	// RateCardComparisonResultNoMatch — Nothing matched a rate card line to compare against.
+	RateCardComparisonResultNoMatch RateCardComparisonResult = "NO_MATCH"
+)
+
+// ValidRateCardComparisonResult returns all valid values for RateCardComparisonResult.
+func ValidRateCardComparisonResult() []RateCardComparisonResult {
+	return []RateCardComparisonResult{
+		RateCardComparisonResultWithinRange,
+		RateCardComparisonResultAboveMaximum,
+		RateCardComparisonResultBelowMinimum,
+		RateCardComparisonResultUnitMismatch,
+		RateCardComparisonResultNoMatch,
+	}
+}
+
+// RateCardNoMatchReason — Why a vacancy or payment request resolved to no rate card band.
+type RateCardNoMatchReason string
+
+const (
+	// RateCardNoMatchReasonNoRateCard — The owner has no rate card in the required currency.
+	RateCardNoMatchReasonNoRateCard RateCardNoMatchReason = "NO_RATE_CARD"
+	// RateCardNoMatchReasonUnsupportedRateType — The rate type is unknown or absent, so no band can apply.
+	RateCardNoMatchReasonUnsupportedRateType RateCardNoMatchReason = "UNSUPPORTED_RATE_TYPE"
+	// RateCardNoMatchReasonNoLineInForce — The card has no line in force on the date requested.
+	RateCardNoMatchReasonNoLineInForce RateCardNoMatchReason = "NO_LINE_IN_FORCE"
+	// RateCardNoMatchReasonNoLineMatchedCriteria — A line was in force, but none matched the criteria supplied.
+	RateCardNoMatchReasonNoLineMatchedCriteria RateCardNoMatchReason = "NO_LINE_MATCHED_CRITERIA"
+)
+
+// ValidRateCardNoMatchReason returns all valid values for RateCardNoMatchReason.
+func ValidRateCardNoMatchReason() []RateCardNoMatchReason {
+	return []RateCardNoMatchReason{
+		RateCardNoMatchReasonNoRateCard,
+		RateCardNoMatchReasonUnsupportedRateType,
+		RateCardNoMatchReasonNoLineInForce,
+		RateCardNoMatchReasonNoLineMatchedCriteria,
+	}
+}
+
 // RateType — The billing frequency for a hire or payment request — hourly, daily, weekly, monthly, or a fixed amount.
 type RateType string
 
@@ -3648,6 +4167,30 @@ func ValidRecruiterStatus() []RecruiterStatus {
 	}
 }
 
+// RightToWorkDocumentType — A category of right-to-work evidence a worker may be required to provide.
+type RightToWorkDocumentType string
+
+const (
+	// RightToWorkDocumentTypeIdentityDocument — A passport or national identity document evidencing identity and nationality.
+	RightToWorkDocumentTypeIdentityDocument RightToWorkDocumentType = "IDENTITY_DOCUMENT"
+	// RightToWorkDocumentTypeWorkPermit — A permit authorising the holder to work in the jurisdiction.
+	RightToWorkDocumentTypeWorkPermit RightToWorkDocumentType = "WORK_PERMIT"
+	// RightToWorkDocumentTypeResidencePermit — A permit authorising the holder to reside in the jurisdiction.
+	RightToWorkDocumentTypeResidencePermit RightToWorkDocumentType = "RESIDENCE_PERMIT"
+	// RightToWorkDocumentTypeWorkAuthorization — Evidence of authorisation to work, where that is issued separately from a permit.
+	RightToWorkDocumentTypeWorkAuthorization RightToWorkDocumentType = "WORK_AUTHORIZATION"
+)
+
+// ValidRightToWorkDocumentType returns all valid values for RightToWorkDocumentType.
+func ValidRightToWorkDocumentType() []RightToWorkDocumentType {
+	return []RightToWorkDocumentType{
+		RightToWorkDocumentTypeIdentityDocument,
+		RightToWorkDocumentTypeWorkPermit,
+		RightToWorkDocumentTypeResidencePermit,
+		RightToWorkDocumentTypeWorkAuthorization,
+	}
+}
+
 // SkillOrderByColumn — The columns that the skills list can be ordered by.
 type SkillOrderByColumn string
 
@@ -3741,6 +4284,57 @@ func ValidSourcingDeadlineChoice() []SourcingDeadlineChoice {
 	return []SourcingDeadlineChoice{
 		SourcingDeadlineChoiceUseDefault,
 		SourcingDeadlineChoiceNone,
+	}
+}
+
+// StaffingAgencyClientOrderByColumn — **Experimental.** The columns that a staffing agency's client list can be ordered by.
+type StaffingAgencyClientOrderByColumn string
+
+const (
+	// StaffingAgencyClientOrderByColumnClientName — The name of the client company.
+	StaffingAgencyClientOrderByColumnClientName StaffingAgencyClientOrderByColumn = "CLIENT_NAME"
+	// StaffingAgencyClientOrderByColumnRelation — Direct links first, then the name of the MSP the link goes through.
+	StaffingAgencyClientOrderByColumnRelation StaffingAgencyClientOrderByColumn = "RELATION"
+	// StaffingAgencyClientOrderByColumnClientSince — The date the link was created.
+	StaffingAgencyClientOrderByColumnClientSince StaffingAgencyClientOrderByColumn = "CLIENT_SINCE"
+	// StaffingAgencyClientOrderByColumnPlacements — The number of the agency's offered, ready, active, ended, cancelled and terminated hires at the client.
+	StaffingAgencyClientOrderByColumnPlacements StaffingAgencyClientOrderByColumn = "PLACEMENTS"
+)
+
+// ValidStaffingAgencyClientOrderByColumn returns all valid values for StaffingAgencyClientOrderByColumn.
+func ValidStaffingAgencyClientOrderByColumn() []StaffingAgencyClientOrderByColumn {
+	return []StaffingAgencyClientOrderByColumn{
+		StaffingAgencyClientOrderByColumnClientName,
+		StaffingAgencyClientOrderByColumnRelation,
+		StaffingAgencyClientOrderByColumnClientSince,
+		StaffingAgencyClientOrderByColumnPlacements,
+	}
+}
+
+// SupplierClientOrderByColumn — The columns a client's linked suppliers can be ordered by.
+type SupplierClientOrderByColumn string
+
+const (
+	// SupplierClientOrderByColumnSupplierName — The name of the supplier.
+	SupplierClientOrderByColumnSupplierName SupplierClientOrderByColumn = "SUPPLIER_NAME"
+	// SupplierClientOrderByColumnLinkedAt — The date the supplier was linked to this client.
+	SupplierClientOrderByColumnLinkedAt SupplierClientOrderByColumn = "LINKED_AT"
+	// SupplierClientOrderByColumnUpdatedAt — The date the link last changed.
+	SupplierClientOrderByColumnUpdatedAt SupplierClientOrderByColumn = "UPDATED_AT"
+	// SupplierClientOrderByColumnSupplierSince — The date the supplier was added as a contracted supplier.
+	SupplierClientOrderByColumnSupplierSince SupplierClientOrderByColumn = "SUPPLIER_SINCE"
+	// SupplierClientOrderByColumnPlacements — The number of placements the supplier and the client share.
+	SupplierClientOrderByColumnPlacements SupplierClientOrderByColumn = "PLACEMENTS"
+)
+
+// ValidSupplierClientOrderByColumn returns all valid values for SupplierClientOrderByColumn.
+func ValidSupplierClientOrderByColumn() []SupplierClientOrderByColumn {
+	return []SupplierClientOrderByColumn{
+		SupplierClientOrderByColumnSupplierName,
+		SupplierClientOrderByColumnLinkedAt,
+		SupplierClientOrderByColumnUpdatedAt,
+		SupplierClientOrderByColumnSupplierSince,
+		SupplierClientOrderByColumnPlacements,
 	}
 }
 
@@ -3885,7 +4479,7 @@ type TrustedContactOrderByColumn string
 const (
 	// TrustedContactOrderByColumnWorkerName — The name of the worker.
 	TrustedContactOrderByColumnWorkerName TrustedContactOrderByColumn = "WORKER_NAME"
-	// TrustedContactOrderByColumnWorkerJobsCount — The number of jobs taken by the worker with the viewing company.
+	// TrustedContactOrderByColumnWorkerJobsCount — The number of hires the worker has accepted with the trusted contact's company, or with any company in the organisation for organisation trusted contacts.
 	TrustedContactOrderByColumnWorkerJobsCount TrustedContactOrderByColumn = "WORKER_JOBS_COUNT"
 	// TrustedContactOrderByColumnWorkerMarket — The market the worker is on.
 	TrustedContactOrderByColumnWorkerMarket TrustedContactOrderByColumn = "WORKER_MARKET"
@@ -4004,6 +4598,14 @@ const (
 	TypeSupportingCustomFieldValuesPaymentRequest TypeSupportingCustomFieldValues = "PAYMENT_REQUEST"
 	// TypeSupportingCustomFieldValuesCompanyRecruiter — A Company Recruiter relationship
 	TypeSupportingCustomFieldValuesCompanyRecruiter TypeSupportingCustomFieldValues = "COMPANY_RECRUITER"
+	// TypeSupportingCustomFieldValuesCompanySupplier — A relationship between a client company and one of its suppliers
+	TypeSupportingCustomFieldValuesCompanySupplier TypeSupportingCustomFieldValues = "COMPANY_SUPPLIER"
+	// TypeSupportingCustomFieldValuesExpense — An Expense
+	TypeSupportingCustomFieldValuesExpense TypeSupportingCustomFieldValues = "EXPENSE"
+	// TypeSupportingCustomFieldValuesHire — A Hire
+	TypeSupportingCustomFieldValuesHire TypeSupportingCustomFieldValues = "HIRE"
+	// TypeSupportingCustomFieldValuesClassificationInput — The input collected for a worker classification
+	TypeSupportingCustomFieldValuesClassificationInput TypeSupportingCustomFieldValues = "CLASSIFICATION_INPUT"
 )
 
 // ValidTypeSupportingCustomFieldValues returns all valid values for TypeSupportingCustomFieldValues.
@@ -4014,6 +4616,10 @@ func ValidTypeSupportingCustomFieldValues() []TypeSupportingCustomFieldValues {
 		TypeSupportingCustomFieldValuesTrustedContact,
 		TypeSupportingCustomFieldValuesPaymentRequest,
 		TypeSupportingCustomFieldValuesCompanyRecruiter,
+		TypeSupportingCustomFieldValuesCompanySupplier,
+		TypeSupportingCustomFieldValuesExpense,
+		TypeSupportingCustomFieldValuesHire,
+		TypeSupportingCustomFieldValuesClassificationInput,
 	}
 }
 
@@ -4118,6 +4724,18 @@ const (
 	WebhookEventTypeInvoicePaid WebhookEventType = "INVOICE_PAID"
 	// WebhookEventTypeCreditNoteCreated — Triggered when a credit note is created.
 	WebhookEventTypeCreditNoteCreated WebhookEventType = "CREDIT_NOTE_CREATED"
+	// WebhookEventTypeClassificationAccepted — Triggered when a worker classification is accepted.
+	WebhookEventTypeClassificationAccepted WebhookEventType = "CLASSIFICATION_ACCEPTED"
+	// WebhookEventTypeJobShared — Triggered when a job is shared with a staffing agency.
+	WebhookEventTypeJobShared WebhookEventType = "JOB_SHARED"
+	// WebhookEventTypeJobShareRemoved — Triggered when a job share is removed.
+	WebhookEventTypeJobShareRemoved WebhookEventType = "JOB_SHARE_REMOVED"
+	// WebhookEventTypeJobUpdated — Triggered when the details of a job change.
+	WebhookEventTypeJobUpdated WebhookEventType = "JOB_UPDATED"
+	// WebhookEventTypeJobClosed — Triggered when a job is closed or removed.
+	WebhookEventTypeJobClosed WebhookEventType = "JOB_CLOSED"
+	// WebhookEventTypeJobCandidateUpdated — Triggered when the step of a job candidate changes.
+	WebhookEventTypeJobCandidateUpdated WebhookEventType = "JOB_CANDIDATE_UPDATED"
 )
 
 // ValidWebhookEventType returns all valid values for WebhookEventType.
@@ -4140,6 +4758,45 @@ func ValidWebhookEventType() []WebhookEventType {
 		WebhookEventTypeInvoiceCreated,
 		WebhookEventTypeInvoicePaid,
 		WebhookEventTypeCreditNoteCreated,
+		WebhookEventTypeClassificationAccepted,
+		WebhookEventTypeJobShared,
+		WebhookEventTypeJobShareRemoved,
+		WebhookEventTypeJobUpdated,
+		WebhookEventTypeJobClosed,
+		WebhookEventTypeJobCandidateUpdated,
+	}
+}
+
+// Weekday — A day of the week.
+type Weekday string
+
+const (
+	// WeekdayMonday — Monday.
+	WeekdayMonday Weekday = "MONDAY"
+	// WeekdayTuesday — Tuesday.
+	WeekdayTuesday Weekday = "TUESDAY"
+	// WeekdayWednesday — Wednesday.
+	WeekdayWednesday Weekday = "WEDNESDAY"
+	// WeekdayThursday — Thursday.
+	WeekdayThursday Weekday = "THURSDAY"
+	// WeekdayFriday — Friday.
+	WeekdayFriday Weekday = "FRIDAY"
+	// WeekdaySaturday — Saturday.
+	WeekdaySaturday Weekday = "SATURDAY"
+	// WeekdaySunday — Sunday.
+	WeekdaySunday Weekday = "SUNDAY"
+)
+
+// ValidWeekday returns all valid values for Weekday.
+func ValidWeekday() []Weekday {
+	return []Weekday{
+		WeekdayMonday,
+		WeekdayTuesday,
+		WeekdayWednesday,
+		WeekdayThursday,
+		WeekdayFriday,
+		WeekdaySaturday,
+		WeekdaySunday,
 	}
 }
 

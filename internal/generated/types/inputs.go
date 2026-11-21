@@ -47,6 +47,8 @@ type AcceptBidInput struct {
 	ClosingMessage *string `json:"closingMessage,omitempty"`
 	// Attached documents.
 	Attachments []string `json:"attachments,omitempty"`
+	// **Experimental.** The pay items selected on the contract, each with its price. Leave out a price to take the job's price for the pay item, or else its current price. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 	// An identifier associated with the hire from an external system.
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 }
@@ -93,6 +95,12 @@ type ApproveEmploymentChangesInput struct {
 type ApproveTrustedContactInput struct {
 	// The ID of the trusted contact to be deleted.
 	Id string `json:"id"`
+}
+
+// ArchivePayItemInput — **Experimental.** The input for archiving a pay item.
+type ArchivePayItemInput struct {
+	// The ID of the pay item to archive.
+	PayItem string `json:"payItem"`
 }
 
 // ArgsInput — An input for additional arguments for the export.
@@ -205,6 +213,16 @@ type BlockTrustedContactInput struct {
 	Account string `json:"account"`
 }
 
+// BooleanCustomFieldValueInput — An input for a yes/no custom field.
+type BooleanCustomFieldValueInput struct {
+	// The ID of the field to set an answer on.
+	Id *string `json:"id,omitempty"`
+	// A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.
+	Slug *string `json:"slug,omitempty"`
+	// The answer. A null value indicates that the field value will be deleted.
+	Value *bool `json:"value,omitempty"`
+}
+
 // CancelHireInput — The input object used for all the information required to cancel a hire.
 type CancelHireInput struct {
 	// The ID of the hire.
@@ -219,6 +237,46 @@ type ChangeEmailInput struct {
 	User *string `json:"user,omitempty"`
 	// The new email for the user.
 	Email string `json:"email"`
+}
+
+// ClientRelationAgencyOwnerOrderByClauseInput — Sorting clause for the people staffing agencies assign to a client.
+type ClientRelationAgencyOwnerOrderByClauseInput struct {
+	// The field to sort the people by.
+	Field *ClientRelationAgencyOwnerOrderByColumn `json:"field,omitempty"`
+	// The order to sort the people by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// ClientRelationOwnerOrderByClauseInput — Sorting clause for a supplier's own team on a client.
+type ClientRelationOwnerOrderByClauseInput struct {
+	// The field to sort the people by.
+	Field *ClientRelationOwnerOrderByColumn `json:"field,omitempty"`
+	// The order to sort the people by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// ClientRelationTeamOrderByClauseInput — Sorting clause for a client company's team.
+type ClientRelationTeamOrderByClauseInput struct {
+	// The field to sort the team by.
+	Field *ClientRelationTeamOrderByColumn `json:"field,omitempty"`
+	// The order to sort the team by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// CompanyClientOrderByClauseInput — Sorting clause for the supplier's client list.
+type CompanyClientOrderByClauseInput struct {
+	// The field to sort supplier clients by.
+	Field *CompanyClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort supplier clients by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
+// CompanyOrderByClauseInput — Sorting clause for a list of companies.
+type CompanyOrderByClauseInput struct {
+	// The field to sort a list of companies by.
+	Field *CompanyOrderByColumn `json:"field,omitempty"`
+	// The order to sort a list of companies by.
+	Order *SortOrder `json:"order,omitempty"`
 }
 
 // CreateApprovalInput — The input for creating a new approval flow. After creating the approval, use 'createApprovalRule' to add conditions and then 'createApprover' to assign user groups who will review matching items. Alternatively, use 'createWorkflow' to create the entire approval flow (root, rules, and approvers) in a single operation.
@@ -283,6 +341,8 @@ type CreateCompanyRecruiterInput struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 	// The custom fields for the company recruiter.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
@@ -311,8 +371,12 @@ type CreateCustomFieldInput struct {
 	ApiOnly *bool `json:"apiOnly,omitempty"`
 	// Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.
 	WorkerInputAllowed *bool `json:"workerInputAllowed,omitempty"`
+	// For hire fields with worker input allowed, when the worker must answer. Defaults to 'BEFORE_ACCEPTANCE'.
+	WorkerInputStage *CustomFieldWorkerInputStage `json:"workerInputStage,omitempty"`
 	// Configures the field to allow recruiter (staffing agency) input. When enabled, recruiters can provide values for this field through the recruiter API.
 	RecruiterInputAllowed *bool `json:"recruiterInputAllowed,omitempty"`
+	// For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to 'BEFORE_ACCEPTANCE'.
+	RecruiterInputStage *CustomFieldWorkerInputStage `json:"recruiterInputStage,omitempty"`
 	// Configures the field to surface its values on client invoices.
 	ShowOnInvoice *bool `json:"showOnInvoice,omitempty"`
 	// Configures the field to be shared with client companies. When enabled, clients of the supplier that owns this field will see it during job sharing.
@@ -329,6 +393,28 @@ type CreateCustomTimesheetInput struct {
 	Schema string `json:"schema"`
 	// The custom data for the timesheet.
 	Data string `json:"data"`
+	// The account the timesheets are imported for: a worker, a staffing agency or a company the user belongs to. Rows are matched only against the hires this account can see. Required for the generic schemas; schemas built for a single integration ignore it.
+	Account *string `json:"account,omitempty"`
+	// Whether to write the timesheets. With false, the call is a dry run: it checks every row as a real call would and returns the result of each row in 'rows', without writing or queueing anything. A dry run checks at most 5,000 rows, and a request can hold one dry run. The default-csv schema checks every row during the request on a write too, so it refuses a file of more than 5,000 rows or 5 MB, and a request can hold one default-csv call, dry run or write. A roar-json dry run needs permission to see all hires in each of your companies. Defaults to true.
+	Write *bool `json:"write,omitempty"`
+}
+
+// CreateExpenseInput — The input for creating an expense.
+type CreateExpenseInput struct {
+	// The expense report this expense belongs to.
+	ExpenseReport string `json:"expenseReport"`
+	// The vendor of the expense.
+	Vendor string `json:"vendor"`
+	// The description of the expense.
+	Description *string `json:"description,omitempty"`
+	// The date that the expense was expensed.
+	ExpenseAt *string `json:"expenseAt,omitempty"`
+	// The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+	Amount *float64 `json:"amount,omitempty"`
+	// The IDs of previously-uploaded files (see the 'uploadFiles' mutation) to attach.
+	Files []string `json:"files,omitempty"`
+	// Custom field values to set on this expense (see the "Expenses custom fields" section of the client account's payment request custom fields).
+	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
 
 // CreateExportInput — An input for creating an export.
@@ -421,6 +507,28 @@ type CreatePasswordInput struct {
 	Password string `json:"password"`
 }
 
+// CreatePayItemInput — **Experimental.** The input for creating a pay item.
+type CreatePayItemInput struct {
+	// The company or organisation whose catalogue the pay item is added to.
+	Account string `json:"account"`
+	// The name of the pay item.
+	Name string `json:"name"`
+	// What kind of pay the pay item is.
+	Role PayItemRole `json:"role"`
+	// How the pay item's price is worked out. Must be 'FLAT' or 'PER_UNIT'.
+	Basis PayItemBasis `json:"basis"`
+	// The unit a per-unit pay item is priced in. Required for per-unit pay items, and must be absent for flat ones.
+	Unit *PayItemUnit `json:"unit,omitempty"`
+	// The name of the unit, such as 1,000 words. Required when the unit is 'OTHER', and must be absent otherwise.
+	UnitLabel *string `json:"unitLabel,omitempty"`
+	// The currency the pay item is priced in.
+	Currency Currency `json:"currency"`
+	// The pay item's starting price, in its currency. Leave out to price it later.
+	Price *float64 `json:"price,omitempty"`
+	// The date the starting price takes effect. Defaults to today, and cannot be in the past.
+	EffectiveAt *string `json:"effectiveAt,omitempty"`
+}
+
 // CreatePaymentRequestInput — An input for creating a payment request.
 type CreatePaymentRequestInput struct {
 	// The worker that is creating the payment request.
@@ -507,21 +615,21 @@ type CreateSmsMultiFactorInput struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// CreateSupplierCandidateInput — The details for adding and inviting a supplier candidate.
+// CreateSupplierCandidateInput — The details for adding a supplier candidate.
 type CreateSupplierCandidateInput struct {
-	// The supplier account that owns this candidate (Company or Recruiter).
+	// The company that acts as a supplier and owns this candidate. Staffing agencies use 'createRecruiterCandidate' instead.
 	Supplier string `json:"supplier"`
-	// The invited candidate first name.
+	// The candidate first name.
 	FirstName string `json:"firstName"`
-	// The invited candidate middle name.
+	// The candidate middle name.
 	MiddleName *string `json:"middleName,omitempty"`
-	// The invited candidate last name.
+	// The candidate last name.
 	LastName string `json:"lastName"`
 	// The candidate email.
 	Email string `json:"email"`
-	// The invited candidate country of residence.
+	// The candidate country of residence.
 	Country *string `json:"country,omitempty"`
-	// The invited candidate country state, if applicable.
+	// The candidate country state, if applicable.
 	State *string `json:"state,omitempty"`
 	// The candidate job title.
 	JobTitle *string `json:"jobTitle,omitempty"`
@@ -629,10 +737,10 @@ type CreateWebhookInput struct {
 	ClientId *string `json:"clientId,omitempty"`
 	// The client URL of the webhook, when using OAuth.
 	ClientUrl *string `json:"clientUrl,omitempty"`
-	// The event types that this webhook should be subscribed to. If null or not provided, the webhook will be subscribed to all event types. If an empty array, the webhook will not receive any events.
+	// The event types that this webhook should be subscribed to. If null or not provided, the webhook receives all event types, except that a staffing agency webhook receives hire lifecycle events only when it lists them. If an empty array, the webhook will not receive any events.
 	SubscribedEvents []WebhookEventType `json:"subscribedEvents,omitempty"`
-	// The company that the webhook is for.
-	Company string `json:"company"`
+	// The account that the webhook is for: a company or a staffing agency. Exactly one of 'account' and 'company' is required.
+	Account *string `json:"account,omitempty"`
 }
 
 // CreateWorkflowApproverInput — An approver node in the workflow tree — assigns user groups to a rule.
@@ -713,6 +821,10 @@ type CustomFieldTypeValueInput struct {
 	MultiSelect *MultiSelectCustomFieldValueInput `json:"multiSelect,omitempty"`
 	// The input custom field values representation of the 'FILE_UPLOAD' field type.
 	FileUpload *FileUploadCustomFieldValueInput `json:"fileUpload,omitempty"`
+	// The input custom field values representation of the 'DATE' field type.
+	Date *DateCustomFieldValueInput `json:"date,omitempty"`
+	// The input custom field values representation of the 'BOOLEAN' field type. When filtering by a 'FILE_UPLOAD' field, 'true' matches records with at least one attached file and 'false' matches records with none.
+	Boolean *BooleanCustomFieldValueInput `json:"boolean,omitempty"`
 }
 
 // CustomFieldValueInput — An input for a custom field value.
@@ -723,11 +835,29 @@ type CustomFieldValueInput struct {
 	Value CustomFieldTypeValueInput `json:"value"`
 }
 
+// DateCustomFieldValueInput — An input for a date custom field.
+type DateCustomFieldValueInput struct {
+	// The ID of the field to set a date on.
+	Id *string `json:"id,omitempty"`
+	// A unique human-readable key for the custom field, preferably in a slug format with lowercase and hyphens to replace spaces. The key is only unique within the same account.
+	Slug *string `json:"slug,omitempty"`
+	// The date, as 'YYYY-MM-DD'. A null value indicates that the field value will be deleted.
+	Value *string `json:"value,omitempty"`
+}
+
 // DateRangeInput — An input for a date range.
 type DateRangeInput struct {
 	// The start date of the range.
 	From *string `json:"from,omitempty"`
 	// The end date of the range.
+	To *string `json:"to,omitempty"`
+}
+
+// DateTimeRangeInput — An input for a range of points in time. Both bounds are inclusive.
+type DateTimeRangeInput struct {
+	// The start of the range, inclusive.
+	From *string `json:"from,omitempty"`
+	// The end of the range, inclusive.
 	To *string `json:"to,omitempty"`
 }
 
@@ -817,6 +947,12 @@ type DeleteWebhookInput struct {
 	Id string `json:"id"`
 }
 
+// DeleteWorkerRightToWorkDocumentInput — A right-to-work document to remove.
+type DeleteWorkerRightToWorkDocumentInput struct {
+	// The document to remove.
+	Id string `json:"id"`
+}
+
 // DeleteWorkflowInput — The input for deleting an existing workflow.
 type DeleteWorkflowInput struct {
 	// The ID of the workflow to delete (same as the approval ID).
@@ -869,6 +1005,14 @@ type EmploymentsOrderByClauseInput struct {
 type EndJobInput struct {
 	// The ID of the job.
 	Id string `json:"id"`
+	// The ID of the account performing the action.
+	AccountId string `json:"accountId"`
+}
+
+// EndJobsInput — The input for ending multiple jobs at once.
+type EndJobsInput struct {
+	// The IDs of the jobs to end.
+	JobIds []string `json:"jobIds"`
 	// The ID of the account performing the action.
 	AccountId string `json:"accountId"`
 }
@@ -939,8 +1083,10 @@ type GeneratePersonalInviteLinkInput struct {
 type GenericComplianceInput struct {
 	// The compliance to update.
 	Name ComplianceName `json:"name"`
-	// The raw form data for the compliance.
+	// The raw form data for the compliance, as a JSON-encoded object. File references inside it ('file_id', 'file_ids' and '*_file_id(s)' keys) take 'File' global IDs of files that belong to the acting account.
 	Data map[string]any `json:"data"`
+	// The hire the compliance belongs to. Required for hire-scoped compliances, such as 'NL_SUPPLIER_EMPLOYMENT_CONFIRMATION', and rejected for the others. You must be the hire's party that the compliance is for.
+	HireId *string `json:"hireId,omitempty"`
 }
 
 // HireHistoryFilterInput — Trusted contact hire history filter input.
@@ -981,7 +1127,7 @@ type HireInput struct {
 	Conversation *string `json:"conversation,omitempty"`
 	// The recruiter that the hire should be attributed to.
 	Recruiter *RecruiterInput `json:"recruiter,omitempty"`
-	// Additional custom fields for the direct hire. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team. Note: Passing an empty array '[]' will skip custom field syncing entirely. If you have required custom fields configured, you must provide values for them or validation will fail.
+	// Additional custom fields for the direct hire. Values are routed by where the field is defined: a field that applies to jobs is stored on the job, a field that applies to hires on the hire itself. Details specified here are never shown to workers. Depending on each field's sharing settings, some may be visible outside your team. Note: Passing an empty array '[]' will skip custom field syncing entirely. If you have required custom fields configured, you must provide values for them or validation will fail.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 	// The company that the direct hire is for.
 	Company string `json:"company"`
@@ -991,6 +1137,8 @@ type HireInput struct {
 	Owners []string `json:"owners,omitempty"`
 	// The description for the hire. If not provided and a job is provided, the job description will be used. This description is used on the draft contract.
 	HireDescription *string `json:"hireDescription,omitempty"`
+	// **Experimental.** The pay items selected on the contract, each with its price. Leave out a price to take the job's price for the pay item, or else its current price. Requires 'job'. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 }
 
 // HireStatusFilterInput — Trusted contact hire status filter input.
@@ -1031,6 +1179,8 @@ type InviteCompanyRecruiterInput struct {
 	Tags []string `json:"tags,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 }
 
 // InvitedByInput — Trusted contact invited by users filter input. If 'null', all trusted contacts will be returned.
@@ -1147,8 +1297,16 @@ type OrderByClause struct {
 type OwnerInput struct {
 	// The user to assign as an owner.
 	User string `json:"user"`
-	// The part this person plays on the record, e.g. the primary contact.
-	Role *OwnerRole `json:"role,omitempty"`
+	// What this person looks after on the record. Grants no permissions. A new owner on a staffing agency's client link sent without one starts with the one their role at the agency suggests.
+	Responsibility *OwnerResponsibility `json:"responsibility,omitempty"`
+}
+
+// PayItemAssignmentInput — **Experimental.** A pay item on a job or contract, with the price it is offered or agreed at.
+type PayItemAssignmentInput struct {
+	// The ID of the pay item.
+	PayItem string `json:"payItem"`
+	// The price, in the job's or contract's currency. On a job, leave out to offer the pay item without a price. On a contract, leave out to take the job's price for it, or else the pay item's current price.
+	Price *float64 `json:"price,omitempty"`
 }
 
 // PaymentRequestOrderByClauseInput — Payment request sorting clause input.
@@ -1159,11 +1317,11 @@ type PaymentRequestOrderByClauseInput struct {
 	Order *SortOrder `json:"order,omitempty"`
 }
 
-// QueryInvoicesOrderByOrderByClause — Order by clause for Query.invoices.orderBy.
+// QueryInvoicesOrderByOrderByClause — Invoice sorting clause input.
 type QueryInvoicesOrderByOrderByClause struct {
-	// The column that is used for ordering.
-	Column InvoicesOrderByColumn `json:"column"`
-	// The direction that is used for ordering.
+	// The field to sort invoices by.
+	Field *InvoiceOrderByColumn `json:"field,omitempty"`
+	// The order to sort invoices by.
 	Order SortOrder `json:"order"`
 }
 
@@ -1253,6 +1411,16 @@ type RemoveRecruiterOnboardingDocumentsInput struct {
 	Documents []string `json:"documents"`
 }
 
+// RepricePayItemInput — **Experimental.** The input for repricing a pay item.
+type RepricePayItemInput struct {
+	// The ID of the pay item to reprice.
+	PayItem string `json:"payItem"`
+	// The new price, in the pay item's currency.
+	Price float64 `json:"price"`
+	// The date the new price takes effect. Cannot be in the past.
+	EffectiveAt string `json:"effectiveAt"`
+}
+
 // RetryWebhookEventInput — The input for retrying a webhook event.
 type RetryWebhookEventInput struct {
 	// The ID of the webhook event to be retried.
@@ -1269,6 +1437,16 @@ type ReviewRecruiterInput struct {
 	NextReviewAt *string `json:"nextReviewAt,omitempty"`
 	// Optional message delivered to the staffing agency as an in-app notification. Also shown to the reviewer on subsequent reviews for continuity.
 	RecruiterMessage *string `json:"recruiterMessage,omitempty"`
+}
+
+// ReviewRightToWorkDocumentInput — A compliance reviewer's decision on a right-to-work document.
+type ReviewRightToWorkDocumentInput struct {
+	// The document being reviewed.
+	Id string `json:"id"`
+	// True to approve, false to decline.
+	Approved bool `json:"approved"`
+	// Why the document was declined. Required when declining.
+	RejectionReason *string `json:"rejectionReason,omitempty"`
 }
 
 // ReviewWorkerInput — Input for recording a company's compliance review of a worker. The reviewer is the authenticated user; the company is the user's active account. The review record is scoped to (worker, company).
@@ -1295,12 +1473,40 @@ type RunBatchActionInput struct {
 	DeleteIfEmptied *bool `json:"deleteIfEmptied,omitempty"`
 }
 
+// SetChecklistCheckStateInput — **Experimental.** The input for changing where a check on a checklist stands.
+type SetChecklistCheckStateInput struct {
+	// The check to change.
+	Check string `json:"check"`
+	// The check's new state.
+	State ChecklistCheckState `json:"state"`
+	// Why the check does not apply. Required when marking it not applicable.
+	Reason *string `json:"reason,omitempty"`
+}
+
+// SetCustomFieldsArchivedInput — The input for archiving or unarchiving a custom field.
+type SetCustomFieldsArchivedInput struct {
+	// The IDs of the custom fields to archive or unarchive.
+	CustomFields []string `json:"customFields"`
+	// Whether the fields should be archived (true) or unarchived (false)
+	Archived bool `json:"archived"`
+}
+
 // SetInternalBudgetOnJobInput — The input used for setting the internal budget on a job.
 type SetInternalBudgetOnJobInput struct {
 	// The job that the budget is for.
 	Job string `json:"job"`
 	// The amount for the internal budget. Up to 2 decimal points are stored, the rest is omitted.
 	Amount float64 `json:"amount"`
+}
+
+// SetSupplierClientLinksInput — The details for linking or unlinking a set of agencies against a set of clients.
+type SetSupplierClientLinksInput struct {
+	// The agency relations to link or unlink.
+	CompanyRecruiterIds []string `json:"companyRecruiterIds"`
+	// The client companies to link them against.
+	ClientIds []string `json:"clientIds"`
+	// Whether the pairs should be linked. Unlinking withdraws them; linking revives a withdrawn pair rather than creating a second one.
+	Linked bool `json:"linked"`
 }
 
 // ShareCandidatesWithPartnerInput — The details for sharing candidates with the linked partner account.
@@ -1335,6 +1541,14 @@ type SkillOrderByClauseInput struct {
 	Order SortOrder `json:"order"`
 }
 
+// StaffingAgencyClientOrderByClauseInput — **Experimental.** Sorting clause for a staffing agency's client list.
+type StaffingAgencyClientOrderByClauseInput struct {
+	// The field to sort the client links by.
+	Field *StaffingAgencyClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort the client links by.
+	Order *SortOrder `json:"order,omitempty"`
+}
+
 // StoreBankDetailsInput — The details for updating a bank account details.
 type StoreBankDetailsInput struct {
 	// The account that the bank account is related to.
@@ -1365,6 +1579,52 @@ type SubmitComplianceInput struct {
 	ReviewRecruiter *ReviewRecruiterInput `json:"reviewRecruiter,omitempty"`
 	// Catch-all for compliances without a dedicated typed input shape. The 'data' JSON must match the compliance's expected form structure.
 	Generic *GenericComplianceInput `json:"generic,omitempty"`
+}
+
+// SubmitJobCandidateInput — The details of one candidate in a supplier submission.
+type SubmitJobCandidateInput struct {
+	// The worker to submit. The worker must be one of the supplier's candidates.
+	Worker string `json:"worker"`
+	// The rate of the candidate.
+	Rate float64 `json:"rate"`
+	// The rate type of the rate.
+	RateType RateType `json:"rateType"`
+	// The date from which the candidate is available.
+	AvailableFrom *string `json:"availableFrom,omitempty"`
+	// A brief that describes the candidate.
+	Brief *string `json:"brief,omitempty"`
+	// External links that are related to the candidate.
+	Links []string `json:"links,omitempty"`
+	// Files to attach, such as the CV. Each file must be owned by the supplier account.
+	Files []string `json:"files,omitempty"`
+	// Whether the candidate is submitted as managed or referred. Only used when the client allows mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
+	SubmissionType *CandidateSubmissionType `json:"submissionType,omitempty"`
+}
+
+// SubmitJobCandidatesInput — The details for submitting a supplier's candidates to a job.
+type SubmitJobCandidatesInput struct {
+	// The job to submit the candidates to.
+	Job string `json:"job"`
+	// The supplier account (Recruiter or Company) that submits the candidates.
+	Supplier string `json:"supplier"`
+	// A message to the client that accompanies the submission.
+	Message *string `json:"message,omitempty"`
+	// The name of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactName *string `json:"contactName,omitempty"`
+	// The email of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactEmail *string `json:"contactEmail,omitempty"`
+	// The phone number of the supplier's contact person. Required when the job is owned by an MSP.
+	ContactPhone *string `json:"contactPhone,omitempty"`
+	// The candidates to submit.
+	Candidates []SubmitJobCandidateInput `json:"candidates"`
+}
+
+// SupplierClientOrderByClauseInput — Sorting clause for a client's linked staffing agencies.
+type SupplierClientOrderByClauseInput struct {
+	// The field to sort the linked suppliers by.
+	Field *SupplierClientOrderByColumn `json:"field,omitempty"`
+	// The order to sort the linked suppliers by.
+	Order *SortOrder `json:"order,omitempty"`
 }
 
 // TaxLineInput — An input for a tax line.
@@ -1413,6 +1673,8 @@ type TimesheetRegistrationInput struct {
 	IsBillable *bool `json:"isBillable,omitempty"`
 	// The custom fields for the timesheet registration.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
+	// **Experimental.** The pay item the time on this line is logged against. Only a 'LINE' registration can have one. It must be billable and logged in the unit of the hire's contract in force on the line's date: hours on an hourly contract, days on a daily one. A newly chosen pay item must be on that contract, priced per hour or per day to match. A line can keep a pay item that the timesheet's saved lines carry on dates under the same contract.
+	PayItem *string `json:"payItem,omitempty"`
 }
 
 // TrustedContactOrderByClauseInput — Trusted contact sorting clause input.
@@ -1483,6 +1745,8 @@ type UpdateCompanyRecruiterInput struct {
 	ExternalIdentifier *string `json:"externalIdentifier,omitempty"`
 	// Whether the recruiter manages workers for this company relationship. When null, the company-level default is used.
 	ManagesWorkers *bool `json:"managesWorkers,omitempty"`
+	// The maximum number of candidates the staffing agency may submit per job. Null means no limit.
+	MaxCandidateSubmissions *int `json:"maxCandidateSubmissions,omitempty"`
 	// The custom fields for the company recruiter.
 	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
@@ -1517,8 +1781,12 @@ type UpdateCustomFieldInput struct {
 	ApiOnly *bool `json:"apiOnly,omitempty"`
 	// Configures the field to allow worker input. When enabled, workers can provide values for this field through the worker API.
 	WorkerInputAllowed *bool `json:"workerInputAllowed,omitempty"`
+	// For hire fields with worker input allowed, when the worker must answer. Defaults to 'BEFORE_ACCEPTANCE'.
+	WorkerInputStage *CustomFieldWorkerInputStage `json:"workerInputStage,omitempty"`
 	// Configures the field to allow recruiter (staffing agency) input. When enabled, recruiters can provide values for this field through the recruiter API.
 	RecruiterInputAllowed *bool `json:"recruiterInputAllowed,omitempty"`
+	// For hire fields with recruiter input allowed, when the staffing agency must answer for a worker it manages. Defaults to 'BEFORE_ACCEPTANCE'.
+	RecruiterInputStage *CustomFieldWorkerInputStage `json:"recruiterInputStage,omitempty"`
 	// Configures the field to surface its values on client invoices.
 	ShowOnInvoice *bool `json:"showOnInvoice,omitempty"`
 	// Configures the field to be shared with client companies. When enabled, clients of the supplier that owns this field will see it during job sharing.
@@ -1527,6 +1795,24 @@ type UpdateCustomFieldInput struct {
 	SharedWithStaffingAgencies *bool `json:"sharedWithStaffingAgencies,omitempty"`
 	// The list of options which will be available for custom field values. Only applies to some field types (e.g. 'SINGLE_SELECT').
 	Options []CustomFieldCustomFieldOptionInput `json:"options,omitempty"`
+}
+
+// UpdateExpenseInput — The input for updating an expense.
+type UpdateExpenseInput struct {
+	// The expense to update.
+	Id string `json:"id"`
+	// The vendor of the expense.
+	Vendor string `json:"vendor"`
+	// The description of the expense.
+	Description *string `json:"description,omitempty"`
+	// The date that the expense was expensed.
+	ExpenseAt *string `json:"expenseAt,omitempty"`
+	// The amount of the expense, in minor units (cents), e.g. 10050 for 100.50.
+	Amount *float64 `json:"amount,omitempty"`
+	// The IDs of previously-uploaded files (see the 'uploadFiles' mutation) to attach.
+	Files []string `json:"files,omitempty"`
+	// Custom field values to set on this expense (see the "Expenses custom fields" section of the client account's payment request custom fields).
+	CustomFieldValues []CustomFieldTypeValueInput `json:"customFieldValues,omitempty"`
 }
 
 // UpdateJobCandidatePreferredInput — The details for updating the "preferred" status of a job candidate.
@@ -1573,6 +1859,8 @@ type UpdateJobInput struct {
 	Skills []string `json:"skills,omitempty"`
 	// The files to be attached to the job.
 	Attachments []string `json:"attachments,omitempty"`
+	// **Experimental.** The pay items the job offers, each with its price. The list replaces the job's saved pay items. Leave out to keep them as they are. Only pay items the job can offer are accepted ('Job.offerablePayItems'), except percentage pay items, which are not accepted yet.
+	PayItems []PayItemAssignmentInput `json:"payItems,omitempty"`
 	// The project type of the job.
 	Association *Association `json:"association,omitempty"`
 	// The expected experience level required for the job.
@@ -1657,6 +1945,14 @@ type UpdateNoteInput struct {
 	Body *string `json:"body,omitempty"`
 	// The title of the note to be updated.
 	Title *string `json:"title,omitempty"`
+}
+
+// UpdateOwnersInput — The full set of owner assignments for one record.
+type UpdateOwnersInput struct {
+	// The record to assign team members on: a client relation (CompanySupplier), a staffing agency's client link (SupplierClient) or a hire (Hire).
+	Ownable string `json:"ownable"`
+	// The assignments to keep; team members not listed are unassigned.
+	Owners []OwnerInput `json:"owners"`
 }
 
 // UpdatePasswordInput — The details required to update a user's password.
@@ -1757,6 +2053,14 @@ type UpdateSupplierCandidateInput struct {
 	Files []string `json:"files,omitempty"`
 }
 
+// UpdateSupplierClientLinksInput — The details for linking or unlinking suppliers for one client.
+type UpdateSupplierClientLinksInput struct {
+	// The supplier-to-client links to update.
+	Ids []string `json:"ids"`
+	// Whether the suppliers should be linked to the client. Unlinking withdraws the link; linking revives a withdrawn one.
+	Linked bool `json:"linked"`
+}
+
 // UpdateTimesheetInput — The input used for updating a timesheet.
 type UpdateTimesheetInput struct {
 	// The ID of the timesheet to update.
@@ -1847,7 +2151,7 @@ type UpdateWebhookInput struct {
 
 // UpdateWorkerCustomFieldValuesInput — The input for updating custom field values as a worker.
 type UpdateWorkerCustomFieldValuesInput struct {
-	// The entity that supports custom fields (e.g., TrustedContact).
+	// The entity that supports custom fields (e.g., TrustedContact or Hire).
 	AppliesTo string `json:"appliesTo"`
 	// Collection of custom field values to update.
 	Values []CustomFieldTypeValueInput `json:"values"`

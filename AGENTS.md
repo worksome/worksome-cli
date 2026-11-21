@@ -21,6 +21,7 @@ To change generated code, modify the **templates** in `internal/codegen/generato
 ### Hand-Written
 - `cmd/worksome/main.go` — Root command, global flags, client factory
 - `cmd/worksome/auth.go` — Auth login/status/switch commands
+- `cmd/worksome/status.go` — `worksome status`, summarises status.worksome.com (Oh Dear JSON feed)
 - `cmd/generate/main.go` — Codegen tool entrypoint
 - `internal/client/` — GraphQL HTTP client, retry, pagination
 - `internal/config/` — Profile management, token resolution
@@ -54,6 +55,11 @@ Edit `cmd/worksome/main.go` in `newRootCmd()`.
 ### Adding a new resource override
 Edit `schema/overrides.yaml` to map operations to specific resource groups. Then `make generate`.
 
+### Resolving a colliding command name
+Two operations deriving the same command (e.g. `endJob` and `endJobs` → `jobs end`) fail
+generation. Name the newcomer in `command_names` in `schema/overrides.yaml` so the
+established command is unaffected, then `make generate`. Generation fails on a stale entry.
+
 ### Excluding a field from generated selection sets
 Add a `Type.field` entry to `ignore_fields` in `schema/overrides.yaml`, then `make generate`.
 Introspection does not return applied directives, so the vendored schema carries none of the
@@ -67,6 +73,11 @@ make sync-schema    # Introspects $INTROSPECT_ENDPOINT (unauthenticated)
 make generate       # Regenerates all code
 make test           # Verify everything compiles and passes
 ```
+
+### Cutting a release
+Run the **Release** workflow from `main` (Actions → Release → Run workflow) and pick
+`patch`, `minor` or `major`. It tests, tags the next version and runs goreleaser.
+Pushing a `v*` tag by hand still works the same way.
 
 ### Adding a new built-in command
 Add it to `cmd/worksome/` and register in `newRootCmd()` in `main.go`.
@@ -93,6 +104,7 @@ Tests are in:
 - `internal/client/client_test.go` — HTTP client, retries, pagination
 - `internal/config/config_test.go` — Config load/save, token precedence
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
+- `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
 
 ## Style
 

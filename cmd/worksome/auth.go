@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/worksome/worksome-cli/internal/buildinfo"
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
 	"github.com/worksome/worksome-cli/internal/oauth"
@@ -172,7 +173,7 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 
 			// Validate token by querying viewer
 			fmt.Fprint(os.Stderr, "Validating token... ")
-			c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(version)))
+			c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(buildinfo.Version)))
 			var result map[string]any
 			err = c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
 			if err != nil {
@@ -419,7 +420,7 @@ func newAuthListCmd() *cobra.Command {
 }
 
 func printViewerStatus(endpoint, token string) error {
-	c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(version)))
+	c := client.New(endpoint, token, client.WithUserAgent(client.UserAgent(buildinfo.Version)))
 	var result map[string]any
 	err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
 	if err != nil {

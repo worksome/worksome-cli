@@ -3,7 +3,7 @@ package codegen
 import (
 	"os"
 	"path/filepath"
-	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -1396,10 +1396,45 @@ type Company implements Account {
 	}
 }
 
-// innerSelection matches the innermost `name { a b c }` groups of a selection
-// set. Nested object selections are always scalar-only, so the innermost groups
-// are exactly the `parent { child ... }` pairs a "parent.child" column needs.
-var innerSelection = regexp.MustCompile(`(\w+) \{ ([^{}]*) \}`)
+// directChildren maps every named selection in a selection set to the field
+// names selected directly inside it. Inline fragments (`... on T { a }`) count
+// as children of the field that holds them, so a union's members read as one
+// parent. Deeper groups are attributed to their own parent, not flattened:
+// nested_fields lets a nested object carry a nested object of its own.
+func directChildren(selectionSet string) map[string]map[string]bool {
+	tokens := strings.Fields(strings.NewReplacer("{", " { ", "}", " } ").Replace(selectionSet))
+	selected := make(map[string]map[string]bool)
+	var stack []string
+	pending := ""
+	for i := 0; i < len(tokens); i++ {
+		switch tok := tokens[i]; tok {
+		case "{":
+			stack = append(stack, pending)
+			pending = ""
+		case "}":
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			pending = ""
+		case "...":
+			// "... on Type {" stays inside the enclosing field.
+			i += 2
+			if len(stack) > 0 {
+				pending = stack[len(stack)-1]
+			}
+		default:
+			if len(stack) > 0 {
+				parent := stack[len(stack)-1]
+				if selected[parent] == nil {
+					selected[parent] = make(map[string]bool)
+				}
+				selected[parent][tok] = true
+			}
+			pending = tok
+		}
+	}
+	return selected
+}
 
 // TestTableColumnsAreSelectedByTheQuery asserts that every generated nested
 // table column is actually requested by the query that fills the table.
@@ -1419,17 +1454,7 @@ func TestTableColumnsAreSelectedByTheQuery(t *testing.T) {
 		if selectionSet == "" {
 			return
 		}
-		selected := make(map[string]map[string]bool)
-		for _, m := range innerSelection.FindAllStringSubmatch(selectionSet, -1) {
-			children := selected[m[1]]
-			if children == nil {
-				children = make(map[string]bool)
-				selected[m[1]] = children
-			}
-			for _, f := range strings.Fields(m[2]) {
-				children[f] = true
-			}
-		}
+		selected := directChildren(selectionSet)
 
 		for _, col := range columns {
 			parent, child, nested := strings.Cut(col.Field, ".")
@@ -1985,5 +2010,281 @@ ignore_fields:
 		if strings.Contains(op.SelectionSet, "{ }") || strings.Contains(op.SelectionSet, "{  }") {
 			t.Errorf("%s emits an empty selection set, which is invalid GraphQL:\n%s", op.Name, op.SelectionSet)
 		}
+	}
+}
+
+func TestCollidingCommandNames(t *testing.T) {
+	schema := `
+type Query {
+	job(id: ID!): Job
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	endJob(id: ID!): Job!
+	endJobs(ids: [ID!]!): [Job!]!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	data: [Job!]!
+	paginatorInfo: PaginatorInfo!
+}
+
+type PaginatorInfo {
+	count: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+
+	write := func(content string) {
+		if err := os.WriteFile(overridesPath, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write("")
+	_, err := ParseSchema(schemaPath, overridesPath)
+	if err == nil {
+		t.Fatal("expected a collision error for endJob/endJobs")
+	}
+	if !strings.Contains(err.Error(), "endJobs") {
+		t.Errorf("error should name the colliding mutation, got: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "colliding command names") {
+		t.Errorf("a collision should not be reported as an overrides problem, got: %v", err)
+	}
+
+	write("command_names:\n  endJobs: \"end-many\"\n")
+	parsed, err := ParseSchema(schemaPath, overridesPath)
+	if err != nil {
+		t.Fatalf("ParseSchema failed with the override applied: %v", err)
+	}
+	var names []string
+	for _, r := range parsed.Resources {
+		if r.Name == "jobs" {
+			for _, m := range r.Mutations {
+				names = append(names, m.CLIName)
+			}
+		}
+	}
+	sort.Strings(names)
+	if got := strings.Join(names, ","); got != "end,end-many" {
+		t.Errorf("jobs mutations = %q, want %q", got, "end,end-many")
+	}
+
+	write("command_names:\n  endJobs: \"end-many\"\n  endNothing: \"gone\"\n")
+	_, err = ParseSchema(schemaPath, overridesPath)
+	if err == nil || !strings.Contains(err.Error(), "endNothing") {
+		t.Fatalf("a stale command_names entry should fail generation, got: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "invalid overrides") {
+		t.Errorf("a stale entry should not be reported as a collision, got: %v", err)
+	}
+}
+
+func TestCommandNameOverrideIsRejected(t *testing.T) {
+	schema := `
+type Query {
+	job(id: ID!): Job
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Mutation {
+	endJob(id: ID!): Job!
+}
+
+type Job {
+	id: ID!
+	title: String!
+}
+
+type JobPaginator {
+	data: [Job!]!
+	paginatorInfo: PaginatorInfo!
+}
+
+type PaginatorInfo {
+	count: Int!
+	total: Int!
+}
+`
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.graphql")
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	overridesPath := filepath.Join(dir, "overrides.yaml")
+
+	// A query generates a command too, so an override may not take its name.
+	for _, tc := range []struct{ value, want string }{
+		{"get", "colliding command names"},
+		{"list", "colliding command names"},
+		// These reach Cobra's Use and toPascalCase, where they stop being valid Go.
+		{"end many", "invalid overrides"},
+		{"", "invalid overrides"},
+		{"End-Many", "invalid overrides"},
+	} {
+		if err := os.WriteFile(overridesPath,
+			[]byte("command_names:\n  endJob: \""+tc.value+"\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := ParseSchema(schemaPath, overridesPath)
+		if err == nil {
+			t.Errorf("command_names value %q should be rejected", tc.value)
+			continue
+		}
+		if !strings.HasPrefix(err.Error(), tc.want) {
+			t.Errorf("command_names value %q: got %q, want a %q error", tc.value, err, tc.want)
+		}
+	}
+
+	if err := os.WriteFile(overridesPath,
+		[]byte("command_names:\n  endJob: \"end-many\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseSchema(schemaPath, overridesPath); err != nil {
+		t.Errorf("a kebab-case override should be accepted, got: %v", err)
+	}
+}
+
+const nestedFieldsSchema = `
+type Query {
+	"Get all jobs."
+	jobs(first: Int! = 10, page: Int): JobPaginator!
+}
+
+type Job {
+	id: ID!
+	name: String!
+	values: [FieldValue!]!
+}
+
+type Contract {
+	id: ID!
+	name: String!
+}
+
+union Fieldable = Job | Contract
+
+type FieldValue {
+	id: ID!
+	displayValue: String
+	internalNote: String
+	field: Field!
+	appliesTo: Fieldable!
+	related: [FieldValue!]!
+}
+
+type Field {
+	id: ID!
+	title: String!
+	values: [FieldValue!]!
+}
+
+type JobPaginator {
+	paginatorInfo: PaginatorInfo!
+	data: [Job!]!
+}
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+
+func jobsListSelection(t *testing.T, overrides string) string {
+	t.Helper()
+	parsed, err := parseWithOverrides(t, nestedFieldsSchema, overrides)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	for i := range parsed.Resources {
+		if parsed.Resources[i].Name == "jobs" && parsed.Resources[i].ListQuery != nil {
+			return parsed.Resources[i].ListQuery.SelectionSet
+		}
+	}
+	t.Fatal("expected a jobs resource with a list query")
+	return ""
+}
+
+// A nested object carries only names on the global safe list, so a custom
+// field value came back as a bare id. nested_fields widens one type, and an
+// object or union it names expands one level, to its own safe fields.
+func TestNestedFieldsWidenOneNestedType(t *testing.T) {
+	without := jobsListSelection(t, "")
+	if !strings.Contains(without, "values { id }") {
+		t.Fatalf("baseline changed: expected a bare-id nested selection, got:\n%s", without)
+	}
+
+	sel := jobsListSelection(t, `
+nested_fields:
+  - "FieldValue.displayValue"
+  - "FieldValue.field"
+  - "FieldValue.appliesTo"
+`)
+	children := directChildren(sel)
+	for _, want := range []string{"id", "displayValue", "field", "appliesTo"} {
+		if !children["values"][want] {
+			t.Errorf("nested values should select %q, got:\n%s", want, sel)
+		}
+	}
+	// Listed fields only: the override is not a licence for the whole type.
+	if children["values"]["internalNote"] || children["values"]["related"] {
+		t.Errorf("nested values selected a field nested_fields does not list:\n%s", sel)
+	}
+	// The expansion stops at the safe fields of the object it reaches.
+	if !children["field"]["title"] || children["field"]["values"] {
+		t.Errorf("field should expand to its safe fields and no further, got:\n%s", sel)
+	}
+	if !strings.Contains(sel, "appliesTo { __typename") || !children["appliesTo"]["id"] {
+		t.Errorf("appliesTo should expand to its union members' safe fields, got:\n%s", sel)
+	}
+}
+
+func TestNestedFieldsRejectsInvalidEntry(t *testing.T) {
+	for name, overrides := range map[string]string{
+		"unknown field":  "nested_fields:\n  - \"FieldValue.renamed\"\n",
+		"unknown type":   "nested_fields:\n  - \"Gone.displayValue\"\n",
+		"not Type.field": "nested_fields:\n  - \"displayValue\"\n",
+		"nested path":    "nested_fields:\n  - \"FieldValue.field.title\"\n",
+		"also ignored":   "ignore_fields:\n  - \"FieldValue.displayValue\"\nnested_fields:\n  - \"FieldValue.displayValue\"\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseWithOverrides(t, nestedFieldsSchema, overrides)
+			if err == nil {
+				t.Fatalf("expected generation to fail for %s", name)
+			}
+			if !strings.Contains(err.Error(), "nested_fields") {
+				t.Errorf("error should name the override that is invalid, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestDirectChildrenKeepsLevelsApart(t *testing.T) {
+	got := directChildren(`{ id values { id field { id title } appliesTo { __typename ... on Job { id name } } } }`)
+	if !got["values"]["field"] || got["values"]["title"] {
+		t.Errorf("values should hold field but not field's children: %v", got["values"])
+	}
+	if !got["field"]["title"] {
+		t.Errorf("field should hold title: %v", got["field"])
+	}
+	if !got["appliesTo"]["name"] || got["appliesTo"]["on"] || got["appliesTo"]["Job"] {
+		t.Errorf("fragment fields belong to the union field, fragment syntax does not: %v", got["appliesTo"])
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/worksome/worksome-cli/internal/buildinfo"
 	"github.com/worksome/worksome-cli/internal/client"
 	"github.com/worksome/worksome-cli/internal/config"
 	"github.com/worksome/worksome-cli/internal/generated/commands"
@@ -17,18 +18,13 @@ import (
 	"github.com/worksome/worksome-cli/internal/update"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-)
-
 func main() {
 	// Start the update check alongside the command rather than before it, so
 	// it never adds latency to the work the user actually asked for.
 	latest := startUpdateCheck()
 
 	rootCmd := newRootCmd()
-	err := rootCmd.Execute()
+	ran, err := rootCmd.ExecuteC()
 
 	// Report the failure immediately. Waiting on a courtesy check first would
 	// delay the error the user actually needs, by up to the whole fetch budget
@@ -38,14 +34,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	printUpdateNotice(latest)
+	// The notice would be stale straight after an upgrade.
+	if ran.CommandPath() != "worksome update" {
+		printUpdateNotice(latest)
+	}
 }
 
 // startUpdateCheck kicks off the once-a-day release check in the background,
 // returning a channel that yields the latest version, or nil when the check is
 // suppressed. Nothing downstream ever blocks on it for long.
 func startUpdateCheck() <-chan string {
-	if update.Suppressed(version, output.IsTTYFile(os.Stdout), output.IsTTYFile(os.Stderr)) {
+	if update.Suppressed(buildinfo.Version, output.IsTTYFile(os.Stdout), output.IsTTYFile(os.Stderr)) {
 		return nil
 	}
 	ch := make(chan string, 1)
@@ -71,8 +70,8 @@ func printUpdateNotice(latest <-chan string) {
 	}
 	select {
 	case v := <-latest:
-		if update.IsNewer(version, v) {
-			fmt.Fprint(os.Stderr, update.Notice(version, v))
+		if update.IsNewer(buildinfo.Version, v) {
+			fmt.Fprint(os.Stderr, update.Notice(buildinfo.Version, v))
 		}
 	// Outlast the fetch itself, or a slow response is cut off mid-write and the
 	// cache never warms -- the notice would then never appear at all.
@@ -163,7 +162,7 @@ func newRootCmd() *cobra.Command {
 
 		verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
 		opts := []client.Option{}
-		opts = append(opts, client.WithUserAgent(client.UserAgent(version)))
+		opts = append(opts, client.WithUserAgent(client.UserAgent(buildinfo.Version)))
 		if verbose {
 			opts = append(opts, client.WithVerbose(true))
 		}
@@ -190,6 +189,8 @@ func newRootCmd() *cobra.Command {
 	// Register built-in commands
 	rootCmd.AddCommand(newAuthCmd())
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newStatusCmd())
+	rootCmd.AddCommand(newUpdateCmd())
 	rootCmd.AddCommand(newCompletionCmd())
 
 	// Register all generated resource commands
@@ -232,7 +233,7 @@ func newRootCmd() *cobra.Command {
 		switch {
 		case name == "auth":
 			cmd.GroupID = "auth"
-		case name == "version" || name == "completion" || name == "help":
+		case name == "version" || name == "status" || name == "update" || name == "completion" || name == "help":
 			// leave ungrouped
 		case coreResources[name]:
 			cmd.GroupID = "core"
@@ -262,7 +263,7 @@ With --check, ask GitHub for the latest release and report whether this
 build is out of date, along with the upgrade command for how it was
 installed. This always performs a request, ignoring the once-a-day cache.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("worksome-cli %s (commit: %s)\n", version, commit)
+			fmt.Printf("worksome-cli %s (commit: %s)\n", buildinfo.Version, buildinfo.Commit)
 			if !check {
 				return nil
 			}
@@ -276,9 +277,9 @@ installed. This always performs a request, ignoring the once-a-day cache.`,
 			}
 
 			switch {
-			case version == "dev":
+			case buildinfo.Version == "dev":
 				fmt.Printf("latest release: %s (this is a dev build)\n", rel.TagName)
-			case update.IsNewer(version, rel.TagName):
+			case update.IsNewer(buildinfo.Version, rel.TagName):
 				fmt.Printf("\nA new release is available: %s\n%s\n", rel.TagName, update.UpgradeHint())
 			default:
 				fmt.Println("up to date")
