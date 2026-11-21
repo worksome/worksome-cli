@@ -60,37 +60,39 @@ func newAuthLoginCmd() *cobra.Command {
 	var tokenFlag string
 	var endpointFlag string
 	var usePAT bool
+	var useBrowser bool
 	var noBrowser bool
 
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "Sign in through your browser, or with a personal access token",
+		Short: "Sign in with a personal access token, or through your browser",
 		Long: `Sign in to the Worksome API.
 
-By default this opens your browser: you sign in to Worksome as usual (SSO and
-MFA included), approve the CLI, and it is connected. The session renews itself
-while you keep using it and expires after 90 days without use. Nothing to copy.
+By default this asks for a Personal Access Token: pass --token, pipe it on
+stdin, set WORKSOME_API_TOKEN, or type it at the hidden prompt. Create one at:
+https://use.worksome.com/integrations/api-tokens
 
-For scripts, CI and other places with nobody at a keyboard, use a Personal
-Access Token instead: pass --token, pipe it on stdin, or set WORKSOME_API_TOKEN.
-Create one at: https://use.worksome.com/integrations/api-tokens
+With --browser it opens your browser instead: you sign in to Worksome as usual
+(SSO and MFA included) and approve the CLI. The session renews itself while you
+keep using it and expires after 90 days without use. The browser must run on
+the same machine as the CLI, because Worksome sends it back to 127.0.0.1.
 
 Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
-		Example: `  # Sign in through the browser
+		Example: `  # Prompt for a personal access token
   worksome auth login
-
-  # Print the sign-in URL instead of opening a browser (remote shells, SSH)
-  worksome auth login --no-browser
 
   # Personal access token: non-interactive, for CI and scheduled jobs
   worksome auth login --token <your-token>
   echo "<your-token>" | worksome auth login
 
-  # Prompt for a personal access token interactively
-  worksome auth login --pat
+  # Sign in through the browser
+  worksome auth login --browser
+
+  # Browser sign-in, printing the URL instead of opening a browser
+  worksome auth login --no-browser
 
   # A second profile against another platform
-  worksome auth login --profile staging --endpoint https://staging.worksome.com/graphql`,
+  worksome auth login --profile staging --endpoint https://staging.worksome.com/web-api/v2/graphql`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -107,17 +109,11 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 			// signing in against another platform validates against that
 			// platform rather than production.
 			endpoint := loginEndpoint(cfg, profileName, endpointFlag)
-			var session *oauth.Token
+			var session *config.Profile
 
-			// Browser login is the default when a person is present: no
-			// --token, no --pat, and stdin is a terminal rather than a pipe
-			// carrying a token.
-			if token == "" && !usePAT && term.IsTerminal(int(os.Stdin.Fd())) {
-				ocfg := oauthConfig()
-				if ocfg.ClientID == "" {
-					return fmt.Errorf("browser sign-in is not configured in this build (no OAuth client id); " +
-						"use a personal access token with --token or --pat, or set WORKSOME_OAUTH_CLIENT_ID")
-				}
+			// Browser sign-in is opt-in; --no-browser implies it.
+			if useBrowser || noBrowser {
+				ocfg := oauthConfig(endpoint)
 				open := oauth.OpenBrowser
 				if noBrowser {
 					open = nil
@@ -128,7 +124,8 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 				if err != nil {
 					return fmt.Errorf("sign-in failed: %w", err)
 				}
-				session = &tok
+				p := sessionProfile(endpoint, ocfg, tok)
+				session = &p
 				token = tok.AccessToken
 			}
 
@@ -196,7 +193,7 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 			}
 			profile := config.Profile{Token: token, Endpoint: endpoint}
 			if session != nil {
-				profile.SetSession(session.AccessToken, session.RefreshToken, session.ExpiresAt)
+				profile = *session
 			}
 			cfg.Profiles[profileName] = profile
 			cfg.CurrentProfile = profileName
@@ -216,9 +213,14 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 
 	// Same shorthands as the root persistent flags these shadow, so -p/-t keep working
 	cmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile name to save the credentials under")
-	cmd.Flags().StringVarP(&tokenFlag, "token", "t", "", "Personal Access Token (skips browser sign-in)")
-	cmd.Flags().BoolVar(&usePAT, "pat", false, "Prompt for a Personal Access Token instead of signing in through the browser")
-	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL instead of opening a browser")
+	cmd.Flags().StringVarP(&tokenFlag, "token", "t", "", "Personal Access Token")
+	cmd.Flags().BoolVar(&usePAT, "pat", false, "Prompt for a Personal Access Token (the default)")
+	cmd.Flags().BoolVar(&useBrowser, "browser", false, "Sign in through the browser instead of with a Personal Access Token")
+	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Sign in through the browser, printing the URL instead of opening one")
+	for _, browserFlag := range []string{"browser", "no-browser"} {
+		cmd.MarkFlagsMutuallyExclusive(browserFlag, "token")
+		cmd.MarkFlagsMutuallyExclusive(browserFlag, "pat")
+	}
 	cmd.Flags().StringVar(&endpointFlag, "endpoint", "", "API endpoint URL (default: https://api.worksome.com/graphql)")
 	return cmd
 }

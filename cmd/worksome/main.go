@@ -142,13 +142,8 @@ func newRootCmd() *cobra.Command {
 		// belongs to whoever put it there.
 		if tokenFlag == "" && os.Getenv("WORKSOME_API_TOKEN") == "" {
 			if p, ok := cfg.ActiveProfile(); ok && oauth.NeedsRefresh(p, time.Now()) {
-				if err := oauth.RefreshProfile(context.Background(), oauthConfig(), &p); err != nil {
+				if err := renewSession(context.Background(), cfg, cfg.CurrentProfile); err != nil {
 					return nil, fmt.Errorf("%w. Run 'worksome auth login' to sign in again", err)
-				}
-				cfg.Profiles[cfg.CurrentProfile] = p
-				if err := cfg.Save(); err != nil {
-					// The renewed token still works for this run; only its persistence failed.
-					fmt.Fprintf(os.Stderr, "warning: session renewed but could not be saved: %v\n", err)
 				}
 			}
 		}

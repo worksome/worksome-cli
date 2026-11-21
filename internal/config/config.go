@@ -14,6 +14,7 @@ const (
 	defaultEndpoint = DefaultEndpoint
 	configDir       = ".worksome"
 	configFile      = "config.yaml"
+	lockFile        = "config.lock"
 	envToken        = "WORKSOME_API_TOKEN"
 	envEndpoint     = "WORKSOME_ENDPOINT"
 	envProfile      = "WORKSOME_PROFILE"
@@ -36,6 +37,9 @@ type Profile struct {
 	Endpoint     string `yaml:"endpoint,omitempty"`
 	RefreshToken string `yaml:"refresh_token,omitempty"`
 	ExpiresAt    string `yaml:"expires_at,omitempty"` // RFC 3339, UTC
+	// OAuthTokenURL and OAuthClientID record where the session was issued, so it is renewed there.
+	OAuthTokenURL string `yaml:"oauth_token_url,omitempty"`
+	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
 }
 
 // IsOAuth reports whether the profile holds a browser-login session rather
@@ -163,6 +167,34 @@ func (c *Config) SaveTo(path string) error {
 	}
 
 	return nil
+}
+
+// Lock takes an exclusive advisory lock next to the config file and returns its release.
+func Lock() (unlock func(), err error) {
+	path, err := configPath()
+	if err != nil {
+		return nil, err
+	}
+	return LockAt(filepath.Join(filepath.Dir(path), lockFile))
+}
+
+// LockAt takes an exclusive advisory lock on path, blocking until it is free.
+func LockAt(path string) (unlock func(), err error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, fmt.Errorf("creating config directory: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("opening lock file: %w", err)
+	}
+	if err := lockFileExclusive(f); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("locking %s: %w", path, err)
+	}
+	return func() {
+		_ = unlockFile(f)
+		_ = f.Close()
+	}, nil
 }
 
 // ActiveProfile returns the profile indicated by CurrentProfile.

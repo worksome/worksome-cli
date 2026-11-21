@@ -529,3 +529,61 @@ func TestSaveTightensExistingFilePermissions(t *testing.T) {
 		t.Errorf("file permissions = %o, want 0600", perm)
 	}
 }
+
+func TestProfileStoresOAuthIssuer(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	cfg := &Config{Profiles: map[string]Profile{
+		"stage": {Token: "a", RefreshToken: "r", OAuthTokenURL: "https://stage.example.test/oauth/token", OAuthClientID: "cid"},
+		"pat":   {Token: "p"},
+	}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.Profiles["stage"]; got.OAuthTokenURL != "https://stage.example.test/oauth/token" || got.OAuthClientID != "cid" {
+		t.Errorf("OAuth issuer not round-tripped: %+v", got)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(data), "oauth_token_url") != 1 {
+		t.Errorf("a PAT profile must not carry empty OAuth fields:\n%s", data)
+	}
+}
+
+func TestLockIsExclusive(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "config.lock")
+	unlock, err := LockAt(path)
+	if err != nil {
+		t.Fatalf("LockAt: %v", err)
+	}
+
+	acquired := make(chan struct{})
+	go func() {
+		second, err := LockAt(path)
+		if err != nil {
+			t.Errorf("second LockAt: %v", err)
+			close(acquired)
+			return
+		}
+		close(acquired)
+		second()
+	}()
+
+	select {
+	case <-acquired:
+		t.Fatal("a second lock was granted while the first was held")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	unlock()
+	select {
+	case <-acquired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the second lock was not granted after release")
+	}
+}
