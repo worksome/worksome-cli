@@ -505,3 +505,27 @@ func TestProfileSessionRoundTrip(t *testing.T) {
 		t.Error("a PAT profile has no expiry")
 	}
 }
+
+// An existing file keeps its mode under os.WriteFile, so Save must tighten it.
+func TestSaveTightensExistingFilePermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("profiles: {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Profiles: map[string]Profile{"default": {Token: "secret"}}}
+	if err := cfg.SaveTo(path); err != nil {
+		t.Fatalf("SaveTo failed: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+}

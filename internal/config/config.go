@@ -157,6 +157,10 @@ func (c *Config) SaveTo(path string) error {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("writing config file: %w", err)
 	}
+	// WriteFile keeps the mode of an existing file, which may be wider than 0600.
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("restricting config file permissions: %w", err)
+	}
 
 	return nil
 }
