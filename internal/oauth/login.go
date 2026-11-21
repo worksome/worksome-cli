@@ -15,6 +15,10 @@ func Login(ctx context.Context, cfg Config, open func(url string) error, out io.
 	if cfg.ClientID == "" {
 		return Token{}, fmt.Errorf("no OAuth client id configured")
 	}
+	// Fail before the user approves anything, not at the exchange.
+	if _, err := checkURL(cfg.TokenURL); err != nil {
+		return Token{}, err
+	}
 
 	verifier, err := GenerateVerifier()
 	if err != nil {

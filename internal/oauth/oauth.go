@@ -3,8 +3,10 @@ package oauth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -37,11 +39,45 @@ type Token struct {
 	ExpiresAt    time.Time
 }
 
+// checkURL requires https, except on loopback hosts where nothing crosses the network.
+func checkURL(raw string) (*url.URL, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parsing URL %q: %w", raw, err)
+	}
+	switch {
+	case u.Scheme == "https" && u.Host != "":
+		return u, nil
+	case u.Scheme == "http" && isLoopback(u.Hostname()):
+		return u, nil
+	}
+	return nil, fmt.Errorf("refusing OAuth URL %q: it must use https", raw)
+}
+
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// noDowngrade stops a redirect from https to plain http, which would send credentials in clear.
+func noDowngrade(req *http.Request, via []*http.Request) error {
+	if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+		return errors.New("refusing redirect from https to " + req.URL.Scheme)
+	}
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	return nil
+}
+
 // authorizeURL builds the consent URL for one login attempt.
 func (c Config) authorizeURL(state, challenge string) (string, error) {
-	u, err := url.Parse(c.AuthorizeURL)
+	u, err := checkURL(c.AuthorizeURL)
 	if err != nil {
-		return "", fmt.Errorf("parsing authorize URL %q: %w", c.AuthorizeURL, err)
+		return "", err
 	}
 	q := u.Query()
 	q.Set("client_id", c.ClientID)
@@ -92,6 +128,9 @@ type tokenResponse struct {
 }
 
 func (c Config) token(ctx context.Context, form url.Values) (Token, error) {
+	if _, err := checkURL(c.TokenURL); err != nil {
+		return Token{}, err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.TokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return Token{}, fmt.Errorf("building token request: %w", err)
@@ -99,10 +138,11 @@ func (c Config) token(ctx context.Context, form url.Values) (Token, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	hc := c.HTTPClient
-	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+	hc := http.Client{Timeout: 30 * time.Second}
+	if c.HTTPClient != nil {
+		hc = *c.HTTPClient
 	}
+	hc.CheckRedirect = noDowngrade
 	resp, err := hc.Do(req)
 	if err != nil {
 		return Token{}, fmt.Errorf("calling token endpoint: %w", err)

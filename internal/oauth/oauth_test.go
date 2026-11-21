@@ -121,3 +121,56 @@ func TestAuthorizeURLCarriesPKCEAndState(t *testing.T) {
 		}
 	}
 }
+
+func TestOAuthURLsRequireHTTPSExceptLoopback(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"https://use.worksome.com/oauth/token", true},
+		{"http://127.0.0.1:8080/oauth/token", true},
+		{"http://localhost/oauth/token", true},
+		{"http://[::1]:9000/oauth/token", true},
+		{"http://use.worksome.com/oauth/token", false},
+		{"http://127.0.0.1.example.test/oauth/token", false},
+		{"ftp://use.worksome.com/oauth/token", false},
+		{"https:///oauth/token", false},
+	}
+	for _, tt := range tests {
+		_, err := checkURL(tt.url)
+		if (err == nil) != tt.want {
+			t.Errorf("checkURL(%q) error = %v, want accepted=%v", tt.url, err, tt.want)
+		}
+	}
+
+	cfg := Config{ClientID: "c", TokenURL: "http://use.example.test/oauth/token"}
+	if _, err := cfg.Refresh(context.Background(), "r"); err == nil || !strings.Contains(err.Error(), "https") {
+		t.Errorf("Refresh over plain http must be refused before any request, got %v", err)
+	}
+	cfg = Config{ClientID: "c", AuthorizeURL: "http://use.example.test/oauth/authorize"}
+	if _, err := cfg.authorizeURL("s", "c"); err == nil {
+		t.Error("an http authorize URL must be refused")
+	}
+}
+
+func TestTokenRefusesHTTPSToHTTPRedirect(t *testing.T) {
+	var plainHit bool
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHit = true
+		_, _ = w.Write([]byte(`{"access_token":"leaked"}`))
+	}))
+	defer plain.Close()
+	secure := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, plain.URL, http.StatusTemporaryRedirect)
+	}))
+	defer secure.Close()
+
+	cfg := Config{ClientID: "c", TokenURL: secure.URL, HTTPClient: secure.Client()}
+	_, err := cfg.Refresh(context.Background(), "secret-refresh")
+	if err == nil || !strings.Contains(err.Error(), "redirect") {
+		t.Errorf("expected the downgrade to be refused, got %v", err)
+	}
+	if plainHit {
+		t.Error("the refresh token must never reach the plain-http server")
+	}
+}
