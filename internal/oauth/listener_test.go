@@ -38,9 +38,9 @@ func TestListenerIgnoresForeignStateAndAcceptsOurs(t *testing.T) {
 	}
 	cancel()
 
-	// Right state: the code comes through and the user sees a confirmation.
+	// Right state: the code comes through and the page sends the user back to the terminal.
 	status, body := get(t, base+"?code=real&state=good-state")
-	if status != http.StatusOK || !strings.Contains(body, "Connected") {
+	if status != http.StatusOK || !strings.Contains(body, "Return to the terminal") {
 		t.Errorf("status %d body %q", status, body)
 	}
 	code, err := l.Wait(context.Background())

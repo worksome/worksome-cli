@@ -80,7 +80,8 @@ func (l *Listener) handle(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, page("Connected", "The Worksome CLI is now signed in. You can close this tab and return to the terminal."))
+	// The code is not exchanged yet, so the page must not claim success.
+	_, _ = fmt.Fprint(w, page("Return to the terminal", "Return to the terminal to finish signing in. You can close this tab."))
 	l.finish(result{code: code})
 }
 
@@ -101,6 +102,8 @@ func (l *Listener) Wait(ctx context.Context) (string, error) {
 // Close stops serving. Safe to call more than once.
 func (l *Listener) Close() {
 	_ = l.srv.Close()
+	// Serve may not have started yet, in which case srv.Close leaves the socket bound.
+	_ = l.ln.Close()
 }
 
 func page(title, body string) string {
