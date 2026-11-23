@@ -217,3 +217,26 @@ func TestWithArg(t *testing.T) {
 		}
 	}
 }
+
+// Rows in a list are matched by id; without one a cut list is reported
+// instead of being filled with another row's items.
+func TestExecute_NestedListOfARowWithoutIDIsReported(t *testing.T) {
+	const query = `query Timesheets { timesheets { paginatorInfo { total } data { startDate registrations { paginatorInfo { total } data { date } } } } }`
+	requests := 0
+	srv := newTestServer(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"timesheets":{"paginatorInfo":{"total":1},"data":[{"startDate":"s","registrations":{"paginatorInfo":{"total":150,"hasMorePages":true},"data":[{"date":"d0"}]}}]}}}`))
+	})
+	defer srv.Close()
+	var warn bytes.Buffer
+	if err := New(srv.URL, "token", WithWarnWriter(&warn)).Execute(context.Background(), query, nil, nil); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if requests != 1 {
+		t.Errorf("sent %d requests, want 1", requests)
+	}
+	if want := "timesheets.data[0].registrations: only 1 of 150 items were fetched, because its row has no id"; !strings.Contains(warn.String(), want) {
+		t.Errorf("warning = %q, want %q", warn.String(), want)
+	}
+}

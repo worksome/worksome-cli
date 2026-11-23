@@ -208,6 +208,10 @@ func (c *Client) completeNested(ctx context.Context, plan *nestedPlan, variables
 			unfinished[key] = "it is inside another paginated list"
 			continue
 		}
+		if _, hasID := l.parent["id"]; !hasID && inList(l.path) {
+			unfinished[key] = "its row has no id to match it across requests (add id to --fields)"
+			continue
+		}
 		pending[key] = l
 	}
 
@@ -288,44 +292,22 @@ func markComplete(list map[string]any) {
 	}
 }
 
-// sameRow reports whether two responses' parent rows are the same record. Rows
-// are matched by position, so a row inserted between requests would otherwise
-// receive another row's items. Rows are compared by id when they have one,
-// else by their fields minus nested lists, which hold a different page in
-// each response.
+// sameRow reports whether two responses' parent rows are the same record.
+// Rows are matched by position, so a row inserted between requests would
+// otherwise receive another row's items; the id says whether it moved. A row
+// without an id is only completed when it is not in a list.
 func sameRow(a, b map[string]any) bool {
-	idA, okA := a["id"]
-	idB, okB := b["id"]
-	if okA && okB {
-		return fmt.Sprint(idA) == fmt.Sprint(idB)
-	}
-	ja, errA := json.Marshal(withoutLists(a))
-	jb, errB := json.Marshal(withoutLists(b))
-	return errA == nil && errB == nil && bytes.Equal(ja, jb)
+	return fmt.Sprint(a["id"]) == fmt.Sprint(b["id"])
 }
 
-func withoutLists(v any) any {
-	switch t := v.(type) {
-	case map[string]any:
-		if _, ok := t["paginatorInfo"]; ok {
-			if _, ok := t["data"]; ok {
-				return nil
-			}
+// inList reports whether a response path passes through a list index.
+func inList(path []any) bool {
+	for _, seg := range path {
+		if _, ok := seg.(int); ok {
+			return true
 		}
-		out := make(map[string]any, len(t))
-		for k, val := range t {
-			out[k] = withoutLists(val)
-		}
-		return out
-	case []any:
-		out := make([]any, len(t))
-		for i, val := range t {
-			out[i] = withoutLists(val)
-		}
-		return out
-	default:
-		return v
 	}
+	return false
 }
 
 // decodeNumbers decodes JSON keeping numbers verbatim, so re-encoding the data

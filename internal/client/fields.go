@@ -134,7 +134,22 @@ func resolveFields(schema Schema, defaults []*selection, typeName string, paths 
 		}
 		kept = append(kept, node)
 	}
-	return kept, nil
+	return withRowID(kept, info), nil
+}
+
+// withRowID adds id beside a paginated relation that has not selected it, so
+// the rows its later pages are appended to can be matched across requests.
+// The output filter drops it again when --fields did not name it.
+func withRowID(kept []*selection, info TypeInfo) []*selection {
+	if _, hasID := info.Fields["id"]; !hasID || findSelection(kept, "id") != nil {
+		return kept
+	}
+	for _, s := range kept {
+		if f, ok := info.Fields[s.key]; ok && f.Paginated {
+			return append(kept, &selection{head: "id", key: "id"})
+		}
+	}
+	return kept
 }
 
 // resolveObject selects tails on an object, interface or union field. A tail
