@@ -12,7 +12,7 @@ import (
 )
 
 // defaultOAuthClientID is the first-party public client the platform registers in every environment.
-const defaultOAuthClientID = "6fa55b74-2ac6-40ca-96d7-5c25396b168d"
+const defaultOAuthClientID = "00000000-2ac6-40ca-96d7-5c25396b168d"
 
 // productionOAuthBase serves OAuth for production, whose GraphQL lives on api.worksome.com instead.
 const productionOAuthBase = "https://use.worksome.com"
