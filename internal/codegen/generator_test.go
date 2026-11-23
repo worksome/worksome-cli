@@ -640,8 +640,8 @@ type Job {
 	}
 }
 
-// The querier passes each query's item type and the field schema to the
-// client, and mutations keep the plain Execute.
+// The querier passes each operation's item type and the field schema to the
+// client.
 func TestGeneratedQuerierPassesFieldSchema(t *testing.T) {
 	schema := `
 type Query {
@@ -697,8 +697,8 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 	if strings.Contains(string(fieldSchema), `"UserGroupPaginator"`) {
 		t.Error("fieldschema.go should leave paginator wrappers out")
 	}
-	if !strings.Contains(q, "q.Client.Execute(ctx, query, vars, &result)") {
-		t.Error("mutations should keep the plain Execute")
+	if !strings.Contains(q, `func (q *Querier) CreateUserGroup(`) || strings.Count(q, `ExecuteFor(ctx, query, FieldSchema, "UserGroup", vars, &result)`) != 2 {
+		t.Error("mutations should pass their return type too, so --fields can select a contact detail they no longer return by default")
 	}
 }
 

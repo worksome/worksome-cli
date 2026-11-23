@@ -229,3 +229,82 @@ func selectedFields(set ast.SelectionSet) []string {
 	}
 	return out
 }
+
+// contactFields are personal contact details that default selections must not
+// copy out of nested objects; --fields still selects them on request.
+var contactFields = map[string]bool{"email": true, "phone": true}
+
+// TestGeneratedQueriesOmitNestedContactFields guards the committed documents:
+// the printed object may carry its own email, but a nested worker, owner or
+// user must not bring theirs along by default.
+func TestGeneratedQueriesOmitNestedContactFields(t *testing.T) {
+	src, err := os.ReadFile("../generated/queries/queries.go")
+	if err != nil {
+		t.Fatalf("reading generated queries: %v", err)
+	}
+	schemaSrc, err := os.ReadFile("../../schema/schema.graphql")
+	if err != nil {
+		t.Fatalf("reading schema: %v", err)
+	}
+	schema, gqlErr := gqlparser.LoadSchema(&ast.Source{Name: "schema.graphql", Input: string(schemaSrc)})
+	if gqlErr != nil {
+		t.Fatalf("loading schema: %v", gqlErr)
+	}
+
+	for _, m := range queryLiteral.FindAllStringSubmatch(string(src), -1) {
+		doc := m[1] + m[2]
+		parsed, errs := gqlparser.LoadQueryWithRules(schema, doc, rules.NewDefaultRules())
+		if errs != nil {
+			continue // TestGeneratedQueriesValidateAgainstSchema reports this.
+		}
+		for _, op := range parsed.Operations {
+			for _, path := range nestedContactFields(printedSelections(op.SelectionSet), "", false) {
+				t.Errorf("generated query %s selects %s by default", operationName(doc), path)
+			}
+		}
+	}
+}
+
+// printedSelections returns the selections of the object the CLI prints: the
+// items of a paginated result, or the root field's object.
+func printedSelections(set ast.SelectionSet) ast.SelectionSet {
+	if len(set) != 1 {
+		return set
+	}
+	root, ok := set[0].(*ast.Field)
+	if !ok {
+		return set
+	}
+	var data *ast.Field
+	hasInfo := false
+	for _, s := range root.SelectionSet {
+		if f, ok := s.(*ast.Field); ok {
+			switch f.Name {
+			case "data":
+				data = f
+			case "paginatorInfo":
+				hasInfo = true
+			}
+		}
+	}
+	if data != nil && hasInfo {
+		return data.SelectionSet
+	}
+	return root.SelectionSet
+}
+
+func nestedContactFields(set ast.SelectionSet, prefix string, nested bool) []string {
+	var out []string
+	for _, selection := range set {
+		switch s := selection.(type) {
+		case *ast.Field:
+			if nested && contactFields[s.Name] {
+				out = append(out, prefix+s.Name)
+			}
+			out = append(out, nestedContactFields(s.SelectionSet, prefix+s.Name+".", true)...)
+		case *ast.InlineFragment:
+			out = append(out, nestedContactFields(s.SelectionSet, prefix, nested)...)
+		}
+	}
+	return out
+}

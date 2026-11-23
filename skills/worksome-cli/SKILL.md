@@ -143,7 +143,9 @@ worksome hires list --first 20 --fields id,status,worker.name --filter status=AC
   for those fields. It can name any field of the type, not only those in the
   default output: nested objects (`hire.job.name`) and paginated relations
   (`registrations.date`, same as `registrations.data.date`), up to four levels
-  deep. A field name that does not exist is an error, not an empty result
+  deep. Nested objects leave out `email` and `phone` by default; name them
+  (`worker.email`) when the task needs them. A field name that does not exist
+  is an error, not an empty result
   (except on a few operations whose shape cannot be narrowed, where it is
   dropped silently).
 - `--filter key=value[,key=value]` narrows results server-side.

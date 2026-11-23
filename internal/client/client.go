@@ -278,7 +278,7 @@ func isQuery(query string) bool {
 	return strings.HasPrefix(q, "query") || strings.HasPrefix(q, "{")
 }
 
-// ExecuteFor is Execute for a query whose printed object has type typeName in
+// ExecuteFor is Execute for an operation whose printed object has type typeName in
 // schema: --fields may then name any field of that type, not only those the
 // default query selects.
 func (c *Client) ExecuteFor(ctx context.Context, query string, schema Schema, typeName string, variables map[string]any, result any) error {

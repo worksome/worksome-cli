@@ -325,7 +325,7 @@ func (q *Querier) {{.GoName}}(ctx context.Context, vars map[string]any) (map[str
 	{{.Name}}{{buildMutationCallArgs .Arguments}} {{.SelectionSet}}
 }` + "`" + `
 	var result map[string]any
-	err := q.Client.Execute(ctx, query, vars, &result)
+	err := q.Client.ExecuteFor(ctx, query, FieldSchema, "{{.ItemType}}", vars, &result)
 	if err != nil {
 		return nil, client.WrapOperation("{{.Name}}", err)
 	}

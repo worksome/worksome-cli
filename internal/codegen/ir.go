@@ -64,8 +64,8 @@ type Operation struct {
 	Arguments    []Argument
 	ReturnType   TypeRef
 	SelectionSet string // Pre-computed GraphQL selection set for the return type
-	// ItemType is the type --fields paths resolve against for a query: the
-	// items of a paginated result, or the returned object.
+	// ItemType is the type --fields paths resolve against: the items of a
+	// paginated result, or the returned object.
 	ItemType         string
 	Deprecated       bool
 	DeprecatedReason string

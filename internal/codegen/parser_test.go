@@ -1707,7 +1707,7 @@ union Notable = Job | Contact
 enum JobStatus { OPEN CLOSED }
 enum ContactStatus { ACTIVE BLOCKED }
 type Job { id: ID! name: String! status: JobStatus createdAt: DateTime! }
-type Contact { id: ID! email: String status: ContactStatus! createdAt: Date! }
+type Contact { id: ID! title: String status: ContactStatus! createdAt: Date! }
 scalar DateTime
 scalar Date
 type NotePaginator { paginatorInfo: PaginatorInfo! data: [Note!]! }
@@ -1728,7 +1728,7 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 			sel = r.ListQuery.SelectionSet
 		}
 	}
-	want := "notable { __typename ... on Job { id name } ... on Contact { id email } }"
+	want := "notable { __typename ... on Job { id name } ... on Contact { id title } }"
 	if !strings.Contains(sel, want) {
 		t.Errorf("selection = %s\nwant it to contain %s", sel, want)
 	}
@@ -1869,12 +1869,12 @@ type Company {
 type User {
 	id: ID!
 	name: String!
-	email: String!
+	title: String!
 }
 
 type Contact {
 	id: ID!
-	email: String!
+	title: String!
 }
 
 enum EngagementTypeSetup {
@@ -1915,7 +1915,7 @@ func TestIgnoreFieldsExcludesGuardedFields(t *testing.T) {
 	parsed, err := parseWithOverrides(t, ignoreFieldsSchema, `
 ignore_fields:
   - "Company.usedEngagementTypeSetups"
-  - "User.email"
+  - "User.title"
 `)
 	if err != nil {
 		t.Fatalf("ParseSchema failed: %v", err)
@@ -1939,18 +1939,18 @@ ignore_fields:
 		if !strings.Contains(op.SelectionSet, "name") {
 			t.Errorf("%s dropped more than the ignored field:\n%s", op.Name, op.SelectionSet)
 		}
-		if strings.Contains(op.SelectionSet, "owner { id name email }") {
+		if strings.Contains(op.SelectionSet, "owner { id name title }") {
 			t.Errorf("%s selects the ignored field on a nested object:\n%s", op.Name, op.SelectionSet)
 		}
 		// Same field name, different type — the exclusion is type-scoped.
-		if !strings.Contains(op.SelectionSet, "contact { id email }") {
-			t.Errorf("%s dropped Contact.email, which is not ignored:\n%s", op.Name, op.SelectionSet)
+		if !strings.Contains(op.SelectionSet, "contact { id title }") {
+			t.Errorf("%s dropped Contact.title, which is not ignored:\n%s", op.Name, op.SelectionSet)
 		}
 	}
 
 	// A column for a field the query never selects renders blank.
 	for _, c := range companies.TableColumns {
-		if c.Field == "usedEngagementTypeSetups" || c.Field == "owner.email" {
+		if c.Field == "usedEngagementTypeSetups" || c.Field == "owner.title" {
 			t.Errorf("table column %q survives for an ignored field", c.Field)
 		}
 	}
