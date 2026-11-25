@@ -253,19 +253,45 @@ worksome auth login --no-browser   # Same, but print the sign-in URL instead of 
 
 After you approve, Worksome sends the browser to `http://127.0.0.1:51789` on the
 machine that runs the browser, and the CLI must be listening there. The browser
-and the CLI must therefore run on the same machine. Over SSH, forward the port
-first, then open the printed URL in your local browser:
+and the CLI must therefore run on the same machine. If another program holds
+port 51789, the CLI listens on a free port and prints it. Over SSH, forward the
+port first, then open the printed URL in your local browser:
 
 ```bash
 ssh -L 51789:127.0.0.1:51789 <host>
 worksome auth login --no-browser
 ```
 
+If the CLI prints another port, forward that port instead.
+
 Browser sign-in uses a first-party public OAuth client that the platform
-registers. It follows the profile's endpoint: production signs in at
-`use.worksome.com`, other platforms at their own `/oauth/*`.
-`WORKSOME_OAUTH_AUTHORIZE_URL`, `WORKSOME_OAUTH_TOKEN_URL` and
-`WORKSOME_OAUTH_CLIENT_ID` override this.
+registers. It signs in on the app host of the profile's endpoint:
+
+| Endpoint host                                         | Signs in at                               |
+|-------------------------------------------------------|-------------------------------------------|
+| `api.worksome.com` (production)                       | `use.worksome.com`                        |
+| `<name>-api.<…>.worksome.com`, e.g. `stage-api.worksome.com` | `<name>.<…>.worksome.com`, e.g. `stage.worksome.com` |
+| any other `*.worksome.com` host                       | the same host                             |
+
+The CLI derives these URLs only for `*.worksome.com` hosts, so a mistyped
+endpoint never receives your session. For any other endpoint, for example a
+local platform, set both `WORKSOME_OAUTH_AUTHORIZE_URL` and
+`WORKSOME_OAUTH_TOKEN_URL`. `WORKSOME_OAUTH_CLIENT_ID` overrides the client.
+
+#### Sandboxes and other non-production platforms
+
+Most sandboxes protect the app host, `/oauth/*` included, with HTTP Basic
+authentication. The browser asks for these credentials on the consent page, but
+the CLI cannot answer that prompt for the token exchange. Put the credentials
+in the token URL; the CLI sends them as Basic authentication:
+
+```bash
+export WORKSOME_OAUTH_TOKEN_URL='https://<user>:<password>@<sandbox>.sand.hz.worksome.com/oauth/token'
+worksome auth login --browser --profile sandbox \
+  --endpoint https://<sandbox>-api.sand.hz.worksome.com/graphql
+```
+
+The profile stores this token URL, credentials included, to renew the session.
 
 ### Managing credentials
 

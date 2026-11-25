@@ -92,7 +92,7 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
   worksome auth login --no-browser
 
   # A second profile against another platform
-  worksome auth login --profile staging --endpoint https://staging.worksome.com/web-api/v2/graphql`,
+  worksome auth login --profile staging --endpoint https://stage.worksome.com/web-api/v2/graphql`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -117,7 +117,10 @@ Credentials are stored in ~/.worksome/config.yaml with restricted permissions.`,
 				if _, err := oauth.CheckURL(endpoint); err != nil {
 					return fmt.Errorf("API endpoint: %w", err)
 				}
-				ocfg := oauthConfig(endpoint)
+				ocfg, err := oauthConfig(endpoint)
+				if err != nil {
+					return fmt.Errorf("browser sign-in: %w", err)
+				}
 				open := oauth.OpenBrowser
 				if noBrowser {
 					open = nil
