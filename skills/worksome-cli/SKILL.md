@@ -55,6 +55,13 @@ their shell profile.
 worksome auth status
 ```
 
+`worksome auth login` takes a Personal Access Token by default. If a person is
+at the keyboard and the browser runs on the same machine as the CLI, they can
+run `worksome auth login --browser` instead: they sign in and approve, and the
+CLI holds a session that renews itself. In a remote sandbox, a container or a
+scheduled job there is no such browser, so a Personal Access Token is the path,
+and the rest of this section is about that.
+
 Token resolution order, and how to satisfy it:
 
 1. **`WORKSOME_API_TOKEN` in the environment** — the intended path. If it is set,

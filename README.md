@@ -200,7 +200,7 @@ no authentication needed.
 ## Quick Start
 
 ```bash
-# Authenticate with a Personal Access Token
+# Sign in with a personal access token (or --browser)
 worksome auth login
 
 # List hires (first page)
@@ -224,19 +224,66 @@ worksome hires list --status ACTIVE | jq '.[].id'
 
 ## Authentication
 
-The CLI uses Personal Access Tokens. Token resolution order:
-
-1. `--token` flag
-2. `WORKSOME_API_TOKEN` environment variable
-3. Config file (`~/.worksome/config.yaml`)
+`worksome auth login` asks for a **Personal Access Token**. Create one at
+<https://use.worksome.com/integrations/api-tokens> (six-month lifetime, shown
+once) and hand it over any of these ways:
 
 ```bash
-worksome auth login           # Interactive setup
+worksome auth login                      # prompted, input hidden
+worksome auth login --token <token>      # saved to a profile
+echo "<token>" | worksome auth login     # from stdin
+export WORKSOME_API_TOKEN=<token>        # environment: nothing touches disk
+```
+
+Whatever the source, the token acts as the user it belongs to and sees exactly
+what that user sees in Worksome. A job should run on a service user's token, not
+a person's.
+
+### Browser sign-in
+
+`worksome auth login --browser` opens your browser instead. You sign in to
+Worksome as usual, SSO and MFA included, and approve the CLI. The session renews
+itself while you keep using it and lapses after 90 days without use. Nothing is
+copied or pasted, and `auth logout` ends it.
+
+```bash
+worksome auth login --browser      # Sign in through the browser
+worksome auth login --no-browser   # Same, but print the sign-in URL instead of opening a browser
+```
+
+After you approve, Worksome sends the browser to `http://127.0.0.1:51789` on the
+machine that runs the browser, and the CLI must be listening there. The browser
+and the CLI must therefore run on the same machine. Over SSH, forward the port
+first, then open the printed URL in your local browser:
+
+```bash
+ssh -L 51789:127.0.0.1:51789 <host>
+worksome auth login --no-browser
+```
+
+Browser sign-in uses a first-party public OAuth client that the platform
+registers. It follows the profile's endpoint: production signs in at
+`use.worksome.com`, other platforms at their own `/oauth/*`.
+`WORKSOME_OAUTH_AUTHORIZE_URL`, `WORKSOME_OAUTH_TOKEN_URL` and
+`WORKSOME_OAUTH_CLIENT_ID` override this.
+
+### Managing credentials
+
+```bash
 worksome auth status          # Show current auth state
 worksome auth list            # List configured profiles
 worksome auth switch <name>   # Switch profile
 worksome auth logout [name]   # Remove a profile and its credentials
 ```
+
+Credential resolution order:
+
+1. `--token` flag
+2. `WORKSOME_API_TOKEN` environment variable
+3. The active profile in `~/.worksome/config.yaml` (saved token or browser session)
+
+Only a profile's own browser session is ever renewed; a token from the flag or
+the environment is used as given.
 
 ### Profiles
 
