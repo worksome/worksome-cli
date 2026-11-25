@@ -1,8 +1,10 @@
 package config
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -506,7 +508,7 @@ func TestProfileSessionRoundTrip(t *testing.T) {
 	}
 }
 
-// An existing file keeps its mode under os.WriteFile, so Save must tighten it.
+// A config left with a wider mode must come out 0600 after a save.
 func TestSaveTightensExistingFilePermissions(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte("profiles: {}\n"), 0644); err != nil {
@@ -527,6 +529,166 @@ func TestSaveTightensExistingFilePermissions(t *testing.T) {
 	}
 	if perm := info.Mode().Perm(); perm != 0600 {
 		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+}
+
+// Renewal saves during ordinary commands, so a parallel command must never read half a file: a save replaces the file, never rewrites it in place.
+func TestSaveReplacesTheFileInsteadOfRewritingIt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not rename over a file another handle holds open")
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := (&Config{Profiles: map[string]Profile{"old": {Token: "old-token"}}}).SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	if err := (&Config{Profiles: map[string]Profile{"new": {Token: "new-token"}}}).SaveTo(path); err != nil {
+		t.Fatal(err)
+	}
+
+	before, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(before), "old-token") || strings.Contains(string(before), "new-token") {
+		t.Errorf("a reader that opened the file before the save read %q; the old file must stay whole", before)
+	}
+	after, err := LoadFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Profiles["new"].Token != "new-token" {
+		t.Errorf("config after save = %+v", after)
+	}
+}
+
+// A config symlinked from elsewhere, such as dotfiles, must stay a link and its target must get the new content.
+func TestSaveFollowsASymlinkedConfig(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks needs extra privileges on Windows")
+	}
+	symlink := func(t *testing.T, target, link string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(link), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tests := []struct {
+		name string
+		// setup links a config path to target and returns the config path.
+		setup func(t *testing.T, target string) string
+	}{
+		{"absolute link", func(t *testing.T, target string) string {
+			link := filepath.Join(t.TempDir(), ".worksome", "config.yaml")
+			symlink(t, target, link)
+			return link
+		}},
+		{"relative link in a symlinked directory", func(t *testing.T, target string) string {
+			// From the real directory "../" reaches target; from the link's directory it does not.
+			realDir := filepath.Join(filepath.Dir(target), "conf")
+			symlink(t, "../"+filepath.Base(target), filepath.Join(realDir, "config.yaml"))
+			dir := filepath.Join(t.TempDir(), "links", ".worksome")
+			symlink(t, realDir, dir)
+			return filepath.Join(dir, "config.yaml")
+		}},
+		{"link through a symlinked component", func(t *testing.T, target string) string {
+			// "hop/.." must leave the directory hop points to, not hop's own directory.
+			nested := filepath.Join(filepath.Dir(target), "nested")
+			if err := os.MkdirAll(nested, 0700); err != nil {
+				t.Fatal(err)
+			}
+			settings := filepath.Join(t.TempDir(), "settings")
+			symlink(t, nested, filepath.Join(settings, "hop"))
+			link := filepath.Join(settings, "config.yaml")
+			symlink(t, "hop/../"+filepath.Base(target), link)
+			return link
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := filepath.Join(t.TempDir(), "dotfiles", "worksome.yaml")
+			if err := (&Config{Profiles: map[string]Profile{"old": {Token: "old-token"}}}).SaveTo(target); err != nil {
+				t.Fatal(err)
+			}
+			link := tt.setup(t, target)
+
+			if err := (&Config{Profiles: map[string]Profile{"new": {Token: "new-token"}}}).SaveTo(link); err != nil {
+				t.Fatal(err)
+			}
+
+			info, err := os.Lstat(link)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode()&os.ModeSymlink == 0 {
+				t.Error("the save replaced the symlink with a regular file")
+			}
+			got, err := LoadFrom(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Profiles["new"].Token != "new-token" {
+				t.Errorf("link target after save = %+v, want the new config", got)
+			}
+		})
+	}
+}
+
+// A link to a missing file is refused rather than guessed at, so the link survives and no other file is written.
+func TestSaveRefusesADanglingConfigSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks needs extra privileges on Windows")
+	}
+	link := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.Symlink(filepath.Join(t.TempDir(), "missing.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	err := (&Config{Profiles: map[string]Profile{"new": {Token: "new-token"}}}).SaveTo(link)
+	if err == nil || !strings.Contains(err.Error(), "symlink to a missing file") {
+		t.Errorf("SaveTo() error = %v, want the dangling link named", err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the dangling link must survive, Lstat = %v, %v", info, err)
+	}
+}
+
+func TestSaveCreatesAPrivateDirectoryAndLeavesNoTempFile(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested")
+	path := filepath.Join(dir, "config.yaml")
+	cfg := &Config{Profiles: map[string]Profile{"default": {Token: "secret"}}}
+	for range 3 {
+		if err := cfg.SaveTo(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "config.yaml" {
+		names := make([]string, len(entries))
+		for i, e := range entries {
+			names[i] = e.Name()
+		}
+		t.Errorf("directory holds %v, want only config.yaml", names)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Windows reports 0777 for any writable directory.
+	if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm != 0700 {
+		t.Errorf("directory permissions = %o, want 0700", perm)
 	}
 }
 

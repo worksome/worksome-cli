@@ -257,16 +257,11 @@ func (errs GraphQLErrors) IsAuthError() bool {
 	return false
 }
 
-// IsAuthError is a convenience helper that checks whether an error is a GraphQL
-// authentication error (i.e. contains "Unauthenticated").
+// IsAuthError is a convenience helper that checks whether an error is, or wraps,
+// a GraphQL authentication error (i.e. contains "Unauthenticated").
 func IsAuthError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if gqlErrs, ok := err.(GraphQLErrors); ok {
-		return gqlErrs.IsAuthError()
-	}
-	return false
+	var gqlErrs GraphQLErrors
+	return errors.As(err, &gqlErrs) && gqlErrs.IsAuthError()
 }
 
 const (

@@ -119,6 +119,23 @@ func (c Config) Refresh(ctx context.Context, refreshToken string) (Token, error)
 	return c.token(ctx, form)
 }
 
+// TokenError is a refusal from the token endpoint, as opposed to a failure to reach it.
+type TokenError struct {
+	// Code is the OAuth error code, such as invalid_grant; empty when the response named none.
+	Code    string
+	message string
+}
+
+func (e *TokenError) Error() string {
+	return "token endpoint refused: " + e.message
+}
+
+// IsInvalidGrant reports whether err is the token endpoint rejecting the grant itself: a refresh token revoked, expired or already used.
+func IsInvalidGrant(err error) bool {
+	var te *TokenError
+	return errors.As(err, &te) && te.Code == "invalid_grant"
+}
+
 // tokenResponse is Passport's token endpoint body, success or failure.
 type tokenResponse struct {
 	AccessToken      string `json:"access_token"`
@@ -171,7 +188,7 @@ func (c Config) token(ctx context.Context, form url.Values) (Token, error) {
 		if msg == "" {
 			msg = fmt.Sprintf("status %d", resp.StatusCode)
 		}
-		return Token{}, fmt.Errorf("token endpoint refused: %s", msg)
+		return Token{}, &TokenError{Code: tr.Error, message: msg}
 	}
 	if tr.AccessToken == "" {
 		return Token{}, fmt.Errorf("token endpoint returned no access token")

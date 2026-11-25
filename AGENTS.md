@@ -21,6 +21,7 @@ To change generated code, modify the **templates** in `internal/codegen/generato
 ### Hand-Written
 - `cmd/worksome/main.go` — Root command, global flags, client factory
 - `cmd/worksome/auth.go` — Auth login/status/switch commands
+- `cmd/worksome/session.go` — Browser-session lifecycle: renewal fallback and the "session has ended" hint
 - `cmd/worksome/status.go` — `worksome status`, summarises status.worksome.com (Oh Dear JSON feed)
 - `cmd/generate/main.go` — Codegen tool entrypoint
 - `internal/client/` — GraphQL HTTP client, retry, pagination
@@ -102,11 +103,12 @@ Tests are in:
 - `internal/codegen/parser_test.go` — Schema parsing, resource grouping, type resolution
 - `internal/codegen/generator_test.go` — Code generation output verification
 - `internal/client/client_test.go` — HTTP client, retries, pagination
-- `internal/config/config_test.go` — Config load/save, token precedence, file permissions, the config lock
+- `internal/config/config_test.go` — Config load/save, token precedence, file permissions, atomic replace on save, the config lock
 - `internal/oauth/*_test.go` — Browser sign-in: PKCE, loopback listener, token exchange and refresh, https-only URLs
 - `cmd/worksome/oauth_config_test.go` — OAuth URLs per endpoint (gateway to app host, non-Worksome hosts refused), where a session renews, concurrent renewal, `auth login` flags
 - `internal/output/output_test.go` — JSON/table formatting, TTY detection
 - `cmd/worksome/status_test.go` — Status feed parsing, ordering and rendering (`go test ./cmd/worksome/ -run Status`)
+- `cmd/worksome/session_test.go` — Browser-session lifecycle: the sign-in hint on `Unauthenticated`, keeping a valid token when renewal cannot reach Worksome, `auth status` renewing first and exiting non-zero (`go test ./cmd/worksome/ -run 'Session|Renewal|AuthStatus'`)
 
 ## Style
 

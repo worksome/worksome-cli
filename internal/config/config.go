@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -158,15 +160,53 @@ func (c *Config) SaveTo(path string) error {
 		return fmt.Errorf("marshalling config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	path, err = linkTarget(path)
+	if err != nil {
+		return err
+	}
+
+	// Write a 0600 temp file and rename it over the config, so a concurrent reader never sees half a file.
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return fmt.Errorf("writing config file: %w", err)
 	}
-	// WriteFile keeps the mode of an existing file, which may be wider than 0600.
-	if err := os.Chmod(path, 0600); err != nil {
-		return fmt.Errorf("restricting config file permissions: %w", err)
+	defer func() { _ = os.Remove(tmp.Name()) }()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("writing config file: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("writing config file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("writing config file: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return fmt.Errorf("replacing config file: %w", err)
+	}
+	// Best-effort: persist the rename across a crash; not every platform can sync a directory.
+	if d, err := os.Open(filepath.Dir(path)); err == nil {
+		_ = d.Sync()
+		_ = d.Close()
 	}
 
 	return nil
+}
+
+// linkTarget returns the file a symlinked config, such as one from dotfiles, points to, so a save writes that file and keeps the link.
+func linkTarget(path string) (string, error) {
+	target, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return target, nil
+	}
+	if info, lerr := os.Lstat(path); errors.Is(lerr, fs.ErrNotExist) {
+		return path, nil
+	} else if lerr == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is a symlink to a missing file; create that file or remove the link: %w", path, err)
+	}
+	return "", fmt.Errorf("resolving config path: %w", err)
 }
 
 // Update applies fn to a freshly loaded config and saves it, all under the config lock, so concurrent writers do not undo each other.

@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -84,15 +85,17 @@ func TestRefreshSendsRefreshGrant(t *testing.T) {
 
 func TestTokenEndpointErrorsAreReadable(t *testing.T) {
 	tests := []struct {
-		name   string
-		status int
-		body   string
-		want   string
+		name         string
+		status       int
+		body         string
+		want         string
+		invalidGrant bool
 	}{
-		{"passport error shape", 400, `{"error":"invalid_grant","error_description":"The refresh token is invalid.","hint":"Token has been revoked"}`, "The refresh token is invalid. (Token has been revoked)"},
-		{"error code only", 401, `{"error":"invalid_client"}`, "invalid_client"},
-		{"non-JSON body", 502, `<html>bad gateway</html>`, "502"},
-		{"200 with no token", 200, `{}`, "no access token"},
+		{"passport error shape", 400, `{"error":"invalid_grant","error_description":"The refresh token is invalid.","hint":"Token has been revoked"}`, "The refresh token is invalid. (Token has been revoked)", true},
+		{"error code only", 401, `{"error":"invalid_client"}`, "invalid_client", false},
+		{"server error with JSON body", 503, `{"message":"Service Unavailable"}`, "status 503", false},
+		{"non-JSON body", 502, `<html>bad gateway</html>`, "502", false},
+		{"200 with no token", 200, `{}`, "no access token", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -101,6 +104,9 @@ func TestTokenEndpointErrorsAreReadable(t *testing.T) {
 			_, err := Config{ClientID: "c", TokenURL: srv.URL}.Refresh(context.Background(), "r")
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %v, want it to contain %q", err, tt.want)
+			}
+			if got := IsInvalidGrant(fmt.Errorf("renewing session: %w", err)); got != tt.invalidGrant {
+				t.Errorf("IsInvalidGrant() = %v, want %v", got, tt.invalidGrant)
 			}
 		})
 	}
@@ -118,6 +124,19 @@ func TestTokenURLCredentialsAreSentAsBasicAuth(t *testing.T) {
 	tokenURL := strings.Replace(srv.URL, "http://", "http://user:secret@", 1)
 	if _, err := (Config{ClientID: "c", TokenURL: tokenURL}).Refresh(context.Background(), "r"); err != nil {
 		t.Fatalf("Refresh() error = %v", err)
+	}
+}
+
+// Only a refused grant ends a session; an unreachable endpoint says nothing about it.
+func TestUnreachableTokenEndpointIsNotAnInvalidGrant(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	srv.Close()
+	_, err := Config{ClientID: "c", TokenURL: srv.URL}.Refresh(context.Background(), "r")
+	if err == nil {
+		t.Fatal("expected a connection error")
+	}
+	if IsInvalidGrant(err) {
+		t.Errorf("a connection error must not count as invalid_grant: %v", err)
 	}
 }
 
