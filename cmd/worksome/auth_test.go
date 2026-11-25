@@ -125,8 +125,9 @@ func TestAuthStatusResolvesProfile(t *testing.T) {
 			}
 
 			out := captureStdout(t, func() {
-				if err := runRootCmd(tc.args...); err != nil {
-					t.Errorf("Execute failed: %v", err)
+				// The stub rejects every token, so status must exit non-zero.
+				if err := runRootCmd(tc.args...); err == nil {
+					t.Error("auth status succeeded for a rejected token")
 				}
 			})
 

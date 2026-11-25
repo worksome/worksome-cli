@@ -244,7 +244,8 @@ a person's.
 `worksome auth login --browser` opens your browser instead. You sign in to
 Worksome as usual, SSO and MFA included, and approve the CLI. The session renews
 itself while you keep using it and lapses after 90 days without use. Nothing is
-copied or pasted, and `auth logout` ends it.
+copied or pasted. `auth logout` forgets the session on this machine only (see
+[Managing credentials](#managing-credentials)).
 
 ```bash
 worksome auth login --browser      # Sign in through the browser
@@ -296,11 +297,19 @@ The profile stores this token URL, credentials included, to renew the session.
 ### Managing credentials
 
 ```bash
-worksome auth status          # Show current auth state
+worksome auth status          # Show current auth state; exits non-zero if the token is refused
 worksome auth list            # List configured profiles
 worksome auth switch <name>   # Switch profile
-worksome auth logout [name]   # Remove a profile and its credentials
+worksome auth logout [name]   # Forget a profile and its credentials on this machine
 ```
+
+`auth logout` does not end a browser session in Worksome: its tokens stay valid
+until they lapse. To end the session everywhere, use **Log out other sessions**
+in Worksome, or change your password. A command on a session that has ended
+says so and names the command that signs in again
+(`worksome auth login --browser --profile <name>`). If Worksome cannot be
+reached to renew a session, the CLI warns and keeps using the current token
+until it expires.
 
 Credential resolution order:
 

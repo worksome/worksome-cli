@@ -133,6 +133,11 @@ func TestIsAuthError(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "wrapped unauthenticated graphql error",
+			err:  WrapOperation("hires", GraphQLErrors{{Message: "Unauthenticated."}}),
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {

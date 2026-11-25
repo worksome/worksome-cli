@@ -271,7 +271,13 @@ func newAuthStatusCmd() *cobra.Command {
 
 			token := ""
 			endpoint := ""
+			var renewErr error
 			if ok {
+				if envToken == "" && profile.IsOAuth() {
+					// Renew first, as any command would, so a session that can still renew is not reported as expired.
+					renewErr = useSession(cmd.Context(), cfg, cfg.CurrentProfile)
+					profile = cfg.Profiles[cfg.CurrentProfile]
+				}
 				token = profile.Token
 				endpoint = profile.Endpoint
 			}
@@ -301,7 +307,14 @@ func newAuthStatusCmd() *cobra.Command {
 				fmt.Printf("Endpoint: %s\n", endpoint)
 			}
 
-			return printViewerStatus(endpoint, token)
+			if renewErr != nil {
+				return renewErr
+			}
+			session := ""
+			if envToken == "" {
+				session = sessionFor(cfg.CurrentProfile, profile, endpoint)
+			}
+			return explainEndedSession(session, printViewerStatus(endpoint, token))
 		},
 	}
 }
@@ -337,8 +350,12 @@ func newAuthLogoutCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "logout [profile]",
 		Short: "Remove a profile and its stored credentials",
-		Long:  "Remove a profile from the configuration. Defaults to the current profile if no name is given.",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Remove a profile from the configuration. Defaults to the current profile if no name is given.
+
+This forgets the credentials on this machine only. A browser session stays valid
+in Worksome until it lapses; to end it everywhere, use "Log out other sessions"
+in Worksome or change your password.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var profileName string
 			if err := config.Update(func(cfg *config.Config) error {
@@ -424,8 +441,12 @@ func printViewerStatus(endpoint, token string) error {
 	var result map[string]any
 	err := c.Execute(context.Background(), `query { viewer { name email } }`, nil, &result)
 	if err != nil {
-		fmt.Printf("Status:   Invalid or expired token (%v)\n", err)
-		return nil
+		status := "Could not check the token"
+		if client.IsAuthError(err) {
+			status = "Invalid or expired token"
+		}
+		fmt.Printf("Status:   %s\n", status)
+		return err
 	}
 
 	viewer, _ := result["viewer"].(map[string]any)
