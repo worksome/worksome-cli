@@ -14,8 +14,8 @@ import (
 )
 
 // DefaultRedirectURL is the loopback address the Worksome CLI client is
-// registered with. Passport matches redirect URIs exactly, so the port is
-// fixed; the listener binds it and fails clearly if something else has it.
+// registered with. Passport ignores the port of a loopback redirect, so when
+// another program holds this one the listener binds a free port instead.
 const DefaultRedirectURL = "http://127.0.0.1:51789/callback"
 
 // Config identifies the OAuth client and the server endpoints.
@@ -26,7 +26,7 @@ type Config struct {
 	AuthorizeURL string
 	// TokenURL is the token endpoint, e.g. https://use.worksome.com/oauth/token.
 	TokenURL string
-	// RedirectURL is the loopback callback the client is registered with.
+	// RedirectURL is the loopback callback the client is registered with; Login replaces its port when that one is taken.
 	RedirectURL string
 	// HTTPClient is used for the token endpoint; nil means a 30-second-timeout default.
 	HTTPClient *http.Client

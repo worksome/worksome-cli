@@ -76,6 +76,63 @@ func TestLoginEndToEnd(t *testing.T) {
 	}
 }
 
+// With the registered port taken, the consent request and the exchange must both name the port actually bound.
+func TestLoginFallsBackToAFreePortWhenTheRedirectPortIsTaken(t *testing.T) {
+	var exchanged url.Values
+	token := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		exchanged = r.PostForm
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"expires_in":60,"access_token":"acc","refresh_token":"ref"}`))
+	}))
+	defer token.Close()
+
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = taken.Close() }()
+	registered := "http://" + taken.Addr().String() + "/callback"
+
+	cfg := Config{ClientID: "cli", AuthorizeURL: "https://use.example.test/oauth/authorize", TokenURL: token.URL, RedirectURL: registered}
+
+	var consentRedirect string
+	open := func(consent string) error {
+		u, err := url.Parse(consent)
+		if err != nil {
+			return err
+		}
+		q := u.Query()
+		consentRedirect = q.Get("redirect_uri")
+		cb, _ := url.Parse(consentRedirect)
+		cb.RawQuery = url.Values{"code": {"granted"}, "state": {q.Get("state")}}.Encode()
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			resp, err := http.Get(cb.String())
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+		}()
+		return nil
+	}
+
+	var out bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := Login(ctx, cfg, open, &out); err != nil {
+		t.Fatalf("Login() error = %v\n%s", err, out.String())
+	}
+	if consentRedirect == registered || !strings.HasPrefix(consentRedirect, "http://127.0.0.1:") {
+		t.Errorf("consent redirect_uri = %q, want another 127.0.0.1 port than the taken %q", consentRedirect, registered)
+	}
+	if got := exchanged.Get("redirect_uri"); got != consentRedirect {
+		t.Errorf("exchange redirect_uri = %q, want the consent one %q", got, consentRedirect)
+	}
+	if !strings.Contains(out.String(), consentRedirect) {
+		t.Errorf("the fallback port must be printed for SSH port forwarding, got:\n%s", out.String())
+	}
+}
+
 func TestLoginWithoutClientIDFailsBeforeAnything(t *testing.T) {
 	_, err := Login(context.Background(), Config{}, nil, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "client id") {

@@ -3,7 +3,9 @@ package oauth
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -62,14 +64,48 @@ func TestListenerReportsDenial(t *testing.T) {
 	}
 }
 
-func TestListenerFailsFastWhenPortIsTaken(t *testing.T) {
-	first, err := NewListener("http://127.0.0.1:0/callback", "s")
+func TestListenerRedirectURLNamesTheBoundPort(t *testing.T) {
+	l, err := NewListener("http://127.0.0.1:0/callback", "s")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer first.Close()
-	_, err = NewListener("http://"+first.Addr()+"/callback", "s")
+	defer l.Close()
+	if got, want := l.RedirectURL(), "http://"+l.Addr()+"/callback"; got != want || strings.HasSuffix(l.Addr(), ":0") {
+		t.Errorf("RedirectURL() = %q, want %q on a bound port", got, want)
+	}
+}
+
+// Passport ignores a loopback redirect's port, so a taken port must not end the login.
+func TestListenerFallsBackToAFreePortWhenTaken(t *testing.T) {
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = taken.Close() }()
+
+	l, err := NewListener("http://"+taken.Addr().String()+"/callback", "s")
+	if err != nil {
+		t.Fatalf("NewListener() on a taken port = %v, want a fallback", err)
+	}
+	defer l.Close()
+
+	u, err := url.Parse(l.RedirectURL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Hostname() != "127.0.0.1" || u.Path != "/callback" || u.Host == taken.Addr().String() || u.Port() == "0" {
+		t.Errorf("RedirectURL() = %q, want /callback on another bound port of 127.0.0.1", u)
+	}
+	get(t, l.RedirectURL()+"?code=c&state=s")
+	if code, err := l.Wait(context.Background()); err != nil || code != "c" {
+		t.Errorf("Wait() = %q, %v", code, err)
+	}
+}
+
+func TestListenerFailsWhenTheHostCannotBeBound(t *testing.T) {
+	// 192.0.2.0/24 is reserved for documentation, so no interface carries it.
+	_, err := NewListener("http://192.0.2.1:51789/callback", "s")
 	if err == nil || !strings.Contains(err.Error(), "cannot listen") {
-		t.Errorf("second listener on the same port should fail clearly, got %v", err)
+		t.Errorf("NewListener() error = %v, want a clear bind failure", err)
 	}
 }

@@ -106,6 +106,21 @@ func TestTokenEndpointErrorsAreReadable(t *testing.T) {
 	}
 }
 
+// Sandboxes gate /oauth/token behind Basic auth, so credentials in the token URL must reach it.
+func TestTokenURLCredentialsAreSentAsBasicAuth(t *testing.T) {
+	srv := tokenServer(t, func(t *testing.T, r *http.Request) {
+		if user, pass, ok := r.BasicAuth(); !ok || user != "user" || pass != "secret" {
+			t.Errorf("BasicAuth() = %q, %q, %v; want the token URL credentials", user, pass, ok)
+		}
+	}, http.StatusOK, `{"access_token":"acc"}`)
+	defer srv.Close()
+
+	tokenURL := strings.Replace(srv.URL, "http://", "http://user:secret@", 1)
+	if _, err := (Config{ClientID: "c", TokenURL: tokenURL}).Refresh(context.Background(), "r"); err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+}
+
 func TestAuthorizeURLCarriesPKCEAndState(t *testing.T) {
 	cfg := Config{ClientID: "cli-client", AuthorizeURL: "https://use.example.test/oauth/authorize", RedirectURL: DefaultRedirectURL}
 	u, err := cfg.authorizeURL("st8", "chal")

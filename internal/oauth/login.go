@@ -34,6 +34,11 @@ func Login(ctx context.Context, cfg Config, open func(url string) error, out io.
 		return Token{}, err
 	}
 	defer listener.Close()
+	// The consent request and the exchange must both name the port actually bound.
+	if bound := listener.RedirectURL(); bound != cfg.RedirectURL {
+		_, _ = fmt.Fprintf(out, "%s is not available; the browser will return to %s instead.\n", cfg.RedirectURL, bound)
+		cfg.RedirectURL = bound
+	}
 
 	consentURL, err := cfg.authorizeURL(state, Challenge(verifier))
 	if err != nil {

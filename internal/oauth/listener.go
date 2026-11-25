@@ -14,6 +14,7 @@ import (
 type Listener struct {
 	ln    net.Listener
 	srv   *http.Server
+	path  string
 	state string
 	once  sync.Once
 	done  chan result
@@ -24,9 +25,8 @@ type result struct {
 	err  error
 }
 
-// NewListener binds the host:port of redirectURL and starts serving its path.
-// Binding happens here, before the browser opens, so a port already in use is
-// reported before the user has approved anything.
+// NewListener binds the host:port of redirectURL, or a free port on that host when it is taken
+// (Passport ignores a loopback redirect's port), before the browser opens, and serves its path.
 func NewListener(redirectURL, state string) (*Listener, error) {
 	u, err := url.Parse(redirectURL)
 	if err != nil {
@@ -34,10 +34,13 @@ func NewListener(redirectURL, state string) (*Listener, error) {
 	}
 	ln, err := net.Listen("tcp", u.Host)
 	if err != nil {
-		return nil, fmt.Errorf("cannot listen on %s for the login redirect (is another login running?): %w", u.Host, err)
+		ln, err = net.Listen("tcp", net.JoinHostPort(u.Hostname(), "0"))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot listen on %s for the login redirect: %w", u.Hostname(), err)
 	}
 
-	l := &Listener{ln: ln, state: state, done: make(chan result, 1)}
+	l := &Listener{ln: ln, path: u.Path, state: state, done: make(chan result, 1)}
 	mux := http.NewServeMux()
 	mux.HandleFunc(u.Path, l.handle)
 	l.srv = &http.Server{Handler: mux}
@@ -47,6 +50,9 @@ func NewListener(redirectURL, state string) (*Listener, error) {
 
 // Addr is the address actually bound, useful when the port was 0.
 func (l *Listener) Addr() string { return l.ln.Addr().String() }
+
+// RedirectURL is the callback URL on the port actually bound.
+func (l *Listener) RedirectURL() string { return "http://" + l.Addr() + l.path }
 
 func (l *Listener) handle(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()

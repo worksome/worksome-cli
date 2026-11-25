@@ -1,10 +1,13 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/worksome/worksome-cli/internal/config"
@@ -14,33 +17,55 @@ import (
 // defaultOAuthClientID is the first-party public client the platform registers in every environment.
 const defaultOAuthClientID = "00000000-2ac6-40ca-96d7-5c25396b168d"
 
-// productionOAuthBase serves OAuth for production, whose GraphQL lives on api.worksome.com instead.
-const productionOAuthBase = "https://use.worksome.com"
+// productionOAuthHost serves OAuth for production, whose GraphQL lives on api.worksome.com instead.
+const productionOAuthHost = "use.worksome.com"
 
 // oauthConfig assembles the client configuration for the platform behind endpoint, honouring environment overrides.
-func oauthConfig(endpoint string) oauth.Config {
-	authorize, token := oauthURLs(endpoint)
+func oauthConfig(endpoint string) (oauth.Config, error) {
+	authorize, token := os.Getenv("WORKSOME_OAUTH_AUTHORIZE_URL"), os.Getenv("WORKSOME_OAUTH_TOKEN_URL")
+	if authorize == "" || token == "" {
+		a, t, err := oauthURLs(endpoint)
+		if err != nil {
+			return oauth.Config{}, err
+		}
+		authorize, token = cmp.Or(authorize, a), cmp.Or(token, t)
+	}
 	return oauth.Config{
 		ClientID:     envOr("WORKSOME_OAUTH_CLIENT_ID", defaultOAuthClientID),
-		AuthorizeURL: envOr("WORKSOME_OAUTH_AUTHORIZE_URL", authorize),
-		TokenURL:     envOr("WORKSOME_OAUTH_TOKEN_URL", token),
+		AuthorizeURL: authorize,
+		TokenURL:     token,
 		RedirectURL:  oauth.DefaultRedirectURL,
-	}
+	}, nil
 }
 
-// oauthURLs maps a GraphQL endpoint to its platform's OAuth endpoints, which every platform but production serves on the same host.
-func oauthURLs(endpoint string) (authorize, token string) {
-	base := productionOAuthBase
-	if u, err := url.Parse(endpoint); err == nil && u.Host != "" && u.Hostname() != "api.worksome.com" {
-		base = u.Scheme + "://" + u.Host
+// oauthURLs maps a Worksome GraphQL endpoint to the app host that serves its OAuth: <label>-api.<domain> to <label>.<domain>, api.worksome.com to use.worksome.com.
+// Any other host is refused, so a mistyped or foreign endpoint never receives the code, the verifier or the refresh token.
+func oauthURLs(endpoint string) (authorize, token string, err error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", "", fmt.Errorf("parsing endpoint: %w", err)
 	}
-	return base + "/oauth/authorize", base + "/oauth/token"
+	host := strings.ToLower(u.Hostname())
+	if !strings.HasSuffix(host, ".worksome.com") {
+		return "", "", fmt.Errorf("%q is not a Worksome host, so its OAuth URLs cannot be derived: set WORKSOME_OAUTH_AUTHORIZE_URL and WORKSOME_OAUTH_TOKEN_URL", u.Hostname())
+	}
+	label, rest, _ := strings.Cut(host, ".")
+	host = strings.TrimSuffix(label, "-api") + "." + rest
+	if host == "api.worksome.com" {
+		host = productionOAuthHost
+	}
+	if port := u.Port(); port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	base := u.Scheme + "://" + host
+	return base + "/oauth/authorize", base + "/oauth/token", nil
 }
 
 // sessionOAuthConfig is where p's session renews: the issuer stored at login, or production for profiles saved before it was stored.
 func sessionOAuthConfig(p config.Profile) oauth.Config {
 	if p.OAuthTokenURL == "" {
-		return oauthConfig(config.DefaultEndpoint)
+		cfg, _ := oauthConfig(config.DefaultEndpoint) // the default endpoint always resolves
+		return cfg
 	}
 	clientID := p.OAuthClientID
 	if clientID == "" {
