@@ -1707,7 +1707,7 @@ union Notable = Job | Contact
 enum JobStatus { OPEN CLOSED }
 enum ContactStatus { ACTIVE BLOCKED }
 type Job { id: ID! name: String! status: JobStatus createdAt: DateTime! }
-type Contact { id: ID! email: String status: ContactStatus! createdAt: Date! }
+type Contact { id: ID! title: String status: ContactStatus! createdAt: Date! }
 scalar DateTime
 scalar Date
 type NotePaginator { paginatorInfo: PaginatorInfo! data: [Note!]! }
@@ -1728,7 +1728,7 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 			sel = r.ListQuery.SelectionSet
 		}
 	}
-	want := "notable { __typename ... on Job { id name } ... on Contact { id email } }"
+	want := "notable { __typename ... on Job { id name } ... on Contact { id title } }"
 	if !strings.Contains(sel, want) {
 		t.Errorf("selection = %s\nwant it to contain %s", sel, want)
 	}
@@ -1739,9 +1739,9 @@ type PaginatorInfo { count: Int! currentPage: Int! hasMorePages: Boolean! lastPa
 	}
 }
 
-// Paginated relations are offered on request rather than selected by default
-// (one server query per row each); union-typed nested fields are selected by
-// default, since they are a single object. Neither was reachable before.
+// Paginated relations are left out of the default selection (one server query
+// per row each) and recorded in the field schema for --fields; union-typed
+// nested fields are selected by default, since they are a single object.
 func TestPaginatedRelationsAreOptionalAndUnionsSelected(t *testing.T) {
 	schema := `
 type Query {
@@ -1771,7 +1771,9 @@ type ApprovalApprovable {
 }
 
 union Approvable = Hire
-type Hire { id: ID! number: String! status: String! }
+"A single-member union selects its member, not an interface the member implements."
+interface Ownable { id: ID! }
+type Hire implements Ownable { id: ID! number: String! status: String! }
 
 type UserPaginator { paginatorInfo: PaginatorInfo! data: [User!]! }
 type UserGroupPaginator { paginatorInfo: PaginatorInfo! data: [UserGroup!]! }
@@ -1808,13 +1810,27 @@ type PaginatorInfo {
 		if strings.Contains(op.SelectionSet, "users") {
 			t.Errorf("%s: the default selection must not include the paginated relation: %s", op.Name, op.SelectionSet)
 		}
-		want := "users { paginatorInfo { total } data { id name email } }"
-		if got := op.Optional["users"]; got != want {
-			t.Errorf("%s: Optional[users] = %q, want %q", op.Name, got, want)
+		if op.ItemType != "UserGroup" {
+			t.Errorf("%s: ItemType = %q, want UserGroup", op.Name, op.ItemType)
 		}
-		if _, ok := op.Optional["audits"]; ok {
-			t.Errorf("%s: a relation with a required argument cannot be offered", op.Name)
+	}
+
+	fields := map[string]SelectableField{}
+	for _, st := range parsed.Selectable {
+		if st.Name == "UserGroupPaginator" {
+			t.Error("paginator wrappers must not be selectable types")
 		}
+		if st.Name == "UserGroup" {
+			for _, f := range st.Fields {
+				fields[f.Name] = f
+			}
+		}
+	}
+	if got := fields["users"]; got != (SelectableField{Name: "users", Type: "User", Paginated: true}) {
+		t.Errorf("users = %+v, want a paginated relation of User", got)
+	}
+	if got := fields["audits"]; !got.NeedsArgs {
+		t.Errorf("audits = %+v, want NeedsArgs: its argument has no default", got)
 	}
 
 	approvals := byName["approval-approvables"]
@@ -1824,8 +1840,10 @@ type PaginatorInfo {
 	if want := "approvable { __typename ... on Hire { id number status } }"; !strings.Contains(approvals.ListQuery.SelectionSet, want) {
 		t.Errorf("union field should be selected by default; selection = %s", approvals.ListQuery.SelectionSet)
 	}
-	if approvals.ListQuery.Optional != nil {
-		t.Errorf("no paginated relations on ApprovalApprovable, Optional should be nil, got %v", approvals.ListQuery.Optional)
+	for _, st := range parsed.Selectable {
+		if st.Name == "Approvable" && (!st.Union || st.Nested != "__typename ... on Hire { id number status }") {
+			t.Errorf("Approvable = %+v, want a union selecting its members' safe fields", st)
+		}
 	}
 }
 
@@ -1851,12 +1869,12 @@ type Company {
 type User {
 	id: ID!
 	name: String!
-	email: String!
+	title: String!
 }
 
 type Contact {
 	id: ID!
-	email: String!
+	title: String!
 }
 
 enum EngagementTypeSetup {
@@ -1897,7 +1915,7 @@ func TestIgnoreFieldsExcludesGuardedFields(t *testing.T) {
 	parsed, err := parseWithOverrides(t, ignoreFieldsSchema, `
 ignore_fields:
   - "Company.usedEngagementTypeSetups"
-  - "User.email"
+  - "User.title"
 `)
 	if err != nil {
 		t.Fatalf("ParseSchema failed: %v", err)
@@ -1921,18 +1939,18 @@ ignore_fields:
 		if !strings.Contains(op.SelectionSet, "name") {
 			t.Errorf("%s dropped more than the ignored field:\n%s", op.Name, op.SelectionSet)
 		}
-		if strings.Contains(op.SelectionSet, "owner { id name email }") {
+		if strings.Contains(op.SelectionSet, "owner { id name title }") {
 			t.Errorf("%s selects the ignored field on a nested object:\n%s", op.Name, op.SelectionSet)
 		}
 		// Same field name, different type — the exclusion is type-scoped.
-		if !strings.Contains(op.SelectionSet, "contact { id email }") {
-			t.Errorf("%s dropped Contact.email, which is not ignored:\n%s", op.Name, op.SelectionSet)
+		if !strings.Contains(op.SelectionSet, "contact { id title }") {
+			t.Errorf("%s dropped Contact.title, which is not ignored:\n%s", op.Name, op.SelectionSet)
 		}
 	}
 
 	// A column for a field the query never selects renders blank.
 	for _, c := range companies.TableColumns {
-		if c.Field == "usedEngagementTypeSetups" || c.Field == "owner.email" {
+		if c.Field == "usedEngagementTypeSetups" || c.Field == "owner.title" {
 			t.Errorf("table column %q survives for an ignored field", c.Field)
 		}
 	}

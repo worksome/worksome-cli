@@ -3,7 +3,7 @@ package codegen
 import (
 	"os"
 	"regexp"
-	"strconv"
+	"sort"
 	"strings"
 	"testing"
 
@@ -11,16 +11,13 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator/rules"
 	"github.com/worksome/worksome-cli/internal/client"
+	"github.com/worksome/worksome-cli/internal/generated/queries"
 	"gopkg.in/yaml.v3"
 )
 
-// optionalCallLiteral matches the on-request selections a generated querier hands
-// to ExecuteWithOptional, so the guard can validate the expanded documents the
-// client sends when --fields names one — not only the lean default.
-var optionalCallLiteral = regexp.MustCompile(`ExecuteWithOptional\(ctx, query, (nil|map\[string\]string\{.*?\}), vars, &result\)`)
-
-// optionalEntry matches one `"key": "value"` pair inside that literal.
-var optionalEntry = regexp.MustCompile(`("(?:[^"\\]|\\.)*"): ("(?:[^"\\]|\\.)*")`)
+// executeForCall matches the item type a generated querier hands to ExecuteFor,
+// so the guard can validate the documents the client sends under --fields.
+var executeForCall = regexp.MustCompile(`ExecuteFor\(ctx, query, FieldSchema, "(\w*)", vars, &result\)`)
 
 // queryLiteral matches the backtick-quoted GraphQL documents emitted into the
 // generated queries file.
@@ -68,11 +65,10 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 		t.Fatal("no GraphQL documents found in generated queries")
 	}
 
-	optionals := optionalCallLiteral.FindAllStringSubmatch(string(src), -1)
-	declaredOptional := strings.Count(string(src), "ExecuteWithOptional(")
-	if len(optionals) != declaredOptional {
-		t.Fatalf("matched %d ExecuteWithOptional calls but the file declares %d — optionalCallLiteral is out of date",
-			len(optionals), declaredOptional)
+	calls := executeForCall.FindAllStringSubmatch(string(src), -1)
+	if declared := strings.Count(string(src), "ExecuteFor("); len(calls) != declared {
+		t.Fatalf("matched %d ExecuteFor calls but the file declares %d — executeForCall is out of date",
+			len(calls), declared)
 	}
 
 	expanded := 0
@@ -84,51 +80,52 @@ func TestGeneratedQueriesValidateAgainstSchema(t *testing.T) {
 			t.Errorf("generated query %s is invalid against the schema:\n%v\n\n%s", name, errs, doc)
 		}
 
-		// Queries with on-request relations must also be valid with every
-		// relation added, which is what goes over the wire under --fields.
-		if optional := optionalFor(t, string(src), doc); len(optional) > 0 {
-			full := client.AddOptionalSelections(doc, optional)
+		// Every field --fields can name on the printed type must also produce a
+		// valid document, which is what goes over the wire under --fields.
+		if full := expandedFor(t, string(src), doc); full != "" {
 			if _, errs := gqlparser.LoadQueryWithRules(schema, full, rules.NewDefaultRules()); errs != nil {
-				t.Errorf("generated query %s is invalid once its on-request relations are added:\n%v\n\n%s", name, errs, full)
+				t.Errorf("generated query %s is invalid with every --fields field selected:\n%v\n\n%s", name, errs, full)
 			}
 			expanded++
 		}
 	}
 
-	t.Logf("validated %d generated GraphQL documents (%d also with on-request relations)", len(matches), expanded)
+	t.Logf("validated %d generated GraphQL documents (%d also with every --fields field)", len(matches), expanded)
 }
 
-// optionalFor returns the on-request selections the querier passes for the
-// operation whose document is doc, by reading the ExecuteWithOptional call that
-// follows the document in the generated source.
-func optionalFor(t *testing.T, src, doc string) map[string]string {
+// expandedFor returns doc as ExecuteFor sends it when --fields names every
+// field of the printed type, or "" when the operation has no field schema.
+func expandedFor(t *testing.T, src, doc string) string {
 	t.Helper()
 	idx := strings.Index(src, doc)
 	if idx < 0 {
-		return nil
+		return ""
 	}
 	rest := src[idx+len(doc):]
-	end := strings.Index(rest, "\nfunc ")
-	if end < 0 {
-		end = len(rest)
+	if end := strings.Index(rest, "\nfunc "); end >= 0 {
+		rest = rest[:end]
 	}
-	m := optionalCallLiteral.FindStringSubmatch(rest[:end])
-	if m == nil || m[1] == "nil" {
-		return nil
+	m := executeForCall.FindStringSubmatch(rest)
+	if m == nil {
+		return ""
 	}
-	out := make(map[string]string)
-	for _, e := range optionalEntry.FindAllStringSubmatch(m[1], -1) {
-		k, err := strconv.Unquote(e[1])
-		if err != nil {
-			t.Fatalf("unquoting optional key %s: %v", e[1], err)
+	info, ok := queries.FieldSchema[m[1]]
+	if !ok || info.Fields == nil {
+		return ""
+	}
+	var fields []string
+	for name, f := range info.Fields {
+		if !f.NeedsArgs {
+			fields = append(fields, name)
 		}
-		v, err := strconv.Unquote(e[2])
-		if err != nil {
-			t.Fatalf("unquoting optional selection %s: %v", e[2], err)
-		}
-		out[k] = v
 	}
-	return out
+	sort.Strings(fields)
+	full, err := client.SelectFields(doc, queries.FieldSchema, m[1], fields)
+	if err != nil {
+		t.Errorf("selecting every field of %s: %v", m[1], err)
+		return ""
+	}
+	return full
 }
 
 // operationName extracts the operation name from a GraphQL document for test output.
@@ -191,8 +188,8 @@ func TestGeneratedQueriesOmitIgnoredFields(t *testing.T) {
 		name := operationName(doc)
 
 		documents := []string{doc}
-		if optional := optionalFor(t, string(src), doc); len(optional) > 0 {
-			documents = append(documents, client.AddOptionalSelections(doc, optional))
+		if full := expandedFor(t, string(src), doc); full != "" {
+			documents = append(documents, full)
 		}
 
 		for _, d := range documents {
@@ -228,6 +225,85 @@ func selectedFields(set ast.SelectionSet) []string {
 			if s.Definition != nil {
 				out = append(out, selectedFields(s.Definition.SelectionSet)...)
 			}
+		}
+	}
+	return out
+}
+
+// contactFields are personal contact details that default selections must not
+// copy out of nested objects; --fields still selects them on request.
+var contactFields = map[string]bool{"email": true, "phone": true}
+
+// TestGeneratedQueriesOmitNestedContactFields guards the committed documents:
+// the printed object may carry its own email, but a nested worker, owner or
+// user must not bring theirs along by default.
+func TestGeneratedQueriesOmitNestedContactFields(t *testing.T) {
+	src, err := os.ReadFile("../generated/queries/queries.go")
+	if err != nil {
+		t.Fatalf("reading generated queries: %v", err)
+	}
+	schemaSrc, err := os.ReadFile("../../schema/schema.graphql")
+	if err != nil {
+		t.Fatalf("reading schema: %v", err)
+	}
+	schema, gqlErr := gqlparser.LoadSchema(&ast.Source{Name: "schema.graphql", Input: string(schemaSrc)})
+	if gqlErr != nil {
+		t.Fatalf("loading schema: %v", gqlErr)
+	}
+
+	for _, m := range queryLiteral.FindAllStringSubmatch(string(src), -1) {
+		doc := m[1] + m[2]
+		parsed, errs := gqlparser.LoadQueryWithRules(schema, doc, rules.NewDefaultRules())
+		if errs != nil {
+			continue // TestGeneratedQueriesValidateAgainstSchema reports this.
+		}
+		for _, op := range parsed.Operations {
+			for _, path := range nestedContactFields(printedSelections(op.SelectionSet), "", false) {
+				t.Errorf("generated query %s selects %s by default", operationName(doc), path)
+			}
+		}
+	}
+}
+
+// printedSelections returns the selections of the object the CLI prints: the
+// items of a paginated result, or the root field's object.
+func printedSelections(set ast.SelectionSet) ast.SelectionSet {
+	if len(set) != 1 {
+		return set
+	}
+	root, ok := set[0].(*ast.Field)
+	if !ok {
+		return set
+	}
+	var data *ast.Field
+	hasInfo := false
+	for _, s := range root.SelectionSet {
+		if f, ok := s.(*ast.Field); ok {
+			switch f.Name {
+			case "data":
+				data = f
+			case "paginatorInfo":
+				hasInfo = true
+			}
+		}
+	}
+	if data != nil && hasInfo {
+		return data.SelectionSet
+	}
+	return root.SelectionSet
+}
+
+func nestedContactFields(set ast.SelectionSet, prefix string, nested bool) []string {
+	var out []string
+	for _, selection := range set {
+		switch s := selection.(type) {
+		case *ast.Field:
+			if nested && contactFields[s.Name] {
+				out = append(out, prefix+s.Name)
+			}
+			out = append(out, nestedContactFields(s.SelectionSet, prefix+s.Name+".", true)...)
+		case *ast.InlineFragment:
+			out = append(out, nestedContactFields(s.SelectionSet, prefix, nested)...)
 		}
 	}
 	return out

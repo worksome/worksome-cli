@@ -324,6 +324,8 @@ func (p *parser) parse() (*Schema, error) {
 			strings.Join(unmapped, ", "))
 	}
 
+	schema.Selectable = p.buildSelectable()
+
 	// Parse operations and group into resources
 	schema.Resources = p.buildResources()
 
@@ -992,9 +994,10 @@ func (p *parser) resolveUnionForColumns(typeName string) *ast.Definition {
 
 // findSharedInterface returns an interface definition that all members of the
 // union implement, preferring the interface with the most fields. Returns nil
-// if no common interface exists.
+// if no common interface exists, or for a single-member union, whose member
+// has more to select than any interface it implements.
 func (p *parser) findSharedInterface(unionDef *ast.Definition) *ast.Definition {
-	if len(unionDef.Types) == 0 {
+	if len(unionDef.Types) < 2 {
 		return nil
 	}
 
@@ -1097,9 +1100,7 @@ func (p *parser) fieldToOperation(f *ast.FieldDefinition, opType OperationType, 
 
 	// Build selection set from return type
 	op.SelectionSet = p.buildSelectionSet(f.Type, 1)
-	if opType == OperationQuery {
-		op.Optional = p.optionalSelections(f.Type)
-	}
+	op.ItemType = p.itemType(f.Type)
 
 	// For mutations with a single input argument, resolve the input type's fields as CLI flags
 	if opType == OperationMutation {
@@ -1429,11 +1430,15 @@ func (p *parser) buildUnionSelectionFields(unionDef *ast.Definition, depth int) 
 // "state" admits an approval's workflow state and an address's geographic one
 // alike. Type-scoped keys ("Type.field") would match on meaning rather than
 // spelling; not needed while every entry here is safe on all its homonyms.
+//
+// Personal contact details (email, phone) are left out: a list of timesheets
+// should not copy every worker's email into a report by default. --fields
+// still selects them on request (worker.email).
 var safeNestedFields = map[string]bool{
-	"id": true, "name": true, "email": true, "avatar": true,
+	"id": true, "name": true, "avatar": true,
 	"status": true, "type": true, "currency": true, "market": true,
 	"number": true, "description": true, "firstName": true, "lastName": true,
-	"middleName": true, "phone": true, "initials": true, "subject": true,
+	"middleName": true, "initials": true, "subject": true,
 	"url": true, "title": true, "label": true, "slug": true, "code": true,
 	"createdAt": true, "updatedAt": true, "startDate": true, "endDate": true,
 	// State fields. Without these a nested row is unreadable — a hire's
@@ -1551,55 +1556,85 @@ func (p *parser) unionSafeFields(def *ast.Definition) string {
 	return strings.Join(parts, " ")
 }
 
-// optionalSelections returns the paginated relations of an operation's return
-// type — the items of a paginated result, or the object itself — as ready
-// selections keyed by field name. They are left out of the default query,
-// because each is a separate server query per row (a hire has eight), and
-// added only when --fields asks for one. Relying on the relation's `first`
-// default keeps them argument-free.
-func (p *parser) optionalSelections(t *ast.Type) map[string]string {
-	typeName := unwrapType(t)
-	if inner, ok := p.paginators[typeName]; ok {
-		typeName = inner
+// itemType is the type --fields resolves paths against for a query returning
+// t: the items of a paginated result, or the returned object. Empty when that
+// is not an object, interface or union.
+func (p *parser) itemType(t *ast.Type) string {
+	name := unwrapType(t)
+	if inner, ok := p.paginators[name]; ok {
+		name = inner
 	}
-	def := p.doc.Types[typeName]
-	if def == nil || (def.Kind != ast.Object && def.Kind != ast.Interface) {
-		return nil
+	if def := p.doc.Types[name]; def != nil && isComposite(def) {
+		return name
 	}
+	return ""
+}
 
-	optional := make(map[string]string)
-	for _, f := range def.Fields {
-		// Same guard as the default selections: a relation whose argument is a
-		// choice fails at the resolver even though the query is valid.
-		if p.needsArgument(f) || p.fieldIgnored(def, f.Name) {
+func isComposite(def *ast.Definition) bool {
+	return def.Kind == ast.Object || def.Kind == ast.Interface || def.Kind == ast.Union
+}
+
+// buildSelectable describes every type --fields can resolve a path against.
+// Paginator wrappers are left out: a field returning one is recorded as a
+// paginated relation of its item type. Ignored fields are left out too, so
+// --fields cannot select what the overrides exclude.
+func (p *parser) buildSelectable() []SelectableType {
+	var out []SelectableType
+	for name, def := range p.doc.Types {
+		if !isComposite(def) || isBuiltinType(name) || strings.HasPrefix(name, "__") {
 			continue
 		}
-		itemName, isPaginator := p.paginators[unwrapType(f.Type)]
-		if !isPaginator {
+		if name == "Query" || name == "Mutation" || name == "Subscription" {
 			continue
 		}
-		itemDef := p.doc.Types[itemName]
-		if itemDef == nil {
+		if _, ok := p.paginators[name]; ok {
 			continue
 		}
-		var items string
-		switch itemDef.Kind {
-		case ast.Union:
-			if frags := p.unionSafeFields(itemDef); frags != "" {
-				items = "__typename " + frags
+		st := SelectableType{Name: name, Nested: p.defaultNested(def)}
+		if def.Kind == ast.Union {
+			st.Union = true
+			out = append(out, st)
+			continue
+		}
+		for _, f := range def.Fields {
+			if f.Name == "__typename" || p.fieldIgnored(def, f.Name) {
+				continue
 			}
-		default:
-			items = typenamePrefix(itemDef) + p.selectSafeFields(itemDef)
+			sf := SelectableField{Name: f.Name, NeedsArgs: p.needsArgument(f)}
+			inner := unwrapType(f.Type)
+			switch {
+			case knownScalars[inner] || p.enums[inner]:
+			case p.paginators[inner] != "":
+				item := p.doc.Types[p.paginators[inner]]
+				if item == nil || !isComposite(item) {
+					continue
+				}
+				sf.Type, sf.Paginated = item.Name, true
+			default:
+				nested := p.doc.Types[inner]
+				if nested == nil || !isComposite(nested) {
+					continue
+				}
+				sf.Type = inner
+			}
+			st.Fields = append(st.Fields, sf)
 		}
-		if strings.TrimSpace(items) == "" {
-			continue
-		}
-		optional[f.Name] = f.Name + " { paginatorInfo { total } data { " + items + " } }"
+		out = append(out, st)
 	}
-	if len(optional) == 0 {
-		return nil
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// defaultNested is what --fields selects on def when a path names it without
+// naming any of its fields: the same fields a nested object gets by default.
+func (p *parser) defaultNested(def *ast.Definition) string {
+	if def.Kind == ast.Union {
+		return strings.TrimSpace("__typename " + p.unionSafeFields(def))
 	}
-	return optional
+	if fields := p.nestedSelection(def); fields != "" {
+		return typenamePrefix(def) + fields
+	}
+	return p.emptySelection(def)
 }
 
 // nestedSelection is selectSafeFields plus the object and union fields that

@@ -91,7 +91,7 @@ The CLI is designed to be driven programmatically:
 - **Discovery is built in.** `worksome --help` lists all <!-- resources -->104<!-- /resources --> resource groups; `worksome <resource> --help` lists that resource's actions. All help text is generated from the GraphQL schema, so it cannot drift from the API.
 - **Permissions are documented per action.** Many operations are restricted to one party — company, worker, or recruiter — and the help text says so (e.g. "Only companies can cancel their hires"). A permission error is usually a correct answer about the token's role, not a bug to work around.
 - **JSON without asking.** Output is JSON whenever stdout is not a TTY, so pipelines need no `--output json`. Pass it explicitly if you can't be sure of the environment.
-- **Keep responses small.** `--fields id,worker.name` narrows the GraphQL selection set itself — the server is only asked for those fields — and `--filter status=ACTIVE` narrows results. Useful when a full page of objects would be more than you need. A field name that does not exist is an error, not an empty result — except on the few operations whose shape can't be narrowed, where it is still dropped silently.
+- **Keep responses small.** `--fields id,worker.name` narrows the GraphQL selection set itself — the server is only asked for those fields — and `--filter status=ACTIVE` narrows results. Useful when a full page of objects would be more than you need. `--fields` can name any field of the type, not only those in the default output, including nested objects (`hire.job.name`) and paginated relations (`registrations.date`) up to four levels deep. A field name that does not exist is an error listing the valid ones, not an empty result — except on the few operations whose shape can't be narrowed, where it is still dropped silently.
 - **Preview mutations.** `--dry-run` prints the operation name and variables without calling the API. Use it to confirm a mutation's shape before executing it.
 - **Pagination is explicit.** List commands return a single page. `--all` auto-paginates, which on large resources means many sequential requests — prefer `--first`/`--page` unless you genuinely need everything.
 - **Exit codes over stderr parsing.** `0` on success, non-zero for any failure (auth, validation, GraphQL, network). Branch on the exit code rather than matching on message text, which is not a stable interface.
@@ -384,6 +384,28 @@ worksome hires list --fields id,worker.name       # Request only these fields
 worksome hires list --filter "status=ACTIVE"      # Shorthand for filter flags
 ```
 
+### Selecting fields
+
+`--fields` takes dot-separated paths and asks the API for exactly those fields.
+A path can name any field of the type, including ones the default output leaves
+out:
+
+```bash
+worksome timesheets list --fields id,startDate,registrations.date,registrations.duration,hire.job.name,hire.company.name
+```
+
+- Naming an object without subfields (`worker`, `hire.job`) selects its
+  identifying fields.
+- Nested objects leave out personal contact details (`email`, `phone`) unless
+  you name them: `--fields id,worker.name,worker.email`. The listed item keeps
+  its own (`viewer get` still shows the viewer's email).
+- A paginated relation is read through its items, so `registrations.date` and
+  `registrations.data.date` are the same path. The relation keeps its
+  `paginatorInfo { total }`.
+- Paths reach at most four objects below the listed item, and cannot pass
+  through one paginated relation into another.
+- An unknown field is an error that lists the fields valid at that level.
+
 ## Global Flags
 
 | Flag | Description |
@@ -394,7 +416,7 @@ worksome hires list --filter "status=ACTIVE"      # Shorthand for filter flags
 | `--output` | Output format: `json`, `table` |
 | `--verbose` | Show request/response details |
 | `--columns` | Comma-separated list of columns for table output |
-| `--fields` | Comma-separated list of fields to request from the API and display |
+| `--fields` | Comma-separated field paths to request from the API and display; any field of the type (see [Selecting fields](#selecting-fields)) |
 | `--filter` | Key=value filter pairs (e.g., `status=ACTIVE,currency=DKK`) |
 | `--no-color` | Disable colored output |
 | `--dry-run` | Print the operation name and variables without calling the API |

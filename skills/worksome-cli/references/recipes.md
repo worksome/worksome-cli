@@ -11,8 +11,9 @@ error lists the real ones:
 ```bash
 worksome jobs list --fields id,bogus
 # Error: jobs: --fields: unknown field "bogus"
-#   (available: id, number, name, contactName, contactEmail, contactPhone,
-#    skills, description, market, status, address, location, ... and 59 more)
+#   (available: address, approved, association, attachments, available, bids,
+#    canBePublished, company, companyFee, completed, contactEmail, contactName,
+#    ... and 71 more)
 ```
 
 Same for actions and flags: `worksome <resource> --help`.
@@ -115,6 +116,13 @@ Dotted paths select nested objects and narrow the GraphQL selection set:
 
 ```bash
 worksome hires list --first 5 --fields id,worker.name,company.name,job.name
+```
+
+Any field of the type can be named, not only those in the default output.
+Paginated relations are read through their items, without the `data` segment:
+
+```bash
+worksome timesheets list --fields id,startDate,registrations.date,registrations.duration,hire.job.name,hire.company.name
 ```
 
 ## Decoding an ID before acting on it

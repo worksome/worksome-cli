@@ -278,16 +278,18 @@ func isQuery(query string) bool {
 	return strings.HasPrefix(q, "query") || strings.HasPrefix(q, "{")
 }
 
-// ExecuteWithOptional is Execute for an operation whose generated query leaves
-// some selections out and offers them on request — paginated relations, which
-// cost the server one query per row. When --fields is in use they are added
-// to the query before it is narrowed, so naming one selects it and naming
-// nothing else leaves the query as lean as it was generated.
-func (c *Client) ExecuteWithOptional(ctx context.Context, query string, optional map[string]string, variables map[string]any, result any) error {
-	if len(c.fields) > 0 && len(optional) > 0 {
-		query = AddOptionalSelections(query, optional)
+// ExecuteFor is Execute for an operation whose printed object has type typeName in
+// schema: --fields may then name any field of that type, not only those the
+// default query selects.
+func (c *Client) ExecuteFor(ctx context.Context, query string, schema Schema, typeName string, variables map[string]any, result any) error {
+	if len(c.fields) > 0 {
+		selected, err := selectFields(query, schema, typeName, c.fields)
+		if err != nil {
+			return err
+		}
+		query = selected
 	}
-	return c.Execute(ctx, query, variables, result)
+	return c.execute(ctx, query, variables, result)
 }
 
 // Execute sends a GraphQL query and unmarshals the response data into result.
@@ -302,7 +304,11 @@ func (c *Client) Execute(ctx context.Context, query string, variables map[string
 		}
 		query = pruned
 	}
+	return c.execute(ctx, query, variables, result)
+}
 
+// execute sends query as is.
+func (c *Client) execute(ctx context.Context, query string, variables map[string]any, result any) error {
 	cacheable := c.cache != nil && isQuery(query)
 
 	// Check cache before making a network request.
