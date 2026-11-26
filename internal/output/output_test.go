@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -1042,5 +1043,49 @@ func TestFilterFields_unwrapsTypedMapSliceEnvelope(t *testing.T) {
 	item, _ := list[0].(map[string]any)
 	if len(item) != 1 || item["id"] != "1" {
 		t.Errorf("item = %v, want only id", item)
+	}
+}
+
+// A paginated relation is filtered through its items, with or without the
+// "data" segment, and keeps its paginatorInfo.
+func TestFilterFields_paginatedRelation(t *testing.T) {
+	data := []any{map[string]any{
+		"id": "1",
+		"registrations": map[string]any{
+			"paginatorInfo": map[string]any{"total": float64(2)},
+			"data": []any{
+				map[string]any{"date": "2026-01-01", "duration": float64(8), "type": "WORK"},
+				map[string]any{"date": "2026-01-02", "duration": float64(4), "type": "WORK"},
+			},
+		},
+	}}
+	want := []any{map[string]any{
+		"id": "1",
+		"registrations": map[string]any{
+			"paginatorInfo": map[string]any{"total": float64(2)},
+			"data": []any{
+				map[string]any{"date": "2026-01-01", "duration": float64(8)},
+				map[string]any{"date": "2026-01-02", "duration": float64(4)},
+			},
+		},
+	}}
+	for _, fields := range [][]string{
+		{"id", "registrations.date", "registrations.duration"},
+		{"id", "registrations.data.date", "registrations.data.duration"},
+	} {
+		if got := FilterFields(data, fields); !reflect.DeepEqual(got, want) {
+			t.Errorf("FilterFields(%v) = %#v\nwant %#v", fields, got, want)
+		}
+	}
+}
+
+func TestFilterFields_paginatorInfoOnly(t *testing.T) {
+	data := map[string]any{"registrations": map[string]any{
+		"paginatorInfo": map[string]any{"total": float64(2)},
+		"data":          []any{map[string]any{"date": "d"}},
+	}}
+	want := map[string]any{"registrations": map[string]any{"paginatorInfo": map[string]any{"total": float64(2)}}}
+	if got := FilterFields(data, []string{"registrations.paginatorInfo.total"}); !reflect.DeepEqual(got, want) {
+		t.Errorf("FilterFields() = %#v, want %#v", got, want)
 	}
 }

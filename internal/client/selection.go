@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -35,6 +34,27 @@ func (s *selection) render() string {
 // more than one root field) are returned unchanged. Field paths that match
 // nothing are an error, since they would otherwise select nothing at all.
 func pruneQuery(query string, fields []string) (string, error) {
+	paths, err := parseFieldPaths(fields)
+	if err != nil || len(paths) == 0 {
+		return query, err
+	}
+	shape, ok := parseOperation(query)
+	if !ok {
+		return query, nil
+	}
+	pruned, err := pruneSelections(shape.target.children, paths, "")
+	if err != nil {
+		return "", err
+	}
+	// Never send an empty selection set; ask for everything instead.
+	if len(pruned) == 0 {
+		return query, nil
+	}
+	return shape.render(pruned), nil
+}
+
+// parseFieldPaths splits --fields entries into path segments, skipping blanks.
+func parseFieldPaths(fields []string) ([][]string, error) {
 	paths := make([][]string, 0, len(fields))
 	for _, f := range fields {
 		f = strings.TrimSpace(f)
@@ -44,119 +64,67 @@ func pruneQuery(query string, fields []string) (string, error) {
 		segments := strings.Split(f, ".")
 		for _, seg := range segments {
 			if strings.TrimSpace(seg) == "" {
-				return "", fmt.Errorf("--fields: %q has an empty segment", f)
+				return nil, fmt.Errorf("--fields: %q has an empty segment", f)
 			}
 		}
 		paths = append(paths, segments)
 	}
-	if len(paths) == 0 {
-		return query, nil
-	}
+	return paths, nil
+}
 
+// operationShape is a parsed single-root operation and the object the CLI
+// prints from it: the items of a paginated result, or the root itself.
+type operationShape struct {
+	query  string
+	open   int
+	end    int
+	root   *selection
+	target *selection
+}
+
+// parseOperation parses query, reporting false when its shape cannot be
+// narrowed safely: unparseable, no selection set, or more than one root field.
+func parseOperation(query string) (operationShape, bool) {
 	open := operationSelectionStart(query)
 	if open < 0 {
-		return query, nil
+		return operationShape{}, false
 	}
-
 	roots, end, err := parseSelectionSet(query, open)
-	if err != nil {
-		return query, nil
+	if err != nil || len(roots) != 1 || len(roots[0].children) == 0 {
+		return operationShape{}, false
 	}
-	if len(roots) != 1 || len(roots[0].children) == 0 {
-		return query, nil
-	}
-
 	root := roots[0]
 	// Paginated results wrap the items in "data"; keep the wrapper and
-	// paginatorInfo intact and narrow the items instead.
+	// paginatorInfo intact and narrow the items instead. An object with its
+	// own field called data has no paginatorInfo beside it.
 	target := root
-	for _, c := range root.children {
-		if c.key == "data" && len(c.children) > 0 {
-			target = c
-		}
+	if data := findSelection(root.children, "data"); data != nil && len(data.children) > 0 &&
+		findSelection(root.children, "paginatorInfo") != nil {
+		target = data
 	}
+	return operationShape{query: query, open: open, end: end, root: root, target: target}, true
+}
 
-	pruned, err := pruneSelections(target.children, paths, "")
-	if err != nil {
-		return "", err
-	}
-	// Never send an empty selection set; ask for everything instead.
-	if len(pruned) == 0 {
-		return query, nil
-	}
-
-	narrowed := &selection{head: target.head, children: pruned}
-	if target != root {
-		children := make([]*selection, 0, len(root.children))
-		for _, c := range root.children {
-			if c == target {
+// render returns the query with the target's selections replaced by sels.
+func (o operationShape) render(sels []*selection) string {
+	narrowed := &selection{head: o.target.head, children: sels}
+	if o.target != o.root {
+		children := make([]*selection, 0, len(o.root.children))
+		for _, c := range o.root.children {
+			if c == o.target {
 				c = narrowed
 			}
 			children = append(children, c)
 		}
-		narrowed = &selection{head: root.head, children: children}
+		narrowed = &selection{head: o.root.head, children: children}
 	}
-	return query[:open] + "{ " + narrowed.render() + " }" + query[end:], nil
-}
-
-// AddOptionalSelections appends the given selections to the object the CLI
-// prints. Exported so the codegen schema guard can validate the documents the
-// client actually sends when --fields names an on-request relation.
-//
-// It targets — the items of a paginated result, or the root object — so that a
-// following pruneQuery can keep the ones --fields names and drop the rest.
-// Selections already present are left alone. Queries whose shape cannot be
-// parsed are returned unchanged, matching pruneQuery.
-func AddOptionalSelections(query string, optional map[string]string) string {
-	open := operationSelectionStart(query)
-	if open < 0 {
-		return query
-	}
-	roots, end, err := parseSelectionSet(query, open)
-	if err != nil || len(roots) != 1 || len(roots[0].children) == 0 {
-		return query
-	}
-	root := roots[0]
-	target := root
-	for _, c := range root.children {
-		if c.key == "data" && len(c.children) > 0 {
-			target = c
-		}
-	}
-
-	present := make(map[string]bool, len(target.children))
-	for _, c := range target.children {
-		present[c.key] = true
-	}
-	names := make([]string, 0, len(optional))
-	for name := range optional {
-		if !present[name] {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		nodes, _, err := parseSelectionSet("{ "+optional[name]+" }", 0)
-		if err != nil {
-			continue
-		}
-		target.children = append(target.children, nodes...)
-	}
-	return query[:open] + "{ " + root.render() + " }" + query[end:]
+	return o.query[:o.open] + "{ " + narrowed.render() + " }" + o.query[o.end:]
 }
 
 // pruneSelections keeps only the selections matching paths. prefix is the dotted
 // path of the parent, used for error messages.
 func pruneSelections(sels []*selection, paths [][]string, prefix string) ([]*selection, error) {
-	groups := make(map[string][][]string, len(paths))
-	var order []string
-	for _, p := range paths {
-		if _, seen := groups[p[0]]; !seen {
-			order = append(order, p[0])
-		}
-		groups[p[0]] = append(groups[p[0]], p[1:])
-	}
-
+	order, groups := groupPaths(paths)
 	matched := make(map[string]bool, len(groups))
 
 	// Inline fragments are transparent: their selections belong to the parent.

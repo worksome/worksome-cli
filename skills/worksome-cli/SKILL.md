@@ -140,8 +140,11 @@ worksome hires list --first 20 --fields id,status,worker.name --filter status=AC
 ```
 
 - `--fields` narrows the GraphQL **selection set** — the server is only asked
-  for those fields. A field name that does not exist is an error, not an empty
-  result (except on a few operations whose shape cannot be narrowed, where it is
+  for those fields. It can name any field of the type, not only those in the
+  default output: nested objects (`hire.job.name`) and paginated relations
+  (`registrations.date`, same as `registrations.data.date`), up to four levels
+  deep. A field name that does not exist is an error, not an empty result
+  (except on a few operations whose shape cannot be narrowed, where it is
   dropped silently).
 - `--filter key=value[,key=value]` narrows results server-side.
 - `--columns` only affects table rendering; it does not reduce what is fetched.
@@ -238,12 +241,13 @@ fails before any request and the error lists what is available:
 
 ```bash
 worksome invoices list -n 1 --fields nope
-# Error: invoices: --fields: unknown field "nope" (available: id, number, pdfUrl,
-#   currency, grossAmount, grossOpenAmount, taxAmount, netAmount, markedPaidAt, ... and 11 more)
+# Error: invoices: --fields: unknown field "nope" (available: company, createdAt,
+#   creditNotes, currency, date, dueDate, externalIdentifier, grossAmount, grossOpenAmount,
+#   id, isBatched, isFullyCredited, ... and 15 more)
 ```
 
 It is the cheapest way to learn a shape: no tokens spent on a full object.
-The list caps at twelve names; the same error on a nested path
+The list is sorted and caps at twelve names; the same error on a nested path
 (`--fields worker.nope`) lists that level. Filters are in `--help`.
 
 **A mutation that errors may still have happened.** `hires terminate` has
