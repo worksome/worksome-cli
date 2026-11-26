@@ -1771,7 +1771,9 @@ type ApprovalApprovable {
 }
 
 union Approvable = Hire
-type Hire { id: ID! number: String! status: String! }
+"A single-member union selects its member, not an interface the member implements."
+interface Ownable { id: ID! }
+type Hire implements Ownable { id: ID! number: String! status: String! }
 
 type UserPaginator { paginatorInfo: PaginatorInfo! data: [User!]! }
 type UserGroupPaginator { paginatorInfo: PaginatorInfo! data: [UserGroup!]! }

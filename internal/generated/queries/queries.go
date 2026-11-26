@@ -56,7 +56,7 @@ func (q *Querier) Accounts(ctx context.Context, vars map[string]any) (map[string
 // ApprovalApprovable — Get a specific approval request by ID.
 func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovable($id: ID!) {
-	approvalApprovable(id: $id) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Ownable { id } } viewerCanAction }
+	approvalApprovable(id: $id) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number title createdAt updatedAt startDate endDate currency status } } viewerCanAction }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteFor(ctx, query, FieldSchema, "ApprovalApprovable", vars, &result)
@@ -74,7 +74,7 @@ func (q *Querier) ApprovalApprovable(ctx context.Context, vars map[string]any) (
 // ApprovalApprovables — List approval requests — the runtime instances created when a trigger fires. Use filters to find requests that need action, belong to specific approvals, or relate to specific items (e.g. a particular hire).
 func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `query ApprovalApprovables($accounts: [ID!], $requiresAction: Boolean, $requiresActionUsers: [ID!], $approvals: [ID!], $approvable: ID, $approvalRules: [ID!], $orderBy: [ApprovalApprovablesOrderByClauseInput!], $first: Int! = 10, $page: Int) {
-	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Ownable { id } } viewerCanAction } }
+	approvalApprovables(accounts: $accounts, requiresAction: $requiresAction, requiresActionUsers: $requiresActionUsers, approvals: $approvals, approvable: $approvable, approvalRules: $approvalRules, orderBy: $orderBy, first: $first, page: $page) { paginatorInfo { count currentPage hasMorePages lastPage perPage total } data { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number title createdAt updatedAt startDate endDate currency status } } viewerCanAction } }
 }`
 	var result map[string]any
 	err := q.Client.ExecuteFor(ctx, query, FieldSchema, "ApprovalApprovable", vars, &result)
@@ -87,7 +87,7 @@ func (q *Querier) ApprovalApprovables(ctx context.Context, vars map[string]any) 
 // ActionApprovalApprovable — Take action on a pending approval request — approve, reject, or request changes. The authenticated user must be a member of the approver's user group and the approval request must be awaiting their action ('viewerCanAction' must be 'true').
 func (q *Querier) ActionApprovalApprovable(ctx context.Context, vars map[string]any) (map[string]any, error) {
 	query := `mutation ActionApprovalApprovable($input: ActionApprovalApprovableInput!) {
-	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Ownable { id } } viewerCanAction }
+	actionApprovalApprovable(input: $input) { id approval { id name status description createdAt updatedAt } approvalRule { id createdAt updatedAt } approvalStates { id state cancellationReason createdAt } approvable { __typename ... on Hire { id number title createdAt updatedAt startDate endDate currency status } } viewerCanAction }
 }`
 	var result map[string]any
 	err := q.Client.Execute(ctx, query, vars, &result)

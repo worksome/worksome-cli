@@ -994,9 +994,10 @@ func (p *parser) resolveUnionForColumns(typeName string) *ast.Definition {
 
 // findSharedInterface returns an interface definition that all members of the
 // union implement, preferring the interface with the most fields. Returns nil
-// if no common interface exists.
+// if no common interface exists, or for a single-member union, whose member
+// has more to select than any interface it implements.
 func (p *parser) findSharedInterface(unionDef *ast.Definition) *ast.Definition {
-	if len(unionDef.Types) == 0 {
+	if len(unionDef.Types) < 2 {
 		return nil
 	}
 

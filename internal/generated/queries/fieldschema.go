@@ -25,7 +25,7 @@ var FieldSchema = client.Schema{
 		Nested: "state",
 	},
 	"Approvable": {
-		Nested: "__typename ... on Ownable { id }",
+		Nested: "__typename ... on Hire { id number title createdAt updatedAt startDate endDate currency status }",
 	},
 	"Approval": {
 		Fields: map[string]client.FieldInfo{
