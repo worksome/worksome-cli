@@ -12,6 +12,7 @@ When creating issues or pull requests **redact any sensitive information**, such
 - `internal/generated/commands/commands.go` — Cobra commands for all resources
 - `internal/generated/commands/root.go` — RegisterAll function
 - `internal/generated/queries/queries.go` — GraphQL query/mutation functions
+- `internal/generated/queries/fieldschema.go` — Fields `--fields` may name on each type
 - `internal/generated/types/enums.go` — Enum types
 - `internal/generated/types/types.go` — Object types
 - `internal/generated/types/inputs.go` — Input types
@@ -103,6 +104,8 @@ Tests are in:
 - `internal/codegen/parser_test.go` — Schema parsing, resource grouping, type resolution
 - `internal/codegen/generator_test.go` — Code generation output verification
 - `internal/client/client_test.go` — HTTP client, retries, pagination
+- `internal/client/fields_test.go` — `--fields` resolution against the field schema
+- `internal/client/nested_test.go` — completing nested paginated lists
 - `internal/config/config_test.go` — Config load/save, token precedence, file permissions, atomic replace on save, the config lock
 - `internal/oauth/*_test.go` — Browser sign-in: PKCE, loopback listener, token exchange and refresh, https-only URLs
 - `cmd/worksome/oauth_config_test.go` — OAuth URLs per endpoint (gateway to app host, non-Worksome hosts refused), where a session renews, concurrent renewal, `auth login` flags

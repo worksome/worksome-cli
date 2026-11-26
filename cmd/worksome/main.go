@@ -97,7 +97,7 @@ func newRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Show operation details without executing")
 	rootCmd.PersistentFlags().Int("timeout", 30, "Request timeout in seconds")
-	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to request and display (e.g., id,name,worker.name)")
+	rootCmd.PersistentFlags().String("fields", "", "Comma-separated field paths to request and display; any field of the type (e.g., id,worker.name,registrations.date)")
 	rootCmd.PersistentFlags().String("filter", "", `Key=value filter pairs (e.g., "status=ACTIVE,currency=DKK")`)
 
 	// Register shell completion for --profile flag
