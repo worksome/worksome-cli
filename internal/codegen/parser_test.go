@@ -2276,6 +2276,122 @@ func TestNestedFieldsRejectsInvalidEntry(t *testing.T) {
 	}
 }
 
+// fieldArgumentsSchema has a scalar field that needs an argument (total), one
+// whose only argument is a choice with no default (share), an object field, and
+// a type no operation returns.
+const fieldArgumentsSchema = `
+type Query {
+	"Get all bills."
+	bills(first: Int! = 10, page: Int): BillPaginator!
+	"Get a specific bill."
+	bill(id: ID!): Bill
+}
+
+enum AccountType { COMPANY WORKER }
+enum ViewerRole { ANY PAYER PAYEE }
+
+type Bill {
+	id: ID!
+	billedAmount: Float!
+	total(accountType: AccountType!, viewerRole: ViewerRole = ANY): Float!
+	share(role: ViewerRole): Float
+	worker: Worker
+}
+
+type Worker { id: ID! name: String! }
+
+type Orphan { id: ID! total(accountType: AccountType!): Float! }
+
+type BillPaginator { paginatorInfo: PaginatorInfo! data: [Bill!]! }
+
+type PaginatorInfo {
+	count: Int!
+	currentPage: Int!
+	hasMorePages: Boolean!
+	lastPage: Int!
+	perPage: Int!
+	total: Int!
+}
+`
+
+// billOperations returns the bills list and get operations.
+func billOperations(t *testing.T, overrides string) []*Operation {
+	t.Helper()
+	parsed, err := parseWithOverrides(t, fieldArgumentsSchema, overrides)
+	if err != nil {
+		t.Fatalf("ParseSchema failed: %v", err)
+	}
+	for i := range parsed.Resources {
+		r := &parsed.Resources[i]
+		if r.Name == "bills" && r.ListQuery != nil && r.GetQuery != nil {
+			return []*Operation{r.ListQuery, r.GetQuery}
+		}
+	}
+	t.Fatal("expected a bills resource with list and get")
+	return nil
+}
+
+func TestFieldArgumentsOfferAFieldOnRequest(t *testing.T) {
+	for _, op := range billOperations(t, "") {
+		if strings.Contains(op.SelectionSet, "total(") || op.Optional["companyTotal"] != "" {
+			t.Fatalf("%s: baseline changed, a field with a required argument was selected: %s %v", op.Name, op.SelectionSet, op.Optional)
+		}
+	}
+
+	ops := billOperations(t, `
+field_arguments:
+  "Bill.total": { as: companyTotal, args: "accountType:   COMPANY" }
+`)
+	for _, op := range ops {
+		if got, want := op.Optional["companyTotal"], "companyTotal: total(accountType: COMPANY)"; got != want {
+			t.Errorf("%s: Optional[companyTotal] = %q, want %q", op.Name, got, want)
+		}
+		// On request only: the arguments pick a view some callers are refused.
+		if strings.Contains(op.SelectionSet, "total(") || strings.Contains(op.SelectionSet, "companyTotal") {
+			t.Errorf("%s: a field_arguments entry joined the default selection: %s", op.Name, op.SelectionSet)
+		}
+	}
+}
+
+// Each invalid entry fails for its own reason, not only because a broken entry
+// is also never used.
+func TestFieldArgumentsRejectsInvalidEntry(t *testing.T) {
+	for name, tc := range map[string]struct{ entries, want string }{
+		"unknown field":         {`"Bill.renamed": { as: companyTotal, args: "accountType: COMPANY" }`, "names no field"},
+		"unknown type":          {`"Gone.total": { as: companyTotal, args: "accountType: COMPANY" }`, "names no field"},
+		"not Type.field":        {`"total": { as: companyTotal, args: "accountType: COMPANY" }`, "not in Type.field form"},
+		"object field":          {`"Bill.worker": { as: companyWorker, args: "accountType: COMPANY" }`, "returns an object"},
+		"no name":               {`"Bill.total": { args: "accountType: COMPANY" }`, "is not a GraphQL name"},
+		"not a GraphQL name":    {`"Bill.total": { as: company-total, args: "accountType: COMPANY" }`, "is not a GraphQL name"},
+		"name already a field":  {`"Bill.total": { as: billedAmount, args: "accountType: COMPANY" }`, "is already a field on Bill"},
+		"name used twice":       {"\"Bill.total\": { as: companyTotal, args: \"accountType: COMPANY\" }\n  \"Bill.share\": { as: companyTotal, args: \"role: PAYER\" }", "is also used by"},
+		"required argument out": {`"Bill.total": { as: companyTotal, args: "viewerRole: PAYER" }`, `argument "accountType" needs a value`},
+		"no args":               {`"Bill.total": { as: companyTotal, args: "" }`, `argument "accountType" needs a value`},
+		"choice left out":       {`"Bill.share": { as: payerShare, args: "" }`, `argument "role" needs a value`},
+		"unknown argument":      {`"Bill.total": { as: companyTotal, args: "accountType: COMPANY, colour: RED" }`, `takes no argument "colour"`},
+		"unknown enum value":    {`"Bill.total": { as: companyTotal, args: "accountType: PARTNER" }`, "must be one of AccountType's values"},
+		"variable":              {`"Bill.total": { as: companyTotal, args: "accountType: $type" }`, "must be a constant"},
+		"does not parse":        {`"Bill.total": { as: companyTotal, args: "accountType COMPANY" }`, "do not parse"},
+		"no list or get":        {`"Orphan.total": { as: companyTotal, args: "accountType: COMPANY" }`, "no generated list or get returns"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseWithOverrides(t, fieldArgumentsSchema, "field_arguments:\n  "+tc.entries+"\n")
+			if err == nil {
+				t.Fatalf("expected generation to fail for %s", name)
+			}
+			if !strings.Contains(err.Error(), "field_arguments") || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error should name field_arguments and say %q, got: %v", tc.want, err)
+			}
+		})
+	}
+	t.Run("also ignored", func(t *testing.T) {
+		_, err := parseWithOverrides(t, fieldArgumentsSchema, "ignore_fields:\n  - \"Bill.total\"\nfield_arguments:\n  \"Bill.total\": { as: companyTotal, args: \"accountType: COMPANY\" }\n")
+		if err == nil || !strings.Contains(err.Error(), "also in ignore_fields") {
+			t.Errorf("expected an also-ignored error, got: %v", err)
+		}
+	})
+}
+
 func TestDirectChildrenKeepsLevelsApart(t *testing.T) {
 	got := directChildren(`{ id values { id field { id title } appliesTo { __typename ... on Job { id name } } } }`)
 	if !got["values"]["field"] || got["values"]["title"] {

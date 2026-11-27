@@ -280,7 +280,8 @@ func isQuery(query string) bool {
 
 // ExecuteWithOptional is Execute for an operation whose generated query leaves
 // some selections out and offers them on request — paginated relations, which
-// cost the server one query per row. When --fields is in use they are added
+// cost the server one query per row, and fields sent with fixed arguments
+// under an alias (field_arguments). When --fields is in use they are added
 // to the query before it is narrowed, so naming one selects it and naming
 // nothing else leaves the query as lean as it was generated.
 func (c *Client) ExecuteWithOptional(ctx context.Context, query string, optional map[string]string, variables map[string]any, result any) error {

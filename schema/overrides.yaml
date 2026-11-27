@@ -59,6 +59,26 @@ nested_fields:
   - "CustomFieldValue.customField"
   - "CustomFieldValue.appliesTo"
 
+# Scalar fields that need arguments, made reachable through --fields, keyed by
+# "Type.field". The generator never selects a field with a required argument;
+# an entry gives it fixed arguments and the name it answers to (`as`). It is
+# offered on request only, never in the default output: the arguments pick a
+# view the API may refuse some callers, and a refused non-null field nulls its
+# whole parent.
+#
+# Generation fails if an entry names no field, returns an object, leaves out an
+# argument the field needs, uses an enum value the enum lacks, takes a name the
+# type already has, is also in ignore_fields, or is on a type no list or get
+# returns.
+field_arguments:
+  # A payment request's billedAmount is the worker's pay only. What the company
+  # pays for it, before VAT, adds Worksome's fee, the employment cost, any
+  # agency fee and expenses; these were not reachable because each field takes
+  # the account type to view the amount as.
+  "PaymentRequest.netAmount": { as: companyNetAmount, args: "accountType: COMPANY" }
+  "PaymentRequest.grossAmount": { as: companyGrossAmount, args: "accountType: COMPANY" }
+  "PaymentRequest.serviceAmount": { as: companyServiceAmount, args: "accountType: COMPANY" }
+
 # CLI action names for operations whose derived name collides with another's.
 # Generation fails if an entry here goes stale.
 command_names:

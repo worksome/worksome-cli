@@ -197,7 +197,11 @@ for us", read `lastPaymentRequestDate` on each hire and set your own window
 
 **Two ledgers, not one.** A *payment request* is what the worker is paid:
 `billedAmount`, `billedAmountWithExpenses`, settled on `paidAt`, state in
-`workerPayoutStatus`. An *invoice* is what the company pays Worksome:
+`workerPayoutStatus`. What the company pays for one, before VAT, is
+`companyNetAmount`: the worker's pay plus Worksome's fee, the employment cost,
+any agency fee and expenses. `companyGrossAmount` adds VAT and
+`companyServiceAmount` is Worksome's fee alone. They are not in the default
+output: name them in `--fields`. An *invoice* is what the company pays Worksome:
 `grossAmount` = `netAmount` + `taxAmount`, outstanding in `grossOpenAmount`,
 settled on `markedPaidAt`. "What did we pay contractors" is payment requests.
 "What do we owe" is invoices. Do not add them together.
