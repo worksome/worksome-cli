@@ -271,6 +271,28 @@ func TestAddOptionalSelections_UnknownFieldListsOptional(t *testing.T) {
 	}
 }
 
+// A field sent with fixed arguments is offered under its alias: naming the alias
+// selects the field with its arguments, and naming anything else leaves it out.
+func TestAddOptionalSelections_AliasedFieldWithArguments(t *testing.T) {
+	optional := map[string]string{"companyNetAmount": "companyNetAmount: netAmount(accountType: COMPANY)"}
+
+	pruned, err := pruneQuery(AddOptionalSelections(groupsQuery, optional), []string{"id", "companyNetAmount"})
+	if err != nil {
+		t.Fatalf("pruneQuery() error = %v", err)
+	}
+	if want := "data { id companyNetAmount: netAmount(accountType: COMPANY) }"; !strings.Contains(pruned, want) {
+		t.Errorf("pruneQuery() = %s\nwant it to contain %s", pruned, want)
+	}
+
+	pruned, err = pruneQuery(AddOptionalSelections(groupsQuery, optional), []string{"id", "name"})
+	if err != nil {
+		t.Fatalf("pruneQuery() error = %v", err)
+	}
+	if strings.Contains(pruned, "netAmount") {
+		t.Errorf("pruneQuery() kept a field --fields did not name: %s", pruned)
+	}
+}
+
 // Over the wire: the relation is sent only when --fields names it.
 func TestExecuteWithOptional_AddsOnlyWhenRequested(t *testing.T) {
 	var wire []string

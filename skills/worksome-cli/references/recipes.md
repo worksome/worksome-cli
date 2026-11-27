@@ -136,6 +136,11 @@ worksome payment-requests list --all --requested-date-range '{"from":"2025-09-01
   | jq '[.[] | select(.paidAt != null and (.paidAt|startswith("2026")) and .status != "CANCELLED")]
         | group_by(.currency) | map({currency: .[0].currency, paid: (map(.billedAmountWithExpenses)|add)})'
 
+# What approved work cost the company this year, before VAT (fees and expenses included), per currency
+worksome payment-requests list --all --statuses APPROVED --requested-date-range '{"from":"2026-01-01"}' \
+  --fields id,currency,companyNetAmount \
+  | jq 'group_by(.currency) | map({currency: .[0].currency, spend: (map(.companyNetAmount)|add)})'
+
 # What is genuinely outstanding to Worksome (ignore isOverDue)
 worksome invoices list --all --fields id,number,currency,grossOpenAmount,dueDate,markedPaidAt \
   | jq '[.[] | select(.grossOpenAmount > 0)]'

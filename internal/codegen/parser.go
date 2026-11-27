@@ -12,6 +12,7 @@ import (
 
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
+	gqlparse "github.com/vektah/gqlparser/v2/parser"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,12 +31,27 @@ type Overrides struct {
 	// admit globally, but that is meaningless to leave out on one type. An
 	// object or union field expands to its own safe fields, one level only.
 	NestedFields []string `yaml:"nested_fields"`
+	// FieldArguments makes a scalar field that needs arguments reachable through
+	// --fields, keyed by "Type.field". Such a field is otherwise never selected
+	// (see needsArgument). An entry fixes the arguments and the name the field
+	// answers to, and offers it on request only: the arguments pick a view the
+	// API may refuse some callers, and a refused non-null field nulls its whole
+	// parent, so it must never join the default selection.
+	FieldArguments map[string]FieldArgument `yaml:"field_arguments"`
 	// Aliases maps a resource name to extra names it also answers to, so a
 	// rename in the API schema doesn't break the old invocation.
 	Aliases map[string][]string `yaml:"aliases"`
 	// CommandNames maps an operation name to the CLI action it generates,
 	// for operations whose derived name collides with another's.
 	CommandNames map[string]string `yaml:"command_names"`
+}
+
+// FieldArgument is one field_arguments entry: the name --fields asks for (As),
+// and the arguments sent with the field, written as in GraphQL (Args, e.g.
+// "accountType: COMPANY").
+type FieldArgument struct {
+	As   string `yaml:"as"`
+	Args string `yaml:"args"`
 }
 
 // OverrideResource maps operations to a specific resource group.
@@ -128,6 +144,9 @@ func ParseSchema(schemaPath, overridesPath string) (*Schema, error) {
 	if err := p.validateNestedFields(); err != nil {
 		return nil, err
 	}
+	if err := p.validateFieldArguments(); err != nil {
+		return nil, err
+	}
 
 	return p.parse()
 }
@@ -147,6 +166,9 @@ type parser struct {
 	nameErrors     []string
 	// usedCommandNames records which command_names overrides were applied.
 	usedCommandNames map[string]bool
+	// usedFieldArguments records which field_arguments entries reached an
+	// operation's on-request selections.
+	usedFieldArguments map[string]bool
 }
 
 // validateIgnoredFields rejects entries that name a field the schema no longer
@@ -218,6 +240,248 @@ func (p *parser) fieldNested(def *ast.Definition, fieldName string) bool {
 		return false
 	}
 	return p.nestedFields[def.Name+"."+fieldName]
+}
+
+// graphQLName matches a GraphQL name, which an alias must be.
+var graphQLName = regexp.MustCompile(`^[_A-Za-z][_0-9A-Za-z]*$`)
+
+// validateFieldArguments fails generation on a field_arguments entry that could
+// not be sent as written: no such field, a field that returns an object, a name
+// that is not a GraphQL name or that the type already uses, arguments the field
+// does not take, an enum value the enum lacks, or an argument the field needs
+// left out. Each would otherwise surface only as a server error at runtime.
+func (p *parser) validateFieldArguments() error {
+	var invalid []string
+	names := make(map[string]string, len(p.overrides.FieldArguments))
+	entries := make([]string, 0, len(p.overrides.FieldArguments))
+	for entry := range p.overrides.FieldArguments {
+		entries = append(entries, entry)
+	}
+	sort.Strings(entries)
+	for _, entry := range entries {
+		fa := p.overrides.FieldArguments[entry]
+		typeName, fieldName, ok := strings.Cut(entry, ".")
+		if !ok || typeName == "" || fieldName == "" || strings.Contains(fieldName, ".") {
+			invalid = append(invalid, fmt.Sprintf("%q is not in Type.field form", entry))
+			continue
+		}
+		def := p.doc.Types[typeName]
+		if def == nil || def.Fields.ForName(fieldName) == nil {
+			invalid = append(invalid, fmt.Sprintf("%q names no field in the schema", entry))
+			continue
+		}
+		f := def.Fields.ForName(fieldName)
+		if ret := p.doc.Types[unwrapType(f.Type)]; ret == nil || (ret.Kind != ast.Scalar && ret.Kind != ast.Enum) {
+			invalid = append(invalid, fmt.Sprintf("%q returns an object; only scalar and enum fields can be given arguments here", entry))
+		}
+		switch {
+		case !graphQLName.MatchString(fa.As):
+			invalid = append(invalid, fmt.Sprintf("%q: as %q is not a GraphQL name", entry, fa.As))
+		case def.Fields.ForName(fa.As) != nil:
+			invalid = append(invalid, fmt.Sprintf("%q: as %q is already a field on %s", entry, fa.As, typeName))
+		case names[typeName+"."+fa.As] != "":
+			invalid = append(invalid, fmt.Sprintf("%q: as %q is also used by %q", entry, fa.As, names[typeName+"."+fa.As]))
+		default:
+			names[typeName+"."+fa.As] = entry
+		}
+		if p.ignoredFields[entry] {
+			invalid = append(invalid, fmt.Sprintf("%q is also in ignore_fields", entry))
+		}
+		if problem := p.fieldArgumentsProblem(f, fa.Args); problem != "" {
+			invalid = append(invalid, fmt.Sprintf("%q: %s", entry, problem))
+		}
+	}
+	if len(invalid) == 0 {
+		return nil
+	}
+	return fmt.Errorf("invalid field_arguments in overrides:\n  %s", strings.Join(invalid, "\n  "))
+}
+
+// fieldArgumentsProblem says what is wrong with args as the arguments of f, or
+// "" when they can be sent. Each value must be a constant of its argument's
+// type (see valueProblem), and the arguments needsArgument treats as a choice
+// must all be given.
+func (p *parser) fieldArgumentsProblem(f *ast.FieldDefinition, args string) string {
+	if strings.TrimSpace(args) == "" {
+		if problem := p.missingArgumentsProblem(f, nil); problem != "" {
+			return problem
+		}
+		return "args is empty, so the field needs no entry here"
+	}
+	doc, err := gqlparse.ParseQuery(&ast.Source{Input: "{ f(" + args + ") }"})
+	if err != nil {
+		return fmt.Sprintf("args %q do not parse: %v", args, err)
+	}
+	field, ok := doc.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok {
+		return fmt.Sprintf("args %q do not parse", args)
+	}
+	given := make(map[string]bool, len(field.Arguments))
+	for _, a := range field.Arguments {
+		def := f.Arguments.ForName(a.Name)
+		if def == nil {
+			return fmt.Sprintf("%s takes no argument %q", f.Name, a.Name)
+		}
+		if problem := p.valueProblem(a.Value, def.Type); problem != "" {
+			return fmt.Sprintf("argument %q %s", a.Name, problem)
+		}
+		given[a.Name] = true
+	}
+	return p.missingArgumentsProblem(f, given)
+}
+
+// literalKinds lists the literal kinds each built-in scalar accepts. A custom
+// scalar takes any constant: its format is the server's to judge.
+var literalKinds = map[string][]ast.ValueKind{
+	"String":  {ast.StringValue, ast.BlockValue},
+	"ID":      {ast.StringValue, ast.BlockValue, ast.IntValue},
+	"Int":     {ast.IntValue},
+	"Float":   {ast.IntValue, ast.FloatValue},
+	"Boolean": {ast.BooleanValue},
+}
+
+// valueProblem says how v is not a constant of type t, or returns "". It walks
+// lists and input objects, so a variable or a wrong value inside one is found
+// too. The wording completes "argument <name> ...".
+func (p *parser) valueProblem(v *ast.Value, t *ast.Type) string {
+	switch {
+	case v.Kind == ast.Variable:
+		return "must be a constant, not a variable"
+	case v.Kind == ast.NullValue:
+		if t.NonNull {
+			return "cannot be null"
+		}
+		return ""
+	case t.Elem != nil:
+		if v.Kind != ast.ListValue {
+			// A single value stands for a list of one.
+			return p.valueProblem(v, t.Elem)
+		}
+		for _, c := range v.Children {
+			if problem := p.valueProblem(c.Value, t.Elem); problem != "" {
+				return problem
+			}
+		}
+		return ""
+	}
+	def := p.doc.Types[t.NamedType]
+	if def == nil {
+		return fmt.Sprintf("has a type the schema does not declare (%s)", t.NamedType)
+	}
+	switch def.Kind {
+	case ast.Enum:
+		if v.Kind != ast.EnumValue || def.EnumValues.ForName(v.Raw) == nil {
+			return fmt.Sprintf("must be one of %s's values, not %s", def.Name, v.String())
+		}
+	case ast.InputObject:
+		if v.Kind != ast.ObjectValue {
+			return fmt.Sprintf("must be a %s object, not %s", def.Name, v.String())
+		}
+		given := make(map[string]bool, len(v.Children))
+		for _, c := range v.Children {
+			field := def.Fields.ForName(c.Name)
+			if field == nil {
+				return fmt.Sprintf("has no field %q in %s", c.Name, def.Name)
+			}
+			if problem := p.valueProblem(c.Value, field.Type); problem != "" {
+				return problem
+			}
+			given[c.Name] = true
+		}
+		for _, field := range def.Fields {
+			if !given[field.Name] && field.Type.NonNull && field.DefaultValue == nil {
+				return fmt.Sprintf("needs field %q in %s", field.Name, def.Name)
+			}
+		}
+	case ast.Scalar:
+		if kinds, builtIn := literalKinds[def.Name]; builtIn {
+			for _, k := range kinds {
+				if v.Kind == k {
+					return ""
+				}
+			}
+			return fmt.Sprintf("must be a %s, not %s", def.Name, v.String())
+		}
+		if containsVariable(v) {
+			return "must be a constant, not a variable"
+		}
+	}
+	return ""
+}
+
+// containsVariable reports whether v, or anything nested in it, is a variable.
+func containsVariable(v *ast.Value) bool {
+	if v.Kind == ast.Variable {
+		return true
+	}
+	for _, c := range v.Children {
+		if containsVariable(c.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+// missingArgumentsProblem names the first argument of f that needs a value
+// (as needsArgument judges it) and is not in given, or returns "".
+func (p *parser) missingArgumentsProblem(f *ast.FieldDefinition, given map[string]bool) string {
+	for _, arg := range f.Arguments {
+		if given[arg.Name] || arg.DefaultValue != nil {
+			continue
+		}
+		required := arg.Type.NonNull
+		if !required && arg.Type.Elem == nil {
+			if t := p.doc.Types[arg.Type.NamedType]; t != nil && (t.Kind == ast.Enum || t.Kind == ast.InputObject) {
+				required = true
+			}
+		}
+		if required {
+			return fmt.Sprintf("argument %q needs a value", arg.Name)
+		}
+	}
+	return ""
+}
+
+// fieldArgumentSelections returns the field_arguments entries on def as
+// on-request selections keyed by the name --fields asks for, and records each
+// as used.
+func (p *parser) fieldArgumentSelections(def *ast.Definition) map[string]string {
+	var out map[string]string
+	for entry, fa := range p.overrides.FieldArguments {
+		typeName, fieldName, _ := strings.Cut(entry, ".")
+		if typeName != def.Name {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]string)
+		}
+		out[fa.As] = fa.As + ": " + fieldName + "(" + renderArguments(fa.Args) + ")"
+		if p.usedFieldArguments == nil {
+			p.usedFieldArguments = make(map[string]bool)
+		}
+		p.usedFieldArguments[entry] = true
+	}
+	return out
+}
+
+// renderArguments writes args back from their parsed form: tidy between tokens,
+// and string values exactly as given. validateFieldArguments has already
+// parsed them, so a parse error here cannot happen; args are kept as given if
+// it does.
+func renderArguments(args string) string {
+	doc, err := gqlparse.ParseQuery(&ast.Source{Input: "{ f(" + args + ") }"})
+	if err != nil {
+		return args
+	}
+	field, ok := doc.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok {
+		return args
+	}
+	parts := make([]string, 0, len(field.Arguments))
+	for _, a := range field.Arguments {
+		parts = append(parts, a.Name+": "+a.Value.String())
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (p *parser) parse() (*Schema, error) {
@@ -840,6 +1104,12 @@ func (p *parser) buildResources() []Resource {
 		if !p.usedCommandNames[name] {
 			p.overrideErrors = append(p.overrideErrors,
 				fmt.Sprintf("command_names entry %q matches no generated operation", name))
+		}
+	}
+	for entry := range p.overrides.FieldArguments {
+		if !p.usedFieldArguments[entry] {
+			p.overrideErrors = append(p.overrideErrors,
+				fmt.Sprintf("field_arguments entry %q is on a type no generated list or get returns", entry))
 		}
 	}
 	sort.Strings(p.overrideErrors)
@@ -1556,7 +1826,9 @@ func (p *parser) unionSafeFields(def *ast.Definition) string {
 // selections keyed by field name. They are left out of the default query,
 // because each is a separate server query per row (a hire has eight), and
 // added only when --fields asks for one. Relying on the relation's `first`
-// default keeps them argument-free.
+// default keeps them argument-free. The type's field_arguments entries join
+// them, keyed by their `as` name: fields with fixed arguments, which must not
+// be in the default query either.
 func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 	typeName := unwrapType(t)
 	if inner, ok := p.paginators[typeName]; ok {
@@ -1595,6 +1867,9 @@ func (p *parser) optionalSelections(t *ast.Type) map[string]string {
 			continue
 		}
 		optional[f.Name] = f.Name + " { paginatorInfo { total } data { " + items + " } }"
+	}
+	for name, sel := range p.fieldArgumentSelections(def) {
+		optional[name] = sel
 	}
 	if len(optional) == 0 {
 		return nil

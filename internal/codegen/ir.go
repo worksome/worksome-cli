@@ -46,7 +46,9 @@ type Operation struct {
 	SelectionSet string // Pre-computed GraphQL selection set for the return type
 	// Optional holds sub-selections the default query leaves out and offers on
 	// request through --fields: paginated relations, which cost the server one
-	// query per row. Keyed by field name; the value is the full selection.
+	// query per row, and field_arguments entries, fields sent with fixed
+	// arguments. Keyed by the name --fields asks for (a relation's field name,
+	// an entry's `as`); the value is the full selection.
 	Optional         map[string]string
 	Deprecated       bool
 	DeprecatedReason string
