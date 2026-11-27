@@ -2295,6 +2295,7 @@ type Bill {
 	billedAmount: Float!
 	total(accountType: AccountType!, viewerRole: ViewerRole = ANY): Float!
 	share(role: ViewerRole): Float
+	label(prefix: String!): String
 	worker: Worker
 }
 
@@ -2341,10 +2342,15 @@ func TestFieldArgumentsOfferAFieldOnRequest(t *testing.T) {
 	ops := billOperations(t, `
 field_arguments:
   "Bill.total": { as: companyTotal, args: "accountType:   COMPANY" }
+  "Bill.label": { as: prefixedLabel, args: 'prefix:  "A  B"' }
 `)
 	for _, op := range ops {
 		if got, want := op.Optional["companyTotal"], "companyTotal: total(accountType: COMPANY)"; got != want {
 			t.Errorf("%s: Optional[companyTotal] = %q, want %q", op.Name, got, want)
+		}
+		// Tidy between tokens, but a string value is sent exactly as written.
+		if got, want := op.Optional["prefixedLabel"], `prefixedLabel: label(prefix: "A  B")`; got != want {
+			t.Errorf("%s: Optional[prefixedLabel] = %q, want %q", op.Name, got, want)
 		}
 		// On request only: the arguments pick a view some callers are refused.
 		if strings.Contains(op.SelectionSet, "total(") || strings.Contains(op.SelectionSet, "companyTotal") {

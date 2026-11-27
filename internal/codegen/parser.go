@@ -369,13 +369,33 @@ func (p *parser) fieldArgumentSelections(def *ast.Definition) map[string]string 
 		if out == nil {
 			out = make(map[string]string)
 		}
-		out[fa.As] = fa.As + ": " + fieldName + "(" + strings.Join(strings.Fields(fa.Args), " ") + ")"
+		out[fa.As] = fa.As + ": " + fieldName + "(" + renderArguments(fa.Args) + ")"
 		if p.usedFieldArguments == nil {
 			p.usedFieldArguments = make(map[string]bool)
 		}
 		p.usedFieldArguments[entry] = true
 	}
 	return out
+}
+
+// renderArguments writes args back from their parsed form: tidy between tokens,
+// and string values exactly as given. validateFieldArguments has already
+// parsed them, so a parse error here cannot happen; args are kept as given if
+// it does.
+func renderArguments(args string) string {
+	doc, err := gqlparse.ParseQuery(&ast.Source{Input: "{ f(" + args + ") }"})
+	if err != nil {
+		return args
+	}
+	field, ok := doc.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok {
+		return args
+	}
+	parts := make([]string, 0, len(field.Arguments))
+	for _, a := range field.Arguments {
+		parts = append(parts, a.Name+": "+a.Value.String())
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (p *parser) parse() (*Schema, error) {
