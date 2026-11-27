@@ -2296,10 +2296,17 @@ type Bill {
 	total(accountType: AccountType!, viewerRole: ViewerRole = ANY): Float!
 	share(role: ViewerRole): Float
 	label(prefix: String!): String
+	tagged(names: [String!]!): String
+	within(range: Range!): Float
+	stamped(at: DateTime!): String
 	worker: Worker
 }
 
 type Worker { id: ID! name: String! }
+
+input Range { from: Int! to: Int }
+
+scalar DateTime
 
 type Orphan { id: ID! total(accountType: AccountType!): Float! }
 
@@ -2343,14 +2350,25 @@ func TestFieldArgumentsOfferAFieldOnRequest(t *testing.T) {
 field_arguments:
   "Bill.total": { as: companyTotal, args: "accountType:   COMPANY" }
   "Bill.label": { as: prefixedLabel, args: 'prefix:  "A  B"' }
+  "Bill.tagged": { as: twoTags, args: 'names: ["A", "B"]' }
+  "Bill.within": { as: fromOne, args: "range: { from: 1 }" }
+  "Bill.stamped": { as: newYear, args: 'at: "2026-01-01"' }
 `)
 	for _, op := range ops {
 		if got, want := op.Optional["companyTotal"], "companyTotal: total(accountType: COMPANY)"; got != want {
 			t.Errorf("%s: Optional[companyTotal] = %q, want %q", op.Name, got, want)
 		}
-		// Tidy between tokens, but a string value is sent exactly as written.
-		if got, want := op.Optional["prefixedLabel"], `prefixedLabel: label(prefix: "A  B")`; got != want {
-			t.Errorf("%s: Optional[prefixedLabel] = %q, want %q", op.Name, got, want)
+		// Tidy between tokens, but a string value is sent exactly as written;
+		// constant lists, input objects and custom scalars are fine.
+		for name, want := range map[string]string{
+			"prefixedLabel": `prefixedLabel: label(prefix: "A  B")`,
+			"twoTags":       `twoTags: tagged(names: ["A","B"])`,
+			"fromOne":       `fromOne: within(range: {from:1})`,
+			"newYear":       `newYear: stamped(at: "2026-01-01")`,
+		} {
+			if got := op.Optional[name]; got != want {
+				t.Errorf("%s: Optional[%s] = %q, want %q", op.Name, name, got, want)
+			}
 		}
 		// On request only: the arguments pick a view some callers are refused.
 		if strings.Contains(op.SelectionSet, "total(") || strings.Contains(op.SelectionSet, "companyTotal") {
@@ -2379,6 +2397,14 @@ func TestFieldArgumentsRejectsInvalidEntry(t *testing.T) {
 		"variable":              {`"Bill.total": { as: companyTotal, args: "accountType: $type" }`, "must be a constant"},
 		"does not parse":        {`"Bill.total": { as: companyTotal, args: "accountType COMPANY" }`, "do not parse"},
 		"no list or get":        {`"Orphan.total": { as: companyTotal, args: "accountType: COMPANY" }`, "no generated list or get returns"},
+		"number for a string":   {`"Bill.label": { as: prefixedLabel, args: "prefix: 42" }`, "must be a String, not 42"},
+		"null for non-null":     {`"Bill.label": { as: prefixedLabel, args: "prefix: null" }`, "cannot be null"},
+		"variable in a list":    {`"Bill.tagged": { as: someTags, args: 'names: ["A", $missing]' }`, "must be a constant"},
+		"wrong item in a list":  {`"Bill.tagged": { as: someTags, args: 'names: ["A", 2]' }`, "must be a String, not 2"},
+		"variable in an object": {`"Bill.within": { as: someRange, args: "range: { from: $start }" }`, "must be a constant"},
+		"unknown object field":  {`"Bill.within": { as: someRange, args: "range: { from: 1, step: 2 }" }`, `has no field "step" in Range`},
+		"object field missing":  {`"Bill.within": { as: someRange, args: "range: { to: 2 }" }`, `needs field "from" in Range`},
+		"variable in a custom":  {`"Bill.stamped": { as: someTime, args: "at: [$when]" }`, "must be a constant"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := parseWithOverrides(t, fieldArgumentsSchema, "field_arguments:\n  "+tc.entries+"\n")

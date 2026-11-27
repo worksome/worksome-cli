@@ -298,10 +298,9 @@ func (p *parser) validateFieldArguments() error {
 }
 
 // fieldArgumentsProblem says what is wrong with args as the arguments of f, or
-// "" when they can be sent. Values must be constants. An enum value must be one
-// of the enum's; other values are left to the schema guard test, which
-// validates every generated document. The arguments needsArgument treats as
-// a choice must all be given.
+// "" when they can be sent. Each value must be a constant of its argument's
+// type (see valueProblem), and the arguments needsArgument treats as a choice
+// must all be given.
 func (p *parser) fieldArgumentsProblem(f *ast.FieldDefinition, args string) string {
 	if strings.TrimSpace(args) == "" {
 		if problem := p.missingArgumentsProblem(f, nil); problem != "" {
@@ -323,17 +322,104 @@ func (p *parser) fieldArgumentsProblem(f *ast.FieldDefinition, args string) stri
 		if def == nil {
 			return fmt.Sprintf("%s takes no argument %q", f.Name, a.Name)
 		}
-		if a.Value.Kind == ast.Variable {
-			return fmt.Sprintf("argument %q must be a constant, not a variable", a.Name)
-		}
-		if enum := p.doc.Types[def.Type.NamedType]; def.Type.Elem == nil && enum != nil && enum.Kind == ast.Enum {
-			if a.Value.Kind != ast.EnumValue || enum.EnumValues.ForName(a.Value.Raw) == nil {
-				return fmt.Sprintf("argument %q must be one of %s's values, not %q", a.Name, enum.Name, a.Value.Raw)
-			}
+		if problem := p.valueProblem(a.Value, def.Type); problem != "" {
+			return fmt.Sprintf("argument %q %s", a.Name, problem)
 		}
 		given[a.Name] = true
 	}
 	return p.missingArgumentsProblem(f, given)
+}
+
+// literalKinds lists the literal kinds each built-in scalar accepts. A custom
+// scalar takes any constant: its format is the server's to judge.
+var literalKinds = map[string][]ast.ValueKind{
+	"String":  {ast.StringValue, ast.BlockValue},
+	"ID":      {ast.StringValue, ast.BlockValue, ast.IntValue},
+	"Int":     {ast.IntValue},
+	"Float":   {ast.IntValue, ast.FloatValue},
+	"Boolean": {ast.BooleanValue},
+}
+
+// valueProblem says how v is not a constant of type t, or returns "". It walks
+// lists and input objects, so a variable or a wrong value inside one is found
+// too. The wording completes "argument <name> ...".
+func (p *parser) valueProblem(v *ast.Value, t *ast.Type) string {
+	switch {
+	case v.Kind == ast.Variable:
+		return "must be a constant, not a variable"
+	case v.Kind == ast.NullValue:
+		if t.NonNull {
+			return "cannot be null"
+		}
+		return ""
+	case t.Elem != nil:
+		if v.Kind != ast.ListValue {
+			// A single value stands for a list of one.
+			return p.valueProblem(v, t.Elem)
+		}
+		for _, c := range v.Children {
+			if problem := p.valueProblem(c.Value, t.Elem); problem != "" {
+				return problem
+			}
+		}
+		return ""
+	}
+	def := p.doc.Types[t.NamedType]
+	if def == nil {
+		return fmt.Sprintf("has a type the schema does not declare (%s)", t.NamedType)
+	}
+	switch def.Kind {
+	case ast.Enum:
+		if v.Kind != ast.EnumValue || def.EnumValues.ForName(v.Raw) == nil {
+			return fmt.Sprintf("must be one of %s's values, not %s", def.Name, v.String())
+		}
+	case ast.InputObject:
+		if v.Kind != ast.ObjectValue {
+			return fmt.Sprintf("must be a %s object, not %s", def.Name, v.String())
+		}
+		given := make(map[string]bool, len(v.Children))
+		for _, c := range v.Children {
+			field := def.Fields.ForName(c.Name)
+			if field == nil {
+				return fmt.Sprintf("has no field %q in %s", c.Name, def.Name)
+			}
+			if problem := p.valueProblem(c.Value, field.Type); problem != "" {
+				return problem
+			}
+			given[c.Name] = true
+		}
+		for _, field := range def.Fields {
+			if !given[field.Name] && field.Type.NonNull && field.DefaultValue == nil {
+				return fmt.Sprintf("needs field %q in %s", field.Name, def.Name)
+			}
+		}
+	case ast.Scalar:
+		if kinds, builtIn := literalKinds[def.Name]; builtIn {
+			for _, k := range kinds {
+				if v.Kind == k {
+					return ""
+				}
+			}
+			return fmt.Sprintf("must be a %s, not %s", def.Name, v.String())
+		}
+		if containsVariable(v) {
+			return "must be a constant, not a variable"
+		}
+	}
+	return ""
+}
+
+// containsVariable reports whether v, or anything nested in it, is a variable.
+func containsVariable(v *ast.Value) bool {
+	if v.Kind == ast.Variable {
+		return true
+	}
+	for _, c := range v.Children {
+		if containsVariable(c.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 // missingArgumentsProblem names the first argument of f that needs a value
