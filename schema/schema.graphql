@@ -1042,7 +1042,7 @@ type Batch {
   """
   itemsCountByStatus(
     """
-    The statuses to count items for.
+    The statuses to count items for. For a timesheet-import batch, an empty list counts none.
     """
     status: [BatchItemStatus!]!
   ): Int!
@@ -1067,9 +1067,15 @@ type Batch {
   """
   items(
     """
+    Only return items with any of the specified statuses; an empty list returns none. Filters timesheet-import
+    batches only; other batch types ignore it.
+    """
+    status: [BatchItemStatus!]
+
+    """
     Limits number of fetched items.
     """
-    first: Int! = 10
+    first: Int! = 15
 
     """
     The offset from which items are returned.
@@ -1366,6 +1372,14 @@ type Bid {
   """
   fees: [Fee!]!
   """
+  **Experimental.** The bid's price for each pay item, on a mirror hire: the staffing agency's on its
+  submission to the MSP, or the client's on the MSP's presentation to the client.
+  
+  Readable only by the company the bid was made to and by the supplier that made it. Anyone else
+  reads an empty list.
+  """
+  payItems: [PayItemAssignment!]!
+  """
   Whether the supplier directly manages the worker (Managed) or is referring an
   independent worker they do not manage (Referred). Null on bids made before
   this distinction was tracked.
@@ -1656,6 +1670,19 @@ input ChangeEmailInput {
   The new email for the user.
   """
   email: String!
+}
+"""
+The file to check.
+"""
+input CheckCustomFieldDocumentInput {
+  """
+  The document-checked custom field the file is uploaded to.
+  """
+  customField: ID!
+  """
+  The uploaded file (see the `uploadFiles` mutation).
+  """
+  file: ID!
 }
 """
 **Experimental.** A checklist applied to a hire, made from a checklist template.
@@ -2599,7 +2626,7 @@ type CompanyRecruiter {
   """
   status: ContactStatus!
   """
-  The token used to invite the recruiter.
+  The token used to invite the recruiter. Only the invited staffing agency can read it; other viewers get `null`.
   """
   token: String
   """
@@ -3090,7 +3117,7 @@ the frontend should be able to query a first-class domain type directly.
 `ComplianceDataClassification` is the specialised Q&A shape for determination
 compliances (IR35, NL/Global/US worker classification).
 """
-union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument | ComplianceDataStatus | ComplianceDataDate
+union ComplianceData = ComplianceDataField | ComplianceDataGroup | ComplianceDataFile | ComplianceDataBusinessEntity | ComplianceDataAddress | ComplianceDataUser | ComplianceDataBankDetail | ComplianceDataClassification | ComplianceDataRestrictedDocument | ComplianceDataStatus | ComplianceDataDate | ComplianceDataDocumentCheck
 """
 An address associated with a compliance (residential address, work location,
 etc.). Wraps the existing `Address` type so the frontend can query any field.
@@ -3167,6 +3194,25 @@ type ComplianceDataDate {
   The date, or null when not set.
   """
   date: Date
+}
+"""
+A document uploaded to a custom field that checks its documents with AI, with the check as it stands
+for this worker and any reviewer's decision.
+"""
+type ComplianceDataDocumentCheck {
+  """
+  The custom field's title. Nullable like `title` on the other `ComplianceData` members, because
+  a client selecting the union gets one `title` field and its type must agree across them.
+  """
+  title: String
+  """
+  The uploaded document.
+  """
+  file: File!
+  """
+  The check, evaluated for this worker.
+  """
+  check: DocumentCheck!
 }
 """
 A single label/value pair. Null `value` is preserved so the UI can render
@@ -5451,6 +5497,10 @@ input CreateCustomTimesheetInput {
   Whether to write the timesheets. With false, the call is a dry run: it checks every row as a real call would and returns the result of each row in `rows`, without writing or queueing anything. A dry run checks at most 5,000 rows, and a request can hold one dry run. The default-csv schema checks every row during the request on a write too, so it refuses a file of more than 5,000 rows or 5 MB, and a request can hold one default-csv call, dry run or write. A roar-json dry run needs permission to see all hires in each of your companies. Defaults to true.
   """
   write: Boolean = true
+  """
+  Whether the payment requests the import creates are saved as drafts, for the uploader to edit and send, instead of issued. Only a worker or a staffing agency can ask for drafts: a company account fails validation, because companies cannot see or send drafts, and its payment requests are always issued. Ignored by schemas built for a single integration. Defaults to false.
+  """
+  draft: Boolean = false
 }
 """
 The input for creating an expense.
@@ -6463,6 +6513,11 @@ type CustomFieldSettings {
   Validation rules for the custom field.
   """
   validation: [CustomFieldValidationRules!]!
+  """
+  How uploaded documents are checked with AI. Null when the field does not check them; only
+  file-upload fields can.
+  """
+  documentCheck: DocumentCheckSettings
 }
 """
 The settings input for custom fields.
@@ -6472,6 +6527,11 @@ input CustomFieldSettingsInput {
   A list of validation rules to be applied when using custom fields.
   """
   validation: [CustomFieldValidationRules!]
+  """
+  Check uploaded documents with AI. File-upload fields of companies that have consented to AI only.
+  Leave it out or set it to null to stop checking.
+  """
+  documentCheck: DocumentCheckSettingsInput
 }
 """
 A custom fields type.
@@ -6616,6 +6676,12 @@ type CustomFieldValue {
   Present for `FILE_UPLOAD` field-values; null for every other field type.
   """
   file: File
+  """
+  The AI check of the file, as it stands for the record it is attached to.
+  
+  Null unless the field checks its documents and this file has been checked.
+  """
+  documentCheck: DocumentCheck
 }
 """
 An input for a custom field value.
@@ -7093,6 +7159,329 @@ input DetachUsersFromUserGroupInput {
 A JSON-encoded field for an associative array.
 """
 scalar Dictionary
+"""
+The AI check of one uploaded document, as it stands now. The rules are applied again on every read,
+against today's date and the record the document belongs to.
+"""
+type DocumentCheck {
+  """
+  The ID of the document check.
+  """
+  id: ID!
+  """
+  The automatic result. A reviewer's `decision`, when there is one, overrides it.
+  """
+  status: DocumentCheckStatus!
+  """
+  What the document appears to be, e.g. 'Professional indemnity insurance certificate'.
+  """
+  documentType: String
+  """
+  Each check, with its outcome and a reason the uploader can read.
+  """
+  checks: [DocumentCheckItem!]!
+  """
+  The values read from the document.
+  """
+  values: [DocumentCheckValue!]!
+  """
+  The expiry date read from the document.
+  """
+  expiresOn: Date
+  """
+  The issue date read from the document.
+  """
+  issuedOn: Date
+  """
+  Signs the document may not be genuine. Only reviewers see these; empty for everyone else.
+  """
+  concerns: [String!]!
+  """
+  A reviewer's decision, or null when nobody has decided.
+  """
+  decision: DocumentCheckDecision
+  """
+  Why the reviewer declined the document.
+  """
+  decisionReason: String
+  """
+  When the reviewer decided.
+  """
+  decidedAt: DateTime
+  """
+  The name of the reviewer who decided.
+  """
+  decidedByName: String
+  """
+  When the document was checked.
+  """
+  checkedAt: DateTime!
+  """
+  Whether the viewer may approve or decline this document.
+  """
+  viewerCanReview: Boolean!
+}
+"""
+A reviewer’s decision on a checked document. It always overrides the automatic result.
+"""
+enum DocumentCheckDecision {
+  """
+  A reviewer approved the document.
+  """
+  APPROVED
+  """
+  A reviewer declined the document.
+  """
+  DECLINED
+}
+"""
+One check on a document.
+"""
+type DocumentCheckItem {
+  """
+  Identifies the check, e.g. `not_expired` or `document_type`.
+  """
+  key: String!
+  """
+  What was checked.
+  """
+  label: String!
+  """
+  The outcome.
+  """
+  outcome: DocumentCheckOutcome!
+  """
+  One factual sentence on what was found.
+  """
+  reason: String!
+}
+"""
+The outcome of a single check on an uploaded document.
+"""
+enum DocumentCheckOutcome {
+  """
+  The document meets this check.
+  """
+  PASS
+  """
+  The document does not meet this check.
+  """
+  FAIL
+  """
+  The check could not be confirmed either way, for example because a value is missing.
+  """
+  UNCLEAR
+}
+"""
+The result of a trial document check. It is not stored as a check; the AI request is logged like any other.
+"""
+type DocumentCheckPreview {
+  """
+  The automatic result.
+  """
+  status: DocumentCheckStatus!
+  """
+  What the document appears to be.
+  """
+  documentType: String
+  """
+  Each check, with its outcome and reason.
+  """
+  checks: [DocumentCheckItem!]!
+  """
+  The values read from the document.
+  """
+  values: [DocumentCheckValue!]!
+  """
+  The expiry date read from the document.
+  """
+  expiresOn: Date
+  """
+  The issue date read from the document.
+  """
+  issuedOn: Date
+  """
+  Signs the document may not be genuine.
+  """
+  concerns: [String!]!
+}
+"""
+A rule checked in code against the values read from a document.
+"""
+type DocumentCheckRule {
+  """
+  What the rule checks.
+  """
+  type: DocumentCheckRuleType!
+  """
+  The number of days, for `NOT_EXPIRED` and `ISSUED_WITHIN_DAYS`.
+  """
+  days: Int
+  """
+  The minimum amount, for `MINIMUM_AMOUNT`.
+  """
+  amount: DecimalTwo
+  """
+  The currency of the minimum amount, for `MINIMUM_AMOUNT`.
+  """
+  currency: Currency
+}
+"""
+A rule checked in code.
+"""
+input DocumentCheckRuleInput {
+  """
+  What the rule checks.
+  """
+  type: DocumentCheckRuleType!
+  """
+  The number of days. Required for `NOT_EXPIRED` and `ISSUED_WITHIN_DAYS`.
+  """
+  days: Int
+  """
+  The minimum amount. Required for `MINIMUM_AMOUNT`.
+  """
+  amount: DecimalTwo
+  """
+  The currency of the minimum amount. Required for `MINIMUM_AMOUNT`.
+  """
+  currency: Currency
+}
+"""
+A rule checked in code against the values read from the document.
+"""
+enum DocumentCheckRuleType {
+  """
+  The expiry date is at least `days` days after today.
+  """
+  NOT_EXPIRED
+  """
+  The expiry date is on or after the end date of the hire the document belongs to.
+  """
+  VALID_THROUGH_HIRE_END
+  """
+  The issue date is no more than `days` days before today.
+  """
+  ISSUED_WITHIN_DAYS
+  """
+  The amount on the document, such as an insurance limit, is at least `amount` in `currency`.
+  """
+  MINIMUM_AMOUNT
+  """
+  The name on the document matches the worker’s or the company’s name on file.
+  """
+  HOLDER_MATCHES
+}
+"""
+How uploaded documents are checked with AI. The AI reads each document, judges it against the
+instructions and reads its values; the rules are then checked in code. A person reviews anything that
+does not pass: a check never rejects a document on its own. Custom file-upload fields use these settings.
+"""
+type DocumentCheckSettings {
+  """
+  The instructions for the document, in plain language.
+  """
+  instructions: String!
+  """
+  Rules checked in code against the values read from the document.
+  """
+  rules: [DocumentCheckRule!]!
+  """
+  Values to read from the document, in addition to the standard ones (name, dates, number, amount).
+  """
+  values: [DocumentCheckValueDefinition!]!
+  """
+  An example of a genuine document of this kind, which the AI compares uploads with.
+  """
+  referenceFile: File
+}
+"""
+How to check uploaded documents with AI.
+"""
+input DocumentCheckSettingsInput {
+  """
+  The instructions for the document, in plain language. Up to 4000 characters.
+  """
+  instructions: String!
+  """
+  Rules checked in code. Up to 10.
+  """
+  rules: [DocumentCheckRuleInput!]
+  """
+  Additional values to read from the document. Up to 10.
+  """
+  values: [DocumentCheckValueDefinitionInput!]
+  """
+  An uploaded example of a genuine document of this kind (see the `uploadFiles` mutation).
+  """
+  referenceFile: ID
+}
+"""
+The result of checking an uploaded document with AI and its rules.
+"""
+enum DocumentCheckStatus {
+  """
+  Every check passed.
+  """
+  PASSED
+  """
+  At least one check could not be confirmed, so a person should look at the document.
+  """
+  NEEDS_REVIEW
+  """
+  At least one check failed. A person still decides; the check never rejects on its own.
+  """
+  FAILED
+}
+"""
+A value read from a document.
+"""
+type DocumentCheckValue {
+  """
+  Identifies the value, e.g. `expiry_date`, or the key of an additional value.
+  """
+  key: String!
+  """
+  What the value is.
+  """
+  label: String!
+  """
+  The value, formatted for display.
+  """
+  value: String!
+  """
+  The page it was found on, when known.
+  """
+  page: Int
+}
+"""
+An additional value to read from documents.
+"""
+type DocumentCheckValueDefinition {
+  """
+  Identifies the value in check results. Derived from the label.
+  """
+  key: String!
+  """
+  What the value is, e.g. 'Policy type'.
+  """
+  label: String!
+}
+"""
+An additional value to read from documents.
+"""
+input DocumentCheckValueDefinitionInput {
+  """
+  The key of an existing value, from `DocumentCheckValueDefinition.key`. Send it back unchanged so the
+  value keeps its key when the label is edited; documents already checked are read by that key. Leave
+  it out for a new value: its key is derived from the label.
+  """
+  key: String
+  """
+  What the value is, e.g. 'Policy type'.
+  """
+  label: String!
+}
 """
 The input for duplicating an existing job.
 """
@@ -7755,10 +8144,6 @@ Experience level
 """
 enum ExperienceLevel {
   """
-  None
-  """
-  NONE
-  """
   Student
   """
   STUDENT
@@ -7956,9 +8341,8 @@ type File {
   """
   The URL that should be used to download the file.
   
-  This URL cannot be used for saving in external systems as it might change over
-  time or be regenerated. If a permanent URL is needed for the file, it
-  should be stored in the clients own system.
+  The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in
+  external systems: download the file and store it in your own system, or query this field again for a fresh URL.
   """
   url: String!
   """
@@ -8048,6 +8432,11 @@ input ForwardCandidateInput {
   The MSP markup fee to apply on top of the worker rate.
   """
   fee: FeeInput!
+  """
+  **Experimental.** The MSP markup on each pay item of the source candidate's bid: the client's price is
+  the bid's price plus the markup. A pay item left out takes no markup.
+  """
+  payItemMarkups: [PayItemMarkupInput!]
   """
   An optional brief describing the candidate.
   """
@@ -8621,6 +9010,10 @@ type Hire implements Ownable {
   Whether the viewer may change the owners of this hire.
   """
   viewerCanManageOwners: Boolean!
+  """
+  Whether the viewer may read this hire's compliance and gates. False for an agency that only referred the worker.
+  """
+  viewerCanViewCompliance: Boolean!
   """
   Check if this hire ends within a given number of days.
   """
@@ -9761,9 +10154,27 @@ type Job implements HasURL {
   """
   publishedAt: DateTime
   """
+  The date and time that the job was shared with the account named in the sharedJobs query. Only set on that query.
+  """
+  sharedAt: DateTime
+  """
+  The number of candidates the account named in the sharedJobs query submitted to the job. Only set on that query.
+  """
+  candidateCount: Int
+  """
   The company that the job is for.
   """
   company: Company!
+  """
+  The company that the job is for, or null when the given account may not see the company's details.
+  Also null when the viewer does not belong to the account or may not access its shared jobs.
+  """
+  visibleCompany(
+    """
+    The account the company is shown to.
+    """
+    account: ID!
+  ): Company
   """
   The region for the job.
   """
@@ -9852,6 +10263,17 @@ type Job implements HasURL {
   """
   supplierJob: Job
   """
+  The given account's own supplier version of this shared job: owned by the company supplier itself, or by
+  the partner company of the staffing agency. Null for other accounts, when the viewer does not belong to the
+  account or may not access its shared jobs, or when no version exists yet.
+  """
+  supplierVersion(
+    """
+    The company supplier or staffing agency whose supplier version to return.
+    """
+    account: ID!
+  ): Job
+  """
   The end client of a supplier-mirror job: the company whose job an MSP copied. Null for other jobs.
   Resolved for the job's company and for staffing agencies and suppliers with an active share of it.
   """
@@ -9871,6 +10293,15 @@ type Job implements HasURL {
   an MSP's copy, only by that MSP. Anyone else reads an empty list.
   """
   offerablePayItems: [PayItem!]!
+  """
+  **Experimental.** The pay items a submission of candidates to this job must price, one price per
+  candidate for each, beside the rate: those of an MSP's copy of a client job, or, for a company
+  supplier with its own copy of the client job, those of the client job. Without the job's prices.
+  
+  Readable only by a supplier with an active share of the job. Anyone else, and a supplier whose
+  submissions carry no pay items, reads an empty list.
+  """
+  pitchPayItems: [AssignedPayItem!]!
   """
   **Experimental.** The rate card band for this job. By default, this is the band from
   the rate card in force today. With `cached: true`, it is the band saved on the job. The
@@ -10869,71 +11300,71 @@ The market code.
 """
 enum MarketCode {
   """
-  Us
+  United States
   """
   US
   """
-  Uk
+  United Kingdom
   """
   UK
   """
-  Ie
+  Ireland
   """
   IE
   """
-  Eu
+  Rest of Euro area
   """
   EU
   """
-  Ca
+  Canada
   """
   CA
   """
-  Fr
+  France
   """
   FR
   """
-  De
+  Germany
   """
   DE
   """
-  Dk
+  Denmark
   """
   DK
   """
-  No
+  Norway
   """
   NO
   """
-  Se
+  Sweden
   """
   SE
   """
-  Fi
+  Finland
   """
   FI
   """
-  Lt
+  Lithuania
   """
   LT
   """
-  Uae
+  United Arab Emirates
   """
   UAE
   """
-  Sg
+  Singapore
   """
   SG
   """
-  Au
+  Australia
   """
   AU
   """
-  Nl
+  Netherlands
   """
   NL
   """
-  Ww
+  Rest of the World
   """
   WW
 }
@@ -11527,6 +11958,41 @@ type Mutation {
     """
     input: UpdateWorkerCustomFieldValuesInput!
   ): UpdateWorkerCustomFieldValuesPayload!
+  """
+  Check a file uploaded to a document-checked custom field with AI. Call it once the file is uploaded,
+  before saving the field value, so the uploader sees the result straight away. A file is only checked
+  once per field: calling it again returns the existing check, unless reading it failed for a passing
+  reason and nobody has decided on it yet. Limited to 30 calls a minute per user.
+  """
+  checkCustomFieldDocument(
+    """
+    The field and file to check.
+    """
+    input: CheckCustomFieldDocumentInput!
+  ): DocumentCheck!
+  """
+  Try document check settings on a sample document before saving them. No check is stored: the sample
+  stays where it was uploaded, and the AI request is logged like any other. Limited to 10 calls a
+  minute per user.
+  """
+  previewDocumentCheck(
+    """
+    The settings and sample document.
+    """
+    input: PreviewDocumentCheckInput!
+  ): DocumentCheckPreview!
+  """
+  Approve or decline a checked document. Requires the `manage-compliance-tracker` permission at the
+  company that set up the check (for a custom field, the company that owns it). The decision applies to
+  the file on that field wherever it is attached; the returned result is worked out as for
+  `customFieldDocumentCheck`.
+  """
+  reviewDocumentCheck(
+    """
+    The decision.
+    """
+    input: ReviewDocumentCheckInput!
+  ): DocumentCheck!
   """
   Mark an employment as updated.
   """
@@ -13205,7 +13671,7 @@ Whether a pay item is offered on a job or selected on a contract.
 """
 enum PayItemAssignmentStatus {
   """
-  The pay item is offered on a job for a contract to select.
+  The pay item is offered on a job for a contract to select, or priced on a bid.
   """
   OFFERED
   """
@@ -13229,6 +13695,37 @@ enum PayItemBasis {
   A percentage on top of the base pay.
   """
   PERCENTAGE
+}
+"""
+**Experimental.** How an MSP markup on a pay item is added to the bid's price.
+"""
+enum PayItemMarkupBasis {
+  """
+  An amount added to the bid's price.
+  """
+  AMOUNT
+  """
+  A percentage of the bid's price, added to it.
+  """
+  PERCENTAGE
+}
+"""
+**Experimental.** The MSP markup on a pay item of a bid presented to the client.
+"""
+input PayItemMarkupInput {
+  """
+  The ID of the pay item, one of the source candidate's bid's pay items.
+  """
+  payItem: ID!
+  """
+  The markup, read by its basis: an amount in the bid's currency, or a fraction of the bid's price
+  (0.125 is 12.5%).
+  """
+  amount: DecimalFour!
+  """
+  Whether the markup is an amount added to the bid's price or a percentage of it.
+  """
+  basis: PayItemMarkupBasis!
 }
 """
 A paginated list of PayItem items.
@@ -13947,6 +14444,44 @@ The `Percentage` scalar type represents a percentage.
 """
 scalar Percentage
 """
+**Experimental.** A candidate's price for a pay item of the job, on a submission of candidates.
+"""
+input PitchedPayItemInput {
+  """
+  The ID of the pay item, one of the job's `pitchPayItems`.
+  """
+  payItem: ID!
+  """
+  The candidate's price, in the job's currency.
+  """
+  price: DecimalTwo!
+}
+"""
+A trial document check.
+"""
+input PreviewDocumentCheckInput {
+  """
+  The company setting up the check.
+  """
+  account: ID!
+  """
+  What is being uploaded, e.g. the custom field's title. The AI reads it with the instructions.
+  """
+  title: String!
+  """
+  More about what is being uploaded, e.g. the custom field's description.
+  """
+  description: String
+  """
+  The settings to try.
+  """
+  settings: DocumentCheckSettingsInput!
+  """
+  An uploaded sample document (see the `uploadFiles` mutation).
+  """
+  file: ID!
+}
+"""
 A public-facing profile for a worker or company on Worksome.
 
 Profiles contain biographical information, descriptions, and other details that are visible
@@ -14293,6 +14828,23 @@ type Query {
     id: ID!
   ): CustomField
   """
+  The check of a file on a document-checked custom field, or null when it has not been checked. A check
+  belongs to the field and the file. If the file is attached to more than one record, the rules on the
+  hire and the holder's name use the first; read `documentCheck` on a custom field value for the result
+  for one record.
+  """
+  customFieldDocumentCheck(
+    """
+    The custom field.
+    """
+    customField: ID!
+
+    """
+    The file uploaded to it.
+    """
+    file: ID!
+  ): DocumentCheck
+  """
   Get a specific employment.
   """
   employment(
@@ -14446,7 +14998,7 @@ type Query {
     id: ID!
   ): Project
   """
-  Get a specific recruiter.
+  Get a specific staffing agency. Returns `null` when the viewer is not related to it (see `recruiters`).
   """
   recruiter(
     """
@@ -15965,6 +16517,80 @@ type Query {
     page: Int
   ): JobPaginator!
   """
+  Available jobs actively shared with one of the viewer's staffing agency or company supplier accounts.
+  Refused when the viewer does not belong to the account, it is not a staffing agency or company supplier,
+  or the viewer may not access its shared jobs.
+  """
+  sharedJobs(
+    """
+    The staffing agency or company supplier the jobs are shared with.
+    """
+    account: ID!
+
+    """
+    Search jobs by title or description.
+    """
+    search: String
+
+    """
+    Only show jobs for the account's clients owned by any of the given users, or jobs whose supplier version
+    they own. Applies to company suppliers only.
+    """
+    clientOwners: [ID!]
+
+    """
+    Only show jobs for the given end clients: the client behind a supplier-mirror job, or the job's own
+    company for accounts allowed to see company details.
+    """
+    endClients: [ID!]
+
+    """
+    Only show jobs that do, or do not, have the account's own supplier version yet.
+    Applies to company suppliers and to staffing agencies with a partner company.
+    """
+    hasSupplierVersion: Boolean
+
+    """
+    Only show jobs using the specified payment rate types.
+    """
+    rateTypes: [RateType!]
+
+    """
+    Only show jobs with the specified commitment.
+    """
+    associations: [Association!]
+
+    """
+    Only show jobs with the specified location preferences.
+    """
+    locationPreferences: [LocationPreference!]
+
+    """
+    Only show jobs requiring all the given skills.
+    """
+    skills: [String!]
+
+    """
+    Only show jobs expecting the specified experience levels.
+    """
+    experienceLevel: [ExpectedExperienceLevel!]
+
+    """
+    Order the results. Defaults to the most recently shared first.
+    """
+    orderBy: [SharedJobsOrderByClauseInput!] = [{field: SHARED_DATE, order: DESC}]
+
+    """
+    Limits number of fetched items.
+    """
+    first: Int! = 10
+
+    """
+    The offset from which items are returned.
+    """
+    page: Int
+  ): JobPaginator!
+  """
   Get a list of job candidates.
   """
   jobCandidates(
@@ -16330,7 +16956,11 @@ type Query {
     page: Int
   ): ProjectPaginator!
   """
-  Get a list of recruiters.
+  Get a list of the staffing agencies the viewer is related to: their own agency, agencies with an active or applied
+  link to one of their companies, agencies on a hire of one of their companies that the agency pitched or that a
+  sibling division in the same organisation has an active link with, and agencies with an active or invited link to
+  their worker account. An invite alone does not relate an agency. A company user with the `manage-recruiters`
+  permission who searches with at least 3 characters gets every agency whose name matches, so they can invite it.
   """
   recruiters(
     """
@@ -17085,7 +17715,7 @@ type Recruiter implements Account {
   """
   availableMarkets: [AvailableMarket!]!
   """
-  The owner of the recruiter account
+  The owner of the recruiter account. `null` when the viewer is not related to the staffing agency (see `recruiters`).
   """
   owner: User
   """
@@ -17097,7 +17727,7 @@ type Recruiter implements Account {
   """
   candidates: [RecruiterCandidate!]!
   """
-  The insurance information for the recruiter.
+  The insurance information for the recruiter. Empty when the viewer is not related to the staffing agency (see `recruiters`).
   """
   insurances: [WorkerInsurance!]!
   """
@@ -17501,6 +18131,23 @@ input RetryWebhookEventInput {
   id: ID!
 }
 """
+A reviewer's decision on a checked document.
+"""
+input ReviewDocumentCheckInput {
+  """
+  The document check.
+  """
+  documentCheck: ID!
+  """
+  True to approve, false to decline.
+  """
+  approved: Boolean!
+  """
+  Why the document was declined.
+  """
+  reason: String
+}
+"""
 Input for recording a company's compliance review of a staffing agency.
 
 The reviewer is the authenticated user; the company is the user's
@@ -17721,6 +18368,40 @@ input ShareHireInput {
   Optional message to include when sharing the hire.
   """
   message: String
+}
+"""
+The columns that the shared jobs list can be ordered by.
+"""
+enum SharedJobOrderByColumn {
+  """
+  The date the job was shared with the viewer
+  """
+  SHARED_DATE
+  """
+  The published date
+  """
+  PUBLISHED_DATE
+  """
+  The expected start date
+  """
+  EXPECTED_START_DATE
+  """
+  The number of candidates the viewer has put forward for the job
+  """
+  CANDIDATES
+}
+"""
+The input object used to sort shared jobs.
+"""
+input SharedJobsOrderByClauseInput {
+  """
+  The field to sort shared jobs by.
+  """
+  field: SharedJobOrderByColumn!
+  """
+  The order to sort shared jobs by.
+  """
+  order: SortOrder!
 }
 """
 An input for a single-select custom field.
@@ -18033,6 +18714,11 @@ input SubmitJobCandidateInput {
   mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
   """
   submissionType: CandidateSubmissionType
+  """
+  **Experimental.** The candidate's price for each pay item of the job that a submission must
+  price (`Job.pitchPayItems`). Required, with every one of them, when the job has any.
+  """
+  payItems: [PitchedPayItemInput!]
 }
 """
 The details for submitting a supplier's candidates to a job.
@@ -18518,8 +19204,10 @@ type TimesheetBlockingReason {
   """
   reason: CustomTimesheetRejectionReason!
   """
-  The payment request this reason refers to, scoped to the viewer. Null when the reason doesn't
-  refer to a payment request, or the viewer is an end client with no payment request of their own.
+  The payment request this reason refers to, scoped to the viewer as their payment request lists show it. Null
+  when the reason doesn't refer to a payment request, when the viewer's lists don't show it (for a company member
+  who may not manage its bills, or on a hire they don't own unless they may access all hires), or when the viewer
+  is an end client with no issued payment request of their own.
   """
   paymentRequest: PaymentRequest
   """
@@ -18976,6 +19664,9 @@ type TrustedContact {
   
   When `names` is omitted, the curated review-modal subset is returned. Pass
   explicit names to filter to a specific compliance.
+  
+  Empty for a viewer the worker has not shared their compliance with: until the
+  worker accepts or applies, or works with the company on a hire past draft.
   """
   compliances(
     """
@@ -21218,7 +21909,7 @@ type Worker implements Account {
     account: ID!
   ): Boolean!
   """
-  Names of the other divisions in the given company's organisations that have an active hire with the worker.
+  Names of the other divisions in the given company's organisations that have a Ready or Active hire with the worker.
   Empty unless the organisation shares trusted contacts and active hires between its divisions.
   """
   hiredByOtherDivisions(
@@ -21518,7 +22209,7 @@ interface WorkflowVariable {
 A condition definition specifying a variable, comparison operator, and threshold value.
 
 For example, to create a condition "hourly rate greater than 100", set `id` to the hourly rate
-variable identifier, `operator` to `GREATER_THAN`, and `value` to `"100"`.
+variable identifier, `operator` to `GREATER`, and `value` to `"100"`.
 """
 input WorkflowVariableFieldRuleInput {
   """

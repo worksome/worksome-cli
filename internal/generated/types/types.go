@@ -402,6 +402,8 @@ type Bid struct {
 	Files []*File `json:"files"`
 	// The fees associated with this bid.
 	Fees []*Fee `json:"fees"`
+	// **Experimental.** The bid's price for each pay item, on a mirror hire: the staffing agency's on its submission to the MSP, or the client's on the MSP's presentation to the client. Readable only by the company the bid was made to and by the supplier that made it. Anyone else reads an empty list.
+	PayItems []*PayItemAssignment `json:"payItems"`
 	// Whether the supplier directly manages the worker (Managed) or is referring an independent worker they do not manage (Referred). Null on bids made before this distinction was tracked.
 	WorkerType *CandidateSubmissionType `json:"workerType,omitempty"`
 }
@@ -716,7 +718,7 @@ type CompanyRecruiter struct {
 	Email *string `json:"email,omitempty"`
 	// Status of the company recruiter.
 	Status ContactStatus `json:"status"`
-	// The token used to invite the recruiter.
+	// The token used to invite the recruiter. Only the invited staffing agency can read it; other viewers get 'null'.
 	Token *string `json:"token,omitempty"`
 	// The message sent to the recruiter when inviting them.
 	Message *string `json:"message,omitempty"`
@@ -951,6 +953,16 @@ type ComplianceDataDate struct {
 	Label string `json:"label"`
 	// The date, or null when not set.
 	Date *string `json:"date,omitempty"`
+}
+
+// ComplianceDataDocumentCheck — A document uploaded to a custom field that checks its documents with AI, with the check as it stands for this worker and any reviewer's decision.
+type ComplianceDataDocumentCheck struct {
+	// The custom field's title. Nullable like 'title' on the other 'ComplianceData' members, because a client selecting the union gets one 'title' field and its type must agree across them.
+	Title *string `json:"title,omitempty"`
+	// The uploaded document.
+	File *File `json:"file"`
+	// The check, evaluated for this worker.
+	Check *DocumentCheck `json:"check"`
 }
 
 // ComplianceDataField — A single label/value pair. Null 'value' is preserved so the UI can render semantically-empty fields (e.g. "Not subject to VAT") rather than hiding them.
@@ -1271,6 +1283,8 @@ type CustomFieldPaginator struct {
 type CustomFieldSettings struct {
 	// Validation rules for the custom field.
 	Validation []CustomFieldValidationRules `json:"validation"`
+	// How uploaded documents are checked with AI. Null when the field does not check them; only file-upload fields can.
+	DocumentCheck *DocumentCheckSettings `json:"documentCheck,omitempty"`
 }
 
 // CustomFieldValue — A custom field value. Those represents the custom fields value filled for an entity supporting custom fields. e.g: You've defined a free-text "sector" custom field applying to 'Job' entities. Say you have a job which is in the "IT" sector. You'd need to create a custom field value with 'field_id = <sector field id>', and 'content = "IT"'.
@@ -1293,6 +1307,8 @@ type CustomFieldValue struct {
 	DisplayValue *string `json:"displayValue,omitempty"`
 	// The uploaded file referenced by the field value. Present for 'FILE_UPLOAD' field-values; null for every other field type.
 	File *File `json:"file,omitempty"`
+	// The AI check of the file, as it stands for the record it is attached to. Null unless the field checks its documents and this file has been checked.
+	DocumentCheck *DocumentCheck `json:"documentCheck,omitempty"`
 }
 
 // CustomTimesheetFileRejection — Why a whole timesheet file was refused.
@@ -1325,6 +1341,112 @@ type CustomTimesheetRowResult struct {
 	Message *string `json:"message,omitempty"`
 	// The timesheet line custom field the reason refers to: set when the reason is 'INVALID_CUSTOM_FIELD_VALUE' or 'REQUIRED_FIELD_CANNOT_BE_IMPORTED', null otherwise. A problem that rejects every row of the hire (two line fields sharing a slug, or a required field the import cannot fill) names its own field, before any value is checked. Otherwise, when several fields of the row fail, the first in template column order.
 	CustomField *TimesheetImportCustomField `json:"customField,omitempty"`
+}
+
+// DocumentCheck — The AI check of one uploaded document, as it stands now. The rules are applied again on every read, against today's date and the record the document belongs to.
+type DocumentCheck struct {
+	// The ID of the document check.
+	Id string `json:"id"`
+	// The automatic result. A reviewer's 'decision', when there is one, overrides it.
+	Status DocumentCheckStatus `json:"status"`
+	// What the document appears to be, e.g. 'Professional indemnity insurance certificate'.
+	DocumentType *string `json:"documentType,omitempty"`
+	// Each check, with its outcome and a reason the uploader can read.
+	Checks []*DocumentCheckItem `json:"checks"`
+	// The values read from the document.
+	Values []*DocumentCheckValue `json:"values"`
+	// The expiry date read from the document.
+	ExpiresOn *string `json:"expiresOn,omitempty"`
+	// The issue date read from the document.
+	IssuedOn *string `json:"issuedOn,omitempty"`
+	// Signs the document may not be genuine. Only reviewers see these; empty for everyone else.
+	Concerns []string `json:"concerns"`
+	// A reviewer's decision, or null when nobody has decided.
+	Decision *DocumentCheckDecision `json:"decision,omitempty"`
+	// Why the reviewer declined the document.
+	DecisionReason *string `json:"decisionReason,omitempty"`
+	// When the reviewer decided.
+	DecidedAt *string `json:"decidedAt,omitempty"`
+	// The name of the reviewer who decided.
+	DecidedByName *string `json:"decidedByName,omitempty"`
+	// When the document was checked.
+	CheckedAt string `json:"checkedAt"`
+	// Whether the viewer may approve or decline this document.
+	ViewerCanReview bool `json:"viewerCanReview"`
+}
+
+// DocumentCheckItem — One check on a document.
+type DocumentCheckItem struct {
+	// Identifies the check, e.g. 'not_expired' or 'document_type'.
+	Key string `json:"key"`
+	// What was checked.
+	Label string `json:"label"`
+	// The outcome.
+	Outcome DocumentCheckOutcome `json:"outcome"`
+	// One factual sentence on what was found.
+	Reason string `json:"reason"`
+}
+
+// DocumentCheckPreview — The result of a trial document check. It is not stored as a check; the AI request is logged like any other.
+type DocumentCheckPreview struct {
+	// The automatic result.
+	Status DocumentCheckStatus `json:"status"`
+	// What the document appears to be.
+	DocumentType *string `json:"documentType,omitempty"`
+	// Each check, with its outcome and reason.
+	Checks []*DocumentCheckItem `json:"checks"`
+	// The values read from the document.
+	Values []*DocumentCheckValue `json:"values"`
+	// The expiry date read from the document.
+	ExpiresOn *string `json:"expiresOn,omitempty"`
+	// The issue date read from the document.
+	IssuedOn *string `json:"issuedOn,omitempty"`
+	// Signs the document may not be genuine.
+	Concerns []string `json:"concerns"`
+}
+
+// DocumentCheckRule — A rule checked in code against the values read from a document.
+type DocumentCheckRule struct {
+	// What the rule checks.
+	Type DocumentCheckRuleType `json:"type"`
+	// The number of days, for 'NOT_EXPIRED' and 'ISSUED_WITHIN_DAYS'.
+	Days *int `json:"days,omitempty"`
+	// The minimum amount, for 'MINIMUM_AMOUNT'.
+	Amount *float64 `json:"amount,omitempty"`
+	// The currency of the minimum amount, for 'MINIMUM_AMOUNT'.
+	Currency *Currency `json:"currency,omitempty"`
+}
+
+// DocumentCheckSettings — How uploaded documents are checked with AI. The AI reads each document, judges it against the instructions and reads its values; the rules are then checked in code. A person reviews anything that does not pass: a check never rejects a document on its own. Custom file-upload fields use these settings.
+type DocumentCheckSettings struct {
+	// The instructions for the document, in plain language.
+	Instructions string `json:"instructions"`
+	// Rules checked in code against the values read from the document.
+	Rules []*DocumentCheckRule `json:"rules"`
+	// Values to read from the document, in addition to the standard ones (name, dates, number, amount).
+	Values []*DocumentCheckValueDefinition `json:"values"`
+	// An example of a genuine document of this kind, which the AI compares uploads with.
+	ReferenceFile *File `json:"referenceFile,omitempty"`
+}
+
+// DocumentCheckValue — A value read from a document.
+type DocumentCheckValue struct {
+	// Identifies the value, e.g. 'expiry_date', or the key of an additional value.
+	Key string `json:"key"`
+	// What the value is.
+	Label string `json:"label"`
+	// The value, formatted for display.
+	Value string `json:"value"`
+	// The page it was found on, when known.
+	Page *int `json:"page,omitempty"`
+}
+
+// DocumentCheckValueDefinition — An additional value to read from documents.
+type DocumentCheckValueDefinition struct {
+	// Identifies the value in check results. Derived from the label.
+	Key string `json:"key"`
+	// What the value is, e.g. 'Policy type'.
+	Label string `json:"label"`
 }
 
 // Employment — An employment record for a worker engaged on payroll through Worksome or an Employer of Record (EoR) partner. Employment records track the formal payroll relationship when a worker is employed rather than operating as an independent contractor. A hire may have an associated employment when the engagement uses a payroll arrangement; not all hires have one.
@@ -1513,7 +1635,7 @@ type File struct {
 	MimeType string `json:"mimeType"`
 	// The account that the file belongs to.
 	Owner *Account `json:"owner"`
-	// The URL that should be used to download the file. This URL cannot be used for saving in external systems as it might change over time or be regenerated. If a permanent URL is needed for the file, it should be stored in the clients own system.
+	// The URL that should be used to download the file. The URL is valid for one hour after it is issued and needs no API token to fetch. It cannot be used for saving in external systems: download the file and store it in your own system, or query this field again for a fresh URL.
 	Url string `json:"url"`
 	// The date and time the file was created.
 	CreatedAt *string `json:"createdAt,omitempty"`
@@ -1699,6 +1821,8 @@ type Hire struct {
 	Owners []*Owner `json:"owners"`
 	// Whether the viewer may change the owners of this hire.
 	ViewerCanManageOwners bool `json:"viewerCanManageOwners"`
+	// Whether the viewer may read this hire's compliance and gates. False for an agency that only referred the worker.
+	ViewerCanViewCompliance bool `json:"viewerCanViewCompliance"`
 	// Check if this hire ends within a given number of days.
 	EndsWithinDays bool `json:"endsWithinDays"`
 	// The number of days the hire has been active (tenure).
@@ -2009,8 +2133,14 @@ type Job struct {
 	RemovedCause *string `json:"removedCause,omitempty"`
 	// The date and time that the job was published.
 	PublishedAt *string `json:"publishedAt,omitempty"`
+	// The date and time that the job was shared with the account named in the sharedJobs query. Only set on that query.
+	SharedAt *string `json:"sharedAt,omitempty"`
+	// The number of candidates the account named in the sharedJobs query submitted to the job. Only set on that query.
+	CandidateCount *int `json:"candidateCount,omitempty"`
 	// The company that the job is for.
 	Company *Company `json:"company"`
+	// The company that the job is for, or null when the given account may not see the company's details. Also null when the viewer does not belong to the account or may not access its shared jobs.
+	VisibleCompany *Company `json:"visibleCompany,omitempty"`
 	// The region for the job.
 	Region *string `json:"region,omitempty"`
 	// The URL for the job.
@@ -2053,12 +2183,16 @@ type Job struct {
 	SourceJob *Job `json:"sourceJob,omitempty"`
 	// The supplier-side job derived from this source job. Only resolved for viewers on the company that owns the supplier-side job.
 	SupplierJob *Job `json:"supplierJob,omitempty"`
+	// The given account's own supplier version of this shared job: owned by the company supplier itself, or by the partner company of the staffing agency. Null for other accounts, when the viewer does not belong to the account or may not access its shared jobs, or when no version exists yet.
+	SupplierVersion *Job `json:"supplierVersion,omitempty"`
 	// The end client of a supplier-mirror job: the company whose job an MSP copied. Null for other jobs. Resolved for the job's company and for staffing agencies and suppliers with an active share of it.
 	EndClient *Company `json:"endClient,omitempty"`
 	// **Experimental.** The pay items this job offers. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
 	PayItems []*PayItemAssignment `json:"payItems"`
 	// **Experimental.** The pay items this job can offer. On an MSP's copy of a client job, these are the client's, and the list is empty once the client job is deleted. Readable only by the client company owning the job, and by the MSP managing it; on an MSP's copy, only by that MSP. Anyone else reads an empty list.
 	OfferablePayItems []*PayItem `json:"offerablePayItems"`
+	// **Experimental.** The pay items a submission of candidates to this job must price, one price per candidate for each, beside the rate: those of an MSP's copy of a client job, or, for a company supplier with its own copy of the client job, those of the client job. Without the job's prices. Readable only by a supplier with an active share of the job. Anyone else, and a supplier whose submissions carry no pay items, reads an empty list.
+	PitchPayItems []*AssignedPayItem `json:"pitchPayItems"`
 	// **Experimental.** The rate card band for this job. By default, this is the band from the rate card in force today. With 'cached: true', it is the band saved on the job. The saved band is checked again when the job's criteria, rate type or currency change, and removed if no line then matches. Changing the rate card does not change it. A band is the client's internal pricing policy, so it is readable only by the client company owning the job, and by a company registered as that client's supplier that also holds an active share of the job — in practice, the MSP. Anyone else, staffing agencies included, reads null.
 	RateCardBand *RateCardBand `json:"rateCardBand,omitempty"`
 	// The hires made on the job.
@@ -2816,13 +2950,13 @@ type Recruiter struct {
 	Avatar *string `json:"avatar,omitempty"`
 	// The markets and regions the recruiter is available in.
 	AvailableMarkets []*AvailableMarket `json:"availableMarkets"`
-	// The owner of the recruiter account
+	// The owner of the recruiter account. 'null' when the viewer is not related to the staffing agency (see 'recruiters').
 	Owner *User `json:"owner,omitempty"`
 	// The client relationships that the staffing agency has.
 	Clients []*CompanyRecruiter `json:"clients"`
 	// The candidate relationships that the recruiter has.
 	Candidates []*RecruiterCandidate `json:"candidates"`
-	// The insurance information for the recruiter.
+	// The insurance information for the recruiter. Empty when the viewer is not related to the staffing agency (see 'recruiters').
 	Insurances []*WorkerInsurance `json:"insurances"`
 	// **Experimental.** The agency's owner and team members, owner first. Only the agency's own users can read it.
 	TeamMembersAndOwners UserPaginator `json:"teamMembersAndOwners"`
@@ -3107,7 +3241,7 @@ type Timesheet struct {
 type TimesheetBlockingReason struct {
 	// The reason the timesheet is blocked.
 	Reason CustomTimesheetRejectionReason `json:"reason"`
-	// The payment request this reason refers to, scoped to the viewer. Null when the reason doesn't refer to a payment request, or the viewer is an end client with no payment request of their own.
+	// The payment request this reason refers to, scoped to the viewer as their payment request lists show it. Null when the reason doesn't refer to a payment request, when the viewer's lists don't show it (for a company member who may not manage its bills, or on a hire they don't own unless they may access all hires), or when the viewer is an end client with no issued payment request of their own.
 	PaymentRequest *PaymentRequest `json:"paymentRequest,omitempty"`
 	// The date this reason refers to, when relevant.
 	Date *string `json:"date,omitempty"`
@@ -3279,7 +3413,7 @@ type TrustedContact struct {
 	OnboardingStatus *TrustedContactOnboardingStatus `json:"onboardingStatus,omitempty"`
 	// The onboarding documents associated with the trusted contact.
 	OnboardingDocuments []*OnboardingDocument `json:"onboardingDocuments"`
-	// Compliance requirements for this worker as seen by the trusted contact's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When 'names' is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance.
+	// Compliance requirements for this worker as seen by the trusted contact's company. The viewing company is unambiguous here (it's the pivot's company), so per-company review state never depends on session state. When 'names' is omitted, the curated review-modal subset is returned. Pass explicit names to filter to a specific compliance. Empty for a viewer the worker has not shared their compliance with: until the worker accepts or applies, or works with the company on a hire past draft.
 	Compliances []*Compliance `json:"compliances"`
 	// The company's compliance review of this worker, or 'null' when the review does not apply to them or the viewer cannot view the compliance tracker.
 	WorkerReview *TrustedContactWorkerReview `json:"workerReview,omitempty"`
@@ -3579,7 +3713,7 @@ type Worker struct {
 	EngagedViaSupplierName *string `json:"engagedViaSupplierName,omitempty"`
 	// Determines if the worker is currently hired by the given company.
 	IsCurrentlyHired bool `json:"isCurrentlyHired"`
-	// Names of the other divisions in the given company's organisations that have an active hire with the worker. Empty unless the organisation shares trusted contacts and active hires between its divisions.
+	// Names of the other divisions in the given company's organisations that have a Ready or Active hire with the worker. Empty unless the organisation shares trusted contacts and active hires between its divisions.
 	HiredByOtherDivisions []string `json:"hiredByOtherDivisions"`
 	// A list of relations between the worker and a company as seen from the workers perspective.
 	Clients []*Client `json:"clients"`

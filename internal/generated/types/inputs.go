@@ -239,6 +239,14 @@ type ChangeEmailInput struct {
 	Email string `json:"email"`
 }
 
+// CheckCustomFieldDocumentInput — The file to check.
+type CheckCustomFieldDocumentInput struct {
+	// The document-checked custom field the file is uploaded to.
+	CustomField string `json:"customField"`
+	// The uploaded file (see the 'uploadFiles' mutation).
+	File string `json:"file"`
+}
+
 // ClientRelationAgencyOwnerOrderByClauseInput — Sorting clause for the people staffing agencies assign to a client.
 type ClientRelationAgencyOwnerOrderByClauseInput struct {
 	// The field to sort the people by.
@@ -397,6 +405,8 @@ type CreateCustomTimesheetInput struct {
 	Account *string `json:"account,omitempty"`
 	// Whether to write the timesheets. With false, the call is a dry run: it checks every row as a real call would and returns the result of each row in 'rows', without writing or queueing anything. A dry run checks at most 5,000 rows, and a request can hold one dry run. The default-csv schema checks every row during the request on a write too, so it refuses a file of more than 5,000 rows or 5 MB, and a request can hold one default-csv call, dry run or write. A roar-json dry run needs permission to see all hires in each of your companies. Defaults to true.
 	Write *bool `json:"write,omitempty"`
+	// Whether the payment requests the import creates are saved as drafts, for the uploader to edit and send, instead of issued. Only a worker or a staffing agency can ask for drafts: a company account fails validation, because companies cannot see or send drafts, and its payment requests are always issued. Ignored by schemas built for a single integration. Defaults to false.
+	Draft *bool `json:"draft,omitempty"`
 }
 
 // CreateExpenseInput — The input for creating an expense.
@@ -809,6 +819,8 @@ type CustomFieldCustomFieldOptionInput struct {
 type CustomFieldSettingsInput struct {
 	// A list of validation rules to be applied when using custom fields.
 	Validation []CustomFieldValidationRules `json:"validation,omitempty"`
+	// Check uploaded documents with AI. File-upload fields of companies that have consented to AI only. Leave it out or set it to null to stop checking.
+	DocumentCheck *DocumentCheckSettingsInput `json:"documentCheck,omitempty"`
 }
 
 // CustomFieldTypeValueInput — An input representing a custom field value, tailored to the field type. All input fields are mutually exclusive.
@@ -975,6 +987,38 @@ type DetachUsersFromUserGroupInput struct {
 	Users []string `json:"users,omitempty"`
 }
 
+// DocumentCheckRuleInput — A rule checked in code.
+type DocumentCheckRuleInput struct {
+	// What the rule checks.
+	Type DocumentCheckRuleType `json:"type"`
+	// The number of days. Required for 'NOT_EXPIRED' and 'ISSUED_WITHIN_DAYS'.
+	Days *int `json:"days,omitempty"`
+	// The minimum amount. Required for 'MINIMUM_AMOUNT'.
+	Amount *float64 `json:"amount,omitempty"`
+	// The currency of the minimum amount. Required for 'MINIMUM_AMOUNT'.
+	Currency *Currency `json:"currency,omitempty"`
+}
+
+// DocumentCheckSettingsInput — How to check uploaded documents with AI.
+type DocumentCheckSettingsInput struct {
+	// The instructions for the document, in plain language. Up to 4000 characters.
+	Instructions string `json:"instructions"`
+	// Rules checked in code. Up to 10.
+	Rules []DocumentCheckRuleInput `json:"rules,omitempty"`
+	// Additional values to read from the document. Up to 10.
+	Values []DocumentCheckValueDefinitionInput `json:"values,omitempty"`
+	// An uploaded example of a genuine document of this kind (see the 'uploadFiles' mutation).
+	ReferenceFile *string `json:"referenceFile,omitempty"`
+}
+
+// DocumentCheckValueDefinitionInput — An additional value to read from documents.
+type DocumentCheckValueDefinitionInput struct {
+	// The key of an existing value, from 'DocumentCheckValueDefinition.key'. Send it back unchanged so the value keeps its key when the label is edited; documents already checked are read by that key. Leave it out for a new value: its key is derived from the label.
+	Key *string `json:"key,omitempty"`
+	// What the value is, e.g. 'Policy type'.
+	Label string `json:"label"`
+}
+
 // DuplicateJobInput — The input for duplicating an existing job.
 type DuplicateJobInput struct {
 	// The ID of the job to duplicate.
@@ -1049,6 +1093,8 @@ type ForwardCandidateInput struct {
 	SourceCandidate string `json:"sourceCandidate"`
 	// The MSP markup fee to apply on top of the worker rate.
 	Fee FeeInput `json:"fee"`
+	// **Experimental.** The MSP markup on each pay item of the source candidate's bid: the client's price is the bid's price plus the markup. A pay item left out takes no markup.
+	PayItemMarkups []PayItemMarkupInput `json:"payItemMarkups,omitempty"`
 	// An optional brief describing the candidate.
 	Brief *string `json:"brief,omitempty"`
 	// File IDs to attach. When omitted, files are copied from the source candidate's offer.
@@ -1309,12 +1355,44 @@ type PayItemAssignmentInput struct {
 	Price *float64 `json:"price,omitempty"`
 }
 
+// PayItemMarkupInput — **Experimental.** The MSP markup on a pay item of a bid presented to the client.
+type PayItemMarkupInput struct {
+	// The ID of the pay item, one of the source candidate's bid's pay items.
+	PayItem string `json:"payItem"`
+	// The markup, read by its basis: an amount in the bid's currency, or a fraction of the bid's price (0.125 is 12.5%).
+	Amount float64 `json:"amount"`
+	// Whether the markup is an amount added to the bid's price or a percentage of it.
+	Basis PayItemMarkupBasis `json:"basis"`
+}
+
 // PaymentRequestOrderByClauseInput — Payment request sorting clause input.
 type PaymentRequestOrderByClauseInput struct {
 	// The field to sort payment requests by.
 	Field *PaymentRequestOrderByColumn `json:"field,omitempty"`
 	// The order to sort payment requests by.
 	Order *SortOrder `json:"order,omitempty"`
+}
+
+// PitchedPayItemInput — **Experimental.** A candidate's price for a pay item of the job, on a submission of candidates.
+type PitchedPayItemInput struct {
+	// The ID of the pay item, one of the job's 'pitchPayItems'.
+	PayItem string `json:"payItem"`
+	// The candidate's price, in the job's currency.
+	Price float64 `json:"price"`
+}
+
+// PreviewDocumentCheckInput — A trial document check.
+type PreviewDocumentCheckInput struct {
+	// The company setting up the check.
+	Account string `json:"account"`
+	// What is being uploaded, e.g. the custom field's title. The AI reads it with the instructions.
+	Title string `json:"title"`
+	// More about what is being uploaded, e.g. the custom field's description.
+	Description *string `json:"description,omitempty"`
+	// The settings to try.
+	Settings DocumentCheckSettingsInput `json:"settings"`
+	// An uploaded sample document (see the 'uploadFiles' mutation).
+	File string `json:"file"`
 }
 
 // QueryInvoicesOrderByOrderByClause — Invoice sorting clause input.
@@ -1427,6 +1505,16 @@ type RetryWebhookEventInput struct {
 	Id string `json:"id"`
 }
 
+// ReviewDocumentCheckInput — A reviewer's decision on a checked document.
+type ReviewDocumentCheckInput struct {
+	// The document check.
+	DocumentCheck string `json:"documentCheck"`
+	// True to approve, false to decline.
+	Approved bool `json:"approved"`
+	// Why the document was declined.
+	Reason *string `json:"reason,omitempty"`
+}
+
 // ReviewRecruiterInput — Input for recording a company's compliance review of a staffing agency. The reviewer is the authenticated user; the company is the user's active account. The review record is scoped to (recruiter, company).
 type ReviewRecruiterInput struct {
 	// The staffing agency being reviewed.
@@ -1523,6 +1611,14 @@ type ShareHireInput struct {
 	Message *string `json:"message,omitempty"`
 }
 
+// SharedJobsOrderByClauseInput — The input object used to sort shared jobs.
+type SharedJobsOrderByClauseInput struct {
+	// The field to sort shared jobs by.
+	Field SharedJobOrderByColumn `json:"field"`
+	// The order to sort shared jobs by.
+	Order SortOrder `json:"order"`
+}
+
 // SingleSelectCustomFieldValueInput — An input for a single-select custom field.
 type SingleSelectCustomFieldValueInput struct {
 	// The ID of the field to create a selection for.
@@ -1599,6 +1695,8 @@ type SubmitJobCandidateInput struct {
 	Files []string `json:"files,omitempty"`
 	// Whether the candidate is submitted as managed or referred. Only used when the client allows mixed submission types, where it is required. Otherwise it comes from the supplier's settings.
 	SubmissionType *CandidateSubmissionType `json:"submissionType,omitempty"`
+	// **Experimental.** The candidate's price for each pay item of the job that a submission must price ('Job.pitchPayItems'). Required, with every one of them, when the job has any.
+	PayItems []PitchedPayItemInput `json:"payItems,omitempty"`
 }
 
 // SubmitJobCandidatesInput — The details for submitting a supplier's candidates to a job.
@@ -2307,7 +2405,7 @@ type WithdrawJobCandidateInput struct {
 	JobCandidate string `json:"jobCandidate"`
 }
 
-// WorkflowVariableFieldRuleInput — A condition definition specifying a variable, comparison operator, and threshold value. For example, to create a condition "hourly rate greater than 100", set 'id' to the hourly rate variable identifier, 'operator' to 'GREATER_THAN', and 'value' to '"100"'.
+// WorkflowVariableFieldRuleInput — A condition definition specifying a variable, comparison operator, and threshold value. For example, to create a condition "hourly rate greater than 100", set 'id' to the hourly rate variable identifier, 'operator' to 'GREATER', and 'value' to '"100"'.
 type WorkflowVariableFieldRuleInput struct {
 	// The threshold value to compare against (as a string).
 	Value string `json:"value"`
