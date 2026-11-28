@@ -2266,6 +2266,93 @@ func ValidCustomTimesheetRowStatus() []CustomTimesheetRowStatus {
 	}
 }
 
+// DocumentCheckDecision — A reviewer’s decision on a checked document. It always overrides the automatic result.
+type DocumentCheckDecision string
+
+const (
+	// DocumentCheckDecisionApproved — A reviewer approved the document.
+	DocumentCheckDecisionApproved DocumentCheckDecision = "APPROVED"
+	// DocumentCheckDecisionDeclined — A reviewer declined the document.
+	DocumentCheckDecisionDeclined DocumentCheckDecision = "DECLINED"
+)
+
+// ValidDocumentCheckDecision returns all valid values for DocumentCheckDecision.
+func ValidDocumentCheckDecision() []DocumentCheckDecision {
+	return []DocumentCheckDecision{
+		DocumentCheckDecisionApproved,
+		DocumentCheckDecisionDeclined,
+	}
+}
+
+// DocumentCheckOutcome — The outcome of a single check on an uploaded document.
+type DocumentCheckOutcome string
+
+const (
+	// DocumentCheckOutcomePass — The document meets this check.
+	DocumentCheckOutcomePass DocumentCheckOutcome = "PASS"
+	// DocumentCheckOutcomeFail — The document does not meet this check.
+	DocumentCheckOutcomeFail DocumentCheckOutcome = "FAIL"
+	// DocumentCheckOutcomeUnclear — The check could not be confirmed either way, for example because a value is missing.
+	DocumentCheckOutcomeUnclear DocumentCheckOutcome = "UNCLEAR"
+)
+
+// ValidDocumentCheckOutcome returns all valid values for DocumentCheckOutcome.
+func ValidDocumentCheckOutcome() []DocumentCheckOutcome {
+	return []DocumentCheckOutcome{
+		DocumentCheckOutcomePass,
+		DocumentCheckOutcomeFail,
+		DocumentCheckOutcomeUnclear,
+	}
+}
+
+// DocumentCheckRuleType — A rule checked in code against the values read from the document.
+type DocumentCheckRuleType string
+
+const (
+	// DocumentCheckRuleTypeNotExpired — The expiry date is at least 'days' days after today.
+	DocumentCheckRuleTypeNotExpired DocumentCheckRuleType = "NOT_EXPIRED"
+	// DocumentCheckRuleTypeValidThroughHireEnd — The expiry date is on or after the end date of the hire the document belongs to.
+	DocumentCheckRuleTypeValidThroughHireEnd DocumentCheckRuleType = "VALID_THROUGH_HIRE_END"
+	// DocumentCheckRuleTypeIssuedWithinDays — The issue date is no more than 'days' days before today.
+	DocumentCheckRuleTypeIssuedWithinDays DocumentCheckRuleType = "ISSUED_WITHIN_DAYS"
+	// DocumentCheckRuleTypeMinimumAmount — The amount on the document, such as an insurance limit, is at least 'amount' in 'currency'.
+	DocumentCheckRuleTypeMinimumAmount DocumentCheckRuleType = "MINIMUM_AMOUNT"
+	// DocumentCheckRuleTypeHolderMatches — The name on the document matches the worker’s or the company’s name on file.
+	DocumentCheckRuleTypeHolderMatches DocumentCheckRuleType = "HOLDER_MATCHES"
+)
+
+// ValidDocumentCheckRuleType returns all valid values for DocumentCheckRuleType.
+func ValidDocumentCheckRuleType() []DocumentCheckRuleType {
+	return []DocumentCheckRuleType{
+		DocumentCheckRuleTypeNotExpired,
+		DocumentCheckRuleTypeValidThroughHireEnd,
+		DocumentCheckRuleTypeIssuedWithinDays,
+		DocumentCheckRuleTypeMinimumAmount,
+		DocumentCheckRuleTypeHolderMatches,
+	}
+}
+
+// DocumentCheckStatus — The result of checking an uploaded document with AI and its rules.
+type DocumentCheckStatus string
+
+const (
+	// DocumentCheckStatusPassed — Every check passed.
+	DocumentCheckStatusPassed DocumentCheckStatus = "PASSED"
+	// DocumentCheckStatusNeedsReview — At least one check could not be confirmed, so a person should look at the document.
+	DocumentCheckStatusNeedsReview DocumentCheckStatus = "NEEDS_REVIEW"
+	// DocumentCheckStatusFailed — At least one check failed. A person still decides; the check never rejects on its own.
+	DocumentCheckStatusFailed DocumentCheckStatus = "FAILED"
+)
+
+// ValidDocumentCheckStatus returns all valid values for DocumentCheckStatus.
+func ValidDocumentCheckStatus() []DocumentCheckStatus {
+	return []DocumentCheckStatus{
+		DocumentCheckStatusPassed,
+		DocumentCheckStatusNeedsReview,
+		DocumentCheckStatusFailed,
+	}
+}
+
 // EmployerRecordStatus — The status of the employer record setup for a payroll employment, tracking whether required information has been provided.
 type EmployerRecordStatus string
 
@@ -2543,8 +2630,6 @@ func ValidExpectedExperienceLevel() []ExpectedExperienceLevel {
 type ExperienceLevel string
 
 const (
-	// ExperienceLevelNone — None
-	ExperienceLevelNone ExperienceLevel = "NONE"
 	// ExperienceLevelStudent — Student
 	ExperienceLevelStudent ExperienceLevel = "STUDENT"
 	// ExperienceLevelNew — New
@@ -2566,7 +2651,6 @@ const (
 // ValidExperienceLevel returns all valid values for ExperienceLevel.
 func ValidExperienceLevel() []ExperienceLevel {
 	return []ExperienceLevel{
-		ExperienceLevelNone,
 		ExperienceLevelStudent,
 		ExperienceLevelNew,
 		ExperienceLevelOneToFour,
@@ -3347,39 +3431,39 @@ func ValidLocationPreference() []LocationPreference {
 type MarketCode string
 
 const (
-	// MarketCodeUs — Us
+	// MarketCodeUs — United States
 	MarketCodeUs MarketCode = "US"
-	// MarketCodeUk — Uk
+	// MarketCodeUk — United Kingdom
 	MarketCodeUk MarketCode = "UK"
-	// MarketCodeIe — Ie
+	// MarketCodeIe — Ireland
 	MarketCodeIe MarketCode = "IE"
-	// MarketCodeEu — Eu
+	// MarketCodeEu — Rest of Euro area
 	MarketCodeEu MarketCode = "EU"
-	// MarketCodeCa — Ca
+	// MarketCodeCa — Canada
 	MarketCodeCa MarketCode = "CA"
-	// MarketCodeFr — Fr
+	// MarketCodeFr — France
 	MarketCodeFr MarketCode = "FR"
-	// MarketCodeDe — De
+	// MarketCodeDe — Germany
 	MarketCodeDe MarketCode = "DE"
-	// MarketCodeDk — Dk
+	// MarketCodeDk — Denmark
 	MarketCodeDk MarketCode = "DK"
-	// MarketCodeNo — No
+	// MarketCodeNo — Norway
 	MarketCodeNo MarketCode = "NO"
-	// MarketCodeSe — Se
+	// MarketCodeSe — Sweden
 	MarketCodeSe MarketCode = "SE"
-	// MarketCodeFi — Fi
+	// MarketCodeFi — Finland
 	MarketCodeFi MarketCode = "FI"
-	// MarketCodeLt — Lt
+	// MarketCodeLt — Lithuania
 	MarketCodeLt MarketCode = "LT"
-	// MarketCodeUae — Uae
+	// MarketCodeUae — United Arab Emirates
 	MarketCodeUae MarketCode = "UAE"
-	// MarketCodeSg — Sg
+	// MarketCodeSg — Singapore
 	MarketCodeSg MarketCode = "SG"
-	// MarketCodeAu — Au
+	// MarketCodeAu — Australia
 	MarketCodeAu MarketCode = "AU"
-	// MarketCodeNl — Nl
+	// MarketCodeNl — Netherlands
 	MarketCodeNl MarketCode = "NL"
-	// MarketCodeWw — Ww
+	// MarketCodeWw — Rest of the World
 	MarketCodeWw MarketCode = "WW"
 )
 
@@ -3583,7 +3667,7 @@ func ValidOwnerResponsibility() []OwnerResponsibility {
 type PayItemAssignmentStatus string
 
 const (
-	// PayItemAssignmentStatusOffered — The pay item is offered on a job for a contract to select.
+	// PayItemAssignmentStatusOffered — The pay item is offered on a job for a contract to select, or priced on a bid.
 	PayItemAssignmentStatusOffered PayItemAssignmentStatus = "OFFERED"
 	// PayItemAssignmentStatusActive — The pay item is selected and priced on a contract.
 	PayItemAssignmentStatusActive PayItemAssignmentStatus = "ACTIVE"
@@ -3615,6 +3699,24 @@ func ValidPayItemBasis() []PayItemBasis {
 		PayItemBasisFlat,
 		PayItemBasisPerUnit,
 		PayItemBasisPercentage,
+	}
+}
+
+// PayItemMarkupBasis — **Experimental.** How an MSP markup on a pay item is added to the bid's price.
+type PayItemMarkupBasis string
+
+const (
+	// PayItemMarkupBasisAmount — An amount added to the bid's price.
+	PayItemMarkupBasisAmount PayItemMarkupBasis = "AMOUNT"
+	// PayItemMarkupBasisPercentage — A percentage of the bid's price, added to it.
+	PayItemMarkupBasisPercentage PayItemMarkupBasis = "PERCENTAGE"
+)
+
+// ValidPayItemMarkupBasis returns all valid values for PayItemMarkupBasis.
+func ValidPayItemMarkupBasis() []PayItemMarkupBasis {
+	return []PayItemMarkupBasis{
+		PayItemMarkupBasisAmount,
+		PayItemMarkupBasisPercentage,
 	}
 }
 
@@ -4188,6 +4290,30 @@ func ValidRightToWorkDocumentType() []RightToWorkDocumentType {
 		RightToWorkDocumentTypeWorkPermit,
 		RightToWorkDocumentTypeResidencePermit,
 		RightToWorkDocumentTypeWorkAuthorization,
+	}
+}
+
+// SharedJobOrderByColumn — The columns that the shared jobs list can be ordered by.
+type SharedJobOrderByColumn string
+
+const (
+	// SharedJobOrderByColumnSharedDate — The date the job was shared with the viewer
+	SharedJobOrderByColumnSharedDate SharedJobOrderByColumn = "SHARED_DATE"
+	// SharedJobOrderByColumnPublishedDate — The published date
+	SharedJobOrderByColumnPublishedDate SharedJobOrderByColumn = "PUBLISHED_DATE"
+	// SharedJobOrderByColumnExpectedStartDate — The expected start date
+	SharedJobOrderByColumnExpectedStartDate SharedJobOrderByColumn = "EXPECTED_START_DATE"
+	// SharedJobOrderByColumnCandidates — The number of candidates the viewer has put forward for the job
+	SharedJobOrderByColumnCandidates SharedJobOrderByColumn = "CANDIDATES"
+)
+
+// ValidSharedJobOrderByColumn returns all valid values for SharedJobOrderByColumn.
+func ValidSharedJobOrderByColumn() []SharedJobOrderByColumn {
+	return []SharedJobOrderByColumn{
+		SharedJobOrderByColumnSharedDate,
+		SharedJobOrderByColumnPublishedDate,
+		SharedJobOrderByColumnExpectedStartDate,
+		SharedJobOrderByColumnCandidates,
 	}
 }
 
